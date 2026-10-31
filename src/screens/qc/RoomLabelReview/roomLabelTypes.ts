@@ -368,6 +368,13 @@ export interface RoomLabelNormalizePreview {
 /* -------------------------------------------------------------------------- */
 
 /** Mọi thứ view canvas nhận. */
+/** UX-08: đoạn đo tỷ lệ đã lưu, đổi sang mm của bản vẽ, kèm chú thích "Đoạn đo tỷ lệ: 8.040 mm". */
+export interface RoomLabelScaleSegment {
+  readonly startMm: { readonly x: number; readonly y: number };
+  readonly endMm: { readonly x: number; readonly y: number };
+  readonly caption: string;
+}
+
 export interface RoomLabelCanvasProps {
   readonly rooms: readonly RoomLabelViewModel[];
   readonly selectedRoomId: RoomId | null;
@@ -380,6 +387,8 @@ export interface RoomLabelCanvasProps {
   readonly backgroundImageAlt: string;
   /** Cỡ thật của bản vẽ (mm) — ảnh nền đặt theo cỡ này, không bị kéo giãn theo hộp bao các phòng (G49). Vắng/`null` = lấp đầy như trước. */
   readonly backgroundImageSizeMm?: { readonly widthMm: number; readonly heightMm: number } | null | undefined;
+  /** UX-08: đoạn đo tỷ lệ đã lưu ở bước Tỷ lệ, vẽ lên bản vẽ để kỹ sư tự kiểm. Vắng/`null` = không vẽ. */
+  readonly scaleSegment?: RoomLabelScaleSegment | null | undefined;
   /** `false` ở trạng thái `forbidden`: xem/phóng to được, chọn thì không. */
   readonly isInteractive: boolean;
   readonly onSelect: (roomId: RoomId | null) => void;
@@ -537,6 +546,8 @@ export interface RoomLabelReviewProps {
   readonly backgroundImageAlt: string;
   /** Cỡ thật của bản vẽ (mm) — ảnh nền đặt theo cỡ này, không bị kéo giãn theo hộp bao các phòng (G49). Vắng/`null` = lấp đầy như trước. */
   readonly backgroundImageSizeMm?: { readonly widthMm: number; readonly heightMm: number } | null | undefined;
+  /** UX-08: đoạn đo tỷ lệ đã lưu ở bước Tỷ lệ, vẽ lên bản vẽ để kỹ sư tự kiểm. Vắng/`null` = không vẽ. */
+  readonly scaleSegment?: RoomLabelScaleSegment | null | undefined;
   readonly millimetresPerPixel: MillimetresPerPixel;
   /** Dưới 1.024px panel phải thành tấm trượt đáy — cùng mốc các màn QC anh em. */
   readonly isCompact: boolean;

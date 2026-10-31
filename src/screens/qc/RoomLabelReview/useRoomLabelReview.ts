@@ -94,6 +94,7 @@ import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
+import { readSavedSegment } from '@/screens/pipeline/ScaleCalibration/useScaleCalibration';
 import { useStore } from '@/store';
 import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -136,6 +137,7 @@ import {
   type RoomLabelGraphPort,
   type RoomLabelMeasures,
   type RoomLabelReviewGateway,
+  scaleSegmentOf,
 } from './roomLabelReviewGateway';
 import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { SCALE_LOCK_REASON } from '../shared/floorReviewGateModel';
@@ -1146,6 +1148,19 @@ export function useRoomLabelReview(
     [rooms, selectedRoom],
   );
 
+  const backgroundImageSizeMm = useMemo(
+    () =>
+      background?.widthMm != null && background.heightMm != null && background.widthMm > 0 && background.heightMm > 0
+        ? { widthMm: background.widthMm, heightMm: background.heightMm }
+        : null,
+    [background],
+  );
+  /* UX-08: đoạn đo của bước Tỷ lệ, vẽ lên bản vẽ để kỹ sư thấy số đã bám vào đâu. */
+  const scaleSegment = useMemo(
+    () => scaleSegmentOf(readSavedSegment(floorId), backgroundImageSizeMm),
+    [backgroundImageSizeMm, floorId],
+  );
+
   return {
     state,
     rooms: visibleRows,
@@ -1158,10 +1173,8 @@ export function useRoomLabelReview(
     hasNamesToNormalize,
     backgroundImageUrl,
     backgroundImageAlt: background?.imageAlt ?? '',
-    backgroundImageSizeMm:
-      background?.widthMm != null && background.heightMm != null && background.widthMm > 0 && background.heightMm > 0
-        ? { widthMm: background.widthMm, heightMm: background.heightMm }
-        : null,
+    backgroundImageSizeMm,
+    scaleSegment,
     millimetresPerPixel: level?.scaleMillimetresPerPixel ?? UNCALIBRATED_SCALE,
     isCompact,
     isCollapsed,
