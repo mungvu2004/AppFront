@@ -278,6 +278,8 @@ const wallNodeOf = (
   children,
   start: [metresOf(wall.centreline.start.x), metresOf(wall.centreline.start.y)],
   end: [metresOf(wall.centreline.end.x), metresOf(wall.centreline.end.y)],
+  /* Cùng quy ước sagitta với máy chủ; mm → m là đủ vì (x, y) mặt bằng sang (x, z) Pascal không lật trục. */
+  ...(wall.curveOffsetMm ? { curveOffset: metresOf(wall.curveOffsetMm) } : {}),
   thickness: metresOf(wall.thicknessMm),
   height: metresOf(wall.heightMm),
   ...wallSidesOf(wall, rooms),

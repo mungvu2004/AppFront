@@ -238,6 +238,8 @@ export const WallSchema: z.ZodType<Wall, z.ZodTypeDef, unknown> = z
   .object({
     ...reviewMetadataShape,
     centreline: segmentSchema,
+    /** Tường cong: sagitta có dấu (mm) theo quy ước `curveOffset` của Pascal; vắng/`0` = thẳng. */
+    curveOffsetMm: millimetresSchema.optional(),
     /** Độ dày máy đo, không đổi theo sửa của người (U48); `null`/vắng = không có. */
     detectedThicknessMm: positiveMillimetresSchema.nullish(),
     heightMm: positiveMillimetresSchema,
@@ -251,8 +253,9 @@ export const WallSchema: z.ZodType<Wall, z.ZodTypeDef, unknown> = z
   .strict()
   .refine(humanOnlyReview)
   /* `paint` vắng là vắng khoá (xem chú thích của `FurnitureSchema` bên dưới). */
-  .transform(({ paint, detectedThicknessMm, ...wireWall }) => ({
+  .transform(({ paint, detectedThicknessMm, curveOffsetMm, ...wireWall }) => ({
     ...wireWall,
+    ...(curveOffsetMm ? { curveOffsetMm } : {}),
     ...(detectedThicknessMm != null ? { detectedThicknessMm } : {}),
     ...(paint !== undefined ? { paint } : {}),
   }));

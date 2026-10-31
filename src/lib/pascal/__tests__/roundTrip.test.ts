@@ -204,6 +204,20 @@ describe('vòng tròn AppFront → Pascal → AppFront', () => {
     expect(roundTrip(turned).furniture.find((item) => item.id === first.id)?.rotationDeg).toBe(90);
   });
 
+  it('tường cong: curveOffsetMm sang curveOffset (m) của Pascal rồi về đúng số mm; tường thẳng không mang khoá', () => {
+    const curved = createSampleBuilding();
+    const [first, ...rest] = curved.walls;
+
+    curved.walls = [{ ...first!, curveOffsetMm: -450 }, ...rest];
+    const { scene } = toPascalScene(curved);
+    const nodes = Object.values(scene.nodes).filter((node) => node.type === 'wall');
+
+    expect(nodes.filter((node) => 'curveOffset' in node).map((node) => node.curveOffset)).toEqual([-0.45]);
+    const returned = roundTrip(curved).walls;
+    expect(returned.find((wall) => wall.id === first!.id)?.curveOffsetMm).toBe(-450);
+    expect(returned.filter((wall) => 'curveOffsetMm' in wall)).toHaveLength(1);
+  });
+
   it('dự án rỗng ra một cảnh chỉ có khu đất và công trình, rồi về lại rỗng', () => {
     const { scene, skipped } = toPascalScene(EMPTY_GRAPH);
 

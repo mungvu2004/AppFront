@@ -711,6 +711,7 @@ const collectLevelChildren = (
         const openingIds: OpeningId[] = [];
 
         const paint = paintOf(child);
+        const curveOffsetMm = millimetresOf((child.curveOffset as number | undefined) ?? 0);
 
         collector.wallIdOfNode.set(child.id, wallId);
         collector.walls.push({
@@ -721,6 +722,7 @@ const collectLevelChildren = (
             start: unweldedEndOf(child, 'start'),
             end: unweldedEndOf(child, 'end'),
           },
+          ...(curveOffsetMm === 0 ? {} : { curveOffsetMm }),
           thicknessMm: millimetresOf(thickness),
           heightMm: millimetresOf(height),
           kind: readOneOf(fieldsOf(child), 'kind', WALL_KINDS) ?? 'partition',
