@@ -151,6 +151,8 @@ export interface PascalWallNode extends PascalNodeCommon {
   readonly children: readonly PascalNodeId[];
   readonly start: PascalPoint2;
   readonly end: PascalPoint2;
+  /** Sagitta có dấu (m) của tường cong (`wall-curve.ts`); vắng = thẳng. */
+  readonly curveOffset?: number;
   readonly thickness: number;
   readonly height: number;
   /**

@@ -526,6 +526,12 @@ describe('Trường J-v3 (floorMaterial, paint, model, slots)', () => {
     expect(WallSchema.safeParse({ ...wall, detectedThicknessMm: 0 }).success).toBe(false);
   });
 
+  it('curveOffsetMm: số nguyên có dấu giữ lại, 0/vắng là vắng khoá (tường thẳng)', () => {
+    expect(WallSchema.parse({ ...wall, curveOffsetMm: -320 })).toStrictEqual({ ...wall, curveOffsetMm: -320 });
+    expect('curveOffsetMm' in WallSchema.parse({ ...wall, curveOffsetMm: 0 })).toBe(false);
+    expect(WallSchema.safeParse({ ...wall, curveOffsetMm: 1.5 }).success).toBe(false);
+  });
+
   it('model: id ≤ 120, src đúng mẫu /items/<id>/model.glb', () => {
     expect(FurnitureSchema.parse({ ...furniture, model })).toStrictEqual({ ...furniture, model });
     expect(
