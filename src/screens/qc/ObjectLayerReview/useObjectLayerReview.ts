@@ -574,7 +574,8 @@ export function useObjectLayerReview(
     ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  const saveIndicator = useSaveIndicator(autosave);
+  // Khối lưu đang chặn thì lời đọc cho trình đọc màn hình cũng nói "Chưa lưu…", không hứa tự lưu lại (U14).
+  const saveIndicator = useSaveIndicator(autosave, { failedLabel: saveBlock !== null ? SAVE_BLOCKED_LABEL : null });
   /* Chưa lưu lượt nào thì không bịa "Đã lưu" (cùng luật màn Phòng). */
   const saveLabel =
     !canEdit

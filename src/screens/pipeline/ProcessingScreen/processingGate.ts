@@ -88,7 +88,8 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
   const done = props.steps.filter((step) => step.status === 'done').length;
   const runningIndex = props.steps.findIndex((step) => step.status === 'running');
   const doneStepsLabel = `${String(done)}/${String(total)} bước`;
-  const isAiDone = props.state === 'success';
+  // Người xem (`forbidden`) không có trạng thái success riêng: đủ mọi bước xong là AI đã xong, đừng ghi "Đang chạy" mãi.
+  const isAiDone = props.state === 'success' || (props.state === 'forbidden' && total > 0 && done === total);
   const summary = props.summary;
   const noDimension = summary?.noDimensionSentence !== undefined;
   // Tầng đã có tỷ lệ đặt tay thì không thiếu, dù không đọc được chuỗi kích thước.

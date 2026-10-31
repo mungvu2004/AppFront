@@ -109,7 +109,16 @@ const STATE = {
   success: 'thành công',
   collapsed: 'thu gọn',
 } as const;
-const STATE_RE = /^(rỗng|đang tải|một phần|lỗi|thành công|Không có quyền|thu gọn)$/u;
+/** Danh sách dự án đọc câu đầy đủ thay cho chữ trạng thái trơ (U54, PD STATE_ANNOUNCEMENT). */
+const PD_STATE = {
+  empty: 'Chưa có dự án nào.',
+  loading: 'Đang tải danh sách dự án.',
+  partial: 'Danh sách dự án chưa hiện đủ.',
+  error: 'Chưa tải được danh sách dự án.',
+  success: 'Đã tải danh sách dự án.',
+  collapsed: 'Danh sách dự án đang thu gọn.',
+} as const;
+const STATE_RE = /^(rỗng|đang tải|một phần|lỗi|thành công|Không có quyền|thu gọn|Chưa có dự án nào\.|Đang tải danh sách dự án\.|Danh sách dự án chưa hiện đủ\.|Chưa tải được danh sách dự án\.|Đã tải danh sách dự án\.|Danh sách dự án, chế độ chỉ xem\.|Danh sách dự án đang thu gọn\.)$/u;
 
 /* SCR-05 dashboard copy. */
 const MENU_LABEL = 'Tuỳ chọn'; // CM:102 (NOT "Tùy chọn": tone-mark placement changed in c6e6b126)
@@ -1026,14 +1035,14 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       });
       await page.reload({ waitUntil: 'commit' });
       await expect(dashboardHeading(page)).toBeVisible();
-      await expect(stateAnnouncement(page)).toHaveText(STATE.loading); // UPD:390, PD:355-357
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.loading); // UPD:390, PD:355-357
       await expect(page.locator('main .animate-pulse').first()).toBeVisible(); // PD:245-250
       await expect(statusFilterButton(page, FILTERS.all)).toHaveCount(0); // PD:101
       await expect(countLine(page)).toHaveCount(0); // PD:187: no count line while loading
       await captureEvidence(page, 'E02_dash_loading.png');
       hold.open();
       await dashboardLoaded(page);
-      await expect(stateAnnouncement(page)).not.toHaveText(STATE.loading);
+      await expect(stateAnnouncement(page)).not.toHaveText(PD_STATE.loading);
       await page.unrouteAll({ behavior: 'ignoreErrors' });
     });
   });
@@ -1045,7 +1054,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       await page.reload({ waitUntil: 'commit' });
       const title = page.getByText(LIST_ERROR_TITLE, { exact: true });
       await expect(title).toBeVisible({ timeout: SLOW_STATE_MS }); // PD:251-257
-      await expect(stateAnnouncement(page)).toHaveText(STATE.error);
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.error);
       await expect(statusFilterButton(page, FILTERS.all)).toHaveCount(0); // PD:101
       await captureEvidence(page, 'E02_dash_error.png');
 
@@ -1066,7 +1075,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       await page.reload({ waitUntil: 'commit' });
       await expect(page.getByText(EMPTY_TITLE, { exact: true })).toBeVisible(); // PD:258-268
       await expect(page.getByText(EMPTY_DESCRIPTION, { exact: true })).toBeVisible();
-      await expect(stateAnnouncement(page)).toHaveText(STATE.empty); // UPD:393
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.empty); // UPD:393
       await expect(statusFilterButton(page, FILTERS.all)).toHaveText(/0$/u);
       await captureEvidence(page, 'E02_dash_empty.png');
       await page.getByRole('button', { name: EMPTY_ACTION, exact: true }).click();
@@ -1114,7 +1123,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       browser,
       async (admin) => {
         const { page } = admin;
-        await expect(stateAnnouncement(page)).toHaveText(STATE.collapsed); // UPD:90-107, :392
+        await expect(stateAnnouncement(page)).toHaveText(PD_STATE.collapsed); // UPD:90-107, :392
         const filter = page.getByRole('radiogroup', { name: COMPACT_FILTER, exact: true }); // PD:229-236
         await expect(filter.getByRole('radio')).toHaveText([FILTERS.all, FILTERS.processing, FILTERS.qc, FILTERS.done].map((l) => new RegExp(`^${l} \\(\\d+\\)$`, 'u'))); // narrow tabs carry the count: "Cần duyệt (n)"
         await expect(statusFilterButton(page, FILTERS.all)).toHaveCount(0); // PD:101
@@ -1641,16 +1650,16 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       const query = `zz-khong-co-${Date.now().toString(36)}`;
       await searchBox(page).fill(query);
       await expect(noMatch(page)).toBeVisible(); // PD:269-275
-      await expect(stateAnnouncement(page)).toHaveText(STATE.partial); // UPD:396
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.partial); // UPD:396
       await expect(countLine(page)).toHaveText('0 dự án'); // PD:187: drawn in "partial" too (BUG-117)
-      await captureEvidence(page, 'E02_search_empty.png', { caption: `search "${query}" → no match, state "${STATE.partial}"` });
+      await captureEvidence(page, 'E02_search_empty.png', { caption: `search "${query}" → no match, state "${PD_STATE.partial}"` });
 
       await searchBox(page).press('Control+A');
       await searchBox(page).press('Backspace');
       await expect(searchBox(page)).toHaveValue('');
       await expect(projectCards(page)).toHaveCount(list.length);
       await expect(countLine(page)).toHaveText(`${String(list.length)} dự án`);
-      await expect(stateAnnouncement(page)).toHaveText(STATE.success); // UPD:397
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.success); // UPD:397
       await captureEvidence(page, 'E02_search_empty_reset.png', { caption: `box emptied → ${String(list.length)} cards, "${String(list.length)} dự án"` });
     });
   });
@@ -1704,7 +1713,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await page.reload({ waitUntil: 'commit' });
       const title = page.getByText(LIST_ERROR_TITLE, { exact: true });
       await expect(title).toBeVisible({ timeout: SLOW_STATE_MS }); // PD:251-257
-      await expect(stateAnnouncement(page)).toHaveText(STATE.error); // UPD:391
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.error); // UPD:391
       await expect(statusFilterButton(page, FILTERS.all)).toHaveCount(0); // PD:101
       // lib/http/retry.ts:25-26, :70-96: a GET that hits a network error is retried before the screen gives up.
       expect(aborted, 'N1 attempts while offline').toBeGreaterThanOrEqual(2);
@@ -1741,13 +1750,13 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
 
       await page.reload({ waitUntil: 'commit' });
       await expect(dashboardHeading(page)).toBeVisible();
-      await expect(stateAnnouncement(page)).toHaveText(STATE.loading); // UPD:390
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.loading); // UPD:390
       await expect(skeleton).toBeVisible(); // PD:245-250
       await captureEvidence(page, 'E02_dash_held_then_500_loading.png', { caption: 'N1 held → skeleton cards' });
 
       failHold.open();
       await expect(title).toBeVisible({ timeout: SLOW_STATE_MS });
-      await expect(stateAnnouncement(page)).toHaveText(STATE.error);
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.error);
       await captureEvidence(page, 'E02_dash_held_then_500_error.png', { caption: 'held N1 answered 500 (mocked) → error card' });
 
       answer = 'real';
@@ -1756,7 +1765,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       // @tanstack/query-core 5.53.1 query.js:351-360 (`fetchState`): a refetch with no data yet puts the query back to
       // "pending", so the screen is "loading" again (UPD:390) while the retry is held — the error card gives way.
       await expect(skeleton).toBeVisible();
-      await expect(stateAnnouncement(page)).toHaveText(STATE.loading);
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.loading);
       await expect(title).toHaveCount(0);
       await captureEvidence(page, 'E02_dash_retry_held.png', { caption: '"Thử lại" with the real N1 held → skeleton again' });
 
@@ -1994,7 +2003,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       // 900, not 1023: this test is about the menu across the breakpoint, not the 1023/1024 edge itself.
       const narrow = { width: 900, height: DESKTOP.height };
       await page.setViewportSize(narrow);
-      await expect(stateAnnouncement(page)).toHaveText(STATE.collapsed); // UPD:90-107, :392
+      await expect(stateAnnouncement(page)).toHaveText(PD_STATE.collapsed); // UPD:90-107, :392
       await expect(page.getByRole('radiogroup', { name: COMPACT_FILTER, exact: true })).toBeVisible(); // PD:229-236
       await expect(menu).toBeVisible();
       // CM:43-45: left = min(x, innerWidth − 220 − 8), worked out again on the re-render the collapse causes.

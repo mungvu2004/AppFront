@@ -95,7 +95,7 @@ test.describe('SCR-37 users write UI', () => {
         await verifyDesktop(page, 'U08_37W-F-003_users_write', async (p) => {
           await openPanel(p);
           await p.getByLabel(U.inviteEmails, { exact: true }).fill(list);
-          await pickOption(p, p.getByRole('combobox', { name: U.inviteRole, exact: true }), 'Kỹ sư');
+          await pickOption(p, p.getByRole('combobox', { name: U.inviteRole, exact: true }), 'Kỹ sư (được sửa dự án)');
           await expect(p.getByText('3 địa chỉ hợp lệ', { exact: true })).toBeVisible();
           await expect.soft(p.getByRole('button', { name: U.submit, exact: true })).toBeEnabled(); // never clicked
         });

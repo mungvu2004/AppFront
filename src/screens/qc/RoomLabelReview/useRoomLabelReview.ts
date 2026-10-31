@@ -658,7 +658,8 @@ export function useRoomLabelReview(
     ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  const indicator = useSaveIndicator(autosave);
+  // Khối lưu đang chặn thì lời đọc cho trình đọc màn hình cũng nói "Chưa lưu…", không hứa tự lưu lại (U14).
+  const indicator = useSaveIndicator(autosave, { failedLabel: saveBlock !== null ? SAVE_BLOCKED_LABEL : null });
   // G46: chữ trạng thái lưu cho người nhìn thấy (trước đây chỉ có aria-live). Chưa lưu lần nào thì không có chữ.
   const saveStatus =
     saveBlock !== null

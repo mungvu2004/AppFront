@@ -840,7 +840,8 @@ export function useWallLayerReview(
     floorId,
     ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
-  const saveIndicator = useSaveIndicator(autosave);
+  // Khối lưu đang chặn thì lời đọc cho trình đọc màn hình cũng nói "Chưa lưu…", không hứa tự lưu lại (U14).
+  const saveIndicator = useSaveIndicator(autosave, { failedLabel: saveBlock !== null ? SAVE_BLOCKED_LABEL : null });
 
   const selectionSnapshotRef = useRef<readonly EntityId[]>(selectedIds);
   selectionSnapshotRef.current = selectedIds;
