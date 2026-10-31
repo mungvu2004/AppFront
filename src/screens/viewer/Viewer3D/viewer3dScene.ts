@@ -84,6 +84,7 @@ import {
   type Object3D,
 } from 'three';
 
+import type { ColorTokenName } from '@/lib/coloring/scales';
 import { CameraDirector } from '@/lib/three/camera/presets';
 import { CAMERA_SETTINGS } from '@/lib/three/camera/settings';
 import {
@@ -648,6 +649,28 @@ function startScene(
     options.createWorker !== undefined ? { createWorker: options.createWorker } : {},
   );
 
+  /** Vật liệu theo token riêng của vật (`tokenOfEntity`): một vật liệu mỗi token, dọn khi đóng cảnh. */
+  const entityMaterials = new Map<ColorTokenName, Material>();
+  const entityMaterialOf = (token: ColorTokenName): Material => {
+    let material = entityMaterials.get(token);
+    if (material === undefined) {
+      material = materialOfToken(
+        tokenColour(token, new Color(FALLBACK_SURFACE_LEVEL, FALLBACK_SURFACE_LEVEL, FALLBACK_SURFACE_LEVEL), readToken),
+      );
+      entityMaterials.set(token, material);
+    }
+    return material;
+  };
+
+  const projectToScreen = (xM: number, yM: number, zM: number): { x: number; y: number } | null => {
+    activeCamera.updateMatrixWorld();
+    const point = new Vector3(xM, yM, zM).project(activeCamera);
+    if (point.z < -1 || point.z > 1) {
+      return null;
+    }
+    return { x: ((point.x + 1) / 2) * canvas.clientWidth, y: ((1 - point.y) / 2) * canvas.clientHeight };
+  };
+
   const finishLevel = (levelId: string): void => {
     const group = levelGroups.get(levelId);
     if (group === undefined || disposed) {
@@ -674,9 +697,12 @@ function startScene(
       if (!(object instanceof Mesh)) {
         return;
       }
-      const kind = readPartData(object)?.kind;
-      const material = kind === undefined ? undefined : painted.get(kind);
+      const data = readPartData(object);
+      const kind = data?.kind;
+      const entityToken = data === undefined ? null : (options.tokenOfEntity?.(data.entityId, data.kind) ?? null);
+      const material = entityToken !== null ? entityMaterialOf(entityToken) : kind === undefined ? undefined : painted.get(kind);
       if (material !== undefined) {
+        object.material = material;
         baseMaterials.set(object, material);
       }
       object.castShadow = true;
@@ -941,6 +967,8 @@ function startScene(
 
     frameEntities,
 
+    projectToScreen,
+
     frameRate: (): ViewerSceneFrameRate => ({
       averageFps: totalDurationMs > 0 ? (totalFrames * 1000) / totalDurationMs : 0,
       durationMs: totalDurationMs,
@@ -953,6 +981,10 @@ function startScene(
       }
       disposed = true;
 
+      for (const material of entityMaterials.values()) {
+        material.dispose();
+      }
+      entityMaterials.clear();
       loop.dispose();
       queue.dispose();
       picker?.dispose();
