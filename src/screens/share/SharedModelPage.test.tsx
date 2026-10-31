@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { SharedModel } from '@/api/client';
 import { SAMPLE_BUILDING } from '@/domain/spatial/__fixtures__/sampleBuilding';
@@ -12,6 +12,9 @@ import { createShareLink, revokeShareLink, type ShareLinkGateway } from '@/lib/e
 
 import { PROVISIONAL_AREA_NOTE, SharedModelPage, SharedModelView } from './SharedModelPage';
 import { SHARE_LINK_GONE_MESSAGE, shareGoneReason } from './shareGone';
+
+// Cảnh 3D thật cần WebGL; ở đây chỉ kiểm thẻ chuyển và nạp lười.
+vi.mock('./SharedModel3D', () => ({ SharedModel3D: ({ levelId }: { levelId: string }) => <p>cảnh 3D {levelId}</p> }));
 
 function renderAt(token: string) {
   const client = createMockApiClient();
@@ -40,6 +43,17 @@ const wire = (status: string) => ({
 });
 
 describe('trang chia sẻ công khai', () => {
+  it('[U17] mặc định mặt bằng 2D, bấm thẻ "Mô hình 3D" thì mở cảnh 3D chỉ đọc', async () => {
+    const model = { projectName: 'Mẫu', graph: { graph: SAMPLE_BUILDING, floorRevisions: [] } } as unknown as SharedModel;
+    const { container } = render(<SharedModelView model={model} />);
+    expect(screen.getByRole('tab', { name: 'Mặt bằng 2D' })).toHaveAttribute('aria-selected', 'true');
+    expect(container.querySelector('svg[aria-label="Mặt bằng chỉ đọc"]')).not.toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Mô hình 3D' }));
+    expect(await screen.findByText(/^cảnh 3D /)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Mô hình 3D' })).toHaveAttribute('aria-selected', 'true');
+    expect(container.querySelector('svg[aria-label="Mặt bằng chỉ đọc"]')).toBeNull();
+  });
+
   it('token lạ/hết hạn (404) hiện "Liên kết không còn hiệu lực"', async () => {
     renderAt('khong-co');
     expect(await screen.findByRole('heading', { name: SHARE_LINK_GONE_MESSAGE })).toBeInTheDocument();
