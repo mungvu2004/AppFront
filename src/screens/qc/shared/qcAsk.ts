@@ -33,6 +33,31 @@ export function askCardPlacement(rect: QcAskRect, frame: { readonly width: numbe
   return { left, top, maxHeight: Math.max(160, frame.height - top - BOTTOM_RESERVE) };
 }
 
+/* U20: dưới 1024 px khung bản vẽ hẹp — thẻ hẹp lại để không phủ nửa bản vẽ. */
+export const ASK_CARD_WIDTH_NARROW = 288;
+const NARROW_FRAME = 760;
+export const askCardWidthFor = (frameWidth: number): number => (frameWidth < NARROW_FRAME ? ASK_CARD_WIDTH_NARROW : ASK_CARD_WIDTH);
+
+export type AskCardPlace = ReturnType<typeof askCardPlacement>;
+
+/**
+ * U12: giữ thẻ đứng yên khi người duyệt đi qua các mục của cùng một bước — nút duyệt ở đúng
+ * chỗ cũ, bấm liên tiếp một chỗ được. Chỉ tính chỗ mới khi chỗ cũ ra ngoài khung hoặc che mục mới.
+ */
+export function stableAskPlacement(
+  previous: AskCardPlace | null,
+  rect: QcAskRect,
+  frame: { readonly width: number; readonly height: number },
+  width = ASK_CARD_WIDTH,
+): AskCardPlace {
+  if (previous !== null) {
+    const fits = previous.left >= MARGIN && previous.left + width <= frame.width - MARGIN && previous.top >= TOP_RESERVE && frame.height - BOTTOM_RESERVE - previous.top >= 160;
+    const clear = rect.x + rect.width + GAP <= previous.left || rect.x - GAP >= previous.left + width;
+    if (fits && clear) return { left: previous.left, top: previous.top, maxHeight: frame.height - previous.top - BOTTOM_RESERVE };
+  }
+  return askCardPlacement(rect, frame, width);
+}
+
 /** Vị trí trong hàng đợi: "k trong N" của mục đang chọn và hai mục kề để ‹ K / › J. */
 export function askNavOf<Id extends string>(items: readonly { readonly id: Id; readonly pending: boolean }[], selectedId: Id | null) {
   const pending = items.filter((item) => item.pending);

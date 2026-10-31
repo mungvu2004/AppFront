@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { QcAskCard } from './QcAskCard';
-import { ASK_CARD_WIDTH, askCardPlacement, askNavOf } from './qcAsk';
+import { ASK_CARD_WIDTH, ASK_CARD_WIDTH_NARROW, askCardPlacement, askCardWidthFor, askNavOf, stableAskPlacement } from './qcAsk';
 
 const FRAME = { width: 1400, height: 900 };
 
@@ -21,6 +21,26 @@ describe('askCardPlacement (thẻ hỏi neo cạnh đối tượng)', () => {
     expect(place.left).toBe(600 - 12 - ASK_CARD_WIDTH);
     expect(place.top).toBe(60);
     expect(place.maxHeight).toBeLessThanOrEqual(500 - 60 - 72);
+  });
+});
+
+describe('stableAskPlacement (U12: thẻ đứng yên giữa các mục)', () => {
+  it('mục mới không bị thẻ che: giữ đúng chỗ cũ', () => {
+    const first = stableAskPlacement(null, { x: 200, y: 300, width: 60, height: 40 }, FRAME);
+    const next = stableAskPlacement(first, { x: 150, y: 600, width: 40, height: 40 }, FRAME);
+    expect(next.left).toBe(first.left);
+    expect(next.top).toBe(first.top);
+  });
+
+  it('mục mới nằm dưới thẻ: tính chỗ mới', () => {
+    const first = stableAskPlacement(null, { x: 200, y: 300, width: 60, height: 40 }, FRAME);
+    const next = stableAskPlacement(first, { x: first.left + 20, y: 400, width: 40, height: 40 }, FRAME);
+    expect(next.left).not.toBe(first.left);
+  });
+
+  it('khung hẹp (768 px): thẻ hẹp lại', () => {
+    expect(askCardWidthFor(700)).toBe(ASK_CARD_WIDTH_NARROW);
+    expect(askCardWidthFor(1400)).toBe(ASK_CARD_WIDTH);
   });
 });
 
@@ -55,5 +75,14 @@ describe('QcAskCard', () => {
     expect(screen.getByRole('button', { name: 'Mục trước' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Mục kế tiếp' }));
     expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('U12: không có lý do vẫn giữ khe dòng lý do, nút duyệt không nhảy', () => {
+    render(
+      <QcAskCard eyebrow="Mục 1 trong 3 cần xem">
+        <div>Thanh tra</div>
+      </QcAskCard>,
+    );
+    expect(screen.getByTestId('qc-ask-reason-slot')).toHaveClass('h-9');
   });
 });
