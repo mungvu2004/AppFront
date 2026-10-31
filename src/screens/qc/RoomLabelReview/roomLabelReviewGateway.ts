@@ -1129,6 +1129,16 @@ export const ROOM_USAGE_CHOICES: readonly { readonly usage: RoomUsage; readonly 
     label: sentenceCase(ROOM_USAGE_LABELS[usage]),
   }));
 
+/**
+ * U44: tên đúng một nhãn công năng ("Phòng tắm", gõ hay bấm chip) → công năng đó; tên tự do → `null`.
+ * Để đặt tên xong thì "Công năng" đổi theo, không kẹt ở "Phòng khác".
+ */
+export function usageOfRoomName(name: string): RoomUsage | null {
+  const key = name.trim().toLocaleLowerCase('vi');
+
+  return ROOM_USAGE_CHOICES.find((choice) => choice.label.toLocaleLowerCase('vi') === key)?.usage ?? null;
+}
+
 /** Dấu tổ hợp của tiếng Việt sau khi tách bằng `NFD`. */
 const COMBINING_MARKS = /[̀-ͯ]/gu;
 
