@@ -4,7 +4,10 @@ import { createSampleBuilding, sampleFurnitureId, sampleLevelId } from '@/domain
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 
 import {
+  approvableObjectsOf,
+  approveConfidentLabelOf,
   buildChangeFurnitureKindCommand,
+  confidentObjectsOf,
   drawnFurnitureInputOf,
   levelOfGraph,
   objectPlacementsOf,
@@ -15,7 +18,9 @@ import {
   toObjectRow,
   toPaintSubject,
 } from './objectLayerReviewGateway';
+import { OBJECT_LAYER_FIXTURE_OBJECTS } from './objectLayerFixture';
 import { clientToViewBoxPoint } from './objectLayerSymbols';
+import type { ReviewObject } from './objectLayerTypes';
 
 describe('objectLayerReviewGateway: free furniture rotation (K1)', () => {
   it('draws a 2000x600 free item at 90 deg with its own rotation and unrotated bounds', () => {
@@ -152,5 +157,32 @@ describe('objectLayerReviewGateway: furniture kind change and drawing (K10, K07)
     expect(clientToViewBoxPoint(rect, viewBox, 200, 50)).toEqual({ x: 10, y: 20 });
     expect(clientToViewBoxPoint(rect, viewBox, 300, 150)).toEqual({ x: 110, y: 120 });
     expect(clientToViewBoxPoint({ ...rect, width: 0 }, viewBox, 0, 0)).toBeNull();
+  });
+});
+
+describe('objectLayerReviewGateway: duyệt hàng loạt (U04)', () => {
+  const base = OBJECT_LAYER_FIXTURE_OBJECTS.find((object) => object.layer !== 'furniture' && object.hostWallId !== null);
+
+  if (base === undefined) {
+    throw new Error('Bộ mẫu thiếu lỗ mở đã gắn tường.');
+  }
+
+  const variant = (id: string, patch: Partial<ReviewObject>): ReviewObject =>
+    ({ ...base, id, reviewed: false, suggested: false, confidence: 0.95, ...patch }) as ReviewObject;
+  const objects = [
+    variant('sure', {}),
+    variant('unsure', { confidence: 0.3 }),
+    variant('done', { reviewed: true }),
+    variant('suggested', { suggested: true }),
+    variant('orphan', { hostWallId: null } as Partial<ReviewObject>),
+  ];
+
+  it('còn lại = chưa duyệt, trừ gợi ý chưa nhận và lỗ mở chưa gắn tường', () => {
+    expect(approvableObjectsOf(objects).map((object) => object.id)).toEqual(['sure', 'unsure']);
+  });
+
+  it('máy chắc = còn lại và không dưới ngưỡng', () => {
+    expect(confidentObjectsOf(objects, 0.75).map((object) => object.id)).toEqual(['sure']);
+    expect(approveConfidentLabelOf(1)).toBe('Duyệt 1 mục máy chắc chắn');
   });
 });

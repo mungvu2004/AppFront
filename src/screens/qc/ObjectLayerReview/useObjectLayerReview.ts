@@ -112,6 +112,10 @@ import {
   dataLayerTokens,
   QUARTER_TURN_DEG,
   pendingSuggestionsLabel,
+  approvableObjectsOf,
+  approveConfidentLabelOf,
+  approveRemainingLabelOf,
+  confidentObjectsOf,
   rejectedSuggestionsToast,
   drawnFurnitureInputOf,
   drawnOpeningProposalOf,
@@ -1395,6 +1399,58 @@ export function useObjectLayerReview(
     });
   }, [autosave, canEdit, dispatchBundle, gateway, invalidate, notifications, suggestions]);
 
+  /*
+   * U04: duyệt hàng loạt như bước Tường — cả tầng, MỘT bước hoàn tác (Ctrl+Z trả cả lượt).
+   * Không cần bấm A từng mục (28-51 lần trên căn thật).
+   */
+  const remainingObjects = useMemo(() => approvableObjectsOf(objects), [objects]);
+  const confidentObjects = useMemo(
+    () => confidentObjectsOf(remainingObjects, confidenceThreshold),
+    [confidenceThreshold, remainingObjects],
+  );
+
+  const approveMany = useCallback(
+    (targets: readonly ReviewObject[], label: string) => {
+      const current = useStore.getState().spatial;
+
+      if (!canEdit || current === null || targets.length === 0) {
+        return;
+      }
+
+      const context = commandContextOf(current, gateway.actorId);
+      const commands = targets.flatMap((object) => {
+        const before = context.graph.byId[object.entityId];
+
+        return before !== undefined && ('wallId' in before || 'boundingBox' in before)
+          ? [buildApproveObjectCommand(before, context.actorId, object.id)]
+          : [];
+      });
+
+      if (commands.length === 0) {
+        return;
+      }
+
+      void runObjectTransaction(commands, dispatchBundle, label).then((result) => {
+        if (result.ok) {
+          invalidate('furniture');
+          invalidate('door');
+        }
+      });
+    },
+    [canEdit, dispatchBundle, gateway, invalidate],
+  );
+
+  const onApproveConfident = useCallback(
+    () => approveMany(confidentObjects, approveConfidentLabelOf(confidentObjects.length)),
+    [approveMany, confidentObjects],
+  );
+  const onApproveRemaining = useCallback(
+    () => approveMany(remainingObjects, approveRemainingLabelOf(remainingObjects.length)),
+    [approveMany, remainingObjects],
+  );
+  const canApproveConfident = canEdit && confidentObjects.length > 0;
+  const canApproveRemaining = canEdit && remainingObjects.length > confidentObjects.length;
+
   /* Lớp chỉ đọc (người xem, khoá tỷ lệ) thì không còn chế độ vẽ nào treo lại. */
   useEffect(() => {
     if (!canEdit) {
@@ -2195,6 +2251,10 @@ export function useObjectLayerReview(
     suggestionLabel: pendingSuggestionsLabel(suggestions.length),
     onAcceptAllSuggestions,
     onRejectAllSuggestions,
+    approveConfidentLabel: canApproveConfident ? approveConfidentLabelOf(confidentObjects.length) : null,
+    ...(canApproveConfident ? { onApproveConfident } : {}),
+    approveRemainingLabel: canApproveRemaining ? approveRemainingLabelOf(remainingObjects.length) : null,
+    ...(canApproveRemaining ? { onApproveRemaining } : {}),
     onToggleSelect,
     onSelectLayerObjects,
     onToggleLowConfidenceOnly,
