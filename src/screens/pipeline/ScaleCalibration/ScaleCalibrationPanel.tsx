@@ -180,7 +180,7 @@ export function ScaleCalibrationPanel({
             ref={applyButtonRef}
             variant="primary"
           >
-            {panel.isApplying ? APPLY_APPLYING : APPLY_PRIMARY}
+            {panel.isApplying ? APPLY_APPLYING : (panel.applyLabel ?? APPLY_PRIMARY)}
           </Button>
           {panel.applyBlockedNotice !== undefined && (
             <InlineAlert level="attention" message={panel.applyBlockedNotice} />

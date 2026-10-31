@@ -91,7 +91,7 @@ export function SharedModelView({ model }: { model: SharedModel }) {
         <SharedPlan key={levelId} walls={onLevel.walls} rooms={onLevel.rooms} openings={openings} provisionalArea={provisionalArea} />
       ) : (
         <Suspense fallback={<p className="text-sm text-text-secondary">Đang mở mô hình 3D…</p>}>
-          <SharedModel3D key={levelId} graph={graph} levelId={levelId} />
+          <SharedModel3D key={levelId} graph={graph} levelId={levelId} provisionalArea={provisionalArea} />
         </Suspense>
       )}
     </div>

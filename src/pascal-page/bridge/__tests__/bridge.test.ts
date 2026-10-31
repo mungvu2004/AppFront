@@ -20,6 +20,7 @@ import {
   BRIDGE_SAVE_FAILED,
   BRIDGE_SESSION_ERROR,
   currentProjectSceneStyle,
+  drawnFloorIds,
   isSeparateUnits,
   loginHrefOf,
   markNotBuilt,
@@ -662,5 +663,16 @@ describe('undrawnFloorNames (U52)', () => {
     ];
     expect(undrawnFloorNames(floors, new Set(['a']))).toEqual(['Tầng 3', 'Tầng 2']);
     expect(undrawnFloorNames(floors, new Set(['a', 'b', 'c']))).toEqual([]);
+  });
+});
+
+describe('drawnFloorIds (UX-32)', () => {
+  it('counts a floor as drawn only when it has a wall or a room', () => {
+    const drawn = drawnFloorIds({
+      walls: [{ levelId: 'f0' }],
+      rooms: [{ levelId: 'f1' }],
+    } as unknown as Parameters<typeof drawnFloorIds>[0]);
+    expect([...drawn].sort()).toEqual(['f0', 'f1']);
+    expect(drawn.has('f2')).toBe(false);
   });
 });

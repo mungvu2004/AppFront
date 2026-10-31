@@ -44,6 +44,7 @@
 
 import { compareNearly, isNearlyZero } from '../../units/compare';
 import { displayCodeIn } from '../../spatial/normalize';
+import { OPEN_PASSAGE_MIN_MM, openGapsOfRoom } from '../../spatial/roomOpenings';
 import type { Furniture, Level, Point, Wall } from '../../spatial/types';
 import {
   entitiesInScope,
@@ -659,6 +660,9 @@ export const checkRoomClosure: GeometryCheck = (context) => {
     let worstGapMm = 0;
     let worstGapAt: Point = itemAt(room.outline, 0);
     const guiltyWallIds = new Set<string>();
+    // Wall-less stretches facing another room or an undrawn hall: a passage, not
+    // a hole (same helper as ROOM-NO-DOOR and ESCAPE-DISTANCE; r4 H-01).
+    const passages = openGapsOfRoom(room, walls);
 
     for (let index = 0; index < room.outline.length; index += 1) {
       const edge: Line = {
@@ -712,6 +716,18 @@ export const checkRoomClosure: GeometryCheck = (context) => {
         }
 
         if (liesAlongAnotherRoom(edge, gap, others)) {
+          continue;
+        }
+
+        const gapMid = pointAlong(edge, (gap.low + gap.high) / 2);
+
+        if (
+          compareNearly(gapMm, OPEN_PASSAGE_MIN_MM) >= 0 &&
+          passages.some(
+            (passage) =>
+              Math.hypot(passage.at.x - gapMid.x, passage.at.y - gapMid.y) <= gapMm / 2 + 50,
+          )
+        ) {
           continue;
         }
 
@@ -1167,7 +1183,7 @@ export const wallOverlapRule: Rule = {
 
 export const danglingWallEndRule: Rule = {
   code: 'WALL-DANGLING-END',
-  name: 'Đầu tường nào cũng nối vào tường khác',
+  name: 'Tường nối kín với nhau, không hở đầu',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',

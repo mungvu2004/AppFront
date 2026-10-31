@@ -105,6 +105,8 @@ export interface ExportPdfInput {
    */
   readonly sections?: readonly PdfSectionKind[];
   readonly attachments?: readonly PdfAttachmentInput[];
+  /** UX-23: tỷ lệ chưa xác nhận — mọi diện tích in kèm "(tạm)". */
+  readonly provisionalArea?: boolean;
   /** IANA zone the cover date is written in. Tests should always name one. */
   readonly timeZone?: string;
 }
@@ -121,6 +123,9 @@ export const BUILDING_SCOPE_LABEL = 'Toàn công trình';
 
 /** Printed in place of the violations table when the model is clean. */
 export const NO_VIOLATIONS_TEXT = 'Không ghi nhận vi phạm nào.';
+
+/** UX-23: hậu tố của diện tích tính từ tỷ lệ chưa xác nhận. */
+export const PROVISIONAL_AREA_SUFFIX = '(tạm)';
 
 /** Counts and scores are whole numbers; nothing here shows a decimal count. */
 const COUNT_FRACTION_DIGITS = 0;
@@ -341,7 +346,14 @@ export function buildLevelSummaryPage(
  * The area cell rejoins the model's value and unit, which the view-model
  * tests pin to the canonical `formatArea` output.
  */
-export function buildRoomAreasPage(graph: SpatialGraph, footer: PdfFooter): PdfRoomAreasPage {
+export function buildRoomAreasPage(
+  graph: SpatialGraph,
+  footer: PdfFooter,
+  provisionalArea = false,
+): PdfRoomAreasPage {
+  // UX-23: diện tích từ tỷ lệ chưa xác nhận là số tạm, ghi rõ trên giấy.
+  const areaText = (text: string): string =>
+    provisionalArea && /\d/.test(text) ? `${text} ${PROVISIONAL_AREA_SUFFIX}` : text;
   const rows: PdfTableRow[] = graph.rooms.map((room) => {
     const model = toRoomViewModel(room);
 
@@ -351,7 +363,7 @@ export function buildRoomAreasPage(graph: SpatialGraph, footer: PdfFooter): PdfR
         model.label,
         levelNameOf(graph.levels, room.levelId),
         model.secondaryLine,
-        attributeText(model, 'Diện tích'),
+        areaText(attributeText(model, 'Diện tích')),
       ],
       statusCode: model.statusCode,
     };
@@ -362,7 +374,7 @@ export function buildRoomAreasPage(graph: SpatialGraph, footer: PdfFooter): PdfR
     title: sectionTitle('roomAreas'),
     columns: ROOM_AREAS_COLUMNS,
     rows,
-    totalArea: { label: 'Tổng diện tích', text: formatArea(graph.building.grossFloorAreaM2) },
+    totalArea: { label: 'Tổng diện tích', text: areaText(formatArea(graph.building.grossFloorAreaM2)) },
     footer,
   };
 }
@@ -470,7 +482,7 @@ export function buildPdfDocument(input: ExportPdfInput): PdfDocument {
         pages.push(buildLevelSummaryPage(input.graph, input.violations, footer));
         break;
       case 'roomAreas':
-        pages.push(buildRoomAreasPage(input.graph, footer));
+        pages.push(buildRoomAreasPage(input.graph, footer, input.provisionalArea));
         break;
       case 'violations':
         pages.push(buildViolationsPage(input.graph, input.violations, footer));

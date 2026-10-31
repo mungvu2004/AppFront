@@ -745,8 +745,9 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
    * bao giờ được đặt nó.
    */
   /* K51: còn luật nghiêm trọng thì view đã hỏi xác nhận — ở đây chỉ đi tiếp, không nuốt cú bấm. */
-  const onConfirmResolved = useCallback((): void => {
-    navigate(ROUTES.project.export(projectId));
+  // UX-25: người dùng đã bấm "Vẫn sang Xuất" thì màn Xuất không hỏi "Vẫn xuất?" lần nữa.
+  const onConfirmResolved = useCallback((confirmed = false): void => {
+    navigate(ROUTES.project.export(projectId), confirmed ? { state: { exportConfirmed: true } } : undefined);
   }, [navigate, projectId]);
 
   /**

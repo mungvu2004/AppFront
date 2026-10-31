@@ -37,4 +37,23 @@ describe('toExtractionSummary (R-1)', () => {
     expect(toExtractionSummary({ ...base, scaleSource: 'project_default' } as unknown as FloorLayerDocument, null).scaleMissing).toBe(true);
     expect(toExtractionSummary({ ...base, scaleSource: 'pipeline' } as unknown as FloorLayerDocument, null).scaleMissing).toBeUndefined();
   });
+
+  it('UX-02: tỷ lệ máy đề xuất (pipeline) thì cờ scaleProposed; khớp 1:50 ở DPI nguồn thì có scaleNoteRatio', () => {
+    const base = {
+      dimensions: [],
+      level: { scaleMillimetresPerPixel: 6.35 },
+      layer: { walls: [], openings: [], furniture: [], rooms: [] },
+      scaleStatus: 'unresolved',
+      scaleSource: 'pipeline',
+    };
+    const noted = toExtractionSummary({ ...base, sourceDpi: 200 } as unknown as FloorLayerDocument, null);
+    const guessed = toExtractionSummary(base as unknown as FloorLayerDocument, null);
+    const missing = toExtractionSummary({ ...base, scaleSource: 'project_default' } as unknown as FloorLayerDocument, null);
+
+    expect(noted.scaleProposed).toBe(true);
+    expect(noted.scaleNoteRatio).toBe(50);
+    expect(guessed.scaleProposed).toBe(true);
+    expect(guessed.scaleNoteRatio).toBeUndefined();
+    expect(missing.scaleProposed).toBeUndefined();
+  });
 });

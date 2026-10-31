@@ -154,7 +154,8 @@ export interface RuleReportViewProps {
   readonly onViewRow: (rowKey: string) => void;
   readonly onRerun: () => void;
   /** Sang Xuất. Còn luật nghiêm trọng thì view hỏi xác nhận trước khi gọi (K51). */
-  readonly onConfirmResolved: () => void;
+  /** `confirmed`: người dùng đã đồng ý sang Xuất khi còn lỗi nghiêm trọng (UX-25). */
+  readonly onConfirmResolved: (confirmed?: boolean) => void;
   /** K50: "Có N tầng chưa có tỷ lệ…" khi dự án còn tầng tỷ lệ tạm; vắng/null thì không có dải. */
   readonly provisionalScaleNotice?: string | null;
   /**

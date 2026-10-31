@@ -110,3 +110,12 @@ describe('[K12] tầng cần đặt tỷ lệ trước — cùng luật với th
     expect(floorScaleMissingOf(tiny, level, undefined)).toBe(false);
   });
 });
+
+describe('[UX-46] người chỉ xem không được mời duyệt', () => {
+  it('việc tiếp là "Xem tường", không phải "Duyệt tường"', () => {
+    const rows = FLOOR_MANAGER_FIXTURE_ROWS.map((row) => ({ ...row, needsDrawing: false, isScaleMissing: false }));
+    const task = nextTaskOf(rows, false);
+    expect(task?.actionLabel.startsWith('Xem tường')).toBe(true);
+    expect(task?.title).not.toContain('Duyệt');
+  });
+});

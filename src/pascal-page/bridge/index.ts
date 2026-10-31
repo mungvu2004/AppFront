@@ -150,6 +150,14 @@ export function undrawnFloorNames(
     .map((floor) => floor.name);
 }
 
+/**
+ * UX-R5 UX-32: tầng "có bản vẽ" là tầng có ít nhất một tường hoặc phòng. Tầng có trong đồ thị mà
+ * trống (dự án 4 tầng, chỉ vẽ tầng trệt) trước đây hiện như tầng thường trong danh sách tầng.
+ */
+export function drawnFloorIds(graph: Pick<SpatialGraph, 'walls' | 'rooms'>): Set<string> {
+  return new Set([...graph.walls, ...graph.rooms].map((item) => item.levelId));
+}
+
 let separateUnits = false;
 
 /**
@@ -209,7 +217,7 @@ async function loadProject(projectId: string): Promise<{ readonly projectName: s
 
   /* U52: tầng chưa có bản vẽ không có trong N15 nên danh sách tầng chỉ thấy tầng đã vẽ. Ghi tên để
      danh sách vẽ thêm dòng mờ "Chưa có bản vẽ" (chỉ hiển thị, không là node cảnh). */
-  const drawn = new Set(document.graph.levels.map((level) => level.id));
+  const drawn = drawnFloorIds(document.graph);
   (window as unknown as Record<string, unknown>)[UNDRAWN_FLOORS_KEY] = undrawnFloorNames(await floorsRead, drawn);
 
   loadProjectGraph(toProjectSpatial(project, document, { roles: session.roles, userId: session.user?.id ?? null }));

@@ -208,6 +208,13 @@ function ObjectLayerListRow({
           {LOW_CONFIDENCE_BADGE}
         </Badge>
       ) : null}
+
+      {/* Cửa đi hẹp bất thường: số đọc sai thường gặp, nhắc kiểm lại ngay trên dòng (UX-48). */}
+      {row.sizeWarning == null ? null : (
+        <Badge className="self-start" data-testid="object-size-warning" variant="attention">
+          {row.sizeWarning}
+        </Badge>
+      )}
     </div>
   );
 }

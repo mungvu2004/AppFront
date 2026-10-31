@@ -256,8 +256,10 @@ export interface WallInspectorViewModel {
   readonly codeLabel: string;
   /** Độ dày ĐANG CHỌN của điều khiển ba lựa chọn — có thể không chuẩn (xem {@link WallRowViewModel.thicknessMm}). */
   readonly thicknessMm: number;
-  /** U48: "(đã sửa, máy đo 221)" khi độ dày khác số máy đo; `null` = chưa sửa hoặc không có số máy đo. */
+  /** UX-16: "(đã sửa, máy đo 221)" khi người đã sửa, "(máy đo 221)" khi máy tự đổi; `null` = trùng số máy đo. */
   readonly detectedNote?: string | null;
+  /** UX-35: tường dài hơn 3 m — xoá phải hỏi lại một câu như tường bao. */
+  readonly isLongWall?: boolean;
   /** Chiều dài đã định dạng — ví dụ `"4.250,00 mm"` (`formatLength(..., { unit: 'mm', fractionDigits: 2 })`). */
   readonly lengthLabel: string;
   /** Chiều cao đã định dạng — ví dụ `"3,00 m"`. */
@@ -372,8 +374,8 @@ export interface WallLayerViewProps {
   readonly onSkip: (wallId: WallId) => void;
   /** Shift+F10 / phím ContextMenu trên một hàng: mở menu của tường đó (G74 16-E-010, A12). */
   readonly onOpenRowMenu?: (wallId: WallId) => void;
-  /** `thicknessMm` luôn là một phần tử của {@link WALL_THICKNESS_CHOICES} — CẤM TUYỆT ĐỐI "không bao giờ là ô nhập số tự do" ép ngay ở kiểu. */
-  readonly onChangeThickness: (wallId: WallId, thicknessMm: WallThicknessChoice) => void;
+  /** UX-10: một bậc của {@link WALL_THICKNESS_CHOICES}, hoặc số người gõ ở "Khác…" (60–600 mm, đúng như bản vẽ). */
+  readonly onChangeThickness: (wallId: WallId, thicknessMm: number) => void;
   /** Xoá dùng vé hoàn tác (A8, CẤM TUYỆT ĐỐI "không hộp thoại"); toast Hoàn tác do hook dựng. */
   readonly onDelete: (wallId: WallId) => void;
   /** `at` là điểm cắt trên tim tường; hook tự mint `secondWallId` — xem ghi chú đầu file. */

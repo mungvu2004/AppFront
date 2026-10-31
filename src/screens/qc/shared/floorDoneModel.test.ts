@@ -5,7 +5,7 @@ import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuildi
 import { entitiesOfKind } from '@/lib/commands/business/shared';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 
-import { floorDoneSummaryOf } from './floorDoneModel';
+import { floorDoneSummaryOf, floorDoneTexts } from './floorDoneModel';
 
 describe('floorDoneSummaryOf', () => {
   it('mỗi lớp một câu đếm từ đồ thị của tầng, diện tích là tổng diện tích phòng', () => {
@@ -26,5 +26,12 @@ describe('floorDoneSummaryOf', () => {
     expect(summary.walls).toMatch(/^0 đoạn, tổng dài 0([.,]0)? m.$/u);
     expect(summary.objects).toBe('Tầng không có cửa hay nội thất.');
     expect(summary.rooms).toBe('0 phòng.');
+  });
+});
+
+describe('floorDoneTexts', () => {
+  it('không lặp chữ Tầng', () => {
+    expect(floorDoneTexts('Tầng trệt').eyebrow).toBe('Tầng trệt · Xong');
+    expect(floorDoneTexts('2').eyebrow).toBe('Tầng 2 · Xong');
   });
 });

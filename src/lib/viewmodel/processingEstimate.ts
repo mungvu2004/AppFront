@@ -9,11 +9,11 @@ import type { PipelineRun } from '@/api/schemas/pipelineRuns';
 
 const MS_PER_MINUTE = 60_000;
 
-/** Mốc đoán theo cỡ ảnh khi dự án chưa có lượt nào xong: < 2 MP 1 phút, < 8 MP 2 phút, còn lại 4 phút. */
+/** Mốc đoán theo cỡ ảnh khi dự án chưa có lượt nào xong: tới 50 MP 1 phút, tới 100 MP 3 phút, còn lại 5 phút. */
 export function minutesForMegapixels(megapixels: number): number {
-  if (megapixels < 2) return 1;
-  if (megapixels < 8) return 2;
-  return 4;
+  if (megapixels <= 50) return 1;
+  if (megapixels <= 100) return 3;
+  return 5;
 }
 
 /** Trung vị thời lượng (phút, làm tròn lên, ít nhất 1) của các lượt `completed`; không có thì `null`. */

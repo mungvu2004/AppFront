@@ -35,7 +35,7 @@
  * `room.notices` để tự vô hiệu hoá.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -112,8 +112,55 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
   const [mergeCandidateId, setMergeCandidateId] = useState<RoomLabelViewModel['id'] | null>(null);
   const spills = room?.outlineSpills === true;
   /* Chặn duyệt khi chưa tên hoặc đường bao tràn (K10) — cùng điều kiện với `onApprove` của hook. */
+  /* UX-24: tên đang gõ dở của phòng chưa tên — có chữ là duyệt được (đổi tên trước, duyệt ngay sau). */
+  const [draft, setDraft] = useState<{ readonly roomId: RoomLabelViewModel['id']; readonly name: string } | null>(null);
+  const lastCommitRef = useRef<{ readonly roomId: RoomLabelViewModel['id']; readonly name: string } | null>(null);
+  const pendingApproveRef = useRef<RoomLabelViewModel['id'] | null>(null);
+  const draftName = room !== null && draft?.roomId === room.id ? draft.name.trim() : '';
+  const canApproveTyped = room?.status === 'unnamed' && draftName !== '' && !spills;
+  const canApprove = (room?.status === 'suggested' && !spills) || canApproveTyped;
+
+  /* Đổi tên xong (phòng thành "chờ duyệt") thì duyệt luôn — một cú bấm cho người vừa gõ tên. */
+  useEffect(() => {
+    if (pendingApproveRef.current === null) {
+      return;
+    }
+
+    if (room === null || room.id !== pendingApproveRef.current) {
+      pendingApproveRef.current = null;
+
+      return;
+    }
+
+    if (room.status === 'suggested') {
+      pendingApproveRef.current = null;
+      onApprove(room.id);
+    }
+  }, [onApprove, room]);
+
+  const commitName = (roomId: RoomLabelViewModel['id'], name: string) => {
+    lastCommitRef.current = { roomId, name: name.trim() };
+    onRename(roomId, name);
+  };
+
+  const approve = (roomId: RoomLabelViewModel['id']) => {
+    if (!canApproveTyped) {
+      onApprove(roomId);
+
+      return;
+    }
+
+    /* Rời ô (blur) có thể đã cam kết đúng tên này — không đổi tên lần hai. */
+    const last = lastCommitRef.current;
+
+    if (last?.roomId !== roomId || last.name !== draftName) {
+      commitName(roomId, draftName);
+    }
+
+    pendingApproveRef.current = roomId;
+  };
   const approveHintId =
-    room?.status === 'unnamed' ? APPROVE_HINT_ID : room?.status === 'suggested' && spills ? OUTLINE_SPILL_HINT_ID : undefined;
+    canApproveTyped ? undefined : room?.status === 'unnamed' ? APPROVE_HINT_ID : room?.status === 'suggested' && spills ? OUTLINE_SPILL_HINT_ID : undefined;
 
   return (
     /* `h-full` cả ở 1024 (ngăn kéo có chiều cao chặn): khối nút ghim đáy luôn thấy (Z/S-20). */
@@ -139,8 +186,10 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
           <RoomLabelNameField
             isReadOnly={isViewerRole}
             key={room.id}
-            name={room.name}
-            onCommit={(name) => onRename(room.id, name)}
+            /* UX-24: tên giả "phòng 5" của máy không hiện như đã có tên — ô trống, chỉ chữ gợi ý. */
+            name={room.hasName ? room.name : ''}
+            onCommit={(name) => commitName(room.id, name)}
+            onDraftChange={(name) => setDraft({ roomId: room.id, name })}
             suggestions={extras.nameSuggestions}
           />
 
@@ -214,15 +263,15 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
                 <Button
                   aria-describedby={approveHintId}
                   aria-keyshortcuts="A"
-                  disabled={room.status !== 'suggested' || spills}
+                  disabled={!canApprove}
                   fullWidth
-                  onClick={() => onApprove(room.id)}
+                  onClick={() => approve(room.id)}
                   {...(room.status === 'suggested' && !spills ? { shortcut: 'A' } : {})}
                   variant={room.status === 'confirmed' || spills ? 'secondary' : 'primary'}
                 >
                   {room.status === 'confirmed' ? APPROVED_BADGE : `${APPROVE_PREFIX} ${room.codeLabel}`}
                 </Button>
-                {room.status === 'unnamed' && (
+                {room.status === 'unnamed' && !canApproveTyped && (
                   <p className="text-[13px] text-text-secondary" id={APPROVE_HINT_ID}>
                     {APPROVE_NEEDS_NAME}
                   </p>

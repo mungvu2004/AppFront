@@ -224,6 +224,8 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
             onCheckWallGaps,
             onNavigateToWalls,
             isViewerRole,
+            approveConfidentRoomsLabel: props.approveConfidentRoomsLabel ?? null,
+            ...(props.onApproveConfidentRooms === undefined ? {} : { onApproveConfidentRooms: props.onApproveConfidentRooms }),
           }}
         />
       </div>
@@ -240,6 +242,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
     areaCaption,
     backgroundImageAlt,
     backgroundImageSizeMm,
+    scaleSegment,
     backgroundImageUrl,
     hoveredRoomId,
     isCollapsed,
@@ -357,6 +360,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
             backgroundImageAlt={backgroundImageAlt}
             backgroundImageSizeMm={backgroundImageSizeMm}
             backgroundImageUrl={backgroundImageUrl}
+            scaleSegment={scaleSegment}
             hoveredRoomId={hoveredRoomId}
             isInteractive={!isViewerRole}
             millimetresPerPixel={millimetresPerPixel}

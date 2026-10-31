@@ -23,6 +23,8 @@ const ALL_STEPS_LABEL = 'Xem tất cả các bước';
 const AI_READ_LABEL = 'AI đọc xong';
 const STEPS_DETAIL_LABEL = 'Xem chi tiết các bước';
 const AI_DONE_LABEL = 'AI xử lý xong';
+// UX-28: lúc đang chạy không ghi "AI xử lý xong 5/6" cạnh "đang chạy bước 6/6".
+const AI_RUNNING_LABEL = 'Đã xong';
 const SCALE_LABEL = 'Tỷ lệ bản vẽ';
 const CONFIDENCE_LABEL = 'Độ tin cậy';
 const ADVISORY_LABEL = 'khuyến nghị';
@@ -154,7 +156,7 @@ export function ProcessingGatePanel({
       >
         <p className="text-caption font-medium uppercase tracking-[0.06em] text-text-muted">{GATE_LABEL}</p>
         <ul className="flex flex-col gap-2">
-          <Condition isOk={gate.isAiDone} label={AI_DONE_LABEL} value={gate.doneStepsLabel} />
+          <Condition isOk={gate.isAiDone} label={gate.isAiDone ? AI_DONE_LABEL : AI_RUNNING_LABEL} value={gate.doneStepsLabel} />
           <Condition isOk={gate.isScaleOk} label={SCALE_LABEL} note={gate.scaleNote} value={gate.scaleValue} />
           {gate.reviewRows?.map((row) => (
             <li className="flex items-start gap-2" key={row.reason}>
@@ -196,6 +198,11 @@ export function ProcessingGatePanel({
                 variant="secondary"
               >
                 {gate.secondaryAction.label}
+              </Button>
+            ) : null}
+            {gate.viewerAction !== undefined ? (
+              <Button className="w-full" onClick={gate.viewerAction.onClick} variant="ghost">
+                {gate.viewerAction.label}
               </Button>
             ) : null}
           </div>

@@ -6,7 +6,7 @@
  * do tệp này lái: kéo để xoay, cuộn hoặc nút để phóng. Trang nạp lười tệp này (React.lazy) nên gói
  * three.js chỉ tải khi người nhận bấm sang thẻ 3D.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Maximize, Minus, Plus } from 'lucide-react';
 
@@ -17,11 +17,29 @@ import { mountViewerScene } from '@/screens/viewer/Viewer3D/viewer3dScene';
 import type { ViewerSceneHandle } from '@/screens/viewer/Viewer3D/viewer3dTypes';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
-import { buildInputs, homeFrame, orbitFrame, ZOOM_STEP, zoomFrame } from './sharedModel3dFrame';
+import {
+  buildInputs,
+  homeFrame,
+  orbitFrame,
+  roomLabels,
+  tokenOfSharedEntity,
+  tokenOfSharedPart,
+  ZOOM_STEP,
+  zoomFrame,
+} from './sharedModel3dFrame';
 
 
-export function SharedModel3D({ graph, levelId }: { readonly graph: SpatialGraph; readonly levelId: string }) {
+interface SharedModel3DProps {
+  readonly graph: SpatialGraph;
+  readonly levelId: string;
+  /** Tầng chưa đặt tỷ lệ: diện tích trên nhãn phòng ghi " (tạm)" (UX-23). */
+  readonly provisionalArea?: boolean;
+}
+
+export function SharedModel3D({ graph, levelId, provisionalArea = false }: SharedModel3DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const labelRefs = useRef(new Map<string, HTMLDivElement>());
+  const labels = useMemo(() => roomLabels(graph, levelId, provisionalArea), [graph, levelId, provisionalArea]);
   const handle = useRef<ViewerSceneHandle | null>(null);
   const frame = useRef<ViewerSceneFrame>(homeFrame(graph, levelId));
   const home = useRef<ViewerSceneFrame>(frame.current);
@@ -48,7 +66,8 @@ export function SharedModel3D({ graph, levelId }: { readonly graph: SpatialGraph
     const mount = mountViewerScene(canvas, {
       levels,
       frame: frame.current,
-      tokenOfPartKind: () => '--wall-idle',
+      tokenOfPartKind: tokenOfSharedPart,
+      tokenOfEntity: tokenOfSharedEntity(graph),
       canSelect: false,
     });
     if (!mount.ok) {
@@ -62,12 +81,26 @@ export function SharedModel3D({ graph, levelId }: { readonly graph: SpatialGraph
       mount.handle.update(frame.current);
     };
     canvas.addEventListener('wheel', onWheel, { passive: false });
+    // Nhãn tên phòng bám theo camera (UX-11): chiếu tâm phòng ra màn mỗi khung, đặt thẳng bằng style.
+    let raf = 0;
+    const placeLabels = () => {
+      for (const label of labels) {
+        const element = labelRefs.current.get(label.id);
+        if (element === undefined) continue;
+        const at = mount.handle.projectToScreen?.(label.at.x, label.at.y, label.at.z) ?? null;
+        element.style.visibility = at === null ? 'hidden' : 'visible';
+        if (at !== null) element.style.transform = `translate(${at.x}px, ${at.y}px) translate(-50%, -50%)`;
+      }
+      raf = requestAnimationFrame(placeLabels);
+    };
+    raf = requestAnimationFrame(placeLabels);
     return () => {
+      cancelAnimationFrame(raf);
       canvas.removeEventListener('wheel', onWheel);
       mount.handle.dispose();
       handle.current = null;
     };
-  }, [graph, levelId]);
+  }, [graph, levelId, labels]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -104,6 +137,21 @@ export function SharedModel3D({ graph, levelId }: { readonly graph: SpatialGraph
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        {labels.map((label) => (
+          <div
+            key={label.id}
+            ref={(element) => {
+              if (element === null) labelRefs.current.delete(label.id);
+              else labelRefs.current.set(label.id, element);
+            }}
+            className="invisible absolute left-0 top-0 whitespace-nowrap rounded bg-bg-surface px-1.5 py-0.5 text-center text-xs leading-tight text-text-primary shadow-float"
+          >
+            <span className="block font-medium">{label.name}</span>
+            {label.area === null ? null : <span className="block text-text-secondary">{label.area}</span>}
+          </div>
+        ))}
+      </div>
       <div className="absolute right-3 top-3 flex flex-col gap-1 rounded-md bg-bg-surface p-1 shadow-float">
         <Button variant="ghost" size="sm" iconOnly iconBefore={<Plus />} aria-label="Phóng to" title="Phóng to" onClick={() => { apply(zoomFrame(frame.current, ZOOM_STEP, home.current.distanceM)); }} />
         <Button variant="ghost" size="sm" iconOnly iconBefore={<Minus />} aria-label="Thu nhỏ" title="Thu nhỏ" onClick={() => { apply(zoomFrame(frame.current, 1 / ZOOM_STEP, home.current.distanceM)); }} />

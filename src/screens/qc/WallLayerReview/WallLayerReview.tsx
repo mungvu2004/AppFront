@@ -97,6 +97,8 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
 const TASK = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì giữ, nét thừa thì xoá.';
+/** UX-46: người xem không sửa được — tiêu đề không bảo họ giữ/xoá. */
+const VIEWER_TASK = 'Xem từng đoạn tường máy tìm thấy.';
 const LAYER_GROUP = 'Lớp của bước';
 const WALL_LAYER = 'Lớp tường';
 const CENTRELINES = 'Tim tường';
@@ -215,7 +217,7 @@ export function WallLayerReview({
               floorId={floorNav.floorId}
               gate={<WallLayerGate floorNav={floorNav} panel={panel} queue={queue} />}
               projectId={floorNav.projectId}
-              task={TASK}
+              task={panel.isViewerRole ? VIEWER_TASK : TASK}
             >
               {left}
             </QcStepColumn>

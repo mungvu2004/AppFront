@@ -2489,6 +2489,37 @@ describe('useFloorUploadScreen — UX41 tải bản vẽ', () => {
     recovery: 'không' as const,
   });
 
+  it('UX-51: thay bản vẽ của tầng đã có kết quả thì hỏi lại một lần, bấm lần hai mới xử lý', async () => {
+    // Bộ mẫu: `Tầng 1` (L1) đã có bản vẽ trên máy chủ.
+    const harness = createHarness();
+    const { result } = await ready(harness.options);
+
+    act(() => {
+      result.current.onFilesForFloor?.('L1', [makeFile('ch-05.png')]);
+    });
+    await waitFor(() => {
+      expect(harness.uploads.size).toBe(1);
+    });
+    act(() => {
+      for (const upload of harness.uploads.values()) upload.finish({ percent: 100, status: 'done' });
+    });
+    await waitFor(() => {
+      expect(result.current.footer.canSubmit).toBe(true);
+    });
+
+    act(() => {
+      result.current.onSubmit();
+    });
+    expect(harness.navigations).toHaveLength(0);
+    expect(result.current.blockNotice?.reasons.map((reason) => reason.kind)).toEqual(['replacesDrawing']);
+    expect(result.current.blockNotice?.reasons[0]?.sentence).toContain('sẽ mất');
+
+    act(() => {
+      result.current.onSubmit();
+    });
+    expect(harness.navigations).toEqual([ROUTES.project.pipeline(PROJECT_ID)]);
+  });
+
   it('U03: tầng trống không chặn khi tầng khác đã có bản vẽ; khung điều kiện nêu tên tầng bỏ qua', async () => {
     // Bộ mẫu: chỉ `Tầng 1` có bản vẽ trên máy chủ.
     const harness = createHarness();
@@ -2497,6 +2528,12 @@ describe('useFloorUploadScreen — UX41 tải bản vẽ', () => {
     expect(result.current.footer.blockReasons.filter((reason) => reason.kind === 'missingFile')).toEqual([]);
     expect(result.current.footer.skippedFloorNames).toEqual(['Tầng hầm', 'Tầng 2', 'Tầng 3']);
     expect(result.current.footer.canSubmit).toBe(true);
+
+    // Tầng 1 đã có bản vẽ: lần bấm đầu chỉ hỏi lại (xử lý lại mất việc đã duyệt), lần hai mới đi.
+    act(() => {
+      result.current.onSubmit();
+    });
+    expect(harness.navigations).toHaveLength(0);
 
     act(() => {
       result.current.onSubmit();

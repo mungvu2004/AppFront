@@ -168,6 +168,9 @@ export function planFullBuild(model: BuildFloorInput): readonly BuildJob[] {
   return [
     ...model.walls.flatMap((wall) => planWallChange(model, wall.id)),
     ...model.rooms.flatMap((room) => planRoomChange(model, room.id)),
+    ...(model.furniture ?? []).map(
+      (piece): BuildJob => ({ kind: 'furniture', key: piece.id, levelId: model.level.id, piece, level: model.level }),
+    ),
   ];
 }
 

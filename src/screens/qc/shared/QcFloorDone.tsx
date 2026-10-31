@@ -9,7 +9,7 @@ import { keyCapLabels } from '@/lib/input/shortcutRegistry';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/routes/paths';
 
-import { floorDoneSummaryOf, reopenFloor, useFloorDone, useFloorLabel } from './floorDoneModel';
+import { floorDoneSummaryOf, floorTitle, reopenFloor, useFloorDone, useFloorLabel } from './floorDoneModel';
 import { useNextFloor } from './useFloorReview';
 
 /**
@@ -74,7 +74,7 @@ export function QcFloorDoneCard({ projectId, floorId }: { readonly projectId: st
       <span aria-hidden="true" className="mb-2 grid h-9 w-9 place-items-center rounded-full bg-state-verified-tint text-state-verified-text">
         <Check className="h-4 w-4" strokeWidth={3} />
       </span>
-      <h2 className="text-[18px] font-medium text-text-primary">{`Tầng ${label} đã duyệt`}</h2>
+      <h2 className="text-[18px] font-medium text-text-primary">{`${floorTitle(label)} đã duyệt`}</h2>
       <p className="text-body-sm text-text-secondary">{`Máy và bạn đã kiểm xong cả 4 bước. Sàn ≈ ${area}.`}</p>
       <div className="mt-2 flex flex-col items-start gap-1.5">
         {nextFloor === null ? null : (

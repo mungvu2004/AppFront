@@ -490,6 +490,27 @@ describe('createAnnouncer', () => {
     announcer.destroy();
   });
 
+  it('keeps an alert while polite news queued before it is read, clears it on newer news (U13)', () => {
+    vi.useFakeTimers();
+
+    const announcer = createAnnouncer();
+
+    announcer.announce('Đang lưu');
+    announcer.announce('Đang kiểm luật');
+    announcer.announce('Lưu thất bại', 'assertive');
+    vi.advanceTimersByTime(ANNOUNCE_GAP_MS);
+
+    expect(politeRegion()?.textContent).toBe('Đang kiểm luật');
+    expect(assertiveRegion()?.textContent).toBe('Lưu thất bại');
+
+    announcer.announce('Đã lưu');
+    vi.advanceTimersByTime(ANNOUNCE_GAP_MS);
+
+    expect(assertiveRegion()?.textContent).toBe('');
+
+    announcer.destroy();
+  });
+
   it('alters a repeated message so the reader speaks it again', () => {
     vi.useFakeTimers();
 
