@@ -23,7 +23,7 @@
  * lẫn neo đã bị hook bỏ khỏi mảng, và bộ đếm phải rút theo.
  */
 
-import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
@@ -205,6 +205,31 @@ export function EditorTour(props: EditorTourProps) {
   const showsCutout = !isBlank && !isCollapsed && !isInvite && !isSummary && cutout !== null;
   const showsDots = showsCard && !isInvite && !isSummary && steps.length > 0;
 
+  /* UX-45: nền tối không nuốt cú bấm. Bấm ra ngoài thẻ thì hướng dẫn đóng VÀ cú bấm
+     vẫn tới nút bên dưới (vd. "Duyệt N đoạn máy chắc chắn") — người mới khỏi bấm hai lần. */
+  useEffect(() => {
+    if (!showsCutout) return undefined;
+    const onPointerDown = (event: PointerEvent): void => {
+      const card = cardRef.current;
+      if (card !== null && event.target instanceof Node && card.contains(event.target)) return;
+      // Bấm vào đúng ô đang được dạy (vd. ray công cụ ở bước 1): để người dùng làm thử, không đóng.
+      if (
+        cutout !== null &&
+        event.clientX >= cutout.left &&
+        event.clientX <= cutout.left + cutout.width &&
+        event.clientY >= cutout.top &&
+        event.clientY <= cutout.top + cutout.height
+      ) {
+        return;
+      }
+      onSkip();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+    };
+  }, [showsCutout, cutout, onSkip]);
+
   /* --- Chuyển động: ba con số, cả ba đọc từ bảng của src/lib/motion. ------ */
 
   const slide = isReducedMotion ? 0 : entering * SLIDE;
@@ -275,9 +300,8 @@ export function EditorTour(props: EditorTourProps) {
             <div
               key={panel.side}
               aria-hidden="true"
-              className="pointer-events-auto fixed bg-bg-overlay"
+              className="pointer-events-none fixed bg-bg-overlay"
               style={{ ...panel.box, ...cutoutMotion, opacity: BACKDROP_OPACITY }}
-              onClick={onSkip}
             />
           ))}
           <div

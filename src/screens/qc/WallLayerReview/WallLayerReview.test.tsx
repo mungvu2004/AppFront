@@ -1093,6 +1093,17 @@ describe('câu 1 ở đầu cột việc (QcStepColumn)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: TASK_HEADING })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
+
+  it('người xem đọc câu xem, không bị bảo giữ/xoá (UX-46)', async () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('partial')} roles={['viewer']} />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Xem từng đoạn tường máy tìm thấy.' })).toBeInTheDocument();
+    expect(screen.queryByText(/nét thừa thì xoá/u)).not.toBeInTheDocument();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
