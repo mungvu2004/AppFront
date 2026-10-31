@@ -102,6 +102,10 @@ function canDeliverFormat(
 /** PDF không tải tệp về: hộp thoại in đã mở, người dùng tự lưu (U01). */
 const PDF_PRINT_NOTE = 'Đã mở hộp thoại in. Chọn “Lưu thành PDF” để lưu tệp.';
 
+/** U51: bảng giữ thông tin tệp qua lượt tải lại trang, nhưng nội dung tệp chỉ còn trong phiên đã xuất. */
+const HISTORY_CAPTION = 'Lưu 20 tệp gần nhất trên trình duyệt này. Tệp từ lần mở trước cần xuất lại để tải về.';
+const RESTORED_ROW_NOTE = 'Tệp cũ, xuất lại để tải về';
+
 interface ExportPanelHistoryProps {
   readonly files: readonly ExportedFileRow[];
   readonly isLoading: boolean;
@@ -122,7 +126,7 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
       title="Tệp đã xuất"
       {...(canPersistHistory
         ? {}
-        : { actions: <span className="text-[13px] text-text-secondary">Chỉ trong phiên này, mất khi làm mới trang.</span> })}
+        : { actions: <span className="text-[13px] text-text-secondary">{HISTORY_CAPTION}</span> })}
     >
       <Table.Root>
         <Table.Header>
@@ -152,16 +156,20 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
                 {isLoading ? <SkeletonText className="h-3 w-12" /> : file.sizeLabel}
               </Table.Cell>
               <Table.Cell>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`${file.formatId === 'pdf' ? 'Mở lại hộp thoại in' : 'Tải về lại'} ${file.fileName}`}
-                  onClick={() => {
-                    onDownload(file.id);
-                  }}
-                >
-                  {file.formatId === 'pdf' ? 'Mở lại hộp thoại in' : 'Tải về lại'}
-                </Button>
+                {file.isRestored === true ? (
+                  <span className="block text-xs text-text-secondary">{RESTORED_ROW_NOTE}</span>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`${file.formatId === 'pdf' ? 'Mở lại hộp thoại in' : 'Tải về lại'} ${file.fileName}`}
+                    onClick={() => {
+                      onDownload(file.id);
+                    }}
+                  >
+                    {file.formatId === 'pdf' ? 'Mở lại hộp thoại in' : 'Tải về lại'}
+                  </Button>
+                )}
               </Table.Cell>
             </Table.Row>
           ))}
@@ -198,8 +206,9 @@ function ExportPanelStatus({ props }: StatusProps) {
       </Badge>
     );
 
+  const sessionFileCount = exportedFiles.filter((file) => file.isRestored !== true).length;
   const parts = [
-    exportedFiles.length > 0 ? `đã xuất ${count(exportedFiles.length)} tệp trong phiên này` : null,
+    sessionFileCount > 0 ? `đã xuất ${count(sessionFileCount)} tệp trong phiên này` : null,
   ].filter((part): part is string => part !== null);
 
   return (
@@ -380,6 +389,22 @@ export function ExportPanel(props: ExportPanelProps) {
           onDownload={onDownload}
         />
       </div>
+
+      {props.unreviewedConfirm != null && (
+        <div
+          role="alertdialog"
+          aria-label="Xác nhận xuất"
+          className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-bg-surface px-4 py-3 text-sm"
+        >
+          <span className="min-w-0 flex-1">{props.unreviewedConfirm}</span>
+          <Button variant="secondary" size="sm" onClick={props.onReviewFirst}>
+            Duyệt trước
+          </Button>
+          <Button size="sm" onClick={props.onConfirmExport}>
+            Xuất vẫn
+          </Button>
+        </div>
+      )}
 
       <ExportPanelFooter
         progress={progress}
