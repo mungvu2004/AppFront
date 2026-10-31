@@ -279,6 +279,8 @@ const RELOAD_FAILED = 'Không tải lại được tầng này. Thử lại sau.
 const SAVE_UNAVAILABLE = 'Không lưu được thay đổi của tầng này.';
 /** Toast sau "Tải lại" ở dải xung đột: sửa cục bộ (vd. duyệt tường) đã bị bỏ — `vi.json` `floorLayerSave.reloadDiscarded`. */
 export const FLOOR_LAYER_RELOAD_DISCARDED = 'Đã tải lại bản mới nhất của tầng; các thay đổi chưa lưu đã bị bỏ.';
+/** Toast khi quay lại tab mà tầng đã được sửa ở nơi khác (U14): kho nạp bản mới, không đợi 409. */
+export const FLOOR_LAYER_UPDATED_ELSEWHERE = 'Tầng này vừa được sửa ở nơi khác. Đã cập nhật bản mới nhất.';
 
 const bump = (target: SaverBook): void => {
   target.version += 1;
@@ -451,7 +453,11 @@ function openBook(projectId: string): SaverBook {
       }
     }),
     guardBeforeUnload({
-      hasUnsavedChanges: () => useStore.getState().unsavedFloorIds.length > 0 || pendingBeforeAttach(),
+      // Tầng bị khối `reload` không bao giờ lưu được nữa, và dải báo đã nói tải lại là bỏ sửa — hộp
+      // hỏi rời trang của trình duyệt cho nó chỉ chặn F5/"Tải lại" (U15).
+      hasUnsavedChanges: () =>
+        useStore.getState().unsavedFloorIds.some((id) => created.saver?.getBlock(id)?.kind !== 'reload') ||
+        pendingBeforeAttach(),
       sendBeacon: () => undefined,
     }),
   );
@@ -590,6 +596,57 @@ export function useFloorLayerAutosave({
     },
     [current],
   );
+
+  /*
+   * U14: tab quay lại (focus / hiện ra) mà tầng không có sửa chờ → đọc N16; máy chủ có revision mới
+   * hơn thì nạp ngay, thay vì để người dùng sửa trên bản cũ rồi mới gặp 409. Có sửa chờ thì để
+   * lượt lưu tự báo xung đột như cũ — nạp đè là mất sửa.
+   */
+  useEffect(() => {
+    if (floorId === undefined || typeof window === 'undefined') {
+      return;
+    }
+
+    const isStale = (revision: number | undefined): boolean => {
+      const state = useStore.getState();
+
+      return (
+        current.disposed ||
+        state.spatialProjectId !== current.projectId ||
+        state.unsavedFloorIds.includes(floorId) ||
+        state.floorMeta[floorId]?.revision !== revision
+      );
+    };
+
+    const refresh = (): void => {
+      const local = useStore.getState().floorMeta[floorId]?.revision;
+
+      if (document.visibilityState === 'hidden' || local === undefined || isStale(local)) {
+        return;
+      }
+
+      void Promise.all([getPipes(), spatialApiOf(current)])
+        .then(async ([loaded, api]) => {
+          const read = await api.spatial.readLayer({ floorId, projectId: current.projectId });
+
+          if (!read.ok || read.data.revision <= local || isStale(local)) {
+            return;
+          }
+
+          loaded.applyFloorLayerRead(floorId, read.data);
+          appNotificationBus.publish({ description: '', title: FLOOR_LAYER_UPDATED_ELSEWHERE, type: 'floor-layer-refresh' });
+        })
+        .catch(() => undefined);
+    };
+
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [current, floorId]);
 
   const discardFloor = useMemo(() => (target: string) => current.saver?.discardFloor(target), [current]);
 

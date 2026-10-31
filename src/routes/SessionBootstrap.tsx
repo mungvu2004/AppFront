@@ -150,6 +150,22 @@ export function PendingShell({ label }: { label: string }) {
   );
 }
 
+/** Phiên chưa mở sau chừng này (mạng chậm) thì câu chờ nói rõ là vẫn đang chạy, không trông như treo (U25). */
+export const SESSION_SLOW_MS = 4_000;
+export const SESSION_SLOW_LABEL = 'Mạng đang chậm, vẫn đang mở phiên';
+
+function SessionPendingShell() {
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), SESSION_SLOW_MS);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return <PendingShell label={slow ? SESSION_SLOW_LABEL : 'Đang mở phiên'} />;
+}
+
 /**
  * Năm nhánh, theo đúng thứ tự này — thứ tự là một phần của hợp đồng.
  *
@@ -215,7 +231,7 @@ export function SessionGate({
 
     return (
       <ScreenMain>
-        <PendingShell label="Đang mở phiên" />
+        <SessionPendingShell />
       </ScreenMain>
     );
   }
