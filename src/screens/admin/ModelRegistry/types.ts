@@ -30,6 +30,8 @@ export interface ActiveCardModel {
   readonly canRevert: boolean;
   /** G2-20: có bản đã đánh giá điểm cao hơn hẳn bản đang dùng. */
   readonly betterNote?: string | null;
+  /** U55: số đo các bản không chấm trên cùng bộ dữ liệu → câu "không so thẳng được". */
+  readonly metricNote?: string | null;
 }
 
 export interface VersionRowModel {

@@ -7,7 +7,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { UsersApi } from '@/api/client';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 
-import { buildPermissionMatrix, createUserManagementGateway, permissionCellSrLabel } from './userManagementGateway';
+import {
+  buildPermissionMatrix,
+  createUserManagementGateway,
+  INVITE_ROLE_OPTION_LABELS,
+  permissionCellSrLabel,
+} from './userManagementGateway';
 
 const capitalized = (label: string): boolean => label === label.charAt(0).toLocaleUpperCase('vi') + label.slice(1);
 
@@ -48,5 +53,13 @@ describe('[11U-A-101] lượt ghi gửi Idempotency-Key (FL-11U-01)', () => {
       expect.objectContaining({ idempotent: true }),
       expect.objectContaining({ idempotent: true }),
     ]);
+  });
+});
+
+describe('vai cho lời mời (U38)', () => {
+  it('mỗi vai nói việc được làm: Kỹ sư là vai được sửa dự án', () => {
+    expect(INVITE_ROLE_OPTION_LABELS.engineer).toContain('được sửa dự án');
+    expect(INVITE_ROLE_OPTION_LABELS.viewer).toContain('chỉ xem');
+    expect(INVITE_ROLE_OPTION_LABELS.admin.startsWith('Quản trị')).toBe(true);
   });
 });

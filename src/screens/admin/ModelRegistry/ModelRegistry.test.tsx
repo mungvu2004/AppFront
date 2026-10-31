@@ -316,3 +316,35 @@ describe('Hộp thoại A9', () => {
     expect(confirm).toBeDisabled();
   });
 });
+
+describe('U24/U55 — thẻ "Đang dùng"', () => {
+  const wallCard = {
+    canRevert: true,
+    createdLabel: null,
+    formatLabel: 'onnx',
+    hasVersion: true,
+    label: 'seg-b2-colab-v2-r3',
+    metricLabel: 'Độ chính xác 95,5%',
+    metricNote: 'Số đo không so thẳng được.',
+  };
+
+  it('"Tắt AI" nằm trong khối cảnh báo riêng, không cạnh tên mô hình đang dùng', () => {
+    const actions = buildActions();
+    renderView({ ...MODEL_REGISTRY_SCENARIO_SUCCESS, activeCard: wallCard }, actions);
+
+    const active = screen.getByRole('region', { name: 'Đang dùng' });
+    expect(within(active).queryByRole('button', { name: 'Tắt AI, dùng thuật toán cũ' })).toBeNull();
+    expect(within(active).getByText('Số đo không so thẳng được.')).toBeInTheDocument();
+
+    const zone = screen.getByRole('region', { name: 'Tắt AI tách lớp tường cho cả hệ thống' });
+    expect(within(zone).getByText(/Mọi lượt xử lý mới của mọi người dùng/)).toBeInTheDocument();
+    fireEvent.click(within(zone).getByRole('button', { name: 'Tắt AI, dùng thuật toán cũ' }));
+    expect(actions.onRequestRevert).toHaveBeenCalledTimes(1);
+  });
+
+  it('không quay về được thì không có khối "Tắt AI"', () => {
+    renderView({ ...MODEL_REGISTRY_SCENARIO_SUCCESS, activeCard: { ...wallCard, canRevert: false } });
+
+    expect(screen.queryByRole('region', { name: 'Tắt AI tách lớp tường cho cả hệ thống' })).toBeNull();
+  });
+});

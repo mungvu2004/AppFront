@@ -37,6 +37,9 @@ const TEXT = {
   versionsTitle: 'Phiên bản',
   revert: 'Tắt AI, dùng thuật toán cũ',
   revertHint: 'Bỏ mô hình AI, chuỗi xử lý dùng lại thuật toán không học máy cho loại này.',
+  revertZoneTitle: 'Tắt AI tách lớp tường cho cả hệ thống',
+  revertZoneBody:
+    'Mọi lượt xử lý mới của mọi người dùng sẽ tách tường bằng thuật toán cũ, không dùng mô hình AI. Chỉ làm khi mô hình đang dùng hỏng; bật lại bằng Kích hoạt một phiên bản.',
   reload: 'Tải lại',
   retry: 'Thử lại',
   errorTitle: 'Không đọc được danh sách model',
@@ -111,10 +114,9 @@ function Head({ actions, model }: ModelRegistryProps) {
 interface ActiveCardProps {
   readonly card: ActiveCardModel;
   readonly focusKey: number;
-  readonly actions: ModelRegistryActions;
 }
 
-function ActiveCard({ actions, card, focusKey }: ActiveCardProps) {
+function ActiveCard({ card, focusKey }: ActiveCardProps) {
   const facts = [card.metricLabel, card.createdLabel].filter((fact): fact is string => fact !== null);
   const sectionRef = useRef<HTMLElement>(null);
   /** Khoá lúc gắn: thẻ gắn lại (đổi họ, Thử lại) không được cướp tiêu điểm (A12). */
@@ -140,14 +142,29 @@ function ActiveCard({ actions, card, focusKey }: ActiveCardProps) {
         <p className="truncate text-base font-semibold text-text-primary">{card.label}</p>
         {facts.length > 0 && <p className="tabular-nums text-[13px] text-text-secondary">{facts.join(' · ')}</p>}
         {card.betterNote != null && <p className="text-[13px] text-state-attention-text">{card.betterNote}</p>}
+        {card.metricNote != null && <p className="text-[13px] text-text-secondary">{card.metricNote}</p>}
       </div>
-      {card.canRevert && (
-        <div className="flex max-w-[280px] flex-col items-end gap-1">
-          <Button onClick={actions.onRequestRevert} size="sm" title={TEXT.revertHint} variant="ghost">
-            {TEXT.revert}
-          </Button>
-        </div>
-      )}
+    </section>
+  );
+}
+
+/**
+ * U24: "Tắt AI" đổi cả hệ thống nên không nằm cạnh tên mô hình đang dùng (dễ bấm nhầm): khối riêng
+ * cuối trang, có câu cảnh báo; bấm vẫn qua hộp xác nhận.
+ */
+function RevertZone({ actions }: { readonly actions: ModelRegistryActions }) {
+  return (
+    <section
+      aria-label={TEXT.revertZoneTitle}
+      className={cn(PANEL, 'flex items-center justify-between gap-4 border border-state-violation')}
+    >
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="text-sm font-semibold text-text-primary">{TEXT.revertZoneTitle}</p>
+        <p className="text-[13px] text-text-secondary">{TEXT.revertZoneBody}</p>
+      </div>
+      <Button className="shrink-0" onClick={actions.onRequestRevert} size="sm" title={TEXT.revertHint} variant="secondary">
+        {TEXT.revert}
+      </Button>
     </section>
   );
 }
@@ -180,7 +197,7 @@ function VersionsArea({ actions, model }: ModelRegistryProps) {
   return (
     <div className="flex flex-col gap-4">
       {model.activeCard !== null && (
-        <ActiveCard actions={actions} card={model.activeCard} focusKey={model.activeCardFocusKey} />
+        <ActiveCard card={model.activeCard} focusKey={model.activeCardFocusKey} />
       )}
       {model.refreshError !== null && (
         <InlineAlert
@@ -217,6 +234,7 @@ function VersionsArea({ actions, model }: ModelRegistryProps) {
           </div>
         )}
       </Section>
+      {model.activeCard?.canRevert === true && <RevertZone actions={actions} />}
     </div>
   );
 }

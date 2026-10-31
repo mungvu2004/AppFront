@@ -131,6 +131,13 @@ export const ROLE_LABELS: Readonly<Record<ProjectRole, string>> = Object.freeze(
   viewer: 'Người xem',
 });
 
+/** U38: tên vai kèm việc được làm, để khỏi phải đoán "Kỹ sư" là vai được sửa dự án. */
+export const INVITE_ROLE_OPTION_LABELS: Readonly<Record<ProjectRole, string>> = {
+  admin: 'Quản trị (quản lý cả hệ thống)',
+  engineer: 'Kỹ sư (được sửa dự án)',
+  viewer: 'Người xem (chỉ xem)',
+};
+
 /** Nhãn tiếng Việt của ba trạng thái tài khoản. */
 export const STATUS_LABELS: Readonly<Record<UserAccountStatus, string>> = Object.freeze({
   active: 'Đang hoạt động',
