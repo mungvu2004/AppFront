@@ -57,7 +57,7 @@ const BREADCRUMB_PIPELINE = 'Xử lý';
 const BODY_ID = 'pipeline-failure-body';
 
 /** Màn S-11 như một hàm của props (mục D) — test và story dựng thẳng cái này. */
-export function PipelineFailure(props: PipelineFailureProps) {
+export function PipelineFailure(props: PipelineFailureProps & { readonly projectName?: string | null }) {
   const isCollapsed = props.state === 'collapsed';
 
   return (
@@ -73,6 +73,8 @@ export function PipelineFailure(props: PipelineFailureProps) {
                 label: BREADCRUMB_PROJECTS,
                 ...(props.onBackToProjects !== undefined ? { onClick: props.onBackToProjects } : {}),
               },
+              // UX-39: giữ cấp tên dự án như các màn khác ("Dự án › <tên> › Xử lý").
+              ...(props.projectName ? [{ id: 'project', label: props.projectName }] : []),
               { id: 'current', label: BREADCRUMB_PIPELINE },
             ]}
           />

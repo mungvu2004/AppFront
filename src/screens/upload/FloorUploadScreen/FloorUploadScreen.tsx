@@ -68,7 +68,7 @@ const SECTION_TITLE = 'Bản vẽ theo tầng';
 const GATE_LOADING_TITLE = 'Điều kiện để xử lý';
 const GATE_LOADING_TEXT = 'Đang tải…';
 
-/** Chữ của dòng trạng thái. "Sẵn sàng xử lý" chỉ ở tiêu đề khung điều kiện, không lặp ở đây. */
+/** Chữ của dòng trạng thái. "Sẽ kiểm bản vẽ khi xử lý" chỉ ở tiêu đề khung điều kiện, không lặp ở đây. */
 const STATUS_READY = 'Đủ điều kiện';
 const STATUS_PENDING = 'Chưa đủ điều kiện';
 const STATUS_NOT_STARTED = 'Chưa bắt đầu';

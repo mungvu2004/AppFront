@@ -118,6 +118,7 @@ const COPY = Object.freeze({
   submitKey: 'floorUpload.footer.submit',
   blockedTitle: 'Không thể bắt đầu xử lý',
   blockedTitleKey: 'floorUpload.blockedSubmit.title',
+  replaceTitle: 'Xử lý lại sẽ thay bản vẽ đang có. Bấm "Bắt đầu xử lý" lần nữa để đồng ý.',
   noFloors: 'Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý.',
   uploadErrorTitleKey: 'errors.upload.title',
   validationErrorTitleKey: 'errors.validation.title',
@@ -398,6 +399,8 @@ export function useFloorUploadScreen(
   const [dragDepth, setDragDepth] = useState(0);
   const [isOnline, setOnline] = useState(true);
   const [blockNotice, setBlockNotice] = useState<FloorUploadBlockNotice | null>(null);
+  // UX-51: lời hỏi lại khi lượt xử lý sẽ thay bản vẽ của tầng đã có kết quả. Bấm lần hai là đồng ý.
+  const [replaceNotice, setReplaceNotice] = useState<FloorUploadBlockNotice | null>(null);
   const [scrollToken, setScrollToken] = useState(0);
   const [isSubmitting, setSubmitting] = useState(false);
 
@@ -457,6 +460,11 @@ export function useFloorUploadScreen(
     () => [...(floorsQuery.data ?? [])].sort((first, second) => first.order - second.order),
     [floorsQuery.data],
   );
+  // Tầng đã có bản vẽ lúc mở màn — chụp một lần, để tệp vừa tải lên tầng trống không bị coi là "thay" (UX-51).
+  const [drawnAtOpen, setDrawnAtOpen] = useState<ReadonlySet<string> | null>(null);
+  if (drawnAtOpen === null && floorsQuery.data !== undefined) {
+    setDrawnAtOpen(new Set(floorsQuery.data.filter((floor) => floor.drawings.length > 0).map((floor) => floor.id)));
+  }
   // Danh sách tầng mới nhất cho lời gọi về muộn của một lượt tải (closure giữ bản cũ).
   const floorsRef = useRef<readonly Floor[]>(floors);
   floorsRef.current = floors;
@@ -1178,6 +1186,13 @@ export function useFloorUploadScreen(
     setBlockNotice(null);
   }
 
+  const replaced = floors.filter((floor) => drawnAtOpen?.has(floor.id) === true && attachmentByFloor.has(floor.id));
+
+  // Tệp thay đã gỡ thì lời hỏi lại cũng gỡ theo.
+  if (replaceNotice !== null && replaced.length === 0) {
+    setReplaceNotice(null);
+  }
+
   const submit = (): void => {
     if (!canEdit) {
       return;
@@ -1204,8 +1219,31 @@ export function useFloorUploadScreen(
       return;
     }
 
+    // Tầng đã có bản vẽ máy chủ mà vừa nhận tệp mới: xử lý lại thay kết quả cũ, việc duyệt trên
+    // tầng đó mất. Hỏi một lần; bấm lại là đồng ý (UX-51).
+    const firstReplaced = replaced[0];
+
+    if (firstReplaced !== undefined && replaceNotice === null) {
+      const requestId = scrollToken + 1;
+
+      setScrollToken(requestId);
+      setReplaceNotice({
+        title: COPY.replaceTitle,
+        titleKey: COPY.blockedTitleKey,
+        reasons: replaced.map((floor) => ({
+          floorId: floor.id,
+          floorName: floor.name,
+          kind: 'replacesDrawing' as const,
+          sentence: `${floor.name}: bản vẽ cũ và mọi việc đã duyệt trên tầng này (tường, cửa, phòng) sẽ mất.`,
+        })),
+        scrollTo: { floorId: firstReplaced.id, requestId },
+      });
+      return;
+    }
+
     setSubmitting(true);
     setBlockNotice(null);
+    setReplaceNotice(null);
     options.onNavigate?.(ROUTES.project.pipeline(projectId));
   };
 
@@ -1502,7 +1540,7 @@ export function useFloorUploadScreen(
     tray,
     footer,
     // Lý do hiện theo bản mới nhất, không theo bản chụp lúc bấm (G3-22).
-    blockNotice: blockNotice === null ? null : { ...blockNotice, reasons: blockReasons },
+    blockNotice: blockNotice === null ? replaceNotice : { ...blockNotice, reasons: blockReasons },
     splitPrompt: split.splitPrompt,
     apartments: split.apartments,
   };
