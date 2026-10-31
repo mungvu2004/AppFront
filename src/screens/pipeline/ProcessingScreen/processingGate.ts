@@ -57,7 +57,7 @@ export const WAITING_NOTE = 'Khi AI xong, nút sang Duyệt tầng hiện ở đ
 const NO_DIMENSION_NOTE = 'Không đọc được số kích thước nào';
 const NO_METRIC_NOTE = 'Chưa đọc được số liệu của lượt xử lý';
 // U11: brochure không ghi số vẫn có cửa đi chính (~900 mm) để đo.
-const CALIBRATE_NOTE = 'Đo một đoạn đã biết chiều dài, như số ghi trên bản vẽ hoặc bề rộng cửa đi chính (900 mm). Khoảng 1 phút.';
+const CALIBRATE_NOTE = 'Đo một đoạn đã biết chiều dài, như số ghi trên bản vẽ hoặc bề rộng cửa đi chính (900 mm), hoặc nhập diện tích căn in trên brochure. Khoảng 1 phút.';
 
 /** Câu cho từng lý do của N16 `readiness` (FIX-P0-15, thiết kế H5 §2.2). */
 export const REVIEW_REASON_SENTENCE: Readonly<Record<ProcessingReviewReason, string>> = {

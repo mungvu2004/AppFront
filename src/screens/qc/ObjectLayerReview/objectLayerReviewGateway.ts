@@ -1653,6 +1653,7 @@ export function objectsOf(
       tracedCentre: entity.centre,
       rotationDeg: entity.rotationDeg,
       furnitureKind: entity.kind,
+      ...(entity.variant === 'sofa' ? { isSofa: true } : {}),
     };
 
     objects.push(free);
@@ -1675,11 +1676,19 @@ export function objectsOf(
 type FreeFurnitureObject = OrphanReviewObject & {
   readonly rotationDeg: number;
   readonly furnitureKind: FurnitureKind;
+  /** Máy chủ đổi nhãn theo cỡ thật: "ghế" dài hơn 1,4 m là sofa (`variant: 'sofa'`, U34). */
+  readonly isSofa?: true;
 };
+
+const SOFA_LABEL = 'Sofa';
 
 /** Tên loại người đọc: tên loại con, hoặc tên `FurnitureKind` khi loại con chỉ là "nội thất khác". */
 export function objectTypeLabelOf(object: ReviewObject): string {
   const kind = (object as Partial<FreeFurnitureObject>).furnitureKind;
+
+  if ((object as Partial<FreeFurnitureObject>).isSofa === true) {
+    return SOFA_LABEL;
+  }
 
   if (object.subtype !== 'otherFurniture' || kind === undefined || kind === 'other') {
     return OBJECT_SUBTYPE_LABELS[object.subtype];
