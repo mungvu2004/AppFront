@@ -201,7 +201,9 @@ export type FloorUploadBlockReasonKind =
   | 'missingElevation'
   | 'duplicateElevation'
   | 'uploading'
-  | 'noFloors';
+  | 'noFloors'
+  /** Không chặn: thay bản vẽ của tầng đã có kết quả, hỏi lại một lần trước khi xử lý (UX-51). */
+  | 'replacesDrawing';
 
 /**
  * Một lý do, đã nêu tên tầng và mang theo mã tầng.
