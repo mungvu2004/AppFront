@@ -12,7 +12,7 @@
  * View thuần: mọi dữ liệu đến qua props; liên kết dùng `Link` của router.
  */
 import { useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, LogOut } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, LogOut, Users } from 'lucide-react';
 import { Link, NavLink, useLocation, useMatch } from 'react-router-dom';
 
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -102,7 +102,10 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
   const gateOwned = useFlowGateOwned();
   // Bước đang đứng xong → nút chính; chưa xong → nút phụ (màn tự có nút chính trong thân trang).
   const currentDone = project.stepStates?.[project.stepIndex] === 'done';
-  const next = PROJECT_STEPS[project.stepIndex + 1];
+  // UX-07: ở Tải bản vẽ mà bản vẽ đã xử lý xong thì việc kế tiếp là Duyệt tầng, không mời "Tiếp: Xử lý" lần nữa.
+  const skipToReview = project.stepIndex === 0 && project.stepStates?.[1] === 'done';
+  const nextIndex = skipToReview ? 2 : project.stepIndex + 1;
+  const next = PROJECT_STEPS[nextIndex];
   // Màn ngoài bước: quay lại bước đầu tiên chưa xong (hết bước thì về bước cuối).
   const firstOpen = PROJECT_STEPS.findIndex((_, index) => project.stepStates?.[index] !== 'done');
   const resumeIndex = firstOpen === -1 ? PROJECT_STEPS.length - 1 : firstOpen;
@@ -114,7 +117,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
         : (PROJECT_STEPS[index]?.path(project.id) ?? ROUTES.dashboard);
 
   // Màn Tải bản vẽ tự có nút chính "Bắt đầu xử lý": nút đi tiếp của thanh bước luôn kiểu phụ (A2 #4).
-  const nextClass = cn(getButtonStyles({ variant: currentDone && project.stepIndex !== 0 ? 'primary' : 'secondary', size: 'sm' }), 'shrink-0 gap-2 whitespace-nowrap');
+  const nextClass = cn(getButtonStyles({ variant: skipToReview || (currentDone && project.stepIndex !== 0) ? 'primary' : 'secondary', size: 'sm' }), 'shrink-0 gap-2 whitespace-nowrap');
 
   return (
     <nav aria-label="Các bước của dự án" className="flex h-10 items-center gap-3 border-t border-border-default px-4 sm:px-6">
@@ -164,7 +167,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
         </Link>
       ) : onPipelineScreen ? null : (
         next !== undefined && (
-          <Link to={next.path(project.id)} className={nextClass}>
+          <Link to={skipToReview ? stepPath(nextIndex) : next.path(project.id)} className={nextClass}>
             Tiếp: {next.label}
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
@@ -235,6 +238,17 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
               <ProjectNav projectId={project.id} pathname={location.pathname} search={location.search} />
             </div>
           </details>
+        )}
+        {project !== null && (
+          // UX-44: lối mời người cùng làm thấy ngay, không giấu trong menu tên dự án (cùng đích với ProjectNav).
+          // ponytail: hiện cho mọi vai; header không biết vai trong dự án, tab Thành viên tự chặn người không có quyền sửa.
+          <Link
+            to={`${ROUTES.project.settings(project.id)}?tab=members`}
+            className="flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 text-[13px] text-text-secondary hover:bg-bg-sunken hover:text-text-primary"
+          >
+            <Users size={14} aria-hidden="true" />
+            Thành viên
+          </Link>
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-2">

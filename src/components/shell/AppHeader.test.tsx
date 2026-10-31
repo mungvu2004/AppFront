@@ -63,6 +63,20 @@ describe('AppHeader', () => {
     expect(screen.getByRole('link', { name: /Tiếp: Xử lý/ }).className).not.toContain('bg-accent ');
   });
 
+  it('[UX-07] Tải bản vẽ của dự án đã xử lý: nút đi tiếp là "Tiếp: Duyệt tầng", về tầng đang duyệt', () => {
+    renderHeader({ project: { id: 'p1', name: null, stepIndex: 0, lastFloorPath: ROUTES.project.walls('p1', 'f1'), stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } });
+    expect(screen.queryByRole('link', { name: /Tiếp: Xử lý/ })).toBeNull();
+    const next = screen.getByRole('link', { name: /Tiếp: Duyệt tầng/ });
+    expect(next).toHaveAttribute('href', ROUTES.project.walls('p1', 'f1'));
+    expect(next.className).toContain('bg-accent ');
+  });
+
+  it('[UX-44] có lối "Thành viên" thấy ngay cạnh tên dự án', () => {
+    renderHeader({ project: { id: 'p1', name: 'Nhà A', stepIndex: 2 } });
+    const hrefs = screen.getAllByRole('link', { name: 'Thành viên' }).map((link) => link.getAttribute('href'));
+    expect(hrefs).toContain(`${ROUTES.project.settings('p1')}?tab=members`);
+  });
+
   it('trong tầng: ô bước 3 về lớp Tường; header không mời lớp kế hay "Về duyệt lớp" (cổng tầng lo)', () => {
     const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, floorId: 'f1', layerIndex: 0 } });
     expect(screen.getByRole('link', { name: /Bước 3: Duyệt tầng/ })).toHaveAttribute('href', ROUTES.project.walls('p1', 'f1'));
