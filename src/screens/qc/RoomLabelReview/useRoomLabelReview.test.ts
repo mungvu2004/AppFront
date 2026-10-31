@@ -959,6 +959,8 @@ describe('[K10] tên giả của máy và đường bao tràn ra ngoài', () => 
       room('done', { reviewed: true }),
       room('fake', { name: 'phòng 5' }),
       room('spill', {}),
+      /* UX-24: tên người gõ (lệnh đổi tên đặt `source: 'human'`) không còn là "máy chắc chắn". */
+      room('typed', { source: 'human' }),
     ];
 
     expect(confidentRoomsOf(rooms, new Set(['spill'] as unknown as RoomId[])).map((item) => item.id)).toEqual(['sure']);

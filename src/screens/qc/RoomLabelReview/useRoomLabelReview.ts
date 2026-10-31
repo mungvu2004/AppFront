@@ -129,7 +129,6 @@ import {
   approveConfidentRoomsLabelOf,
   confidentRoomsOf,
   runRoomTransaction,
-  typedNameRowOf,
   wallsOfLevel,
   ROOM_NAME_TARGETS,
   ROOM_USAGE_CHOICES,
@@ -563,14 +562,10 @@ export function useRoomLabelReview(
   const backgroundImageUrl = background?.imageUrl ?? null;
   const spillingRoomIds = useMemo(() => roomsSpillingOutside(rooms, walls), [rooms, walls]);
 
-  /* UX-24: phòng người duyệt đã tự đặt tên trong phiên — tên ấy không mang nhãn "AI đề xuất" nữa.
-     ponytail: chỉ nhớ trong phiên (lệnh đổi tên chưa đổi `source`); bền hơn khi lệnh đặt `source: 'human'`. */
-  const [renamedRoomIds, setRenamedRoomIds] = useState<ReadonlySet<RoomId>>(() => new Set());
-
   const allRows = useMemo<readonly RoomLabelViewModel[]>(
     () =>
-      rooms.map((room) => {
-        const row = toRoomLabelRow(room, {
+      rooms.map((room) =>
+        toRoomLabelRow(room, {
           measures: measures.get(room.id) ?? measureRoom(room, scale, scaleStatus, scaleSource),
           notices: noticesOfRoom(violations, room.id, ruleRouteHref).filter(
             /* G4a-30: tỷ lệ tạm thì diện tích chưa có, không nhắc "thiếu m²" trái với panel. */
@@ -580,14 +575,11 @@ export function useRoomLabelReview(
           scale,
           codes: roomCodes,
           outlineSpills: spillingRoomIds.has(room.id),
-        });
-
-        return renamedRoomIds.has(room.id) ? typedNameRowOf(row) : row;
-      }),
+        }),
+      ),
     [
       backgroundImageUrl,
       measures,
-      renamedRoomIds,
       roomCodes,
       rooms,
       ruleRouteHref,
@@ -851,10 +843,6 @@ export function useRoomLabelReview(
       const before = roomById(roomId)?.usage;
 
       void run((context) => buildRenameRoomCommand({ roomId, name }, context)).then((renamed) => {
-        if (renamed !== null) {
-          setRenamedRoomIds((previous) => new Set(previous).add(roomId));
-        }
-
         if (renamed !== null && usage !== null && usage !== before) {
           void run((context) => buildChangeUsageCommand({ roomId, usage }, context));
         }
@@ -911,8 +899,8 @@ export function useRoomLabelReview(
 
   /* UX-18: một nút duyệt mọi phòng máy chắc chắn — MỘT bước hoàn tác (Ctrl+Z hoặc nút trên toast). */
   const confidentRooms = useMemo(
-    () => confidentRoomsOf(rooms, new Set([...spillingRoomIds, ...renamedRoomIds])),
-    [renamedRoomIds, rooms, spillingRoomIds],
+    () => confidentRoomsOf(rooms, spillingRoomIds),
+    [rooms, spillingRoomIds],
   );
 
   const onApproveConfidentRooms = useCallback(() => {

@@ -1088,7 +1088,8 @@ export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): Room
     labelFits: labelFitsIn(options.measures.labelBoxPx, room.name, codeLabel),
     fillToken: fillTokenOf(room),
     confidence: room.confidence,
-    confidenceLabel: describeConfidence(room.confidence).label,
+    /* UX-24: tên người duyệt tự gõ (lệnh đổi tên đặt `source: 'human'`) không mang nhãn máy. */
+    confidenceLabel: room.source === 'human' && !room.reviewed ? TYPED_NAME_LABEL : describeConfidence(room.confidence).label,
     nameFromOcr,
     crop:
       nameFromOcr && hasName && options.backgroundImageUrl !== null
@@ -1103,13 +1104,6 @@ export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): Room
 /** UX-24: nhãn tin cậy của tên người duyệt tự gõ — không phải "AI đề xuất". */
 export const TYPED_NAME_LABEL = 'Tên do bạn đặt';
 
-/** UX-24: dòng của phòng người duyệt vừa tự đặt tên — bỏ dấu OCR/AI, không còn ảnh cắt chữ máy đọc. */
-export const typedNameRowOf = (row: RoomLabelViewModel): RoomLabelViewModel => ({
-  ...row,
-  nameFromOcr: false,
-  confidenceLabel: TYPED_NAME_LABEL,
-  crop: null,
-});
 
 /* -------------------------------------------------------------------------- */
 /* Chuẩn hoá tên — phép quy chiếu VĂN BẢN, xem khối chú thích đầu file.        */
@@ -1618,7 +1612,10 @@ export const confidentRoomsOf = (
   excluded: ReadonlySet<RoomId>,
   threshold: number = ROOM_CONFIDENT_THRESHOLD,
 ): readonly Room[] =>
-  rooms.filter((room) => !room.reviewed && hasRoomName(room) && !excluded.has(room.id) && room.confidence >= threshold);
+  rooms.filter(
+    (room) =>
+      !room.reviewed && room.source === 'ai' && hasRoomName(room) && !excluded.has(room.id) && room.confidence >= threshold,
+  );
 
 /** UX-18: nhãn nút (và câu hoàn tác) — "Duyệt 5 phòng máy chắc chắn". */
 export const approveConfidentRoomsLabelOf = (count: number): string => `Duyệt ${count} phòng máy chắc chắn`;
