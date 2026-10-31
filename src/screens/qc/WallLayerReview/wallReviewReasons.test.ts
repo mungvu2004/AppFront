@@ -30,3 +30,12 @@ describe('Bố cục L23: hàng đợi Tường chia theo lý do máy nghi', () 
     expect('reason' in rowExtraOf(walls[1]!, null)).toBe(false);
   });
 });
+describe('UX-10/16: câu độ dày nói một điều, không gọi số lệch là "đúng chuẩn"', () => {
+  it('số lệch chuẩn: nói số thật và chuẩn gần nhất, không tự đổi', () => {
+    expect(rowExtraOf(wall('w-x', { thicknessMm: 234 }), null).note).toBe('Hiện 234 mm, gần chuẩn 220 mm (lệch không quá 30 mm). Không tự đổi.');
+  });
+
+  it('đúng bậc: chỉ một số', () => {
+    expect(rowExtraOf(wall('w-y', { thicknessMm: 220 }), null).note).toBe('Đúng chuẩn 220 mm.');
+  });
+});

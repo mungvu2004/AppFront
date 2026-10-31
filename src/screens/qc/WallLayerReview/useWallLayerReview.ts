@@ -1029,12 +1029,14 @@ export function useWallLayerReview(
     [canEdit, dispatchBundle, gateway, invalidate, isScaleLocked, notifyScaleLocked],
   );
 
+  /* UX-41: một lượt duyệt đang lưu thì bỏ qua lần bấm kế — bấm đúp khi mạng chậm không duyệt luôn đoạn sau. */
+  const approvePendingRef = useRef(false);
   const onApprove = useCallback(
     (wallId: WallId) => {
       const wall = wallById(wallId);
 
       /* Khoá tỷ lệ: không duyệt, và cũng không tự nhảy sang tường kế như thể đã duyệt. */
-      if (wall === null || wall.reviewed) {
+      if (wall === null || wall.reviewed || approvePendingRef.current) {
         return;
       }
 
@@ -1046,11 +1048,16 @@ export function useWallLayerReview(
       /* Tự chuyển mục: tìm tường chưa duyệt kế tiếp TRƯỚC khi tường này đổi cờ. */
       const nextId = nextUnreviewedWallId(visibleWalls, wallId);
 
-      void run(() => buildApproveWallCommand(wall, gateway.actorId, wallCodes)).then(() => {
-        if (nextId !== null && nextId !== wallId) {
-          onSelect(nextId);
-        }
-      });
+      approvePendingRef.current = true;
+      void run(() => buildApproveWallCommand(wall, gateway.actorId, wallCodes))
+        .then(() => {
+          if (nextId !== null && nextId !== wallId) {
+            onSelect(nextId);
+          }
+        })
+        .finally(() => {
+          approvePendingRef.current = false;
+        });
     },
     [gateway, isScaleLocked, notifyScaleLocked, onSelect, run, visibleWalls, wallById, wallCodes],
   );
@@ -1100,7 +1107,7 @@ export function useWallLayerReview(
   );
 
   const onChangeThickness = useCallback(
-    (wallId: WallId, thicknessMm: WallThicknessChoice) => {
+    (wallId: WallId, thicknessMm: number) => {
       if (isScaleLocked) {
         notifyScaleLocked();
         return;

@@ -719,10 +719,21 @@ describe('Bỏ qua — Esc và bấm ra nền không hỏi lại, chip quay lạ
 
     expect(backdrop).not.toBeNull();
 
-    fireEvent.click(backdrop as Element);
+    // UX-45: nền không nhận cú bấm (để nút bên dưới nhận); bấm ra ngoài thẻ thì đóng.
+    expect(backdrop).toHaveClass('pointer-events-none');
+    fireEvent.pointerDown(document.body);
 
     expect(onSkip).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('bấm trong thẻ không bỏ qua hướng dẫn (UX-45)', () => {
+    const onSkip = vi.fn();
+
+    render(<EditorTour {...baseProps({ onSkip })} />);
+    fireEvent.pointerDown(screen.getByTestId('editor-tour-frame'));
+
+    expect(onSkip).not.toHaveBeenCalled();
   });
 
   it('sau khi bỏ qua, chip "Xem hướng dẫn" còn đó — đường quay lại nhìn thấy được', () => {

@@ -31,6 +31,13 @@ export const SCENE_PALETTE = {
   oak: '#a77440',
   walnut: '#663020',
   bark: '#88654c',
+  // Sàn gỗ sáng như cảnh Blender (`F:/runs/login-tour/pbr.py` herring): `wood` cam quá khi phủ cả sàn.
+  floorOak: '#b3916f',
+  // Mặt cắt tường (chế độ "Tường: cắt", xem thử nướng) và trình bày studio (`src/pascal-page/realism/studio.ts`).
+  cutFace: '#141416',
+  studioGround: '#d6d7d8',
+  studioShadow: '#2e3134',
+  studioPlinth: '#e6e3de',
   // Màu đèn mặc định trong catalog Pascal (`catalog-items.tsx`), chép nguyên để đối chiếu.
   catalogLight: '#ffffff',
 } as const;
@@ -49,7 +56,8 @@ export const RENDER_LOOK_PALETTE = {
   // + tương phản hậu kỳ biến xám trung tính thành nâu bùn khi nhìn từ trên. Vẫn tối hơn tường.
   background: '#aaaeb1',
   sky: '#d8dadb',
-  ground: '#9a9ea1',
+  // Dáng A: đất sáng + hơi lạnh hơn (#9a9ea1 dưới đèn ấm ra nâu đục 113,103,87 trên ảnh).
+  ground: '#a6a9ae',
   ambient: '#fff1e0',
   hemiSky: '#fff6ea',
   hemiGround: '#6b5640',
@@ -65,7 +73,9 @@ export const RENDER_LOOK_PALETTE = {
 // Màu phẳng của 5 phong cách cảnh (`sceneStyles.ts`): sơn tường, tủ bếp, sứ, chậu cây, ánh đèn.
 // Tường ngoài xám của ấm áp/tối giản sẫm hơn (than xám) để khối nhà kiểu dollhouse đọc rõ.
 export const STYLE_PALETTE = {
-  amApWall: '#f5f3ef',
+  // Dáng A (docs/blender-vs-editor/BAO-CAO.md §2): trắng ngà #f5f3ef chiếm ~65 % khung, ảnh nhạt và phẳng;
+  // be ấm sáng giữ phòng sáng mà vẫn có bậc tông với sàn và đồ.
+  amApWall: '#ebe2d4',
   amApExterior: '#5f5d5a',
   amApCabinet: '#ebe7e0',
   hienDaiWall: '#f7f8f8',
@@ -100,4 +110,19 @@ export const REALISM_PALETTE = {
   screen: '#0b0c0e',
   steel: '#cfd2d4',
   porcelain: '#f3f3f0',
+} as const;
+
+// Vải bọc đồ (sofa/ghế/giường) theo phong cách — `realism/upholstery.ts` nhuộm vật liệu vải lớn nhất
+// của mỗi món về màu này để cả phòng đọc thành một bộ (Blender `apt3.py` main_skin). `*Bedding`: chăn ga.
+export const UPHOLSTERY_PALETTE = {
+  amAp: '#c9bba6',
+  amApBedding: '#efeae2',
+  hienDai: '#b8bcbf',
+  hienDaiBedding: '#f2f3f3',
+  goAm: '#8a5a3c',
+  goAmBedding: '#e9dfd0',
+  toiGian: '#cfcac2',
+  toiGianBedding: '#ebe9e5',
+  sangTrong: '#2f2d2c',
+  sangTrongBedding: '#d8d3cc',
 } as const;

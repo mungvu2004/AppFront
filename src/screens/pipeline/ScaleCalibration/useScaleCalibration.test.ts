@@ -68,7 +68,7 @@ import {
   type ScaleDrawingSnapshot,
   type ScaleRawDimensionString,
 } from './scaleCalibrationGateway';
-import { __resetScaleRatioMarks, useScaleCalibration } from './useScaleCalibration';
+import { __resetScaleRatioMarks, useScaleCalibration, writeSavedSegment } from './useScaleCalibration';
 
 /* K34: thiết lập "căn hộ riêng" của dự án; mặc định tắt như dự án chưa lưu lần nào. */
 const separateUnitsFlag = vi.hoisted(() => ({ value: false }));
@@ -471,6 +471,24 @@ function imageWidthPxOf(mounted: Mounted): number {
 /* Kiểm.                                                                       */
 /* -------------------------------------------------------------------------- */
 
+// UX-49: đoạn đo giữ ở localStorage — không để lượt trước rò sang lượt sau.
+afterEach(() => {
+  window.localStorage.clear();
+});
+
+describe('useScaleCalibration — giữ đoạn đo đã xác nhận (UX-49)', () => {
+  it('mở lại màn Tỷ lệ: đoạn đo cũ hiện lại, chỉ cần nhập số', async () => {
+    writeSavedSegment(FLOOR_ID, { start: { x: 0.2, y: 0.4 }, end: { x: 0.6, y: 0.4 } } as never);
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.panel.method).toBe('referenceLine');
+    expect(mounted.result.current.model.panel.reference.draft).not.toBeNull();
+  });
+});
+
 describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
   it('G25: ảnh nền của màn QC (hình khác) trong đệm không làm canvas trắng khi vào bằng SPA', async () => {
     const harness = await makeHarness();
@@ -815,7 +833,9 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
     expect(model.panel.dimension.selectedRowId).not.toBeNull();
     expect(model.panel.dimension.manualCalibrationReason).toBeNull();
     expect(model.panel.canApply).toBe(true);
-    expect(model.partialNotice).toMatch(/^Máy chọn sẵn mốc .+ mm \(đoạn được tô\)\./u);
+    // UX-02: nói số đọc được và tỷ lệ đề xuất, nút ghi rõ là tỷ lệ máy đề xuất.
+    expect(model.partialNotice).toMatch(/^Máy đọc được \d+ số kích thước, tỷ lệ đề xuất 1 px = .+ mm/u);
+    expect(model.panel.applyLabel).toBe('Xác nhận tỷ lệ máy đề xuất');
 
     await applyNow(mounted);
 
@@ -871,7 +891,10 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
 
     expect(mounted.result.current.model.emptyNotice).toBeNull();
     expect(mounted.result.current.model.panel.canApply).toBe(true);
-    expect(mounted.result.current.model.partialNotice).toMatch(/^Máy ước lượng sẵn 1 px ≈ .+ mm\. Đây là ước lượng/u);
+    expect(mounted.result.current.model.partialNotice).toMatch(
+      /^Máy ước lượng sẵn 1 px ≈ .+ mm.*\. Đây chỉ là ước lượng/u,
+    );
+    expect(mounted.result.current.model.panel.applyLabel).toBe('Xác nhận tỷ lệ máy đề xuất');
     expect(mounted.result.current.model.panel.ratioEntry?.placeholder).toBe('1:100');
 
     await act(async () => {
@@ -885,6 +908,24 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
     expect(harness.writeLayer).toHaveBeenCalledTimes(1);
     /* 1:100 ở 150 DPI: 100 × 25,4 / 150 mm/px. */
     expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo((100 * 25.4) / 150, 6);
+  });
+
+  it('[UX-02] tỷ lệ máy khớp ghi chú TL 1:50 của PDF: nói nguồn là ghi chú, một nút xác nhận', async () => {
+    useStore.getState().setSpatial(null, null);
+    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO, 'pipeline');
+    const harness = await makeHarness();
+    /* DPI để PROVISIONAL_RATIO đúng bằng 1:50: 50 × 25,4 / DPI. */
+    const sourceDpi = (50 * 25.4) / PROVISIONAL_RATIO;
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readLayer: async (input) => ({ ...(await harness.gateway.readLayer(input)), dimensions: [], sourceDpi }),
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.partialNotice).toMatch(/^Tỷ lệ lấy từ ghi chú TL 1:50 trên bản vẽ/u);
+    expect(mounted.result.current.model.panel.canApply).toBe(true);
+    expect(mounted.result.current.model.panel.applyLabel).toBe('Xác nhận tỷ lệ máy đề xuất');
   });
 
   it('[UX-R4 U11] brochure không ghi số: gõ diện tích căn → tỷ lệ suy từ diện tích phòng, lưu qua cùng PUT', async () => {
@@ -910,7 +951,9 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
     await settle(mounted);
     await settleAsync();
 
-    expect(mounted.result.current.model.panel.areaEntry?.placeholder).toBe('68,94');
+    // UX-21: ô trống, chữ gợi ý không phải một con số.
+    expect(mounted.result.current.model.panel.areaEntry?.text).toBe('');
+    expect(mounted.result.current.model.panel.areaEntry?.placeholder).not.toMatch(/\d/u);
 
     await act(async () => {
       mounted.result.current.actions.onChangeFlatArea?.('25');

@@ -353,6 +353,22 @@ const withRoomOfCentre = (item: Furniture, rooms: readonly Room[]): Furniture =>
   return next === undefined ? item : { ...item, roomId: next.id };
 };
 
+/**
+ * K6/A2-05/F-06 — sửa (cả sơn) một mục đã duyệt thì dấu "đã duyệt" bị bỏ (luật C2 ở `changeBetween`,
+ * không đổi). Câu báo cho người dùng, một câu mỗi loại; nơi gọi đưa vào `onNotice` sau khi lưu được.
+ */
+export const reviewLostNotices = (command: Command): string[] => {
+  const kinds = new Set(
+    command.changes.flatMap((change) =>
+      change.before !== null && change.after !== null && change.before.reviewed && !change.after.reviewed ? [change.kind] : [],
+    ),
+  );
+
+  return [...kinds].map(
+    (kind) => `Bạn vừa sửa ${KIND_LABELS[kind]} đã duyệt nên dấu "đã duyệt" được bỏ. Hãy duyệt lại ở bước Duyệt tầng.`,
+  );
+};
+
 /** Câu mô tả cho nhật ký hoạt động: đếm theo việc, rồi đếm theo loại. */
 const describe = (changes: readonly EntityChange[]): string => {
   const countOf = new Map<string, number>();
@@ -366,7 +382,7 @@ const describe = (changes: readonly EntityChange[]): string => {
 
   const parts = [...countOf].map(([key, count]) => `${key} ${formatCount(count)}`);
 
-  return `Từ màn Pascal: ${parts.join(', ')}.`;
+  return `Từ màn 3D: ${parts.join(', ')}.`;
 };
 
 /**
@@ -526,7 +542,7 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
       type: PASCAL_COMMAND_TYPE,
       code: 'PASCAL_UNKNOWN_NODE',
       reasons: [
-        `Pascal báo ${formatCount(unknown.length)} đối tượng không quy được về loại nào của bản vẽ, nên thay đổi này bị từ chối.`,
+        `Có ${formatCount(unknown.length)} đối tượng vừa sửa chưa lưu được trong bản này, nên thay đổi chưa được ghi.`,
       ],
     });
   }

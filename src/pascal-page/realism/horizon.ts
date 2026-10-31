@@ -10,13 +10,23 @@
  *   không lộ lặp ô 2,5 m.
  * Mức Thấp: trả nguyên nút cũ (không thêm phép tính, không thêm lần lấy mẫu ảnh).
  */
-import { Color } from 'three';
-import type { Node } from 'three/webgpu';
+import { Color, ExtrudeGeometry, Shape } from 'three';
+import { MeshBasicNodeMaterial, MeshStandardNodeMaterial, type Node, ShadowNodeMaterial } from 'three/webgpu';
 import { cameraPosition, color, float, max, mix, positionWorld, smoothstep } from 'three/tsl';
 
 import { REALISM_PALETTE } from '@/lib/pascal/scenePalette';
 import { GRASS_GAIN, GRASS_GREEN, GRASS_GREEN_MIX } from './daylight';
 import { type GroundMode, useRealism } from './store';
+import {
+  outsetRing,
+  PLINTH_BEVEL_M,
+  PLINTH_BEVEL_SEGMENTS,
+  PLINTH_HEIGHT_M,
+  PLINTH_OUTSET_M,
+  PLINTH_TOP_Y,
+  STUDIO_PALETTE,
+  STUDIO_SHADOW_OPACITY,
+} from './studio';
 
 /** Sương mù đất: bắt đầu / đủ đặc (m, tính từ camera). */
 export const HORIZON_FOG_START_M = 30;
@@ -63,4 +73,62 @@ export function farGround(albedo: Node<'vec3'>, appearance: string, mode: Ground
   const average = mode === 'grass' ? mix(base, color(GRASS_GREEN).mul(luma * GRASS_GAIN), GRASS_GREEN_MIX) : base;
   const k = smoothstep(float(FAR_GROUND_START_M), float(FAR_GROUND_END_M), camDist()).mul(FAR_GROUND_MIX);
   return mix(albedo, average, k);
+}
+
+/**
+ * Studio (luật `r10-studio.mjs`): bật khi mặt đất = nền trơn và cờ materials bật; sỏi/cỏ giữ
+ * đĩa chân trời cũ. Đất studio không qua đèn (không ngả nâu dưới đèn ấm), bóng nhà vẽ bằng một
+ * tấm hứng bóng trong suốt đè lên, nhà đứng trên đế vát cạnh.
+ */
+export const useStudioGround = () => useRealism((s) => s.ground === 'plain' && s.flags.materials);
+
+/** Đĩa đất studio: xám trung tính không chiếu sáng, xa thì tan vào phông như đĩa của vendor. */
+export function studioDisc(fade: Node<'float'>, backdrop: Node<'vec3'>): MeshBasicNodeMaterial {
+  const material = new MeshBasicNodeMaterial();
+  material.colorNode = mix(color(STUDIO_PALETTE.ground), backdrop, fade);
+  material.polygonOffset = true;
+  material.polygonOffsetFactor = 2;
+  material.polygonOffsetUnits = 2;
+  return material;
+}
+
+/** Tấm hứng bóng: chỉ vẽ phần bị che nắng (giống ShadowMaterial của Blender/three). */
+export function studioShadowCatcher(): ShadowNodeMaterial {
+  const material = new ShadowNodeMaterial({ color: STUDIO_PALETTE.shadow, opacity: STUDIO_SHADOW_OPACITY });
+  material.depthWrite = false;
+  return material;
+}
+
+export function studioPlinthMaterial(): MeshStandardNodeMaterial {
+  return new MeshStandardNodeMaterial({ color: STUDIO_PALETTE.plinth, roughness: 0.9, metalness: 0 });
+}
+
+/**
+ * Đế vát cạnh dưới đường bao (x, z) của sàn tầng thấp nhất (đã hợp). Đỉnh đế ở y = PLINTH_TOP_Y,
+ * chân ở y = −PLINTH_HEIGHT_M; mép vát nhô thêm PLINTH_BEVEL_M ngoài PLINTH_OUTSET_M.
+ */
+export function studioPlinthGeometry(rings: ReadonlyArray<ReadonlyArray<[number, number]>>): ExtrudeGeometry | null {
+  const shapes: Shape[] = [];
+  for (const ring of rings) {
+    const pts = outsetRing(ring, PLINTH_OUTSET_M);
+    if (pts.length < 3) continue;
+    // Cùng quy ước với `addSlabHoles` của vendor: shape (x, −z), xoay −90° quanh X.
+    const shape = new Shape();
+    shape.moveTo(pts[0]![0], -pts[0]![1]);
+    for (const [x, z] of pts.slice(1)) shape.lineTo(x, -z);
+    shape.closePath();
+    shapes.push(shape);
+  }
+  if (shapes.length === 0) return null;
+  const depth = PLINTH_HEIGHT_M - 2 * PLINTH_BEVEL_M;
+  const geometry = new ExtrudeGeometry(shapes, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: PLINTH_BEVEL_M,
+    bevelSize: PLINTH_BEVEL_M,
+    bevelSegments: PLINTH_BEVEL_SEGMENTS,
+  });
+  geometry.rotateX(-Math.PI / 2);
+  geometry.translate(0, PLINTH_TOP_Y - (depth + PLINTH_BEVEL_M), 0);
+  return geometry;
 }

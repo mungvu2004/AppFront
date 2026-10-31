@@ -4,8 +4,9 @@
  * move behind the Build grid's "Thêm" tile. Pure (no `@pascal-app/*`) so vitest can load it.
  */
 
-/** Tools kept on the grid, in this order. */
-export const APARTMENT_TOOL_IDS = ['wall', 'door', 'window', 'slab', 'ceiling', 'column', 'kitchen', 'painting'] as const
+/** Tools kept on the grid, in this order. Editor3D G2 (A2-04, F-07): slab / ceiling / column moved
+ * behind "Thêm" — saving them is refused for an AI-built apartment, so they no longer sit on the main grid. */
+export const APARTMENT_TOOL_IDS = ['wall', 'door', 'window', 'kitchen', 'painting'] as const
 
 const RANK = new Map<string, number>(APARTMENT_TOOL_IDS.map((id, index) => [id, index]))
 

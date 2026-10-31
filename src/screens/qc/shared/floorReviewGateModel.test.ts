@@ -6,6 +6,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { millimetres } from '@/domain/units/types';
 
 import {
+  floorPendingText,
   floorReviewConditionLabel,
   floorReviewGateOf,
   floorScaleStateOf,
@@ -86,5 +87,17 @@ describe('nextFloorOf', () => {
     expect(nextFloorOf(floors, 'f2', (id) => id === 'f3')?.id).toBe('f1');
     expect(nextFloorOf(floors, 'f2', () => true)).toBeNull();
     expect(nextFloorOf([{ id: 'f1' }], 'f1', () => false)).toBeNull();
+  });
+});
+
+describe('[UX-22] floorPendingText', () => {
+  it('nói rõ số mục chưa duyệt và tỷ lệ chưa xác nhận', () => {
+    const gate = floorReviewGateOf({ walls: count(3, 31), objects: count(0, 34), rooms: count(7, 7) });
+    expect(floorPendingText(gate, 'check')).toBe('Còn 28 tường, 34 cửa và nội thất chưa duyệt; tỷ lệ chưa xác nhận');
+  });
+
+  it('xong cả và tỷ lệ đã xác nhận thì không nhắc', () => {
+    const gate = floorReviewGateOf({ walls: count(5, 5), objects: count(0, 0), rooms: count(2, 2) });
+    expect(floorPendingText(gate, 'confirmed')).toBeNull();
   });
 });

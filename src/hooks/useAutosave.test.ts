@@ -14,6 +14,7 @@ import { commit, replaceFloorLayer } from '@/store/commit';
 
 import {
   __resetFloorLayerSavers,
+  FLOOR_LAYER_SAVED_CHANNEL,
   flushAutosaves,
   useAutosave,
   useAutosaveFlush,
@@ -617,6 +618,43 @@ describe('useFloorLayerAutosave', () => {
 
     expect(readLayer).toHaveBeenCalledTimes(1);
     expect(useStore.getState().floorMeta[FLOOR_A]?.revision).toBe(1);
+  });
+
+  it('UX-43: tab khác vừa lưu tầng này → tab cũ đọc bản mới ngay, không cần focus', async () => {
+    class FakeChannel {
+      static all: FakeChannel[] = [];
+      onmessage: ((event: { data: unknown }) => void) | null = null;
+      constructor(readonly name: string) {
+        FakeChannel.all.push(this);
+      }
+      postMessage(data: unknown): void {
+        FakeChannel.all.filter((other) => other !== this && other.name === this.name).forEach((other) => other.onmessage?.({ data }));
+      }
+      close(): void {
+        FakeChannel.all = FakeChannel.all.filter((other) => other !== this);
+      }
+    }
+    vi.stubGlobal('BroadcastChannel', FakeChannel);
+    __resetFloorLayerSavers();
+
+    try {
+      const { client, readLayer } = spyClient();
+
+      loadSample();
+      renderHook(() => useFloorLayerAutosave({ apiClient: client, floorId: FLOOR_A, projectId: PROJECT }));
+      await tick();
+      simulateRemoteLayerEdit(FLOOR_A);
+
+      act(() => {
+        new FakeChannel(FLOOR_LAYER_SAVED_CHANNEL).postMessage({ floorId: FLOOR_A, projectId: PROJECT });
+      });
+      await tick();
+
+      expect(readLayer).toHaveBeenCalledTimes(1);
+      expect(useStore.getState().floorMeta[FLOOR_A]?.revision).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('U14: tầng có sửa chờ thì quay lại tab không đọc, không nạp đè', async () => {

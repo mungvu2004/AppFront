@@ -634,6 +634,14 @@ describe('PipelineFailureContainer — mã máy chủ (F-05b)', () => {
   });
 });
 
+describe('PipelineFailure — đường dẫn giữ tên dự án (UX-39)', () => {
+  it('có tên dự án thì đường dẫn là "Dự án › <tên> › Xử lý"', () => {
+    renderWithProviders(<PipelineFailure {...scenarioFor('error')} projectName="Căn hộ A" />);
+    const nav = screen.getAllByRole('navigation').find((el) => el.textContent?.includes('Xử lý'));
+    expect(nav?.textContent).toContain('Căn hộ A');
+  });
+});
+
 describe('PipelineFailureContainer — R-73 [NGHIEM-7]', () => {
   it('một thẻ là đủ: không provider riêng, không route, và màn không trắng', async () => {
     const container = await mountScreen(createMockPipelineFailureGateway());

@@ -30,8 +30,10 @@ import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { AlertCircle, Loader2, WifiOff } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ScreenMain } from '@/components/shell/ScreenMain';
+import { Button } from '@/components/ui/Button';
 import {
   getOptionalAuthConfig,
   getSessionSnapshot,
@@ -119,7 +121,7 @@ const LABEL_REVEAL_STYLE = { animationDelay: cssDurationMs('fast'), animationFil
  * Dùng chung với vỏ chờ chunk route của `router.tsx` (B-G-04), để từ "đang mở
  * phiên" sang "đang tải màn hình" màn không nháy: cùng khối, chỉ đổi câu.
  */
-export function PendingShell({ label }: { label: string }) {
+export function PendingShell({ label, action }: { label: string; action?: ReactNode }) {
   return (
     <div
       aria-busy="true"
@@ -146,24 +148,43 @@ export function PendingShell({ label }: { label: string }) {
         <Loader2 className="h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" strokeWidth={2} />
         {label}…
       </p>
+      {action}
     </div>
   );
 }
 
-/** Phiên chưa mở sau chừng này (mạng chậm) thì câu chờ nói rõ là vẫn đang chạy, không trông như treo (U25). */
-export const SESSION_SLOW_MS = 4_000;
-export const SESSION_SLOW_LABEL = 'Mạng đang chậm, vẫn đang mở phiên';
+/** Phiên chưa mở sau chừng này (mạng chậm) thì câu chờ nói rõ là đang thử lại, không trông như treo (U25, UX-42). */
+export const SESSION_SLOW_MS = 3_000;
+export const SESSION_SLOW_LABEL = 'Mạng chậm, đang thử lại';
+/** Sau chừng này vẫn chưa mở được thì đưa nút "Thử lại" — người dùng không phải chờ mãi (UX-42). */
+export const SESSION_RETRY_MS = 10_000;
+export const SESSION_RETRY_LABEL = 'Thử lại';
 
-function SessionPendingShell() {
-  const [slow, setSlow] = useState(false);
+function SessionPendingShell({ onRetry }: { onRetry: () => void }) {
+  const [elapsed, setElapsed] = useState<'start' | 'slow' | 'retry'>('start');
 
   useEffect(() => {
-    const timer = setTimeout(() => setSlow(true), SESSION_SLOW_MS);
+    const slow = setTimeout(() => setElapsed('slow'), SESSION_SLOW_MS);
+    const retry = setTimeout(() => setElapsed('retry'), SESSION_RETRY_MS);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(slow);
+      clearTimeout(retry);
+    };
   }, []);
 
-  return <PendingShell label={slow ? SESSION_SLOW_LABEL : 'Đang mở phiên'} />;
+  return (
+    <PendingShell
+      label={elapsed === 'start' ? 'Đang mở phiên' : SESSION_SLOW_LABEL}
+      action={
+        elapsed === 'retry' ? (
+          <Button type="button" size="sm" variant="secondary" onClick={onRetry}>
+            {SESSION_RETRY_LABEL}
+          </Button>
+        ) : undefined
+      }
+    />
+  );
 }
 
 /**
@@ -231,7 +252,7 @@ export function SessionGate({
 
     return (
       <ScreenMain>
-        <SessionPendingShell />
+        <SessionPendingShell onRetry={onRetry} />
       </ScreenMain>
     );
   }
@@ -269,6 +290,8 @@ export function SessionGate({
       {/* SAU màn con trong DOM (dải là `fixed`, nhìn không đổi): Tab đi hết màn rồi mới tới dải,
           không chặn đầu mọi lượt Tab (review QA-01c #1). */}
       {serverUnreachable === true ? <ConnectionStrip onRetry={onRetry} /> : null}
+      {/* UX-40: mất mạng (trình duyệt báo offline) — dải trên cùng kèm số thao tác chờ gửi. */}
+      <OfflineBanner />
     </>
   );
 }

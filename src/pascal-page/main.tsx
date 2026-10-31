@@ -19,7 +19,7 @@ import { flushAutosaves } from '@/hooks/useAutosave';
 import { setRealismModels } from '@/lib/pascal/furnitureCatalog';
 import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
-import { savePascalNow, usePascalProjectBridge } from './bridge';
+import { BRIDGE_SESSION_ERROR, loginHrefOf, savePascalNow, usePascalProjectBridge } from './bridge';
 import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { LightingCard } from './LightingCard';
@@ -29,6 +29,7 @@ import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
 import { SceneStyleCard } from './SceneStyleCard';
 import { SwapModelCard } from './SwapModelCard';
 import { PascalTour } from './tour/PascalTour';
+import { openBuildTabWithoutArming } from './upstream/components/build-tab';
 import Home from './upstream/page';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
 import './pascal.css';
@@ -49,10 +50,11 @@ useRealism.setState({ flags: realismFlagsFrom(getFeatureFlagsSnapshot().values) 
 setDetailsEnabled(useRealism.getState().flags.details);
 // B1 (bước 2): sofa/ghế bành/ghế ăn → mẫu Poly Haven `-ph` khi bật cờ materials (furnitureCatalog.ts).
 setRealismModels(useRealism.getState().flags.materials);
-// Backend thật (vendor ghi sau khi renderer init) khác phép thử `navigator.gpu` → đè lại số đèn.
+// Backend thật (vendor ghi sau khi renderer init) khác phép thử `navigator.gpu`, hoặc mức chất lượng đổi
+// (SSGI bật/tắt theo mức) → đè lại số đèn.
 // ponytail: đè tại chỗ, đèn đã vẽ chỉ đổi ở lượt dựng lại kế tiếp (đổi chủ đề/tải lại); GĐ3 nếu cần tức thì.
 useRealism.subscribe((state, prev) => {
-  if (state.backend === prev.backend) return;
+  if (state.backend === prev.backend && state.tier === prev.tier) return;
   applyRenderLook(getSceneTheme('night'), SSGI_PARAMS);
   applyDayLook(getSceneTheme(DAY_THEME_ID));
 });
@@ -90,10 +92,14 @@ function LoadingNotice() {
   );
 }
 
-/** UX-R2 K35: "Sửa mô hình" mở bảng dựng (thu gọn lúc mở trang) đúng ở thẻ "Dựng". */
+/**
+ * UX-R2 K35: "Sửa mô hình" mở bảng dựng (thu gọn lúc mở trang) đúng ở thẻ "Dựng".
+ * L3a-05: không để thẻ "Dựng" tự cầm công cụ đầu (Tường) — giữ chế độ Chọn và món đang chọn.
+ */
 function EditModel() {
   const collapsed = useSidebarStore((state) => state.isCollapsed);
   const open = () => {
+    openBuildTabWithoutArming();
     useEditor.getState().setActiveSidebarPanel('build');
     useSidebarStore.getState().setIsCollapsed(false);
   };
@@ -127,6 +133,12 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
     return (
       <Notice>
         <p className="text-muted-foreground">{bridge.error ?? 'Không mở được mô hình 3D.'}</p>
+        {/* L3a-01: phiên hết thì có lối đăng nhập lại, xong quay về đúng mô hình 3D này. */}
+        {bridge.error === BRIDGE_SESSION_ERROR ? (
+          <a className="mt-4 mr-2 inline-block rounded-md border border-border bg-accent px-3 py-2 font-medium" href={loginHrefOf(projectId)}>
+            Đăng nhập lại
+          </a>
+        ) : null}
         <a className="mt-4 inline-block rounded-md border border-border bg-accent px-3 py-2 font-medium" href={bridge.backHref}>
           Về dự án
         </a>

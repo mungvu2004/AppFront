@@ -1450,9 +1450,12 @@ export function detectedNoteOf(wall: Wall): string | null {
 
   const measured = formatNumber(detected, { fractionDigits: 0 });
 
-  /* U30: chỉ nói "đã sửa" khi người đã đụng vào; còn lại là máy tự làm tròn về thang. */
-  return wall.source === 'human' ? `(đã sửa, máy đo ${measured})` : `(máy tự làm tròn, máy đo ${measured})`;
+  /* UX-16: chỉ nói "đã sửa" khi người đã đụng vào; máy đổi thì chỉ nêu số máy đo (không "làm tròn" — số có thể không ở thang). */
+  return wall.source === 'human' ? `(đã sửa, máy đo ${measured})` : `(máy đo ${measured})`;
 }
+
+/** UX-35: tường dài hơn 3 m xoá phải hỏi lại. */
+const LONG_WALL_MM = 3000;
 
 /** Thanh tra tường đang chọn. Mọi con số đã thành chuỗi ở đây, không ở view (A15). */
 export function toWallInspector(
@@ -1468,6 +1471,7 @@ export function toWallInspector(
     codeLabel: wallLabelOf(wall.id, wallCodes),
     thicknessMm: wall.thicknessMm,
     detectedNote: detectedNoteOf(wall),
+    isLongWall: centrelineLength(toGeometryWall(wall, level)) > LONG_WALL_MM,
     /* Cùng quy tắc với cột "Dài, mm" của danh sách: tỷ lệ tạm "≈… (tạm)", thiếu tỷ lệ thì nói rõ (K16). */
     lengthLabel: wallLengthLabelOf(wall, level, scaleStatus, scaleSource, unit),
     /*

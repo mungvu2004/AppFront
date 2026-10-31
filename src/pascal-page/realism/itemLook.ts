@@ -179,11 +179,14 @@ export interface KindLook {
   tint?: readonly [number, number, number];
   /** Đè màu (hex sRGB) — chỉ cho vật liệu gốc của mẫu (không có ref thư viện). */
   color?: string;
+  /** Lớp sheen vải (vật liệu physical, Blender sheen 0.5–0.6): vải hết nhìn như nhựa mờ. */
+  sheen?: number;
+  sheenRoughness?: number;
 }
 
 export const KIND_LOOK: Record<MaterialKind, KindLook> = {
-  fabric: { roughness: 0.95, donor: 'library:fabric-cotton' },
-  bedding: { roughness: 0.92 },
+  fabric: { roughness: 0.95, donor: 'library:fabric-cotton', sheen: 0.5, sheenRoughness: 0.5 },
+  bedding: { roughness: 0.92, sheen: 0.5, sheenRoughness: 0.5 },
   leather: { roughness: 0.55, donor: 'library:leather-calf' },
   // Gói 1: gỗ đồ (tủ đầu giường, bàn) dưới đèn ấm ra cam rực → kéo về trung tính, tối nhẹ.
   wood: { roughness: null, roughnessScale: 1.6, roughnessMin: 0.45, tint: [0.8, 0.86, 0.95] },

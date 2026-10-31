@@ -7,20 +7,37 @@ export interface PascalSceneGraph {
   readonly materials?: Readonly<Record<string, unknown>>;
 }
 
+/** Hộp hỏi trước một việc làm mất dữ liệu (tải lại tầng, xoá nhiều — C4). */
+export interface PascalConfirm {
+  readonly title: string;
+  readonly body: string;
+  readonly confirmLabel: string;
+  readonly onConfirm: () => void;
+  readonly onCancel: () => void;
+}
+
 /** Trạng thái lưu THẬT của tầng (lượt PUT N16), cho thẻ trên trang Pascal. */
 export interface PascalSaveStatus {
-  /** `blocked` = máy chủ từ chối (409/422/403) — cần tải lại tầng; `failed` = lượt gửi hỏng, sửa tiếp sẽ thử lại. */
-  readonly state: 'saving' | 'saved' | 'failed' | 'blocked';
+  /**
+   * `blocked` = máy chủ từ chối (409/422/403) — cần tải lại tầng; `failed` = lượt gửi hỏng, sửa tiếp sẽ thử lại;
+   * `offline` = mất mạng, sửa còn chờ gửi; `session` = phiên đăng nhập đã hết (câu ở `blockMessage`).
+   */
+  readonly state: 'saving' | 'saved' | 'failed' | 'blocked' | 'offline' | 'session';
   /** "Đã lưu lúc HH:mm" / "Lưu thất bại" của bộ tự lưu, `null` khi chưa lưu lần nào. */
   readonly label: string | null;
+  /** Lý do của `blocked` / `session`. */
   readonly blockMessage: string | null;
-  /** Bỏ bản chưa lưu được của tầng bị khối rồi nạp lại trang theo bản máy chủ. */
+  /** "Tải lại tầng": có sửa chưa lưu thì mở `confirm` trước, xác nhận mới bỏ bản ấy và nạp bản máy chủ. */
   readonly onReloadFloor: () => void;
-  /** "Chưa lưu được: màu sàn, … — sẽ có ở bản sau." (mỗi nhãn một lần mỗi phiên). */
+  /** "Chưa lưu được: màu sàn, … — sẽ có ở bản sau." (mỗi nhãn một lần mỗi phiên, gộp; giữ tới khi đóng). */
   readonly notice: string | null;
   /** `alert` = lượt sửa vừa bị từ chối (N1), thẻ phải hiện như cảnh báo (`role="alert"`); còn lại `info`. */
   readonly noticeTone?: 'info' | 'alert';
   readonly dismissNotice: () => void;
+  /** Đường "Đăng nhập lại" (quay về đúng mô hình 3D) khi `state` là `session`. */
+  readonly loginHref?: string;
+  /** Hộp xác nhận đang mở, `null`/vắng khi không hỏi gì. */
+  readonly confirm?: PascalConfirm | null;
 }
 
 export interface PascalBridge {

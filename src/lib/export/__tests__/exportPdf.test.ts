@@ -265,6 +265,13 @@ describe('buildRoomAreasPage', () => {
     // Sample rooms are human-approved, and only that earns the verified code.
     expect(page.rows.every((row) => row.statusCode === 'verified')).toBe(true);
   });
+
+  it('UX-23: tỷ lệ chưa xác nhận thì mọi diện tích ghi "(tạm)"', () => {
+    const page = pageOf(buildPdfDocument({ ...baseInput(), provisionalArea: true }), 'roomAreas');
+
+    expect(page.rows[0]?.cells[3]).toBe('17,00 m² (tạm)');
+    expect(page.totalArea.text).toBe('248,60 m² (tạm)');
+  });
 });
 
 /* -------------------------------------------------------------------------- */

@@ -13,6 +13,7 @@
 import { RENDER_LOOK_PALETTE as C } from '@/lib/pascal/scenePalette';
 
 import { useRealism } from './realism/store';
+import { tierConfig } from './realism/tiers';
 
 /** Chủ đề Pascal của hai chế độ ánh sáng (thẻ "Ánh sáng", `./LightingCard`). */
 export const NIGHT_THEME_ID = 'night';
@@ -69,8 +70,15 @@ export const hasWebGpu = (): boolean => {
   return typeof navigator !== 'undefined' && 'gpu' in navigator;
 };
 
+/**
+ * Bậc `high` (nền tối, "SSGI bù") chỉ đúng khi SSGI THẬT chạy: có WebGPU **và** mức chất lượng bật SSGI.
+ * Trước đây chỉ xét WebGPU, nên GPU tích hợp (mức `low`, SSGI tắt — `tiers.ts`) nhận nền tối 0,12 mà không
+ * có gì bù → nhà tối và phẳng nhất (docs/blender-vs-editor/BAO-CAO.md §1).
+ */
+export const ssgiRuns = (): boolean => hasWebGpu() && tierConfig(useRealism.getState().tier).ssgiOn;
+
 /** Đè tại chỗ; gọi lại nhiều lần cũng ra cùng giá trị. */
-export function applyRenderLook(theme: RenderLookTheme, ssgi: RenderLookSsgi, webgpu = hasWebGpu()): void {
+export function applyRenderLook(theme: RenderLookTheme, ssgi: RenderLookSsgi, webgpu = ssgiRuns()): void {
   const t = RENDER_LOOK_TIERS[webgpu ? 'high' : 'low'];
   Object.assign(theme, {
     background: C.background,
@@ -111,7 +119,7 @@ export const DAY_LOOK_TIERS = {
 } as const;
 
 /** Đè chủ đề ban ngày (`DAY_THEME_ID`) tại chỗ; giữ phông/đất/màu đất sét của `studio`. */
-export function applyDayLook(theme: RenderLookTheme, webgpu = hasWebGpu()): void {
+export function applyDayLook(theme: RenderLookTheme, webgpu = ssgiRuns()): void {
   const t = DAY_LOOK_TIERS[webgpu ? 'high' : 'low'];
   Object.assign(theme, {
     ambient: { color: C.hemiSky, intensity: t.ambient },

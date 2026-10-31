@@ -74,6 +74,21 @@ describe('nhận nuôi đồ bày biện sinh ra', () => {
     expect(added.some((item) => item.centre.x === Math.round(moved.position[0] * 1000))).toBe(true);
   });
 
+  it('F-02: đổi mẫu một món chưa dời cũng nhận cả bộ, mẫu mới được lưu', () => {
+    const swapped: PascalNode = { ...target, asset: { ...target.asset, id: 'single-bed', src: '/items/single-bed/model.glb' } };
+    const result = createPascalEditCommand({
+      graph: normalizeSpatial(graph),
+      scene: { ...scene, nodes: { ...scene.nodes, [swapped.id]: swapped } },
+      commit: { origin: 'local', changedNodeIds: [swapped.id] },
+      actorId: ACTOR,
+    });
+
+    if (!result.ok) throw new Error(result.error.reasons.join(' '));
+    const added = result.data.changes.map((change) => change.after as Furniture);
+    expect(added).toHaveLength(dressOf(scene, roomId).length);
+    expect(added.some((item) => item.model?.src === '/items/single-bed/model.glb')).toBe(true);
+  });
+
   it('đèn trần không bao giờ được nhận nuôi', () => {
     const light = items(scene).find((node) => isGeneratedLightId(node.id));
 

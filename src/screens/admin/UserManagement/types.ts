@@ -125,6 +125,8 @@ export interface UserRowModel {
   readonly canResendInvite: boolean;
   /** Vừa đổi vai xong: nền hàng nháy 340 ms (`MOTION_DURATIONS_MS`, không phải 400). */
   readonly justChanged: boolean;
+  /** UX-47: lời mời vừa gửi xong — hàng được tô và bảng cuộn tới. */
+  readonly isNewInvite?: boolean;
   /** `null` = đổi được. Chuỗi = câu giải thích tại chỗ. Xem quyết định 2 ở đầu file. */
   readonly roleChangeBlockedReason: string | null;
   readonly disableBlockedReason: string | null;

@@ -151,7 +151,7 @@ describe('dressingOf — phòng khách', () => {
 });
 
 describe('dressingOf — tường (C2)', () => {
-  it('thảm không cắt tường ngăn không nằm trên outline: cả cỡ đầy đủ lẫn 80% đều vướng → bỏ', () => {
+  it('thảm không cắt tường ngăn không nằm trên outline: cỡ đầy đủ lẫn 80% vướng → lùi về 60%', () => {
     const living = roomOf('liv', 'livingRoom', 5000, 4000);
     const sofa = piece('sofa', 'chair', 'liv', [2500, 3300], [2000, 900], { variant: 'sofa', rotationDeg: 180 });
     // Tường ngăn vắt ngang phòng ở y = 2000 (không nằm trên outline).
@@ -169,8 +169,52 @@ describe('dressingOf — tường (C2)', () => {
     const items = dressingOf(graph, STYLE);
     const wallRect = { cx: 2500, cy: 2000, w: 5000, d: 120, rotationDeg: 0 };
     for (const item of items) expect(rectsOverlap(rectOfFurniture(item), wallRect), item.id).toBe(false);
-    expect(items).toEqual([]);
-    expect(dressingOf(graphOf([living], [sofa]), STYLE)).toHaveLength(1);
+    // 60% của 2400 × 1400: mép xa y = 2310, còn cách mặt tường (2060).
+    expect(items.map((i) => [rectOfFurniture(i).w, rectOfFurniture(i).d])).toEqual([[1440, 840]]);
+    expect(rectOfFurniture(dressingOf(graphOf([living], [sofa]), STYLE)[0]!).w).toBe(2400);
+  });
+});
+
+describe('dressingOf — thảm và vùng mở cửa (S7)', () => {
+  it('thảm giường nằm được trong vùng mở cửa (người đi qua thảm); món đứng vẫn tránh', () => {
+    const bedroom = roomOf('bed', 'bedroom', 4000, 5000);
+    const bed = piece('bed', 'bed', 'bed', [2000, 1100], [1600, 2000], { variant: 'bed' });
+    // Cửa trên tường trái, mở vào phòng đúng chỗ thảm cỡ đầy đủ (y ≈ 767..2167, x ≥ 900).
+    const wall: Wall = {
+      ...META,
+      id: 'W-left',
+      levelId: LEVEL,
+      centreline: { start: { x: 0, y: 0 }, end: { x: 0, y: 5000 } },
+      thicknessMm: 100,
+      heightMm: 3000,
+      kind: 'partition',
+      openingIds: ['D-1'],
+    };
+    const door: Opening = {
+      ...META,
+      id: 'D-1',
+      wallId: 'W-left',
+      kind: 'door',
+      offsetMm: 1000,
+      widthMm: 900,
+      heightMm: 2100,
+      sillHeightMm: 0,
+      swing: 'left',
+    };
+    const graph = graphOf([bedroom], [bed], [wall], [door]);
+    const rug = dressingOf(graph, STYLE).find((i) => String(i.id) === 'DRESS-rug-F-bed');
+    expect(rug).toBeDefined();
+    expect(rectOfFurniture(rug!)).toEqual({ cx: 2000, cy: 1467, w: 2200, d: 1400, rotationDeg: 0 });
+    // Cùng đầu vào: cùng kết quả.
+    expect(dressingOf(graphOf([bedroom], [bed], [wall], [door]), STYLE)).toEqual(dressingOf(graph, STYLE));
+  });
+
+  it('đèn bàn luôn có trên mỗi tủ đầu giường, kể cả tủ chồng mép giường (bản quét lệch)', () => {
+    const bedroom = roomOf('bed', 'bedroom', 4000, 5000);
+    const bed = piece('bed', 'bed', 'bed', [2000, 1100], [1600, 2000], { variant: 'bed' });
+    const tight = piece('ns1', 'table', 'bed', [1100, 320], [450, 400], { variant: 'nightstand' });
+    const items = dressingOf(graphOf([bedroom], [bed, tight]), STYLE);
+    expect(items.filter((i) => i.variant === 'tableLamp').map((i) => i.id)).toEqual(['DRESS-tableLamp-F-ns1']);
   });
 });
 

@@ -1,4 +1,4 @@
-/** UX-R3 — hồi quy cho U01 (PDF là hộp thoại in), U05 (chỉ thiếu tỷ lệ), U36 (tầng chưa có bản vẽ). */
+/** UX-R3 — hồi quy cho U01/UX-05 (PDF tải về như tệp thường), U05 (chỉ thiếu tỷ lệ), U36 (tầng chưa có bản vẽ). */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -60,14 +60,22 @@ describe('U36 — Phạm vi và chip trạng thái', () => {
   });
 });
 
-describe('U01 — PDF mở hộp thoại in, không tải tệp', () => {
-  it('hàng PDF nói hộp thoại in đã mở, nút là "Mở lại hộp thoại in"', () => {
+describe('UX-05 — PDF là tệp tải về như GLB/JSON', () => {
+  it('hàng PDF có nút "Tải về lại", không còn lời hộp thoại in', () => {
     const file = buildSampleExportedFile({ id: 'P1', fileName: 'ho-so.pdf', formatId: 'pdf' });
     render(<ExportPanel {...buildExportPanelProps('success', { exportedFiles: [file] })} />);
 
-    expect(screen.getByText('Đã mở hộp thoại in. Chọn “Lưu thành PDF” để lưu tệp.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Mở lại hộp thoại in ho-so.pdf' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /^Tải về lại/u })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Tải về lại ho-so.pdf' })).toBeTruthy();
+    expect(screen.queryByText(/hộp thoại in/u)).toBeNull();
+  });
+
+  it('hàng PDF có lối phụ "In"; bấm gọi onPrint với mã tệp', () => {
+    const onPrint = vi.fn();
+    const file = buildSampleExportedFile({ id: 'P1', fileName: 'ho-so.pdf', formatId: 'pdf' });
+    render(<ExportPanel {...buildExportPanelProps('success', { exportedFiles: [file], onPrint })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'In ho-so.pdf' }));
+    expect(onPrint).toHaveBeenCalledWith('P1');
   });
 });
 
@@ -76,7 +84,11 @@ describe('U36 (R4) — bấm Xuất khi còn tầng chưa duyệt thì hỏi l�
     expect(unreviewedConfirmMessage(['Tầng 1', 'Tầng 2'])).toBe('Tầng 1, Tầng 2 chưa duyệt xong. Vẫn xuất?');
   });
 
-  it('hiện hai lựa chọn Xuất vẫn / Duyệt trước, bấm gọi đúng hành động', () => {
+  it('UX-17: chỉ thiếu tỷ lệ thì nói "chưa xác nhận tỷ lệ"', () => {
+    expect(unreviewedConfirmMessage(['Tầng trệt'], true)).toBe('Tầng trệt chưa xác nhận tỷ lệ. Vẫn xuất?');
+  });
+
+  it('hiện hai lựa chọn Vẫn xuất / Duyệt trước, bấm gọi đúng hành động', () => {
     const onConfirmExport = vi.fn();
     const onReviewFirst = vi.fn();
     render(
@@ -90,7 +102,7 @@ describe('U36 (R4) — bấm Xuất khi còn tầng chưa duyệt thì hỏi l�
     );
 
     expect(screen.getByRole('alertdialog').textContent).toContain('Tầng 1 chưa duyệt xong. Vẫn xuất?');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất vẫn' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vẫn xuất' }));
     fireEvent.click(screen.getByRole('button', { name: 'Duyệt trước' }));
     expect(onConfirmExport).toHaveBeenCalledTimes(1);
     expect(onReviewFirst).toHaveBeenCalledTimes(1);

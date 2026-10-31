@@ -135,7 +135,10 @@ export function FloorProgressCell({ className, step }: { readonly className: str
           {/* Tiến độ = chip bước + một dòng việc tiếp. App chỉ biết có/chưa có bản vẽ;
               các bước AI đọc / đang duyệt / duyệt xong / lỗi CẦN BE (GHI-CHU S-19). */}
           <div className="flex min-w-0 flex-col items-start gap-1">
-            <Badge variant={step.tone}>{step.label}</Badge>
+            {/* UX-33: chip xuống dòng trong ô hẹp (768/1024), không cắt thành "Tỷ lệ cần kiể". */}
+            <Badge className="h-auto min-h-[22px] max-w-full whitespace-normal py-0.5 text-left leading-tight" title={step.label} variant={step.tone}>
+              {step.label}
+            </Badge>
             {/* Xuống dòng, không cắt chữ: ô bảng mặc định `whitespace-nowrap` (UX-R2). */}
             <span className="block w-full whitespace-normal break-words text-[12px] text-text-secondary">
               {NEXT_STEP_PREFIX} {step.nextText}

@@ -46,7 +46,7 @@ const flat = (name: string, label: string, color: string, roughness: number): Pa
 
 /** Vật liệu phẳng mà các phong cách trỏ tới (`scene:mat_style_<name>`). */
 export const SCENE_STYLE_MATERIALS: readonly PascalSceneMaterial[] = [
-  flat('am_ap_wall', 'Sơn trắng ngà', STYLE_PALETTE.amApWall, 0.9),
+  flat('am_ap_wall', 'Sơn be sáng', STYLE_PALETTE.amApWall, 0.9),
   flat('am_ap_exterior', 'Tường ngoài xám', STYLE_PALETTE.amApExterior, 0.9),
   flat('am_ap_cabinet', 'Tủ trắng ấm', STYLE_PALETTE.amApCabinet, 0.6),
   flat('hien_dai_wall', 'Sơn trắng lạnh', STYLE_PALETTE.hienDaiWall, 0.85),

@@ -71,3 +71,20 @@ UX-R1 (desktop 1920 review):
     "Thêm" tile (K38/K43).
 14. `page.tsx`: `ScaleEmptyNotice` (`../scaleBanner.tsx`) sits beside `CanvasHelp`; when no floor has a scale the bridge
     builds an empty scene and this card says why mid-screen, with the "Đặt tỷ lệ" link (Codex P1).
+15. Editor3D (01/11, homeowner pass, `F:/App/ui-review/editor3d-20261031/BAO-CAO.md`):
+    - `viewer-toolbar.tsx` `BottomDock` (mounted in `page.tsx`, portalled to `<body>` so presses do not reach the scene's
+      pointer source): labelled "Hoàn tác / Làm lại" (`runUndo`/`runRedo`, disabled on empty history) left of the vendor
+      action menu, and "Phòng ▾ (fitRoom) / Nhìn từ trên / Đi bộ / Xem toàn bộ / …" right of it; edges polled from the
+      action menu's classes (fallback: fixed offsets). The camera group left the top bar; "Đi tới phòng" left Hiển thị.
+    - "Tầng: …" hidden for one-level scenes; "Xem trước" label from a 1500 px bar; `useWallModeAfterWalk` restores the wall
+      mode after the walkthrough; top view fits the canvas minus the bars.
+    - `build-tab.tsx` `openBuildTabWithoutArming()`: "Sửa mô hình" opens Dựng in Select (no wall tool armed).
+    - `lib/apartment-tools.ts`: Sàn/Trần/Cột moved behind "Thêm"; `../pascal-chrome.css` hides Vùng (Z), Xoá (X),
+      Tham chiếu, Tiện ích, Lưu/Nạp bản dựng, Audio and "Xoá hết và làm lại".
+
+SketchUp UX:
+
+16. `page.tsx` mounts `<DraftAssist />` (`../draftAssist/`): while a wall is being drafted, typing a length
+    (`3500`, `3,5`, `350cm`) and Enter commits the segment at that exact length along the cursor direction; a chip
+    beside the cursor names the snap (Đầu tường / Trung điểm / Giao điểm / Trên tường / Thẳng hàng).
+    `components/canvas-help.tsx` shows `ToolHint` (next step of the armed tool) where the Delete banner sits.

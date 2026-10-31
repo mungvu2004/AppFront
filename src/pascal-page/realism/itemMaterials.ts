@@ -6,10 +6,12 @@
  * Mẫu không có trong bảng (mẫu lạ/người dùng tải lên) vẫn qua luật chung `autoPatch` + anisotropy.
  * Cờ `flags.materials` tắt, textures=false (clay), kính thư viện → trả nguyên vật liệu.
  */
-import { Color, LinearSRGBColorSpace, SRGBColorSpace } from 'three';
+import { Color, LinearSRGBColorSpace, MeshPhysicalMaterial, MeshStandardMaterial, SRGBColorSpace } from 'three';
 import type { Material, Texture } from 'three';
-import { AUTO, autoPatch, folderOf, itemKindOf, KIND_LOOK, nameKind, tunedRoughness } from './itemLook';
+import { MeshPhysicalNodeMaterial } from 'three/webgpu';
+import { AUTO, autoPatch, folderOf, itemKindOf, KIND_LOOK, nameKind, tunedRoughness, type KindLook } from './itemLook';
 import { useRealism } from './store';
+import { tagUpholstery } from './upholstery';
 
 type TunableMaterial = Material & {
   color?: Color;
@@ -34,6 +36,34 @@ export interface TuneContext {
 }
 
 const cache = new Map<string, Material>();
+
+/** Màu sheen trắng (Blender 4 Principled: sheen tint mặc định trắng). */
+const SHEEN_TINT = 1;
+
+/**
+ * Vải/chăn: vật liệu standard → physical có sheen (ánh lông vải ở rìa, hết "nhựa mờ").
+ * Vật liệu thư viện là MeshStandardNodeMaterial → MeshPhysicalNodeMaterial; GLB thường → MeshPhysicalMaterial.
+ * `MeshStandardMaterial.prototype.copy` chỉ đọc trường standard (màu, map, nhám…) nên chép được từ cả hai lớp.
+ */
+function withSheen(m: TunableMaterial, look: KindLook): TunableMaterial {
+  if (look.sheen == null) return m;
+  const src = m as TunableMaterial & { sheen?: number; isNodeMaterial?: boolean };
+  let phys: MeshPhysicalMaterial;
+  if (typeof src.sheen === 'number') {
+    phys = src as unknown as MeshPhysicalMaterial;
+  } else {
+    phys = src.isNodeMaterial
+      ? (new MeshPhysicalNodeMaterial() as unknown as MeshPhysicalMaterial)
+      : new MeshPhysicalMaterial();
+    MeshStandardMaterial.prototype.copy.call(phys, src as unknown as MeshStandardMaterial);
+    // copy() của standard đặt defines = STANDARD → trả lại PHYSICAL cho bộ dựng WebGL.
+    phys.defines = { STANDARD: '', PHYSICAL: '' };
+  }
+  phys.sheen = look.sheen;
+  if (look.sheenRoughness != null) phys.sheenRoughness = look.sheenRoughness;
+  phys.sheenColor.setScalar(SHEEN_TINT);
+  return phys as unknown as TunableMaterial;
+}
 
 function copyDonorMaps(target: TunableMaterial, donor: TunableMaterial): boolean {
   let changed = false;
@@ -115,7 +145,8 @@ export function tuneItemMaterial(mat: Material, ctx: TuneContext): Material {
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const next = mat.clone() as TunableMaterial;
+  const clone = mat.clone() as TunableMaterial;
+  const next = look ? withSheen(clone, look) : clone;
   // Clone lúc gốc chưa nạp ảnh thì mất ảnh mãi (đồ gỗ ra trắng) → theo gốc tới khi có map.
   retry(() => copySourceMaps(next, m));
   next.name = `${mat.name}|${look ? kind : 'auto'}`;
@@ -128,6 +159,8 @@ export function tuneItemMaterial(mat: Material, ctx: TuneContext): Material {
     return next;
   }
   next.roughness = tunedRoughness(kind!, m.roughness);
+  // Vải bọc: `applyUpholstery` (sau vòng gán vật liệu của món) nhuộm theo phong cách.
+  tagUpholstery(next, kind, ctx.ref, folderOf(ctx.src));
   if (look.metalness != null) next.metalness = look.metalness;
   if (kind === 'mirror') {
     next.transparent = false;

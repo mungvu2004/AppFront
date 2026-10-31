@@ -14,6 +14,8 @@
 import { ChevronDown } from 'lucide-react';
 import { useRef } from 'react';
 
+import { namedFolderOf } from '@/lib/pascal/furnitureCatalog';
+
 type Vec3 = readonly [number, number, number];
 
 /** Phần `asset` của item Pascal mà thẻ đọc/ghi (kiểu lỏng, xem `@pascal-app/core` `ItemNode`). */
@@ -71,7 +73,14 @@ export const SWAP_GROUPS: readonly (readonly string[])[] = [
 /** Lệch tỉ lệ ngang/sâu tối đa khi kéo mẫu mới vào hộp cũ (cùng ý `MAX_STRETCH_RATIO` của toPascal). */
 const MAX_STRETCH = 1.8;
 
-const folderOf = (src: string): string | undefined => /^\/items\/([^/]+)\//.exec(src)?.[1];
+/**
+ * Thư mục mẫu theo tên catalog. L3a-02: khi bật mẫu thật, giường/tủ áo/bồn cầu… dựng từ `/items/bed-sf/…`
+ * — thư mục không có trong catalog nên trước đây không tìm ra nhóm và nút "Đổi mẫu" không hiện.
+ */
+const folderOf = (src: string): string | undefined => {
+  const file = /^\/items\/([^/]+)\//.exec(src)?.[1];
+  return file === undefined ? undefined : namedFolderOf(file);
+};
 
 /** Mẫu cùng nhóm với món đồ (kể cả mẫu đang dùng), theo thứ tự nhóm; [] nếu không có mẫu nào khác. */
 export const swapCandidates = (asset: SwapAsset, catalog: readonly SwapCatalogItem[]): SwapCatalogItem[] => {

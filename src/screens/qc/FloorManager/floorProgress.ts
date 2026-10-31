@@ -89,7 +89,7 @@ export interface NextTaskVm {
  * Tầng cần làm nhất: tầng đầu tiên chưa có bản vẽ; rồi tầng đầu tiên máy không đo được tỷ lệ
  * (duyệt tường trên tỷ lệ sai là làm lại từ đầu, K06); đủ cả thì tầng đầu tiên để duyệt.
  */
-export function nextTaskOf(rows: readonly FloorRowVm[]): NextTaskVm | null {
+export function nextTaskOf(rows: readonly FloorRowVm[], canEdit = true): NextTaskVm | null {
   const first = rows[0];
 
   if (first === undefined) {
@@ -117,6 +117,21 @@ export function nextTaskOf(rows: readonly FloorRowVm[]): NextTaskVm | null {
 
   const scaleMissing = rows.filter((row) => row.isScaleMissing);
   const scaleTarget = scaleMissing[0];
+
+  // UX-46: người chỉ xem không được mời duyệt hay đặt tỷ lệ; chỉ được mời xem.
+  if (!canEdit) {
+    return {
+      floorId: first.id,
+      kind: 'review',
+      title: 'Xem tường, phòng từng tầng',
+      reason: 'Bạn chỉ có quyền xem dự án này. Mở từng tầng để xem tường, phòng máy đọc được.',
+      conditions: [],
+      actionLabel: `Xem tường ${first.name}`,
+      doneCount,
+      totalCount: rows.length,
+      meterText,
+    };
+  }
 
   if (scaleTarget !== undefined) {
     const scaledCount = rows.length - scaleMissing.length;

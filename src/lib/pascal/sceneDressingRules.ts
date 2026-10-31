@@ -6,6 +6,8 @@
  * Hàm thuần của (đồ thị, phong cách): phòng theo id, quy tắc theo thứ tự cố định, đồ theo
  * id. Mỗi món phải nằm trong phòng (lùi 100 mm), không chồng đồ khác (cách 50 mm — trừ món
  * "chủ" nó nằm trên/dưới) và không chồng vùng mở cửa; không đạt thì bỏ, không dời đồ thật.
+ * Ngoại lệ: thảm phẳng được nằm trong vùng mở cửa (người đi qua thảm, cánh cửa lướt trên),
+ * đèn bàn luôn đặt trên tủ đầu giường (món chủ đã hợp lệ).
  */
 
 import type { Furniture, FurnitureId, FurnitureVariant, Millimetres, Point, Room, SpatialGraph } from '@/domain/spatial/types';
@@ -26,8 +28,8 @@ import type { SceneStyle } from './sceneStyles';
 
 const ROOM_INSET_MM = 100;
 const FURNITURE_GAP_MM = 50;
-/** Thảm thử cỡ đầy đủ rồi 80% (phòng hẹp). */
-const RUG_SCALES = [1, 0.8] as const;
+/** Thảm thử cỡ đầy đủ rồi 80%, 60% (phòng hẹp). */
+const RUG_SCALES = [1, 0.8, 0.6] as const;
 /** Thảm phòng khách 2000 × 1400, mép sau luồn 300 mm dưới mặt trước sofa. */
 const LIVING_RUG = { long: 2000, deep: 1400, underSofa: 300 } as const;
 /** Thảm theo nhóm sofa: dài hơn sofa 400, phủ quá mép xa bàn nước 300; trần 3200 × 2600. */
@@ -275,7 +277,15 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
     const withRole = (roles: ReadonlySet<FurnitureRole>) => inRoom.filter((item) => roles.has(item.role));
     const hasRug = withRole(RUG_ROLES).length > 0;
 
-    /** Lấy hình hợp lệ đầu tiên trong `candidates`; `hosts` = món được phép nằm chồng. */
+    const put = (id: string, rect: Rect, variant: FurnitureVariant | undefined, extra: Extra = {}): void => {
+      out.push(generatedOf(id, room, rect, variant, extra));
+      placed.push({ id, levelId: room.levelId, rect });
+    };
+
+    /**
+     * Lấy hình hợp lệ đầu tiên trong `candidates`; `hosts` = món được phép nằm chồng;
+     * `overSwings` = món phẳng (thảm) được nằm trong vùng mở cửa.
+     */
     const tryPlace = (
       id: string,
       candidates: readonly Rect[],
@@ -283,35 +293,32 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
       variant: FurnitureVariant | undefined,
       extra: Extra = {},
       insetMm: number = ROOM_INSET_MM,
+      overSwings = false,
     ): boolean => {
       const rect = candidates.find(
         (r) =>
           rectInsidePolygon(r, room.outline, insetMm) &&
-          !swings.some((s) => rectsOverlap(r, s)) &&
+          (overSwings || !swings.some((s) => rectsOverlap(r, s))) &&
           !walls.some((w) => rectsOverlap(r, w)) &&
           !placed.some(
             (p) => p.levelId === room.levelId && !hosts.has(p.id) && rectsOverlap(r, p.rect, FURNITURE_GAP_MM),
           ),
       );
       if (rect === undefined) return false;
-      out.push(generatedOf(id, room, rect, variant, extra));
-      placed.push({ id, levelId: room.levelId, rect });
+      put(id, rect, variant, extra);
       return true;
     };
 
     // (1) Đèn bàn giữa mặt tủ đầu giường phòng ngủ, cao bằng tủ; cỡ mô hình, không vượt mặt tủ.
+    // Luôn đặt: nằm gọn trên mặt tủ (đã hợp lệ), không thể chồng sàn/tường/cửa. Catalog chưa có cờ
+    // "đèn bật" — variant `tableLamp` là móc cho lớp ánh sáng.
     if (room.usage === 'bedroom') {
       const lamp = CATALOG_MODELS[VARIANT_MODEL.tableLamp?.folder ?? '']?.dimensions;
       const lampW = lamp === undefined ? LAMP_FALLBACK_MM : lamp[0] * 1000;
       const lampD = lamp === undefined ? LAMP_FALLBACK_MM : lamp[2] * 1000;
       for (const { f, rect } of inRoom.filter((item) => item.role === 'nightstand')) {
-        tryPlace(
-          `DRESS-tableLamp-${f.id}`,
-          [rectAt(rect, 0, 0, Math.min(lampW, rect.w), Math.min(lampD, rect.d))],
-          new Set([f.id]),
-          'tableLamp',
-          { liftMm: f.heightMm ?? NIGHTSTAND_HEIGHT_MM },
-        );
+        const top = rectAt(rect, 0, 0, Math.min(lampW, rect.w), Math.min(lampD, rect.d));
+        put(`DRESS-tableLamp-${f.id}`, top, 'tableLamp', { liftMm: f.heightMm ?? NIGHTSTAND_HEIGHT_MM });
       }
     }
 
@@ -342,7 +349,7 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
           const offset = front * (depth / 2 - LIVING_RUG.underSofa + deep / 2);
           return depthAxis === 1 ? rectAt(rect, 0, offset, long, deep) : rectAt(rect, offset, 0, deep, long);
         });
-        if (tryPlace(`DRESS-rug-${room.id}`, candidates, hosts, 'rug')) break;
+        if (tryPlace(`DRESS-rug-${room.id}`, candidates, hosts, 'rug', {}, ROOM_INSET_MM, true)) break;
       }
     }
 
@@ -359,7 +366,7 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
           const offset = foot * (-length / 2 + length / 3 + deep / 2);
           return lengthAxis === 1 ? rectAt(rect, 0, offset, across, deep) : rectAt(rect, offset, 0, deep, across);
         });
-        tryPlace(`DRESS-rug-${f.id}`, candidates, new Set([f.id]), 'rug');
+        tryPlace(`DRESS-rug-${f.id}`, candidates, new Set([f.id]), 'rug', {}, ROOM_INSET_MM, true);
       }
     }
 
@@ -380,14 +387,13 @@ export const dressingOf = (graph: SpatialGraph, style: SceneStyle): readonly Fur
             : rectAt(rect, reach, 0, BATH_MAT.deep, BATH_MAT.long);
         return { mat, order, room: distanceToOutline({ x: mat.cx, y: mat.cy }, room.outline) };
       });
-      // Xa mép phòng trước; bằng nhau giữ thứ tự +y, −y, +x, −x.
+      // Xa mép phòng trước; bằng nhau giữ thứ tự +y, −y, +x, −x. Ưu tiên mặt ngoài vùng mở cửa;
+      // không còn mặt nào thì thảm (phẳng) nằm trong vùng mở cửa.
       faces.sort((a, b) => b.room - a.room || a.order - b.order);
-      tryPlace(
-        `DRESS-bathMat-${f.id}`,
-        faces.map((face) => face.mat),
-        new Set([f.id]),
-        'rug',
-      );
+      const mats = faces.map((face) => face.mat);
+      const hosts = new Set<string>([f.id]);
+      const id = `DRESS-bathMat-${f.id}`;
+      if (!tryPlace(id, mats, hosts, 'rug')) tryPlace(id, mats, hosts, 'rug', {}, ROOM_INSET_MM, true);
     }
 
     // ---- Đồ trang trí AppFront (FE3D-FIX-004 D): sau 4 quy tắc trên, nên không đổi kết quả của chúng. ----

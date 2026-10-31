@@ -1,5 +1,5 @@
 /**
- * Hướng dẫn thao tác trang 3D: 5 bước, hình thức theo EditorTour của AppFront (4 tấm nền mờ quanh
+ * Hướng dẫn thao tác trang 3D: các bước trong `TOUR_STEPS`, hình thức theo EditorTour của AppFront (4 tấm nền mờ quanh
  * lỗ + viền accent, thẻ 320px). Không chặn thao tác 3D; Esc đóng mà không chặn sự kiện của editor.
  *
  * UX-R1 K47/K40: trong lúc chờ hiện một dòng chữ tiến độ dưới biểu tượng tải của Pascal. Lần đầu
@@ -38,8 +38,7 @@ const CSS = `
 .pascal-tour-ghost{background:transparent;color:var(--pa-text-2)}
 .pascal-tour-ghost:hover{background:var(--pa-sunken);color:var(--pa-text)}
 .pascal-tour-kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;border:1px solid var(--pa-border);background:var(--pa-sunken);color:var(--pa-text-2);border-radius:4px;padding:1px 6px}
-.pascal-tour-card{transition:transform 180ms var(--pa-ease)}
-@media (prefers-reduced-motion: reduce){.pascal-tour-card,.pascal-tour-btn{transition:none}}
+@media (prefers-reduced-motion: reduce){.pascal-tour-btn{transition:none}}
 `;
 
 const toBox = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height });
@@ -177,25 +176,32 @@ export function PascalTour({ hasModel = ALWAYS }: { readonly hasModel?: () => bo
     return () => window.removeEventListener('keydown', onKey);
   }, [open, close]);
 
-  // Theo dõi phần tử neo (có thể mount muộn hoặc đổi chỗ khi đổi cỡ cửa sổ).
+  // Đo phần tử neo một lần mỗi bước (dò lại chỉ khi neo chưa mount) và khi đổi cỡ cửa sổ.
+  // L1-12: trước đây đo lại mỗi 400 ms nên thẻ tự dời theo thanh trên đang đổi chỗ, bấm "Tiếp theo" bị trượt.
   useEffect(() => {
     if (!open) return;
     const step = TOUR_STEPS[index];
     if (!step) return;
+    let id = 0;
     const measure = () => {
       const el = resolveAnchor(step);
       setAnchor(el ? toBox(el.getBoundingClientRect()) : null);
       setVp({ w: window.innerWidth, h: window.innerHeight });
-      if (cardRef.current) setCardH(cardRef.current.offsetHeight);
+      if (el || !step.anchor) window.clearInterval(id);
     };
     measure();
-    // eslint-disable-next-line local/no-raw-duration -- chu kỳ đo lại vị trí neo, không phải chuyển động
-    const id = window.setInterval(measure, 400);
+    // eslint-disable-next-line local/no-raw-duration -- chu kỳ dò neo mount muộn, không phải chuyển động
+    if (step.anchor && !resolveAnchor(step)) id = window.setInterval(measure, 400);
     window.addEventListener('resize', measure);
     return () => {
       window.clearInterval(id);
       window.removeEventListener('resize', measure);
     };
+  }, [open, index]);
+
+  // Chiều cao thẻ đo trước khi vẽ, để thẻ không nhảy sau khung hình đầu của bước.
+  useLayoutEffect(() => {
+    if (open && cardRef.current) setCardH(cardRef.current.offsetHeight);
   }, [open, index]);
 
   useLayoutEffect(() => {

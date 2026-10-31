@@ -9,6 +9,7 @@ import { createPascalEditCommand } from '@/lib/pascal/fromPascal';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalScene } from '@/lib/pascal/types';
 import type * as ToPascal from '@/lib/pascal/toPascal';
+import type * as AuthSession from '@/lib/auth/session';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
@@ -19,10 +20,16 @@ import {
   BRIDGE_SAVE_FAILED,
   BRIDGE_SESSION_ERROR,
   currentProjectSceneStyle,
+  drawnFloorIds,
   isSeparateUnits,
+  loginHrefOf,
   markNotBuilt,
+  MASS_DELETE_TITLE,
+  RELOAD_CONFIRM_TITLE,
   NOT_BUILT_KEY,
   savePascalNow,
+  SESSION_LOST,
+  SESSION_LOST_UNSAVED,
   undrawnFloorNames,
   unsavedNoticeOf,
   usePascalProjectBridge,
@@ -39,7 +46,17 @@ const settingsApi = vi.hoisted(() => ({
 }));
 const detail = vi.hoisted(() => ({ fail: false, levels: 1, walls: 1, role: 'engineer' as ProjectRole }));
 /** Kết quả `onSceneCommit` giả: `reason` khác `null` = có lời từ chối qua `onRejected`. */
-const commit = vi.hoisted(() => ({ ok: true, reason: null as string | null, unsaved: [] as string[], notices: [] as string[] }));
+const commit = vi.hoisted(() => ({
+  ok: true,
+  reason: null as string | null,
+  unsaved: [] as string[],
+  notices: [] as string[],
+  /** Khác `null` = cổng chặn lượt này là xoá nhiều (`validateCommit` gọi `onMassDelete`). */
+  massDelete: null as string[] | null,
+  confirmed: [] as (readonly string[])[],
+}));
+/** Phiên giả: `anonymous` = phiên đã hết giữa chừng (L3a-01). */
+const auth = vi.hoisted(() => ({ anonymous: false }));
 /** Bộ tự lưu tầng giả: trạng thái engine, tầng bị khối, câu khối. */
 const saver = vi.hoisted(() => ({
   state: 'saved' as string,
@@ -48,6 +65,11 @@ const saver = vi.hoisted(() => ({
   reloaded: [] as string[],
 }));
 
+vi.mock('@/hooks/useSession', async () => {
+  const { getSession } = await vi.importActual<typeof AuthSession>('@/lib/auth/session');
+
+  return { useSession: () => (auth.anonymous ? { ...getSession(), status: 'anonymous' as const } : getSession()) };
+});
 vi.mock('@/routes/sessionSetup', () => ({ startAppSession: () => Promise.resolve(session.ok) }));
 vi.mock('@/api/appClient', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -123,13 +145,22 @@ vi.mock('@/lib/pascal/toPascal', async (importOriginal) => {
 vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
   usePascalEdits: ({
     onRejected,
+    onMassDelete,
     onUnsaved,
     onNotice,
   }: {
     onRejected: (reason: string) => void;
+    onMassDelete: (request: { nodeIds: readonly string[]; reason: string }) => void;
     onUnsaved: (labels: readonly string[]) => void;
     onNotice: (message: string) => void;
   }) => ({
+    validateCommit: () => {
+      if (commit.massDelete !== null && commit.reason !== null) onMassDelete({ nodeIds: commit.massDelete, reason: commit.reason });
+      return { ok: commit.reason === null };
+    },
+    confirmMassDelete: (nodeIds: readonly string[]) => {
+      commit.confirmed.push(nodeIds);
+    },
     onSceneCommit: () => {
       if (commit.reason !== null) onRejected(commit.reason);
       // Như hook thật (V9): mọi lượt không bị từ chối đều gọi onUnsaved, kể cả danh sách rỗng.
@@ -155,6 +186,9 @@ describe('usePascalProjectBridge', () => {
     commit.reason = null;
     commit.unsaved = [];
     commit.notices = [];
+    commit.massDelete = null;
+    commit.confirmed = [];
+    auth.anonymous = false;
     saver.state = 'saved';
     saver.blocked = null;
     saver.saveNow.calls = 0;
@@ -361,7 +395,17 @@ describe('usePascalProjectBridge', () => {
     /* eslint-disable-next-line local/no-direct-set -- tầng L-1 đang chờ lưu và bị khối */
     useStore.setState({ unsavedFloorIds: ['L-1'] });
 
+    // C4/A2-07: tầng còn sửa chưa lưu → hỏi trước, chưa nạp gì.
     act(() => result.current.save?.onReloadFloor());
+    expect(result.current.save?.confirm?.title).toBe(RELOAD_CONFIRM_TITLE);
+    expect(saver.reloaded).toEqual([]);
+
+    act(() => result.current.save?.confirm?.onCancel());
+    expect(result.current.save?.confirm).toBeNull();
+    expect(saver.reloaded).toEqual([]);
+
+    act(() => result.current.save?.onReloadFloor());
+    act(() => result.current.save?.confirm?.onConfirm());
 
     await waitFor(() => expect(applied).toHaveLength(1));
     expect(saver.reloaded).toEqual(['L-1']);
@@ -465,7 +509,7 @@ describe('usePascalProjectBridge', () => {
     expect(result.current.save?.notice).toBe('Phòng "Ngủ" có vách mới — mở màn Phòng để tách.');
   });
 
-  it('V9 — lượt lưu sau không còn gì chưa lưu: câu báo cũ được gỡ, nhãn ấy báo lại được', async () => {
+  it('C1/F-01 — câu "Chưa lưu được" không tự gỡ ở lượt sau, gộp nhãn mới với nhãn đang hiện', async () => {
     const { result } = renderHook(() => usePascalProjectBridge('p1'));
     await waitFor(() => expect(result.current.status).toBe('ready'));
 
@@ -479,13 +523,66 @@ describe('usePascalProjectBridge', () => {
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBeNull();
+    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn']));
 
-    commit.unsaved = ['màu sàn'];
+    commit.unsaved = ['kiểu cửa'];
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn']));
+    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn', 'kiểu cửa']));
+  });
+
+  it('C4/A2-02 — xoá nhiều: hộp xác nhận thay toast đỏ; xác nhận thì mở cổng, đặt lại cảnh đã xoá và lưu', async () => {
+    const applied: unknown[] = [];
+    const { result } = renderHook(() => usePascalProjectBridge('p1', (scene) => applied.push(scene)));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    const deleted = { nodes: { a: {} }, rootNodeIds: ['a'] };
+    commit.ok = false;
+    commit.reason = 'Thay đổi này xoá 5 trong 10 đối tượng của một tầng nên phải được xác nhận trước.';
+    commit.massDelete = ['n1', 'n2', 'n3', 'n4', 'n5'];
+    await act(async () => {
+      await expect(result.current.onSave(deleted)).rejects.toThrow(commit.reason ?? '');
+    });
+    expect(result.current.save?.confirm?.title).toBe(MASS_DELETE_TITLE);
+    expect(result.current.save?.notice).toBeNull();
+    expect(applied).toHaveLength(1);
+
+    commit.ok = true;
+    commit.reason = null;
+    commit.massDelete = null;
+    await act(async () => {
+      result.current.save?.confirm?.onConfirm();
+      await Promise.resolve();
+    });
+    expect(commit.confirmed).toEqual([['n1', 'n2', 'n3', 'n4', 'n5']]);
+    expect(applied[1]).toBe(deleted);
+    expect(result.current.save?.confirm).toBeNull();
+    await waitFor(() => expect(saver.saveNow.calls).toBe(1));
+  });
+
+  it('K5/A2-06 — mất mạng là trạng thái riêng, không phải "đang lưu"', async () => {
+    saver.state = 'offline';
+    const { result } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    expect(result.current.save?.state).toBe('offline');
+  });
+
+  it('L3a-01 — phiên hết giữa chừng: báo ngay, nói rõ chưa lưu, có đường đăng nhập lại về đúng 3D', async () => {
+    const { result, rerender } = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    auth.anonymous = true;
+    rerender();
+    expect(result.current.save?.state).toBe('session');
+    expect(result.current.save?.blockMessage).toBe(SESSION_LOST);
+    expect(result.current.save?.loginHref).toBe(loginHrefOf('p1'));
+    expect(loginHrefOf('p1')).toBe('/login?next=%2Fprojects%2Fp1%2F3d');
+
+    saver.state = 'failed';
+    rerender();
+    expect(result.current.save?.blockMessage).toBe(SESSION_LOST_UNSAVED);
   });
 
   it('N1 — lượt bị từ chối: lý do lên thẻ dạng cảnh báo, không im lặng "đã lưu"', async () => {
@@ -566,5 +663,16 @@ describe('undrawnFloorNames (U52)', () => {
     ];
     expect(undrawnFloorNames(floors, new Set(['a']))).toEqual(['Tầng 3', 'Tầng 2']);
     expect(undrawnFloorNames(floors, new Set(['a', 'b', 'c']))).toEqual([]);
+  });
+});
+
+describe('drawnFloorIds (UX-32)', () => {
+  it('counts a floor as drawn only when it has a wall or a room', () => {
+    const drawn = drawnFloorIds({
+      walls: [{ levelId: 'f0' }],
+      rooms: [{ levelId: 'f1' }],
+    } as unknown as Parameters<typeof drawnFloorIds>[0]);
+    expect([...drawn].sort()).toEqual(['f0', 'f1']);
+    expect(drawn.has('f2')).toBe(false);
   });
 });

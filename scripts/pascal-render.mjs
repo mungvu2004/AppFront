@@ -20,6 +20,12 @@
  * "Ban ngày" (FE3D-FIX-004 thẻ L; số đèn ở `renderLook.ts` `applyDayLook`):
  * 10. ánh sáng môi trường (dải trời) của chủ đề sáng 0.6 → 0.8: phòng trong bóng vẫn sáng như ban ngày.
  *
+ * Dáng A (docs/blender-vs-editor/BAO-CAO.md):
+ * 11. tone mapping ACES Filmic → AgX: bộ chấm màu (8.) vốn viết cho AgX; ACES đẩy tường sáng vào vai phẳng
+ *     và nhuộm gỗ cam gắt. Phơi sáng chỉnh lại ở `renderLook.ts`;
+ * 12. vignette 16 % → 7 %: góc khung không còn tối bẩn quanh nhà.
+ * (Lọc dị hướng 8 cho texture vật liệu đã có ở `scripts/realism/r8-pack1.mjs`.)
+ *
  * Báo đỏ thay vì im lặng: chuỗi gốc không còn hoặc xuất hiện hơn một lần trong tệp, hay
  * tệp trong bảng không được dựng tới → ném lỗi, lượt dựng hỏng.
  */
@@ -56,11 +62,14 @@ export const RENDER_RULES = {
         '        const lampGlow = bloom(vec4(sceneColor.rgb.mul(contentAlpha), tslFloat(1)), 0.15, 0.3, 3)',
         '        resources.passes.push(lampGlow as any)',
         '        const edge = smoothstep(tslFloat(0.4), tslFloat(0.78), screenUV.sub(0.5).length())',
-        '        looked = add(composited, vec4(lampGlow).rgb).mul(mix(tslFloat(1), tslFloat(0.84), edge))',
+        '        looked = add(composited, vec4(lampGlow).rgb).mul(mix(tslFloat(1), tslFloat(0.93), edge))',
         '      }',
         '      const withOverlay = mix(looked, overlayColor.rgb, overlayColor.a)',
       ].join('\n'),
     ],
+  ],
+  'viewer/src/components/viewer/index.tsx': [
+    ['renderer.toneMapping = THREE.ACESFilmicToneMapping', 'renderer.toneMapping = THREE.AgXToneMapping'],
   ],
   'nodes/src/site/renderer.tsx': [
     ['{showSiteSurfaces && !ribbons && (', '{false && showSiteSurfaces && !ribbons && ('],

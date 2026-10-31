@@ -370,8 +370,9 @@ export function FloorUploadCard({
                       <span className="flex items-center gap-3">
                         <img
                           alt={option.label}
-                          // Đủ lớn để nhận ra mặt bằng (U58); 64×80 chỉ thấy vài nét mờ.
-                          className="h-44 w-36 shrink-0 rounded border border-border-default bg-bg-surface object-contain"
+                          // Đủ lớn để nhận ra mặt bằng (U58); 64×80 chỉ thấy vài nét mờ. Cao 128 px để hai
+                          // trang trọn vẹn trong trần 300 px của menu, không cắt ảnh trang 2 (UX-36).
+                          className="h-32 w-28 shrink-0 rounded border border-border-default bg-bg-surface object-contain"
                           loading="lazy"
                           src={thumbnail}
                         />

@@ -23,6 +23,12 @@ import type { FloorUploadActions, FloorUploadTrayModel } from './types';
 const LABEL_ASSIGN = 'Gán cho tầng';
 const PLACEHOLDER_ASSIGN = 'Chọn tầng để gán';
 const LABEL_DISMISS = 'Đóng';
+const LABEL_DROP_REJECTED = 'Bỏ tệp';
+const NOTE_NOT_UPLOADED = 'Tệp chưa được tải lên.';
+
+/** Tệp bị từ chối lúc kiểm: có lỗi và không gán được cho tầng nào (BUG-523), nên chỉ còn lối bỏ. */
+const isRejected = (item: { readonly error: unknown; readonly assignOptions: readonly unknown[] }): boolean =>
+  item.error !== null && item.assignOptions.length === 0;
 
 export interface FloorUploadTrayProps {
   readonly tray: FloorUploadTrayModel;
@@ -106,18 +112,19 @@ export function FloorUploadTray({ tray, actions }: FloorUploadTrayProps) {
 
             {item.error !== null && (
               <InlineAlert
-                // Đã có thùng rác thì không thêm nút "Đóng" cùng ý (G3-23).
-                {...(item.canRemoveFile
+                // Đã có thùng rác thì không thêm nút "Đóng" cùng ý (G3-23). Tệp bị từ chối (không gán
+                // được tầng nào) luôn có nút "Bỏ tệp" rõ và câu nói tệp chưa được tải lên (UX-37).
+                {...(item.canRemoveFile && !isRejected(item)
                   ? {}
                   : {
                       action: {
-                        label: LABEL_DISMISS,
+                        label: isRejected(item) ? LABEL_DROP_REJECTED : LABEL_DISMISS,
                         onClick: () => actions.onDismissError(item.id),
                         variant: 'secondary' as const,
                       },
                     })}
                 level="violation"
-                message={item.error.sentence}
+                message={isRejected(item) ? `${item.error.sentence} ${NOTE_NOT_UPLOADED}` : item.error.sentence}
               />
             )}
           </li>

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { BackToProjectCard, READ_ONLY_REASON, SaveStatusCard } from '../BackToProjectCard';
+import { AUTOSAVE_CHIP, BackToProjectCard, OFFLINE_CHIP, READ_ONLY_REASON, SaveStatusCard } from '../BackToProjectCard';
 import type { PascalSaveStatus } from '../bridge/types';
 
 const status = (patch: Partial<PascalSaveStatus> = {}): PascalSaveStatus => ({
@@ -36,12 +36,15 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
     expect(save.onReloadFloor).toHaveBeenCalledTimes(1);
   });
 
-  it('câu "Chưa lưu được" đóng được; chưa lưu lần nào thì không có chip', () => {
+  it('câu "Chưa lưu được" đóng được, đủ chữ (không cắt); chưa lưu lần nào thì chip vẫn có: "Tự động lưu" (K5)', () => {
     const save = status({ label: null, notice: 'Chưa lưu được: màu sàn — sẽ có ở bản sau.' });
     render(<SaveStatusCard save={save} />);
 
-    expect(screen.getByText('Chưa lưu được: màu sàn — sẽ có ở bản sau.')).toBeInTheDocument();
-    expect(screen.getAllByRole('status')).toHaveLength(1);
+    const text = screen.getByText('Chưa lưu được: màu sàn — sẽ có ở bản sau.');
+    expect(text.className).not.toContain('truncate');
+    const [chip, ...rest] = screen.getAllByRole('status');
+    expect(rest).toHaveLength(1);
+    expect(chip).toHaveTextContent(AUTOSAVE_CHIP);
     fireEvent.click(screen.getByRole('button', { name: 'Đóng thông báo' }));
     expect(save.dismissNotice).toHaveBeenCalledTimes(1);
   });
@@ -86,6 +89,38 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
     const chip = screen.getByRole('status');
     expect(chip).toHaveTextContent('Chưa lưu');
     expect(chip.className).toContain('shrink-0');
+  });
+
+  it('K5/A2-06 — mất mạng: chip riêng "Mất mạng — chưa gửi được", không phải "Đang lưu…"', () => {
+    render(<SaveStatusCard save={status({ state: 'offline' })} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent(OFFLINE_CHIP);
+    expect(screen.queryByText('Đang lưu…')).toBeNull();
+  });
+
+  it('L3a-01 — phiên hết: cảnh báo + "Đăng nhập lại" về đúng 3D', () => {
+    render(
+      <SaveStatusCard
+        save={status({ state: 'session', blockMessage: 'Phiên đăng nhập đã hết — thay đổi vừa rồi CHƯA được lưu.', loginHref: '/login?next=%2Fprojects%2Fp1%2F3d' })}
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('thay đổi vừa rồi CHƯA được lưu');
+    expect(screen.getByRole('link', { name: 'Đăng nhập lại' })).toHaveAttribute('href', '/login?next=%2Fprojects%2Fp1%2F3d');
+    expect(screen.getByRole('status')).toHaveTextContent('Chưa lưu');
+  });
+
+  it('C4 — hộp xác nhận: Huỷ nhận tiêu điểm, Esc là huỷ, nút xác nhận gọi đúng việc', () => {
+    const confirm = { title: 'Tải lại tầng từ máy chủ?', body: 'Các thay đổi chưa lưu sẽ bị bỏ.', confirmLabel: 'Bỏ phần sửa và tải lại', onConfirm: vi.fn(), onCancel: vi.fn() };
+    render(<SaveStatusCard save={status({ confirm })} />);
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Tải lại tầng từ máy chủ?' });
+    expect(dialog).toHaveAccessibleDescription('Các thay đổi chưa lưu sẽ bị bỏ.');
+    expect(screen.getByRole('button', { name: 'Huỷ' })).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(confirm.onCancel).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ phần sửa và tải lại' }));
+    expect(confirm.onConfirm).toHaveBeenCalledTimes(1);
   });
 
   it('BackToProjectCard: không có `save` (chỉ đọc) thì có lối về và câu nói vì sao chỉ xem, không có chip lưu', () => {

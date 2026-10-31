@@ -10,6 +10,7 @@ import { ROUTES } from '@/routes/paths';
 
 import {
   floorReviewCountsOf,
+  floorPendingText,
   floorReviewGateOf,
   SCALE_LOCK_REASON,
   type RequiredLayerKey,
@@ -92,11 +93,21 @@ export function FloorReviewGate({ projectId, floorId, onNext, nextLabel, inline 
     );
   } else if (after !== null) {
     action = linkTo(LAYER_ROUTES[after.key](projectId, floorId), nextStepLabel(after.label));
+  } else if (nextFloor === null) {
+    /* UX-22: cho sang 3D nhưng nói rõ còn bao nhiêu mục chưa duyệt, tỷ lệ chưa xác nhận. */
+    const pending = graph === null ? null : floorPendingText(gate, scale);
+    action = (
+      <>
+        {pending === null ? null : (
+          <span className="min-w-0 truncate text-[13px] text-state-attention-text" title={pending}>
+            {pending}
+          </span>
+        )}
+        {linkTo(ROUTES.project.viewer(projectId), VIEWER_LABEL)}
+      </>
+    );
   } else {
-    action =
-      nextFloor === null
-        ? linkTo(ROUTES.project.viewer(projectId), VIEWER_LABEL)
-        : linkTo(ROUTES.project.walls(projectId, nextFloor.id), `Sang ${nextFloor.label}`);
+    action = linkTo(ROUTES.project.walls(projectId, nextFloor.id), `Sang ${nextFloor.label}`);
   }
 
   return inline ? action : <FlowGate>{action}</FlowGate>;

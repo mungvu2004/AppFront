@@ -114,7 +114,10 @@ import {
   pendingSuggestionsLabel,
   approvableObjectsOf,
   approveConfidentLabelOf,
-  approveRemainingLabelOf,
+  approveUnsureLabelOf,
+  confirmUnsureLabelOf,
+  reviewBreakdownLabelOf,
+  unsureObjectsOf,
   confidentObjectsOf,
   rejectedSuggestionsToast,
   drawnFurnitureInputOf,
@@ -1445,12 +1448,21 @@ export function useObjectLayerReview(
     () => approveMany(confidentObjects, approveConfidentLabelOf(confidentObjects.length)),
     [approveMany, confidentObjects],
   );
+  /* UX-06: nút thứ hai chỉ duyệt món máy chưa chắc (đã hỏi lại ở thanh), số khớp với dòng tách "cần xem". */
+  const unsureObjects = useMemo(
+    () => unsureObjectsOf(remainingObjects, confidenceThreshold),
+    [confidenceThreshold, remainingObjects],
+  );
   const onApproveRemaining = useCallback(
-    () => approveMany(remainingObjects, approveRemainingLabelOf(remainingObjects.length)),
-    [approveMany, remainingObjects],
+    () => approveMany(unsureObjects, approveUnsureLabelOf(unsureObjects.length)),
+    [approveMany, unsureObjects],
   );
   const canApproveConfident = canEdit && confidentObjects.length > 0;
-  const canApproveRemaining = canEdit && remainingObjects.length > confidentObjects.length;
+  const canApproveRemaining = canEdit && unsureObjects.length > 0;
+  const reviewBreakdownLabel = useMemo(
+    () => reviewBreakdownLabelOf(objects, confidenceThreshold),
+    [confidenceThreshold, objects],
+  );
 
   /* Lớp chỉ đọc (người xem, khoá tỷ lệ) thì không còn chế độ vẽ nào treo lại. */
   useEffect(() => {
@@ -2254,8 +2266,10 @@ export function useObjectLayerReview(
     onRejectAllSuggestions,
     approveConfidentLabel: canApproveConfident ? approveConfidentLabelOf(confidentObjects.length) : null,
     ...(canApproveConfident ? { onApproveConfident } : {}),
-    approveRemainingLabel: canApproveRemaining ? approveRemainingLabelOf(remainingObjects.length) : null,
+    approveRemainingLabel: canApproveRemaining ? approveUnsureLabelOf(unsureObjects.length) : null,
+    approveRemainingConfirm: canApproveRemaining ? confirmUnsureLabelOf(unsureObjects.length) : null,
     ...(canApproveRemaining ? { onApproveRemaining } : {}),
+    reviewBreakdownLabel: canEdit ? reviewBreakdownLabel : null,
     onToggleSelect,
     onSelectLayerObjects,
     onToggleLowConfidenceOnly,

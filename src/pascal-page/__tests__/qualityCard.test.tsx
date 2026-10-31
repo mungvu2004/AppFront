@@ -26,6 +26,8 @@ describe('QualityCard', () => {
     expect(buttons.map((b) => b.textContent)).toEqual(['Tự động · Thấp', 'Thấp', 'Vừa', 'Cao']);
     expect(list.querySelector('[aria-current="true"]')?.textContent).toBe('Tự động · Thấp');
     expect(screen.getByLabelText(/Chất lượng: Tự động · Thấp/)).not.toBeNull();
+    // Tên đọc được của từng nút nói rõ là chất lượng hình, không chỉ "Thấp"/"Cao".
+    expect(buttons.every((b) => /^Chất lượng hình/.test(b.getAttribute('aria-label') ?? ''))).toBe(true);
 
     const details = container.querySelector('details')!;
     details.setAttribute('open', '');

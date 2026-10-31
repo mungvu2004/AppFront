@@ -51,6 +51,7 @@ describe('LightingCard', () => {
     expect(localStorage.getItem(lightingKey('p1'))).toBe('day');
     expect(details.open).toBe(false);
     expect(pressedLight()).toBe('Ban ngày');
+    expect(screen.getByRole('list', { name: 'Danh sách ánh sáng' }).textContent).toContain('Chỉ lưu trên máy này');
 
     fireEvent.click(screen.getByRole('button', { name: 'Buổi tối' }));
     expect(setSceneTheme).toHaveBeenLastCalledWith('night');

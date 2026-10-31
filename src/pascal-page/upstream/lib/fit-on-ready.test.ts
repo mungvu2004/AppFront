@@ -39,7 +39,7 @@ describe('fitPose (QA-2 L2, FE3D-FIX-002 V5 D13)', () => {
       rw[2]! * fw[0]! - rw[0]! * fw[2]!,
       rw[0]! * fw[1]! - rw[1]! * fw[0]!,
     ]
-    const tanV = Math.tan(20 * DEG)
+    const tanV = Math.tan(12 * DEG)
     const tanH = tanV * (VIEW.width / VIEW.height)
     let maxX = 0
     let maxUp = 0
@@ -58,13 +58,13 @@ describe('fitPose (QA-2 L2, FE3D-FIX-002 V5 D13)', () => {
     return { maxX, maxUp, maxDown }
   }
 
-  it('orbits the plan centre at ~40 deg elevation, 40 deg lens; square plans at 45 deg azimuth', () => {
+  it('orbits the plan centre at ~52 deg elevation, 24 deg lens; square plans at 45 deg azimuth', () => {
     const pose = fitPose({ center: [10, -4], size: [12, 11] }, 'perspective', VIEW)
     expect(pose.target).toEqual([10, 0, -4])
     expect(pose.position[0] - 10).toBeCloseTo(pose.position[2] + 4)
-    expect(pose.fov).toBe(40)
+    expect(pose.fov).toBe(24)
     const horizontal = Math.hypot(pose.position[0] - 10, pose.position[2] + 4)
-    expect(Math.atan2(pose.position[1], horizontal) / DEG).toBeCloseTo(40)
+    expect(Math.atan2(pose.position[1], horizontal) / DEG).toBeCloseTo(52)
   })
 
   it('V14: long plans look ~25 deg off the short axis so the long side runs across the screen', () => {
@@ -92,16 +92,16 @@ describe('fitPose (QA-2 L2, FE3D-FIX-002 V5 D13)', () => {
     [[12, 12]],
     [[30, 6]],
     [[8, 25]],
-  ] as [[number, number]][])('plan %j fills ~80%% of the free frame on its tightest side', (size) => {
+  ] as [[number, number]][])('plan %j fills ~90%% of the free frame on its tightest side', (size) => {
     const pose = fitPose({ center: [3, 2], size }, 'perspective', VIEW)
     const { maxX, maxUp, maxDown } = screenFill(pose, size, [3, 2])
     const upLimit = 1 - (2 * TOP_RESERVED_PX) / VIEW.height
-    // Nothing leaves 80% of the frame (top: below the toolbar)...
-    expect(maxX).toBeLessThanOrEqual(0.8 + 1e-6)
-    expect(maxDown).toBeLessThanOrEqual(0.8 + 1e-6)
-    expect(maxUp).toBeLessThanOrEqual(0.8 * upLimit + 1e-6)
+    // Nothing leaves 90% of the frame (top: below the toolbar)...
+    expect(maxX).toBeLessThanOrEqual(0.9 + 1e-6)
+    expect(maxDown).toBeLessThanOrEqual(0.9 + 1e-6)
+    expect(maxUp).toBeLessThanOrEqual(0.9 * upLimit + 1e-6)
     // ...and one side touches it (no dead space).
-    expect(Math.max(maxX / 0.8, maxDown / 0.8, maxUp / (0.8 * upLimit))).toBeGreaterThan(0.999)
+    expect(Math.max(maxX / 0.9, maxDown / 0.9, maxUp / (0.9 * upLimit))).toBeGreaterThan(0.999)
   })
 
   it('UX-R2 K38: baseY lifts target and camera together (a solo floor keeps its stacked height)', () => {

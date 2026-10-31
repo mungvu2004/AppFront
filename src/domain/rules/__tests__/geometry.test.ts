@@ -678,10 +678,15 @@ describe('rooms that are not sealed', () => {
     });
 
     expect(runCheck(checkRoomClosure, plan, GROUND)).toEqual([]);
-    // Take the hall away and the same side is open to nothing again.
+    // Take the hall and its far wall away and the same side is open to nothing again
+    // (a wall-less side facing walled space counts as a passage into an undrawn hall).
     const alone = runCheck(
       checkRoomClosure,
-      { ...plan, rooms: plan.rooms.slice(0, 1).map((item) => ({ ...item, name: 'phòng khách' })) },
+      {
+        ...plan,
+        walls: plan.walls.filter((item) => item.id !== wallId('PEAST')),
+        rooms: plan.rooms.slice(0, 1).map((item) => ({ ...item, name: 'phòng khách' })),
+      },
       GROUND,
     );
 
