@@ -829,8 +829,8 @@ describe('the way out', () => {
     expect(runCheck(checkEscapeDistance, plan)).toEqual([]);
   });
 
-  it('reports a room whose doors lead nowhere out', () => {
-    // The plan names its envelope, and the door is not in it.
+  it('reports a room whose only door leads into a closed room', () => {
+    // The door joins the living room to a store room that has no other door.
     const plan = planOf({
       walls: [
         wall('WINNER', { x: 0, y: 0 }, { x: 6000, y: 0 }),
@@ -850,13 +850,66 @@ describe('the way out', () => {
           [wallId('WINNER'), wallId('WOUTER')],
           24,
         ),
+        room(
+          'ST',
+          'utility',
+          [
+            { x: 2000, y: -2000 },
+            { x: 4000, y: -2000 },
+            { x: 4000, y: 0 },
+            { x: 2000, y: 0 },
+          ],
+          [wallId('WINNER')],
+          4,
+        ),
       ],
     });
 
-    const found = runCheck(checkEscapeDistance, plan);
+    const found = runCheck(checkEscapeDistance, plan).filter((item) => item.entityId === roomId('LV'));
 
     expect(found).toHaveLength(1);
     expect(found[0]?.message).toContain('không có đường nào');
+  });
+
+  it('joins a bedroom to the corridor beyond even when the corridor names another piece of wall (U08)', () => {
+    // The AI split the wall at the door: the corridor lists only its far wall,
+    // yet the bedroom door sits on its outline and leads into it.
+    const plan = planOf({
+      walls: [
+        wall('W1', { x: 0, y: 3000 }, { x: 4000, y: 3000 }),
+        wall('W2', { x: 0, y: 4500 }, { x: 4000, y: 4500 }),
+        envelope('EOUT', { x: 4000, y: 3000 }, { x: 4000, y: 4500 }),
+      ],
+      openings: [opening('DBR', wallId('W1'), 1650, 700), opening('DOUT', wallId('EOUT'), 400, 700)],
+      rooms: [
+        room(
+          'BR',
+          'bedroom',
+          [
+            { x: 0, y: 0 },
+            { x: 4000, y: 0 },
+            { x: 4000, y: 3000 },
+            { x: 0, y: 3000 },
+          ],
+          [wallId('W1')],
+          12,
+        ),
+        room(
+          'HL',
+          'corridor',
+          [
+            { x: 0, y: 3000 },
+            { x: 4000, y: 3000 },
+            { x: 4000, y: 4500 },
+            { x: 0, y: 4500 },
+          ],
+          [wallId('W2'), wallId('EOUT')],
+          6,
+        ),
+      ],
+    });
+
+    expect(runCheck(checkEscapeDistance, plan)).toEqual([]);
   });
 
   it('counts a door on the outer edge as a way out when the AI marked no envelope (J-13)', () => {

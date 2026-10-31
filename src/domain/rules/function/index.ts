@@ -531,25 +531,6 @@ function hasSwingingLeaf(opening: Opening): boolean {
   return opening.kind === 'door' && opening.swing !== 'sliding' && opening.swing !== 'fixed';
 }
 
-/** Which rooms name each wall as part of their boundary. */
-function roomsByWall(rooms: readonly Room[]): Map<string, Room[]> {
-  const index = new Map<string, Room[]>();
-
-  for (const room of rooms) {
-    for (const wallId of room.wallIds) {
-      const bucket = index.get(wallId);
-
-      if (bucket === undefined) {
-        index.set(wallId, [room]);
-      } else {
-        bucket.push(room);
-      }
-    }
-  }
-
-  return index;
-}
-
 /* -------------------------------------------------------------------------- */
 /* 1 — ROOM-NO-DOOR.                                                           */
 /* -------------------------------------------------------------------------- */
@@ -694,7 +675,6 @@ interface EscapeNode {
 }
 
 function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[] {
-  const byWall = roomsByWall(rooms);
   const onOutlineToleranceMm =
     context.thresholds?.['escape.openingOnOutlineToleranceMm'] ?? OPENING_ON_OUTLINE_TOLERANCE_MM;
   const links: DoorLink[] = [];
@@ -721,8 +701,11 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
     const at = openingCentre(wall, opening);
 
     // Only the rooms this door is actually cut into; naming the wall is not
-    // enough, or one long party wall would join every room along it.
-    const roomIds = (byWall.get(wall.id) ?? [])
+    // enough, or one long party wall would join every room along it. A room
+    // that does not list the host wall still counts when the door sits on its
+    // outline: the AI often splits a wall at the door, so the room beyond names
+    // a different piece (U08).
+    const roomIds = rooms
       .filter((room) => opensOnto(at, room, onOutlineToleranceMm))
       .map((room) => room.id);
 

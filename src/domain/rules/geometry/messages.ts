@@ -150,15 +150,14 @@ export interface RoomNotClosedInput {
 }
 
 export function roomNotClosedText(input: RoomNotClosedInput): RuleText {
+  // Plain words, no plan coordinates (U08): "Sửa" already zooms to the room.
   return {
     message:
-      `Phòng ${input.roomId} (${input.roomName}) chưa kín: ${lengthText(input.uncoveredMm)} ` +
-      `trên tổng chu vi ${lengthText(input.perimeterMm)} không có tường chạy dọc, ` +
-      `chia thành ${countText(input.gapCount)} chỗ hở; chỗ hở dài nhất ` +
-      `${lengthText(input.worstGapMm)} quanh ${pointText(input.worstGapAt)} mm.`,
+      `Phòng ${input.roomName} (${input.roomId}) còn ${countText(input.gapCount)} chỗ hở chưa có tường, ` +
+      `tổng ${lengthText(input.uncoveredMm)}; chỗ dài nhất ${lengthText(input.worstGapMm)}.`,
     suggestion:
-      `Vẽ tường bù vào chỗ hở quanh ${pointText(input.worstGapAt)}, hoặc kéo đường bao phòng ` +
-      'về đúng tim tường đang có.',
+      'Bấm "Sửa" để mở phòng trên mặt bằng, rồi vẽ thêm tường vào chỗ hở, ' +
+      'hoặc kéo mép phòng về sát tường. Nếu chỗ hở là cửa đi, hãy thêm cửa vào đó.',
   };
 }
 
