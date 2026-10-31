@@ -112,6 +112,10 @@ const applyRejectedRevert = (scene: unknown) => {
   }
 };
 
+/** UX-R3 U10: chữ "Đang dựng" giữ tới khi kho cảnh đã có tường (người xem từng thấy nền trống). */
+const hasWalls = () =>
+  Object.values(useScene.getState().nodes).some((node) => (node as { type?: unknown }).type === 'wall');
+
 function PascalPage({ projectId }: { readonly projectId: string }) {
   const bridge = usePascalProjectBridge(projectId, applyRejectedRevert);
   const readOnly = bridge.status === 'ready' && bridge.readOnly;
@@ -138,7 +142,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
       backCard={
         <>
           <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
-          <ProjectStepsCard projectId={projectId} />
+          <ProjectStepsCard projectId={projectId} readOnly={readOnly} />
           {readOnly ? null : <EditModel />}
           {/* UI-1023 V-01: các chỉnh cảnh là một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). */}
           <div aria-label="Cảnh" className="inline-flex shrink-0 items-center" data-appfront-cluster="" role="group">
@@ -154,7 +158,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
       projectName={bridge.projectName}
       readOnly={readOnly}
     />
-    <PascalTour />
+    <PascalTour hasModel={hasWalls} />
     </>
   );
 }

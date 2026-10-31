@@ -37,7 +37,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     title: 'Đổi diện mạo cảnh rồi sang bước sau',
-    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Mọi thay đổi tự lưu, chip cạnh nút về dự án cho biết đã lưu chưa. Xong thì bấm "Sang Quy chuẩn"; nếu nút ghi "Đặt tỷ lệ" thì đặt tỷ lệ trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
+    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Mọi thay đổi tự lưu, chip cạnh nút về dự án cho biết đã lưu chưa. Xong thì bấm "Sang Quy chuẩn"; nếu cạnh đó có nút "Đặt tỷ lệ" thì nên đặt tỷ lệ trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
     // Nhóm Phong cách (thẻ `<details>`); Ánh sáng nằm ngay cạnh.
     anchor: { selector: 'summary[aria-label^="Phong cách"]', up: 1 },
   },
@@ -78,12 +78,20 @@ const MIN_CANVAS = { width: 400, height: 300 } as const;
 
 /** Editor còn đang dựng cảnh (màn chờ của Pascal còn hiện). */
 export function isSceneLoading(root: ParentNode = document): boolean {
-  return root.querySelector(SCENE_LOADER) !== null;
+  // UX-R3 U10: chỉ tính màn chờ còn hiện thật; phần tử bị ẩn (display/visibility/opacity) còn sót trong
+  // DOM từng giữ chữ "Đang dựng" đè lên mô hình đã hiện. jsdom không có `checkVisibility` → coi là hiện.
+  return Array.from(root.querySelectorAll(SCENE_LOADER)).some(
+    (el) =>
+      (el as { checkVisibility?: (o: object) => boolean }).checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) ?? true,
+  );
 }
 
-/** Cảnh đã sẵn sàng: hết màn chờ và có canvas đã có kích thước thật. */
-export function isSceneReady(root: ParentNode = document): boolean {
-  if (isSceneLoading(root)) return false;
+/** Quá lâu chưa thấy mô hình (dự án chưa có tường) thì thôi báo đang dựng. */
+export const SCENE_WAIT_MAX_MS = 30_000;
+
+/** Cảnh đã sẵn sàng: hết màn chờ, đã có mô hình (`hasModel`, UX-R3 U10) và canvas đã có kích thước thật. */
+export function isSceneReady(root: ParentNode = document, hasModel: () => boolean = () => true): boolean {
+  if (isSceneLoading(root) || !hasModel()) return false;
   return Array.from(root.querySelectorAll('canvas')).some((c) => {
     const r = c.getBoundingClientRect();
     return r.width >= MIN_CANVAS.width && r.height >= MIN_CANVAS.height;

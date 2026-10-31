@@ -195,7 +195,7 @@ const SHADING_OPTIONS = [
 const FLOORPLAN_ANNOTATION_OPTIONS = [
   { id: 'automaticDimensions', name: 'Kích thước tự động', icon: Ruler },
   { id: 'manualDimensions', name: 'Kích thước thủ công', icon: Ruler },
-  { id: 'measurements', name: 'Số đo', icon: ScanLine },
+  { id: 'measurements', name: 'Thước đã đặt', icon: ScanLine },
   { id: 'openingMarks', name: 'Ký hiệu cửa', icon: Tag },
   { id: 'structuralGrids', name: 'Lưới trục và tâm cột', icon: Grid2X2 },
   { id: 'roomLabels', name: 'Tên phòng', icon: SquareUserRound },
@@ -437,9 +437,11 @@ function DisplayMenu() {
         {viewMode !== '2d' ? (
           <DropdownMenuItem
             onSelect={(e) => keepOpen(e, () => setShowMeasurements(!showMeasurements))}
+            // UX-R3 U41: cờ này chỉ hiện các thước người dùng đã đặt, không tự đo tường/phòng — nói đúng như vậy.
+            title="Hiện các thước bạn đã đặt bằng công cụ đo (phím M)"
           >
             <Ruler className="h-4 w-4" />
-            <span>{viewMode === 'split' ? 'Số đo 3D' : 'Số đo'}</span>
+            <span>{viewMode === 'split' ? 'Thước đã đặt (3D)' : 'Thước đã đặt'}</span>
             <OnOff on={showMeasurements} />
           </DropdownMenuItem>
         ) : null}

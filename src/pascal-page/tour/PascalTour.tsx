@@ -17,11 +17,11 @@ import {
   HINT_BOTTOM_PX,
   HINT_TEXT,
   isHuge,
-  isSceneLoading,
   isSceneReady,
   markDone,
   placeCard,
   resolveAnchor,
+  SCENE_WAIT_MAX_MS,
   shouldAutoOpen,
   TOUR_OPEN_EVENT,
   TOUR_STEPS,
@@ -44,18 +44,23 @@ const CSS = `
 
 const toBox = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height });
 
-/** Theo dõi màn chờ của editor: `loading` khi còn biểu tượng tải, `ready` sau khung hình đầu không còn nó. */
-function useSceneState() {
-  const [loading, setLoading] = useState(false);
+/**
+ * Theo dõi màn chờ của editor: `loading` cho tới khi `ready` = khung hình đầu đã có mô hình.
+ * UX-R3 U10: người xem từng thấy nền trống 11-15 giây không chữ nào (màn chờ Pascal đã tắt nhưng
+ * mô hình chưa có) — nay chữ hiện suốt từ lúc mở tới khi có mô hình, tối đa `SCENE_WAIT_MAX_MS`.
+ */
+function useSceneState(hasModel: () => boolean) {
   const [ready, setReady] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
   useEffect(() => {
     if (ready) return;
     let raf = 0;
+    const started = Date.now();
     const check = () => {
-      setLoading(isSceneLoading());
-      if (!isSceneReady() || raf !== 0) return;
+      if (Date.now() - started > SCENE_WAIT_MAX_MS) setGaveUp(true);
+      if (!isSceneReady(document, hasModel) || raf !== 0) return;
       window.clearInterval(id);
-      // Hai khung: khung đầu không còn màn chờ đã thực sự vẽ ra.
+      // Hai khung: khung đầu có mô hình đã thực sự vẽ ra.
       raf = window.requestAnimationFrame(() => {
         raf = window.requestAnimationFrame(() => setReady(true));
       });
@@ -67,8 +72,8 @@ function useSceneState() {
       window.clearInterval(id);
       window.cancelAnimationFrame(raf);
     };
-  }, [ready]);
-  return { loading: loading && !ready, ready };
+  }, [ready, hasModel]);
+  return { loading: !ready && !gaveUp, ready };
 }
 
 /** Gợi ý lần đầu: một dòng, không phủ tối, giữa cạnh dưới ngay trên thanh công cụ dưới. */
@@ -115,7 +120,10 @@ function FirstHint({ onOpen, onClose }: { readonly onOpen: () => void; readonly 
   );
 }
 
-export function PascalTour() {
+const ALWAYS = () => true;
+
+/** `hasModel`: cảnh đã có mô hình chưa (giữ cùng một hàm giữa các lượt vẽ). */
+export function PascalTour({ hasModel = ALWAYS }: { readonly hasModel?: () => boolean } = {}) {
   const [open, setOpen] = useState(false);
   const [hint, setHint] = useState(false);
   const [index, setIndex] = useState(0);
@@ -125,7 +133,7 @@ export function PascalTour() {
   const cardRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
-  const scene = useSceneState();
+  const scene = useSceneState(hasModel);
 
   const openTour = useCallback(() => {
     returnTo.current = document.activeElement as HTMLElement | null;
