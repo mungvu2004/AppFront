@@ -69,6 +69,7 @@ import { useStore } from '@/store';
 import { selectViolations } from '@/store/selectors';
 import type { ProjectRole } from '@/types/project';
 
+import { mergeExportHistory, readExportHistory, writeExportHistory } from './exportHistoryStorage';
 import {
   buildPreflightRows,
   countPdfPages,
@@ -82,7 +83,6 @@ import {
   type ExportPanelGateway,
   type ExportRunSnapshot,
 } from './exportPanelGateway';
-import { mergeExportHistory, readExportHistory, writeExportHistory } from './exportHistoryStorage';
 import type {
   ExportedFileRow,
   ExportErrorView,
