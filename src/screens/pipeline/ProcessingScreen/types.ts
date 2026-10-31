@@ -169,6 +169,11 @@ export interface ProcessingSummaryViewModel {
   readonly lowConfidenceSentence?: string;
   /** Không đọc được chuỗi kích thước nào: câu hệ quả (phải tự đặt tỷ lệ). Vắng khi có ít nhất một chuỗi. */
   readonly noDimensionSentence?: string;
+  /**
+   * UX-02: không đọc được số kích thước nhưng máy đã đề xuất tỷ lệ — câu nói nguồn, ví dụ
+   * `"Tỷ lệ lấy từ ghi chú TL 1:50 trên bản vẽ"`. Có câu này thì không có `noDimensionSentence`.
+   */
+  readonly scaleSourceNote?: string;
   /** Mọi tầng xong đều đã có tỷ lệ (đặt tay): không đòi "Đặt tỷ lệ" dù không đọc được kích thước. */
   readonly scaleKnown?: boolean;
   /** Lý do "cần xem lại" gộp từ mọi tầng xong (N16 `readiness`, FIX-P0-15); rỗng/vắng khi không có. */

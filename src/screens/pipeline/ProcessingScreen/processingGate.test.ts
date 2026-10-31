@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SAMPLE_SUMMARY, scenarioFor } from './ProcessingScreen.stories';
 import { deriveProcessingGate } from './processingGate';
+import { proposedScaleNoteOf } from './useProcessingScreen';
 
 const noDimension = {
   ...SAMPLE_SUMMARY,
@@ -39,6 +40,35 @@ describe('deriveProcessingGate — tỷ lệ', () => {
     expect(gate.kind).toBe('ready');
     expect(gate.isScaleOk).toBe(true);
     expect(gate.warnStepIds).toEqual([]);
+  });
+
+  it('UX-02: không đọc được số nhưng tỷ lệ máy lấy từ ghi chú TL 1:50: không đòi "Đặt tỷ lệ", nói nguồn', () => {
+    const gate = deriveProcessingGate({
+      ...scenarioFor('success'),
+      summary: {
+        ...SAMPLE_SUMMARY,
+        metricLabels: noDimension.metricLabels,
+        scaleSourceNote: 'Tỷ lệ lấy từ ghi chú TL 1:50 trên bản vẽ',
+        reviewReasons: ['scaleUnresolved'],
+      },
+    });
+    expect(gate.kind).toBe('needs-review');
+    expect(gate.scaleNote).toBe('Tỷ lệ lấy từ ghi chú TL 1:50 trên bản vẽ');
+    expect(gate.scaleValue).toBe('Cần kiểm');
+    expect(gate.warnStepIds).toEqual([]);
+  });
+});
+
+describe('proposedScaleNoteOf (UX-02)', () => {
+  it('ghi chú TL 1:N khi mọi tầng máy đề xuất cùng một N; khác thì nói ước lượng; còn tầng chưa có tỷ lệ thì null', () => {
+    expect(proposedScaleNoteOf([{ scaleProposed: true, scaleNoteRatio: 50 }])).toBe(
+      'Tỷ lệ lấy từ ghi chú TL 1:50 trên bản vẽ',
+    );
+    expect(proposedScaleNoteOf([{ scaleProposed: true }, { hasScale: true }])).toBe(
+      'Máy ước lượng tỷ lệ, cần kiểm ở bước Tỷ lệ',
+    );
+    expect(proposedScaleNoteOf([{ scaleProposed: true, scaleNoteRatio: 50 }, { hasScale: false }])).toBeNull();
+    expect(proposedScaleNoteOf([{ hasScale: true }])).toBeNull();
   });
 });
 
