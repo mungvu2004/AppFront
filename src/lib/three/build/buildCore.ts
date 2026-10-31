@@ -77,7 +77,7 @@ import {
   type OpeningCut,
 } from './plan';
 import type { BuildEntityId, BuildPartKind } from './scene';
-import type { BuildableLevel, BuildableRoom } from './floor';
+import type { BuildableFurniture, BuildableLevel, BuildableRoom } from './floor';
 
 /* -------------------------------------------------------------------------- */
 /* The protocol.                                                               */
@@ -104,8 +104,17 @@ export interface RoomBuildJob {
   readonly slabThicknessMm?: number;
 }
 
+/** Build one furniture box (UX-11). */
+export interface FurnitureBuildJob {
+  readonly kind: 'furniture';
+  readonly key: BuildableFurniture['id'];
+  readonly levelId: LevelId;
+  readonly piece: BuildableFurniture;
+  readonly level: BuildableLevel;
+}
+
 /** One unit of work: everything that has to be rebuilt when one entity changes. */
-export type BuildJob = WallBuildJob | RoomBuildJob;
+export type BuildJob = WallBuildJob | RoomBuildJob | FurnitureBuildJob;
 
 /** One mesh's worth of geometry, as buffers that transfer rather than copy. */
 export interface BuiltPartBuffers {
@@ -599,6 +608,18 @@ function buildRoomParts(job: RoomBuildJob): readonly BuiltPartBuffers[] {
   ];
 }
 
+/** A furniture box: the footprint extruded from its top face down to its base. */
+function buildFurnitureParts(job: FurnitureBuildJob): readonly BuiltPartBuffers[] {
+  if (job.piece.outline.length < 3 || compareNearly(job.piece.heightMm, 0) <= 0) {
+    return [];
+  }
+  const corners = job.piece.outline.map((point) => ({ alongMm: point.x, heightMm: point.y }));
+  const loop = signedAreaMm2(job.piece.outline) < 0 ? [...corners].reverse() : corners;
+  const topMm = job.level.elevationMm + job.piece.baseMm + job.piece.heightMm;
+  const sink = extrude(slabFrame(topMm), earClip(loop), [loop], 0, job.piece.heightMm);
+  return [toBuffers(sink, 'furniture', job.piece.id, job.levelId, [], [])];
+}
+
 /* -------------------------------------------------------------------------- */
 /* Public entry points.                                                        */
 /* -------------------------------------------------------------------------- */
@@ -615,6 +636,9 @@ function buildRoomParts(job: RoomBuildJob): readonly BuiltPartBuffers[] {
  * with.
  */
 export function buildParts(job: BuildJob): readonly BuiltPartBuffers[] {
+  if (job.kind === 'furniture') {
+    return buildFurnitureParts(job);
+  }
   return job.kind === 'wall' ? buildWallParts(job) : buildRoomParts(job);
 }
 
