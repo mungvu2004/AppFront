@@ -1,6 +1,8 @@
 import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
 import { Check, ChevronDown, Lock } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+
+import { useShortcut } from '@/hooks/useShortcut';
 
 import { cn } from '@/lib/utils';
 import { SCALE_STATE_VIEWS, type ScaleStateView } from '@/lib/viewmodel/provisionalScale';
@@ -24,11 +26,14 @@ import { useFloorReview } from './useFloorReview';
  * và So với bản vẽ (mục con của bước); Độ dày mở từ nút trong bước Tường; Trục mở từ màn Các tầng.
  * Nút đi tiếp của tầng nằm ở khe cổng của header (`FloorReviewGate`), không lặp ở đây.
  * Tầng chưa có tỷ lệ: các bước sau Tỷ lệ (và Độ dày tường) bị khoá, kèm lý do.
+ * Phím `]` / `[` sang bước sau / về bước trước của tầng (U19), hiện trong bảng `?`.
  * Gắn: `<QcFloorNav floorId={floorId} layer="rooms" projectId={projectId} />` (cần nằm trong Router).
  */
 export interface QcFloorNavFloor {
   readonly id: string;
   readonly label: string;
+  /** `false` = tầng chưa có bản vẽ nào: menu đổi tầng ghi rõ (U52). Vắng = chưa biết, không ghi. */
+  readonly hasDrawing?: boolean | undefined;
 }
 
 export interface QcFloorNavProps {
@@ -49,6 +54,9 @@ export interface QcFloorNavProps {
 const FLOOR_FALLBACK = 'Tầng';
 const STEP_BAR_LABEL = 'Các bước duyệt tầng';
 const ALL_FLOORS_LABEL = 'Tất cả tầng';
+const NO_DRAWING_LABEL = 'chưa có bản vẽ';
+const NEXT_STEP_SHORTCUT = 'Sang bước sau của tầng';
+const PREVIOUS_STEP_SHORTCUT = 'Về bước trước của tầng';
 /** Mục phụ thuộc số đo: khoá khi máy không đo được tỷ lệ. */
 const SCALE_LOCKED: ReadonlySet<QcLayerKey> = new Set<QcLayerKey>(['walls', 'objects', 'rooms', 'thickness']);
 const DOT_CLASS: Readonly<Record<ScaleStateView['statusCode'] | 'neutral', string>> = {
@@ -157,7 +165,11 @@ function FloorMenuItem({ projectId, floor, layer, isCurrent }: FloorMenuItemProp
         className={cn(MENU_ITEM_CLASS, 'justify-between', isCurrent ? 'text-accent' : 'text-text-primary hover:bg-bg-hover')}
         to={route(projectId, floor.id)}
       >
-        {floor.label}
+        <span className="flex min-w-0 items-baseline gap-2">
+          {floor.label}
+          {floor.hasDrawing === false ? ' ' : null}
+          {floor.hasDrawing === false ? <span className="text-[12px] text-text-muted">{NO_DRAWING_LABEL}</span> : null}
+        </span>
         {isCurrent && <Check aria-hidden="true" className="h-3.5 w-3.5" />}
       </Link>
     </li>
@@ -182,6 +194,16 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
   const activeStep = qcStepOf(layer);
   /* Mục con của bước đang sáng: Kích thước, So với bản vẽ ở bước Tỷ lệ; màn phụ khác chỉ hiện khi đang đứng ở đó. */
   const subLinks = QC_LAYERS.filter((item) => item.parent !== undefined && item.parent === activeStep && (item.listed === true || item.key === layer));
+  const navigate = useNavigate();
+  const stepIndex = steps.findIndex((item) => item.key === activeStep);
+  /* U19: đổi bước bằng bàn phím; bước khoá (thiếu tỷ lệ) thì đứng yên. */
+  const goStep = (delta: number) => {
+    const target = steps[stepIndex + delta];
+    if (target === undefined || isLocked(target.key)) return;
+    void navigate(target.route(projectId, floorId));
+  };
+  useShortcut({ id: 'qcFloorNav.nextStep', combo: ']', scope: 'global', description: NEXT_STEP_SHORTCUT, onTrigger: () => goStep(1) });
+  useShortcut({ id: 'qcFloorNav.previousStep', combo: '[', scope: 'global', description: PREVIOUS_STEP_SHORTCUT, onTrigger: () => goStep(-1) });
   const currentOf = (key: QcLayerKey): StepProps['current'] => {
     if (key === layer) return 'page';
     return key === activeStep ? 'step' : undefined;

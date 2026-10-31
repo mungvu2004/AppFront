@@ -19,12 +19,13 @@ import { useFloorReview } from './useFloorReview';
  * `scaleStatus`, nên tỷ lệ phải là "chưa đọc" (`null`) tới khi N16 về, không được là "đã xác nhận".
  */
 
-const api = vi.hoisted(() => ({ resolve: null as ((document: FloorLayerDocument) => void) | null }));
+const api = vi.hoisted(() => ({ resolve: null as ((document: FloorLayerDocument) => void) | null, reads: 0 }));
 vi.mock('@/api/appClient', () => ({
   createAppApiClient: () => ({
     spatial: {
       readLayer: () =>
         new Promise((resolve) => {
+          api.reads += 1;
           api.resolve = (data) => resolve({ ok: true, data });
         }),
     },
@@ -59,6 +60,7 @@ function renderReview() {
 
 beforeEach(() => {
   api.resolve = null;
+  api.reads = 0;
   hydrateProject({ document: n15, project: PROJECT, roles: ['engineer'] });
 });
 
@@ -92,6 +94,17 @@ describe('useFloorReview từ kho rỗng + N15', () => {
 
     act(() => api.resolve?.(n16({})));
 
+    await waitFor(() => expect(result.current.scale).toBe('confirmed'));
+  });
+
+  it('U28: N16 cũ hơn kho (lượt lưu tỷ lệ chỉ ghi revision): đọc lại N16 rồi giữ dấu đã xác nhận', async () => {
+    const { result } = renderReview();
+    await waitFor(() => expect(api.resolve).not.toBeNull());
+
+    act(() => api.resolve?.({ ...n16({}), revision: 2 }));
+
+    await waitFor(() => expect(api.reads).toBe(2));
+    act(() => api.resolve?.(n16({})));
     await waitFor(() => expect(result.current.scale).toBe('confirmed'));
   });
 });
