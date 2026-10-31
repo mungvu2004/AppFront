@@ -31,6 +31,13 @@ describe('AppHeader', () => {
     expectVietnamese(container, { allowWords: ['AppFront'] });
   });
 
+  it('[UX-19] dán thẳng /export: bước chưa làm hiện "chưa xong", không "đã qua"', () => {
+    renderHeader({ project: { id: 'p1', name: 'Nhà A', stepIndex: 5, stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } });
+    expect(screen.getByRole('link', { name: 'Bước 5: Quy chuẩn, chưa xong' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Bước 6: Xuất, đang mở' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /đã qua/ })).toBeNull();
+  });
+
   it('bước chưa xong: vẫn "Tiếp: …" kiểu phụ; bước cuối không có "Tiếp"', () => {
     const { unmount } = renderHeader({ project: { id: 'p1', name: null, stepIndex: 2, stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } });
     expect(screen.getByRole('link', { name: /Tiếp: Mô hình 3D/ }).className).not.toContain('bg-accent ');

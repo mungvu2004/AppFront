@@ -65,14 +65,16 @@ const navLinkClass = ({ isActive }: { isActive: boolean }): string =>
 const STEP_STATE_TEXT: Readonly<Record<ProjectStepState, string>> = {
   done: 'đã xong',
   attention: 'còn việc',
-  todo: 'chưa tới',
+  todo: 'chưa xong',
 };
 
-/** Bước đang đứng không bao giờ "chưa tới"; bước đã đi qua mà chưa có dữ liệu xác nhận thì "đã qua" (U41). */
+/**
+ * Bước đang đứng là "đang mở"; còn lại chỉ nói điều dữ liệu xác nhận. Không suy "đã qua" từ vị trí URL:
+ * dán thẳng /export không có nghĩa bước 3–5 đã làm (UX-19).
+ */
 function stepStateText(state: ProjectStepState, index: number, currentIndex: number): string {
   if (state !== 'todo') return STEP_STATE_TEXT[state];
-  if (index === currentIndex) return 'đang mở';
-  return index < currentIndex ? 'đã qua' : STEP_STATE_TEXT.todo;
+  return index === currentIndex ? 'đang mở' : STEP_STATE_TEXT.todo;
 }
 
 function StepMarker({ index, isCurrent, state }: { readonly index: number; readonly isCurrent: boolean; readonly state: ProjectStepState }) {
@@ -134,8 +136,8 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
                 )}
               >
                 <StepMarker index={index} isCurrent={isCurrent} state={state} />
-                {/* Dưới 768 chỉ bước đang đứng hiện chữ; từ 768 (máy tính bảng) mọi bước có tên (U47). */}
-                <span className={cn(!isCurrent && 'hidden md:inline')}>{step.label}</span>
+                {/* Dưới 1280 chỉ bước đang đứng hiện chữ; bước khác còn số + chú thích, 768/1024 không cắt chữ (UX-33). */}
+                <span className={cn('whitespace-nowrap', !isCurrent && 'hidden xl:inline')}>{step.label}</span>
               </Link>
             </li>
           );
@@ -225,7 +227,7 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
               {project.name === null ? (
                 <Skeleton preset="block" className="h-4 w-32" aria-label="Đang tải tên dự án" />
               ) : (
-                <span className="truncate font-medium text-text-primary">{project.name}</span>
+                <span className="truncate font-medium text-text-primary" title={project.name}>{project.name}</span>
               )}
               <ChevronDown size={14} aria-hidden="true" className="shrink-0 text-text-muted" />
             </summary>
