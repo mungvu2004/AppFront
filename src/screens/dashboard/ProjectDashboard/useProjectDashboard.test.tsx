@@ -9,6 +9,8 @@ import type { ProjectRole } from '@/types/project';
 
 import type { DashboardProject, DashboardProjectList, DashboardProjectsGateway } from './projectsGateway';
 import {
+  DASHBOARD_LIST_STATE_KEY,
+  readListState,
   useProjectDashboard,
   type ProjectDashboardActions,
   type ProjectDashboardModel,
@@ -31,7 +33,10 @@ beforeAll(() => {
   });
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.sessionStorage.clear();
+});
 
 const NAME_HQ = 'Toà nhà HQ';
 
@@ -168,13 +173,71 @@ describe('useProjectDashboard states', () => {
     expect(names()).toEqual([NAME_HQ]);
   });
 
-  it('writes "chưa có tỷ lệ" instead of an area when the floor has no scale (U07)', async () => {
+  it('marks the area as provisional when the floor has no scale (U07, U03)', async () => {
     mount({ gateway: fakeServer([project({ hasScale: false }), project({ id: 'prj-2', name: 'B' })]).gateway });
 
     await waitFor(() => expect(names()).toHaveLength(2));
     const labels = dash().model.rows.map((row) => row.statsLabel);
-    expect(labels).toContain('2 tầng, chưa có tỷ lệ');
-    expect(labels.some((label) => label.includes('m²'))).toBe(true);
+    expect(labels.filter((label) => /^2 tầng, ~.+m² tạm tính, chưa đặt tỷ lệ$/u.test(label))).toHaveLength(1);
+    expect(labels.filter((label) => label.includes('tạm tính'))).toHaveLength(1);
+  });
+
+  it('U39: "Cập nhật gần đây" puts the last edited project first, whatever its status', async () => {
+    mount({
+      gateway: fakeServer([
+        project({ id: 'old-qc', name: 'Cũ cần duyệt', updatedAtMs: Date.parse('2026-10-30T00:00:00.000Z') }),
+        project({ id: 'new-done', name: 'Mới xong', wallsReviewedCount: 10, updatedAtMs: Date.parse('2026-10-31T00:00:00.000Z') }),
+      ]).gateway,
+    });
+
+    await waitFor(() => expect(names()).toEqual(['Mới xong', 'Cũ cần duyệt']));
+  });
+
+  it('U39: a running job with no wall yet is flagged processing for the card, an idle one is not', async () => {
+    mount({
+      gateway: fakeServer([
+        project({ id: 'run', name: 'Đang chạy', status: 'processing', wallsTotalCount: 0, wallsReviewedCount: 0, jobActive: true }),
+        project({ id: 'idle', name: 'Chưa tải', status: 'processing', wallsTotalCount: 0, wallsReviewedCount: 0 }),
+      ]).gateway,
+    });
+
+    await waitFor(() => expect(names()).toHaveLength(2));
+    expect(dash().model.rows.map((row) => [row.name, row.isProcessing, row.statusLabel])).toEqual([
+      ['Đang chạy', true, 'Đang xử lý'],
+      ['Chưa tải', false, 'Chưa có bản vẽ'],
+    ]);
+  });
+
+  it('U23: keeps the search, filter and sort when the list is opened again', async () => {
+    const server = fakeServer([project()]);
+    const first = mount({ gateway: server.gateway });
+    await waitFor(() => expect(names()).toHaveLength(1));
+    act(() => {
+      dash().actions.setSearchQuery('HQ');
+      dash().actions.setStatusFilter('qc');
+      dash().actions.setSortBy('name');
+    });
+    first.unmount();
+
+    mount({ gateway: server.gateway });
+    expect([dash().model.searchQuery, dash().model.statusFilter, dash().model.sortBy]).toEqual(['HQ', 'qc', 'name']);
+  });
+
+  it('U23: a broken or unknown saved state starts empty', () => {
+    window.sessionStorage.setItem(DASHBOARD_LIST_STATE_KEY, '{"statusFilter":"bogus","sortBy":3');
+    expect(readListState()).toEqual({ searchQuery: '', statusFilter: 'all', sortBy: 'updated' });
+    window.sessionStorage.setItem(DASHBOARD_LIST_STATE_KEY, '{"searchQuery":"a","statusFilter":"bogus"}');
+    expect(readListState()).toEqual({ searchQuery: 'a', statusFilter: 'all', sortBy: 'updated' });
+  });
+
+  it('U33: "Chia sẻ" opens the share dialog where one is wired, else the export page', async () => {
+    const onShareProject = vi.fn();
+    const onOpenProject = vi.fn();
+    mount({ gateway: fakeServer([project()]).gateway, onShareProject, onOpenProject });
+    await waitFor(() => expect(names()).toHaveLength(1));
+    act(() => dash().actions.openProjectPage('prj-1', 'share'));
+    expect(onShareProject).toHaveBeenCalledWith('prj-1');
+    expect(onOpenProject).not.toHaveBeenCalled();
   });
 
   it('calls a project with a running job "Đang xử lý" even before any wall exists (U10)', async () => {

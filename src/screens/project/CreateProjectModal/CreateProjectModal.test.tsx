@@ -736,6 +736,23 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getByLabelText('Mã dự án')).toHaveValue('DA-DU-AN-DO-RAT-DAI-DE-XEM');
   });
 
+  it('U26: the height fields hint a common value, and Enter goes on once every floor has one', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+    goToStep2();
+    const ground = screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng trệt');
+    expect(ground).toHaveAttribute('placeholder', 'VD: 3,3');
+
+    // Not every floor has a height yet: Enter stays on the step.
+    fireEvent.change(ground, { target: { value: '3' } });
+    fireEvent.keyDown(ground, { key: 'Enter' });
+    expect(screen.getAllByText('Bước 2 / 3').length).toBeGreaterThan(0);
+
+    setHeight('Chiều cao áp cho mọi tầng', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    fireEvent.keyDown(screen.getByLabelText('Tên tầng Tầng trệt'), { key: 'Enter' });
+    expect(screen.getAllByText('Bước 3 / 3').length).toBeGreaterThan(0);
+  });
+
   it('lets Space and Enter press the switch and buttons inside the open dialog (BUG-151)', async () => {
     const user = userEvent.setup({ delay: null });
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);

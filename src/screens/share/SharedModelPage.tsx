@@ -15,11 +15,15 @@ import { SharedPlan } from './SharedPlan';
 import { useSharedModel } from './useSharedModel';
 import { isNotFound, SHARE_LINK_GONE_MESSAGE, shareGoneReason } from './shareGone';
 
+export const PROVISIONAL_AREA_NOTE = 'Diện tích là số tạm tính, bản vẽ chưa đặt tỷ lệ nên kích thước có thể lệch.';
+
 export function SharedModelView({ model }: { model: SharedModel }) {
   const { graph } = model.graph;
   const levels = [...graph.levels].sort((a, b) => a.order - b.order);
   const [picked, setPicked] = useState<string | null>(null);
   const levelId = picked ?? levels[0]?.id ?? '';
+  // U03: tầng chưa đặt tỷ lệ thì diện tích chỉ là số tạm tính — nói rõ, không để người nhận tin là số thật.
+  const provisionalArea = levels.find((level) => level.id === levelId)?.scaleMillimetresPerPixel === undefined;
   const onLevel = useMemo(
     () => ({
       walls: graph.walls.filter((wall) => wall.levelId === levelId),
@@ -38,6 +42,7 @@ export function SharedModelView({ model }: { model: SharedModel }) {
         <div className="flex flex-col gap-1">
           <h1 className="text-title text-text-primary">{model.projectName}</h1>
           <p className="text-sm text-text-secondary">Bản xem chỉ đọc qua liên kết chia sẻ.</p>
+          {provisionalArea ? <p className="text-sm text-text-secondary">{PROVISIONAL_AREA_NOTE}</p> : null}
         </div>
         {levels.length > 1 ? (
           <label className="flex items-center gap-2 text-sm text-text-secondary">
@@ -56,7 +61,7 @@ export function SharedModelView({ model }: { model: SharedModel }) {
           </label>
         ) : null}
       </header>
-      <SharedPlan key={levelId} walls={onLevel.walls} rooms={onLevel.rooms} openings={openings} />
+      <SharedPlan key={levelId} walls={onLevel.walls} rooms={onLevel.rooms} openings={openings} provisionalArea={provisionalArea} />
     </div>
   );
 }

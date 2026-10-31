@@ -4,7 +4,7 @@ import { projectMenuGroups } from './projectMenuGroups';
 import type { ProjectCardModel } from './useProjectDashboard';
 
 describe('projectMenuGroups', () => {
-  it('có mục "Chia sẻ" dẫn tới màn Xuất, nơi tạo liên kết (U49)', () => {
+  it('có mục "Chia sẻ" mở hộp chia sẻ (U49, U33)', () => {
     const openProjectPage = vi.fn();
     const actions = {
       openProject: vi.fn(),
@@ -18,6 +18,6 @@ describe('projectMenuGroups', () => {
     const share = groups[0]?.items.find((item) => item.id === 'share');
     expect(share?.label).toBe('Chia sẻ');
     share?.action();
-    expect(openProjectPage).toHaveBeenCalledWith('p1', 'export');
+    expect(openProjectPage).toHaveBeenCalledWith('p1', 'share');
   });
 });

@@ -94,6 +94,43 @@ export const PROJECT_SORT_OPTIONS: ReadonlyArray<{ value: ProjectSortOption; lab
   { value: 'area', label: 'Diện tích lớn nhất' },
 ];
 
+/**
+ * U23: từ khoá, bộ lọc và cách sắp giữ trong phiên của thẻ trình duyệt, nên mở một dự án rồi bấm "Dự án"
+ * quay về đúng danh sách vừa rời. `sessionStorage` có thể ném (chế độ riêng tư, chặn dữ liệu): khi đó bắt đầu trống.
+ */
+export const DASHBOARD_LIST_STATE_KEY = 'dashboard.listState';
+
+interface StoredListState {
+  readonly searchQuery: string;
+  readonly statusFilter: ProjectStatusFilter;
+  readonly sortBy: ProjectSortOption;
+}
+
+const DEFAULT_LIST_STATE: StoredListState = { searchQuery: '', statusFilter: 'all', sortBy: 'updated' };
+
+export function readListState(): StoredListState {
+  try {
+    const raw: unknown = JSON.parse(window.sessionStorage.getItem(DASHBOARD_LIST_STATE_KEY) ?? 'null');
+    if (typeof raw !== 'object' || raw === null) return DEFAULT_LIST_STATE;
+    const stored = raw as Partial<Record<keyof StoredListState, unknown>>;
+    return {
+      searchQuery: typeof stored.searchQuery === 'string' ? stored.searchQuery : '',
+      statusFilter: PROJECT_STATUS_FILTER_OPTIONS.find((option) => option.value === stored.statusFilter)?.value ?? 'all',
+      sortBy: PROJECT_SORT_OPTIONS.find((option) => option.value === stored.sortBy)?.value ?? 'updated',
+    };
+  } catch {
+    return DEFAULT_LIST_STATE;
+  }
+}
+
+function writeListState(state: StoredListState): void {
+  try {
+    window.sessionStorage.setItem(DASHBOARD_LIST_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Không lưu được thì lần sau bắt đầu trống — không hỏng gì.
+  }
+}
+
 const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 /** `< 1024px` — the floor of the brief's three column breakpoints. */
@@ -133,6 +170,8 @@ export interface ProjectCardModel {
   readonly planSketch?: readonly (readonly [number, number, number, number])[];
   /** Whether a plan was traced yet (walls detected); without one the card shows a placeholder, not a made-up plan. */
   readonly hasPlan: boolean;
+  /** U39: AI đang chạy mà chưa ra tường nào — thẻ nói "đang đọc bản vẽ", không nói "chưa có bản vẽ". Vắng = không. */
+  readonly isProcessing?: boolean;
   /** Động từ của việc tiếp theo, một cho mỗi bước: "Duyệt tường", "Xem tiến độ", "Xem 3D" hoặc "Mở dự án". */
   readonly actionLabel: string;
 }
@@ -186,8 +225,8 @@ export interface ProjectDashboardActions {
   readonly openProject: (id: string, source: ProjectOpenSource) => void;
   /** Thẳng tới khung nhìn 3D, bỏ qua bước đang dở mà `openProject` chọn. */
   readonly openProjectViewer: (id: string) => void;
-  /** Tới thẳng một trang của dự án từ menu thẻ: xuất, thành viên, cài đặt. */
-  readonly openProjectPage: (id: string, page: 'export' | 'members' | 'settings') => void;
+  /** Tới thẳng một trang của dự án từ menu thẻ: xuất, thành viên, cài đặt; "share" mở hộp chia sẻ nếu nơi dùng có. */
+  readonly openProjectPage: (id: string, page: ProjectPage) => void;
   readonly startRename: (id: string) => void;
   readonly setRenameDraft: (value: string) => void;
   readonly commitRename: () => void;
@@ -201,6 +240,8 @@ export interface ProjectDashboardActions {
   readonly duplicateProject: (id: string) => void;
 }
 
+export type ProjectPage = 'export' | 'members' | 'settings' | 'share';
+
 export interface UseProjectDashboardOptions {
   readonly role?: ProjectRole;
   readonly gateway?: DashboardProjectsGateway;
@@ -209,6 +250,8 @@ export interface UseProjectDashboardOptions {
   readonly onOpenProject?: (path: string) => void;
   readonly onCreateProject?: () => void;
   readonly onDuplicateProject?: (id: string) => void;
+  /** U33: mở hộp "Chia sẻ dự án" ngay trên danh sách; vắng thì "Chia sẻ" về màn Xuất (có nút Chia sẻ). */
+  readonly onShareProject?: (id: string) => void;
   /** `state` marks a failure (`violation`) or a refused input (`attention`); a plain notice has none (BUG-207). */
   readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void; readonly state?: 'attention' | 'violation' }) => void;
 }
@@ -283,12 +326,6 @@ function actionLabelOf(status: TelemetryPipelineStatus, hasPlan: boolean, isView
   return hasPlan ? 'Xem tiến độ' : 'Tải bản vẽ';
 }
 
-function attentionRank(project: DashboardProject): number {
-  const status = derivedStatusOf(project);
-  if (status === 'qc') return 0;
-  return status === 'processing' && project.wallsTotalCount > 0 ? 1 : 2;
-}
-
 function routeForProject(project: DashboardProject, status: TelemetryPipelineStatus, isViewer = false): string {
   if (isViewer && status === 'qc') return ROUTES.project.viewer(project.id);
   switch (status) {
@@ -312,9 +349,13 @@ export function useProjectDashboard(
   const queryClient = useQueryClient();
 
   const [viewMode, setViewMode] = useState<ProjectViewMode>('grid');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ProjectStatusFilter>('all');
-  const [sortBy, setSortBy] = useState<ProjectSortOption>('updated');
+  const [initialListState] = useState(readListState);
+  const [searchQuery, setSearchQuery] = useState(initialListState.searchQuery);
+  const [statusFilter, setStatusFilter] = useState<ProjectStatusFilter>(initialListState.statusFilter);
+  const [sortBy, setSortBy] = useState<ProjectSortOption>(initialListState.sortBy);
+  useEffect(() => {
+    writeListState({ searchQuery, statusFilter, sortBy });
+  }, [searchQuery, statusFilter, sortBy]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -368,10 +409,8 @@ export function useProjectDashboard(
         return list.sort((a, b) => b.areaM2 - a.areaM2);
       case 'updated':
       default:
-        // Việc cần làm (cần duyệt, đang xử lý) lên trước, rồi mới theo thời gian sửa.
-        return list.sort(
-          (a, b) => attentionRank(a) - attentionRank(b) || b.updatedAtMs - a.updatedAtMs,
-        );
+        // U39: "Cập nhật gần đây" nghĩa đúng như chữ — dự án vừa sửa lên đầu. Việc cần làm đã có chip và bộ lọc riêng.
+        return list.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
     }
   }, [filteredProjects, sortBy]);
 
@@ -405,7 +444,8 @@ export function useProjectDashboard(
         return {
           id: project.id,
           name: project.name,
-          statsLabel: `${formatNumber(project.floorCount, { grouping: false })} tầng, ${project.hasScale === false ? 'chưa có tỷ lệ' : formatArea(project.areaM2)}`,
+          // U03: chưa đặt tỷ lệ thì diện tích chỉ là số tạm tính — nói rõ, không in như số thật.
+          statsLabel: `${formatNumber(project.floorCount, { grouping: false })} tầng, ${project.hasScale === false ? `~${formatArea(project.areaM2)} tạm tính, chưa đặt tỷ lệ` : formatArea(project.areaM2)}`,
           updatedLabel: formatTimestamp(project.updatedAtMs, now),
           statusVariant,
           statusLabel,
@@ -416,6 +456,7 @@ export function useProjectDashboard(
           planVariant: project.planVariant,
           planSketch: planSketchOf(project.id, project.wallsTotalCount, project.areaM2),
           hasPlan,
+          isProcessing: running,
           actionLabel: actionLabelOf(status, hasPlan || running, role === 'viewer'),
         };
       }),
@@ -496,8 +537,12 @@ export function useProjectDashboard(
     }
   };
 
-  const openProjectPage = (id: string, page: 'export' | 'members' | 'settings'): void => {
-    const path = page === 'export' ? ROUTES.project.export(id) : page === 'members' ? `${ROUTES.project.settings(id)}?tab=members` : ROUTES.project.settings(id);
+  const openProjectPage = (id: string, page: ProjectPage): void => {
+    if (page === 'share' && options.onShareProject) {
+      options.onShareProject(id);
+      return;
+    }
+    const path = page === 'export' || page === 'share' ? ROUTES.project.export(id) : page === 'members' ? `${ROUTES.project.settings(id)}?tab=members` : ROUTES.project.settings(id);
     if (options.onOpenProject) {
       options.onOpenProject(path);
     } else {

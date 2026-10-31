@@ -66,6 +66,7 @@ beforeAll(() => {
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear();
 });
 
 const noop = (): void => undefined;
@@ -432,6 +433,32 @@ describe('ProjectDashboardView, seven states', () => {
     const filter = screen.getByRole('radiogroup', { name: 'Lọc theo trạng thái' });
     expect(within(filter).getAllByRole('radio')).toHaveLength(5);
     expect(filter.textContent).not.toMatch(/\d/u);
+  });
+
+  it('U37: a viewer is not nudged to review, nor told every project is reviewed', () => {
+    const counts = { all: 5, noplan: 1, processing: 1, qc: 3, done: 1 };
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} canCreate={false} totalProjects={5} statusCounts={counts} />);
+
+    expect(screen.queryByText(/cần duyệt$/u)).not.toBeInTheDocument();
+    expect(screen.queryByText('Mọi dự án đã duyệt xong')).not.toBeInTheDocument();
+    expect(screen.getByText('5 dự án')).toBeInTheDocument();
+  });
+
+  it('U39: a card whose AI is running says so, not "Chưa có bản vẽ"', () => {
+    render(
+      <ProjectDashboardView
+        {...PROPS_BY_STATE.success()}
+        rows={[{ ...SAMPLE_ROW, hasPlan: false, isProcessing: true, statusVariant: 'neutral', statusLabel: 'Đang xử lý', actionLabel: 'Xem tiến độ' }]}
+      />,
+    );
+
+    expect(screen.getByText('AI đang đọc bản vẽ')).toBeInTheDocument();
+  });
+
+  it('U54: the status line says a sentence, never a bare "thành công"', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+
+    expect(screen.getAllByRole('status').map((node) => node.textContent)).not.toContain('thành công');
   });
 
   // BUG-169: a scrolled query is cut mid-glyph at the field's edge; the fade that hides the cut is on only while scrolled.
