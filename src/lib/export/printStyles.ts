@@ -11,3 +11,11 @@ export const PRINT_CSS =
   'section{page-break-after:always;padding:16px}section:last-child{page-break-after:auto}' +
   'table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:3px 6px;vertical-align:top}' +
   'th{background:#eee}.r{text-align:right}footer{margin-top:12px;font-size:10px;color:#444}img{max-width:100%}';
+
+/** Ink of the raster PDF pages (`pdfRaster.ts`): same black-on-white print palette. */
+export const PDF_INK = {
+  text: '#111111',
+  muted: '#555555',
+  rule: '#cccccc',
+  paper: '#ffffff',
+} as const;

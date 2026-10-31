@@ -2529,6 +2529,12 @@ describe('useFloorUploadScreen — UX41 tải bản vẽ', () => {
     expect(result.current.footer.skippedFloorNames).toEqual(['Tầng hầm', 'Tầng 2', 'Tầng 3']);
     expect(result.current.footer.canSubmit).toBe(true);
 
+    // Tầng 1 đã có bản vẽ: lần bấm đầu chỉ hỏi lại (xử lý lại mất việc đã duyệt), lần hai mới đi.
+    act(() => {
+      result.current.onSubmit();
+    });
+    expect(harness.navigations).toHaveLength(0);
+
     act(() => {
       result.current.onSubmit();
     });

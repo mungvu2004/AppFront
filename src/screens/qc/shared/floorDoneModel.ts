@@ -81,7 +81,7 @@ export const useFloorLabel = (projectId: string, floorId: string): string =>
   useProjectFloors(projectId).find((floor) => floor.id === floorId)?.label ?? '';
 
 /** "Tầng trệt" đã có chữ "Tầng" thì không thêm lần nữa. */
-export const floorTitle = (label: string): string => (/^tầng/i.test(label.trim()) ? label.trim() : `Tầng ${label}`);
+export const floorTitle = (label: string): string => (/^tầng\b/i.test(label.trim()) ? label.trim() : `Tầng ${label}`);
 
 /** Đầu cột việc của màn Xong tầng. */
 export const floorDoneTexts = (label: string) => ({

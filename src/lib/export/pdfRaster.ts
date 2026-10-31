@@ -10,6 +10,7 @@
  */
 import { fitText, lineHeightOf } from './fitText';
 import type { PdfDocument, PdfPage, PdfTableColumn, PdfTableRow } from './pdfSchema';
+import { PDF_INK } from './printStyles';
 
 /** Một trang đã mã hoá JPEG. */
 export interface JpegPage {
@@ -33,9 +34,9 @@ const SMALL_PX = 16;
 const FOOTER_RESERVE_PX = 80;
 const JPEG_QUALITY = 0.85;
 const FONT_STACK = '"Noto Sans", "Be Vietnam Pro", "DejaVu Sans", sans-serif';
-const INK = '#111111';
-const MUTED = '#555555';
-const RULE = '#cccccc';
+const INK = PDF_INK.text;
+const MUTED = PDF_INK.muted;
+const RULE = PDF_INK.rule;
 
 /** Gói các trang JPEG thành byte của một tệp PDF 1.4 hợp lệ. */
 export function writeJpegPdf(pages: readonly JpegPage[]): Uint8Array {
@@ -209,7 +210,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 async function drawPage(ctx: Ctx, page: PdfPage): Promise<void> {
   const width = PAGE_WIDTH_PX - MARGIN_PX * 2;
 
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = PDF_INK.paper;
   ctx.fillRect(0, 0, PAGE_WIDTH_PX, PAGE_HEIGHT_PX);
   ctx.textBaseline = 'alphabetic';
 

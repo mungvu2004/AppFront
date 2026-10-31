@@ -875,7 +875,9 @@ describe('[20-D-006] Người xem trên tầng không có phòng', () => {
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} roles={viewerRoles} />);
 
     expect(await screen.findByText(/^Chưa dò ra phòng nào ở tầng này/u)).toBeInTheDocument();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Không có quyền sửa lớp phòng');
+    // The app announcer's assertive live region is also role=alert; pick the visible strip.
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.some((node) => node.textContent?.includes('Không có quyền sửa lớp phòng'))).toBe(true);
     expect(screen.queryByText(/Tắt bộ lọc "Chưa đặt tên"/u)).not.toBeInTheDocument();
   });
 });
