@@ -171,7 +171,7 @@ const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
  * `title`) để nhường chỗ cho tên đầy đủ của nút cổng từ 1200px; 800–1199px nút còn "Quy chuẩn →" /
  * "Tỷ lệ"; < 800px chỉ còn biểu tượng (tên ở `aria-label`/`title`). Nút không bao giờ ẩn.
  */
-export function ProjectStepsCard({ projectId }: { readonly projectId: string }) {
+export function ProjectStepsCard({ projectId, readOnly = false }: { readonly projectId: string; readonly readOnly?: boolean }) {
   const next = PROJECT_STEPS[VIEWER_STEP + 1];
   const current = PROJECT_STEPS[VIEWER_STEP] ?? PROJECT_STEPS[0]!;
   const scaleFloor = useScaleUnresolvedFloor();
@@ -206,34 +206,36 @@ export function ProjectStepsCard({ projectId }: { readonly projectId: string }) 
           ))}
         </ol>
       </details>
-      {next !== undefined &&
-        (scaleFloor !== null ? (
-          <a
-            aria-label={`Đặt tỷ lệ trước khi sang ${next.label}`}
-            className={`${NEXT_LINK} ${NEXT_TODO}`}
-            data-appfront-gate="todo"
-            href={ROUTES.project.scale(projectId, scaleFloor)}
-            title={SCALE_NEXT_REASON}
-          >
-            <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />
-            <span className="@max-[800px]/appbar:hidden @min-[1200px]/appbar:hidden">Tỷ lệ</span>
-            <span className="hidden @min-[1200px]/appbar:inline">Đặt tỷ lệ</span>
-          </a>
-        ) : (
-          <a
-            aria-label={`Sang ${next.label}`}
-            className={`${NEXT_LINK} ${NEXT_OK}`}
-            data-appfront-gate="ready"
-            href={next.path(projectId)}
-            title={`Sang bước ${VIEWER_STEP + 2}: ${next.label}`}
-          >
-            <span className="@max-[800px]/appbar:sr-only">
-              <span className="hidden @min-[1200px]/appbar:inline">Sang </span>
-              {next.label}
-            </span>
-            <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-          </a>
-        ))}
+      {/* UX-R3 U45: nút sang bước sau luôn có; tỷ lệ chưa hiệu chỉnh thì thêm nút phụ "Đặt tỷ lệ" bên cạnh
+          (tỷ lệ là khuyến nghị, không khoá). U37: người xem không đặt tỷ lệ được nên không thấy nút đó. */}
+      {next !== undefined && scaleFloor !== null && !readOnly ? (
+        <a
+          aria-label={`Đặt tỷ lệ trước khi sang ${next.label}`}
+          className={`${NEXT_LINK} ${NEXT_TODO}`}
+          data-appfront-gate="todo"
+          href={ROUTES.project.scale(projectId, scaleFloor)}
+          title={SCALE_NEXT_REASON}
+        >
+          <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />
+          <span className="@max-[800px]/appbar:hidden @min-[1200px]/appbar:hidden">Tỷ lệ</span>
+          <span className="hidden @min-[1200px]/appbar:inline">Đặt tỷ lệ</span>
+        </a>
+      ) : null}
+      {next !== undefined ? (
+        <a
+          aria-label={`Sang ${next.label}`}
+          className={`${NEXT_LINK} ${NEXT_OK}`}
+          data-appfront-gate="ready"
+          href={next.path(projectId)}
+          title={`Sang bước ${VIEWER_STEP + 2}: ${next.label}`}
+        >
+          <span className="@max-[800px]/appbar:sr-only">
+            <span className="hidden @min-[1200px]/appbar:inline">Sang </span>
+            {next.label}
+          </span>
+          <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+        </a>
+      ) : null}
     </nav>
   );
 }

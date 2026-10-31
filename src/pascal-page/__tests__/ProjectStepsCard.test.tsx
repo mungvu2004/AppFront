@@ -41,16 +41,24 @@ describe('ProjectStepsCard', () => {
     expect(next.textContent).toContain('Sang');
   });
 
-  it('tỷ lệ chưa hiệu chỉnh: một nút phụ "Đặt tỷ lệ" (cùng tên với dải cảnh báo) tới màn tỷ lệ của tầng sai', () => {
+  it('tỷ lệ chưa hiệu chỉnh: thêm nút phụ "Đặt tỷ lệ" (cùng tên với dải cảnh báo) tới màn tỷ lệ của tầng sai', () => {
     act(() => setUnresolved('f2'));
     render(<ProjectStepsCard projectId="p1" />);
-    expect(screen.queryByRole('link', { name: 'Sang Quy chuẩn' })).toBeNull();
+    // UX-R3 U45: nút sang bước sau vẫn còn.
+    expect(screen.getByRole('link', { name: 'Sang Quy chuẩn' }).getAttribute('href')).toBe('/projects/p1/rules');
     const fix = screen.getByRole('link', { name: 'Đặt tỷ lệ trước khi sang Quy chuẩn' });
     expect(fix.textContent).toContain('Đặt tỷ lệ');
     expect(fix.textContent).not.toContain('Hiệu chỉnh');
     expect(fix.getAttribute('href')).toBe('/projects/p1/floors/f2/scale');
     expect(fix.className).not.toContain('bg-[var(--pa-accent)]');
     expect(fix.className).not.toContain('border-[var(--pa-warn)]');
+  });
+
+  it('UX-R3 U37: người xem không thấy nút "Đặt tỷ lệ", vẫn sang được bước sau', () => {
+    act(() => setUnresolved('f2'));
+    render(<ProjectStepsCard projectId="p1" readOnly />);
+    expect(screen.queryByRole('link', { name: 'Đặt tỷ lệ trước khi sang Quy chuẩn' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Sang Quy chuẩn' })).toBeInTheDocument();
   });
 });
 

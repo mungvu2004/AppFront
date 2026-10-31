@@ -86,6 +86,15 @@ describe('isSceneReady', () => {
     expect(isSceneReady()).toBe(false);
     loader.remove();
     expect(isSceneReady()).toBe(true);
+    // UX-R3 U10: hết màn chờ mà kho cảnh chưa có mô hình thì chưa sẵn sàng.
+    expect(isSceneReady(document, () => false)).toBe(false);
+  });
+
+  it('UX-R3 U10: màn chờ bị ẩn còn sót trong DOM không tính là đang tải', () => {
+    addCanvas();
+    const loader = addLoader();
+    Object.defineProperty(loader, 'checkVisibility', { value: () => false });
+    expect(isSceneReady()).toBe(true);
   });
 });
 
@@ -106,6 +115,17 @@ describe('PascalTour', () => {
     expect(hint.style.top).toBe('');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.body.querySelector('[data-pascal-tour]')).toBeNull(); // không phủ tối (<html> chỉ mang cờ 'closed')
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('UX-R3 U10: không có màn chờ Pascal nhưng chưa có mô hình thì vẫn báo đang dựng', async () => {
+    addCanvas();
+    let model = false;
+    const hasModel = () => model;
+    render(<PascalTour hasModel={hasModel} />);
+    expect(screen.getByRole('status').textContent).toBe('Đang dựng mô hình 3D…');
+    model = true;
+    await findHint();
     expect(screen.queryByRole('status')).toBeNull();
   });
 

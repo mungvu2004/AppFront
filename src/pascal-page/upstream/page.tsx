@@ -46,6 +46,7 @@ import {
   CommunityViewerToolbarLeft,
   CommunityViewerToolbarRight,
 } from './components/viewer-toolbar'
+import { installDragNotSelect } from './lib/drag-not-select'
 import { useEditorPreferencesPersistence } from './lib/editor-preferences'
 import { fitWhenControlsReady } from './lib/fit-on-ready'
 import { translateDefinition } from './lib/pascal-vi'
@@ -353,6 +354,15 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
   useFitOnLevelChange()
   useSoloForSeparateUnits()
   useSelectAfterPreview()
+  // UX-R3 U16: left-drag from a wall orbits; it must not select the wall on release.
+  useEffect(
+    () =>
+      installDragNotSelect(window, {
+        get: () => useViewer.getState().inputDragging,
+        set: (value) => useViewer.getState().setInputDragging(value),
+      }),
+    [],
+  )
   const handleLoad = useCallback(async () => {
     const graph = await onLoad()
     // After Editor's own continuation has applied the graph (it awaits this promise).
