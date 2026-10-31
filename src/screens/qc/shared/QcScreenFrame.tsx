@@ -192,6 +192,8 @@ export function QcStatusBar({ onUndo, saveLabel, saveFailed = false, children }:
   return (
     <div
       aria-label={QC_STATUS_BAR_LABEL}
+      // Toast neo trên thanh này theo dấu này, không theo chữ hiển thị (U22).
+      data-qc-status-bar=""
       className="flex h-9 shrink-0 select-none items-center gap-3 whitespace-nowrap border-t border-border-default bg-bg-surface px-4"
       role="status"
     >

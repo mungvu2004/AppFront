@@ -420,7 +420,7 @@ describe('Toast.Provider viewport', () => {
     render(<Toast.Provider><span /></Toast.Provider>);
 
     expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass(
-      "sm:[html:has([aria-label='Thanh_trạng_thái']):not(:has([data-sticky-footer])):not([data-drawer=sheet])_&]:bottom-14",
+      "sm:[html:has([data-qc-status-bar]):not(:has([data-sticky-footer])):not([data-drawer=sheet])_&]:bottom-14",
     );
   });
 

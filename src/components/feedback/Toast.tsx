@@ -227,7 +227,7 @@ function ToastViewport({ children }: { children: React.ReactNode }) {
         // (29-F-010). Không áp khi tờ dưới đang mở hay dưới 640 px — hai chỗ đó toast đã lên mép trên.
         'sm:[html:has([data-sticky-footer]):not([data-drawer=sheet])_&]:bottom-24',
         // U22: màn duyệt tầng có thanh trạng thái 36 px ở đáy ("A duyệt · J kế tiếp · Đã lưu lúc…"): toast đứng trên nó.
-        "sm:[html:has([aria-label='Thanh_trạng_thái']):not(:has([data-sticky-footer])):not([data-drawer=sheet])_&]:bottom-14",
+        "sm:[html:has([data-qc-status-bar]):not(:has([data-sticky-footer])):not([data-drawer=sheet])_&]:bottom-14",
         '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
         '[html[data-drawer=sheet]_&]:bottom-auto [html[data-drawer=sheet]_&]:top-4',
         'max-sm:bottom-auto max-sm:top-4',
