@@ -51,3 +51,29 @@ describe('ObjectLayerInspector ô "Đổi loại nội thất" (S-13)', () => {
     expect(onChangeFurnitureKind).toHaveBeenCalledWith(expect.any(String), 'shower');
   });
 });
+
+describe('ObjectLayerInspector nút duyệt đứng yên (U12)', () => {
+  it('nút "Duyệt #…" nằm trước mọi ô của thân thẻ, nên chỗ của nó không đổi theo loại đồ', () => {
+    const noop = () => undefined;
+
+    render(
+      <ObjectLayerInspector
+        inspector={{ ...inspectorOf('washingMachine'), reviewed: false, isSuggested: false }}
+        isViewerRole={false}
+        onApprove={noop}
+        onAttachToNearestWall={noop}
+        onChangeFurnitureKind={noop}
+        onChangeSubtype={noop}
+        onChangeSwing={noop}
+        onDelete={noop}
+        onDragPosition={noop}
+        onSelectHostWall={noop}
+      />,
+    );
+
+    const approve = screen.getByRole('button', { name: /^Duyệt #/u });
+    const kind = screen.getByRole('combobox', { name: 'Đổi loại nội thất' });
+
+    expect(approve.compareDocumentPosition(kind) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});

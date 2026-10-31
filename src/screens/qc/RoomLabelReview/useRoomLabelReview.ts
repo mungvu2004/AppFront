@@ -107,6 +107,7 @@ import {
   buildRenameRoomCommand,
   buildSplitRoomCommandFromWalls,
   commandContextOf,
+  usageOfRoomName,
   createMockRoomLabelReviewGateway,
   createRoomLabelDispatchDeps,
   createRoomLabelReviewGateway,
@@ -822,9 +823,17 @@ export function useRoomLabelReview(
 
   const onRename = useCallback(
     (roomId: RoomId, name: string) => {
-      void run((context) => buildRenameRoomCommand({ roomId, name }, context));
+      /* U44: tên là một nhãn công năng thì công năng đổi theo (lệnh thứ hai, sau khi đổi tên xong). */
+      const usage = usageOfRoomName(name);
+      const before = roomById(roomId)?.usage;
+
+      void run((context) => buildRenameRoomCommand({ roomId, name }, context)).then((renamed) => {
+        if (renamed !== null && usage !== null && usage !== before) {
+          void run((context) => buildChangeUsageCommand({ roomId, usage }, context));
+        }
+      });
     },
-    [run],
+    [roomById, run],
   );
 
   const onChangeUsage = useCallback(

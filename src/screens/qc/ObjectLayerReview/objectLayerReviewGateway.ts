@@ -1253,6 +1253,26 @@ export const rejectedSuggestionsToast = (count: number): string => `Đã bỏ ${
 /** Đầu dải gợi ý (B3): "3 gợi ý của máy đang chờ". */
 export const pendingSuggestionsLabel = (count: number): string => `${formatObjectCount(count)} gợi ý của máy đang chờ`;
 
+/**
+ * U04: món duyệt thẳng được trong một lượt — chưa duyệt, không phải gợi ý chưa nhận (đi dải gợi ý),
+ * không phải lỗ mở chưa gắn tường (phải gắn trước). Cả tầng, không theo bộ lọc, như bước Tường.
+ */
+export const approvableObjectsOf = (objects: readonly ReviewObject[]): readonly ReviewObject[] =>
+  objects.filter((object) => !object.reviewed && object.suggested !== true && !isUnattachedOpening(object));
+
+/** U04: trong số đó, món máy chắc (không dưới ngưỡng tin cậy của dự án). */
+export const confidentObjectsOf = (
+  objects: readonly ReviewObject[],
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
+): readonly ReviewObject[] =>
+  approvableObjectsOf(objects).filter((object) => !isLowConfidenceObject(object.confidence, threshold));
+
+/** Nhãn nút (và câu nhật ký hoàn tác) của lượt duyệt món máy chắc — như "Duyệt N đoạn máy chắc chắn". */
+export const approveConfidentLabelOf = (count: number): string => `Duyệt ${formatObjectCount(count)} mục máy chắc chắn`;
+
+/** Nhãn nút duyệt mọi món còn chờ, kể cả món máy chưa chắc loại. */
+export const approveRemainingLabelOf = (count: number): string => `Duyệt cả ${formatObjectCount(count)} mục còn lại`;
+
 /** Một lần bấm "Xoay 90°" (B3). */
 export const QUARTER_TURN_DEG = 90;
 

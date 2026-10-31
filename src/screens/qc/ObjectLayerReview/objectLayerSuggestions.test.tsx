@@ -32,7 +32,7 @@ import {
   scaleOfLevel,
   toPixelPoint,
 } from './objectLayerReviewGateway';
-import type { ObjectLayerReviewModel } from './objectLayerTypes';
+import { isUnattachedOpening, type ObjectLayerReviewModel } from './objectLayerTypes';
 import { useObjectLayerReview } from './useObjectLayerReview';
 
 beforeEach(() => {
@@ -269,6 +269,34 @@ describe('gợi ý của máy (B3)', () => {
     await run(() => mounted.result.current.onUndo());
     await waitFor(() => {
       expect(SUGGESTED_IDS.map((id) => storedFurniture(id)?.suggested)).toEqual([true, true]);
+    });
+
+    mounted.unmount();
+  });
+
+  it('[U04] duyệt hàng loạt: mọi món còn chờ trong một bước hoàn tác, gợi ý không bị đụng', async () => {
+    const mounted = await mountSettled(graphWithSuggestions());
+    const pendingIds = () =>
+      mounted.result.current.objects
+        .filter((object) => !object.reviewed && object.suggested !== true && !isUnattachedOpening(object))
+        .map((object) => object.id);
+    const before = pendingIds();
+
+    expect(before.length).toBeGreaterThan(0);
+
+    const approve = mounted.result.current.onApproveRemaining ?? mounted.result.current.onApproveConfident;
+
+    expect(approve).toBeDefined();
+    await run(() => approve?.());
+    await waitFor(() => {
+      expect(pendingIds()).toEqual([]);
+    });
+    expect(mounted.result.current.suggestionCount).toBe(2);
+    expect(mounted.result.current.onApproveConfident).toBeUndefined();
+
+    await run(() => mounted.result.current.onUndo());
+    await waitFor(() => {
+      expect(pendingIds()).toEqual(before);
     });
 
     mounted.unmount();
