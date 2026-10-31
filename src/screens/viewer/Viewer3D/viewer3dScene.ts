@@ -699,7 +699,7 @@ function startScene(
       }
       const data = readPartData(object);
       const kind = data?.kind;
-      const entityToken = data === undefined ? null : (options.tokenOfEntity?.(data.entityId, data.kind) ?? null);
+      const entityToken = data == null ? null : (options.tokenOfEntity?.(data.entityId, data.kind) ?? null);
       const material = entityToken !== null ? entityMaterialOf(entityToken) : kind === undefined ? undefined : painted.get(kind);
       if (material !== undefined) {
         object.material = material;
