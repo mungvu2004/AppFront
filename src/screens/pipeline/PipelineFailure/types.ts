@@ -397,9 +397,18 @@ export interface PipelineFailureRetrySupportNotice {
 }
 
 /** Bộ đếm lần thử, một trong hai chế độ. Hook chọn, view không đếm. */
+/**
+ * Lỗi nằm ở chính tệp (máy chủ bảo tải lại tệp khác): chạy lại không giúp gì, nên không đếm
+ * lần thử, không mời bộ phận hỗ trợ, không hiện mã kỹ thuật (U48).
+ */
+export interface PipelineFailureRetryNoneNotice {
+  readonly kind: 'none';
+}
+
 export type PipelineFailureRetryNotice =
   | PipelineFailureRetryAttemptNotice
-  | PipelineFailureRetrySupportNotice;
+  | PipelineFailureRetrySupportNotice
+  | PipelineFailureRetryNoneNotice;
 
 /* -------------------------------------------------------------------------- */
 /* Hành động thử lại đúng một bước.                                            */

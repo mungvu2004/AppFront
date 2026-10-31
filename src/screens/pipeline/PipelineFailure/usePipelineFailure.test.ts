@@ -493,6 +493,11 @@ describe('usePipelineFailure — mã máy chủ (F-05b)', () => {
     expect(primaryIds(mounted)).toEqual(['upload-clearer']);
   });
 
+  it('reupload: lỗi của tệp không đếm lần thử, không mời hỗ trợ (U48)', async () => {
+    const mounted = await mountSettled(noDetail(), { failureCode: 'NOT_A_FLOOR_PLAN' });
+    expect(alertBand(mounted).retryNotice.kind).toBe('none');
+  });
+
   it('retry: bước tải lên là chính, nhãn chạy lượt mới', async () => {
     const mounted = await mountSettled(noDetail(), { failureCode: 'WORKER_LOST' });
     expect(primaryIds(mounted)).toEqual(['upload-clearer']);
@@ -522,7 +527,7 @@ describe('usePipelineFailure — bộ đếm lần thử', () => {
     }
 
     expect(band.retryNotice.kind).toBe('attempt');
-    expect(band.retryNotice.attemptLabel).toBe(
+    expect(band.retryNotice.kind === 'attempt' && band.retryNotice.attemptLabel).toBe(
       `Lần thử ${formatNumber(PIPELINE_FAILURE_SAMPLE_DETAIL.attemptCount, { fractionDigits: 0 })}`,
     );
   });
@@ -581,7 +586,7 @@ describe('usePipelineFailure — bộ đếm lần thử', () => {
 
     await waitFor(() => {
       const band = mounted.result.current.band;
-      expect(band.kind === 'alert' && band.retryNotice.attemptLabel).toBe(
+      expect(band.kind === 'alert' && band.retryNotice.kind === 'attempt' && band.retryNotice.attemptLabel).toBe(
         `Lần thử ${formatNumber(PIPELINE_FAILURE_SAMPLE_DETAIL.attemptCount + 1, { fractionDigits: 0 })}`,
       );
     });
