@@ -631,6 +631,44 @@ interface DragSession {
 
 const NO_GRAB_OFFSET: PixelPoint = { x: pixels(0), y: pixels(0) };
 
+/**
+ * UX-49/UX-08: đoạn đo đã xác nhận được giữ theo tầng (tỉ lệ 0..1 trên ảnh), để mở lại màn Tỷ lệ
+ * thấy ngay đoạn đã đo và chỉ cần sửa số. ponytail: lưu ở trình duyệt này; máy chủ chưa có chỗ
+ * giữ đoạn đo (cần trường mới trong hợp đồng N16 nếu muốn thấy trên máy khác).
+ */
+const SAVED_SEGMENT_PREFIX = 'scale-segment:';
+
+interface SavedSegment {
+  readonly start: ImageRatioPoint;
+  readonly end: ImageRatioPoint;
+}
+
+const isRatioPoint = (value: unknown): value is ImageRatioPoint =>
+  typeof value === 'object' &&
+  value !== null &&
+  Number.isFinite((value as { x?: unknown }).x) &&
+  Number.isFinite((value as { y?: unknown }).y);
+
+export function readSavedSegment(floorId: string): SavedSegment | null {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(SAVED_SEGMENT_PREFIX + floorId) ?? 'null');
+    const segment = parsed as Partial<SavedSegment> | null;
+    return segment !== null && isRatioPoint(segment.start) && isRatioPoint(segment.end)
+      ? { start: segment.start, end: segment.end }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSavedSegment(floorId: string, segment: SavedSegment): void {
+  try {
+    window.localStorage.setItem(SAVED_SEGMENT_PREFIX + floorId, JSON.stringify(segment));
+  } catch {
+    // Trình duyệt chặn bộ nhớ: mất đoạn đo khi mở lại, tỷ lệ vẫn lưu trên máy chủ.
+  }
+}
+
 /** Điểm con trỏ cộng lệch lúc nhấn tay cầm — đầu đoạn đi theo đúng quãng con trỏ đi. */
 const grabbed = (moving: PixelPoint, offset: PixelPoint): PixelPoint => ({
   x: pixels(moving.x + offset.x),
@@ -885,6 +923,8 @@ export function useScaleCalibration(
   const isSuggestionChosen = suggestionFloorId === floorId;
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragSession | null>(null);
+  const dragRef = useRef(drag);
+  dragRef.current = drag;
   const [nudgeTarget, setNudgeTarget] = useState<NudgeTarget>('end');
   const [realLengthText, setRealLengthText] = useState('');
   /** UX41 U01: chữ "1:100" người dùng gõ, gắn theo tầng để đổi tầng không mang sang. */
@@ -1419,6 +1459,30 @@ export function useScaleCalibration(
    */
   const isDragging = drag?.isDragging === true;
 
+  /* UX-49: mở lại màn Tỷ lệ — vẽ lại đoạn đo đã xác nhận lần trước; chỉ cần sửa số. */
+  const restoredFloorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (frame === null || restoredFloorRef.current === floorId) {
+      return;
+    }
+    restoredFloorRef.current = floorId;
+    const saved = readSavedSegment(floorId);
+    if (saved === null || dragRef.current !== null) {
+      return;
+    }
+    setMethod('referenceLine');
+    setDrag({
+      start: toPixelPoint(frame, saved.start),
+      end: toPixelPoint(frame, saved.end),
+      isDragging: false,
+      isAxisLocked: false,
+      snappedKind: null,
+      snappedEndpoint: null,
+      movingEndpoint: 'end',
+      grabOffset: NO_GRAB_OFFSET,
+    });
+  }, [floorId, frame]);
+
   useEffect(() => {
     if (!isDragging) {
       return undefined;
@@ -1779,6 +1843,14 @@ export function useScaleCalibration(
         setScaleConflict(false);
         setOfflinePending(false);
         commitSaved([levelId], ratio);
+        const session = dragRef.current;
+        const savedFrame = frameRef.current;
+        if (session !== null && savedFrame !== null) {
+          writeSavedSegment(floorId, {
+            start: toRatioPoint(savedFrame, session.start),
+            end: toRatioPoint(savedFrame, session.end),
+          });
+        }
         setApplyOutcome('success');
         setApplying(false);
       },
@@ -1791,7 +1863,7 @@ export function useScaleCalibration(
         setApplying(false);
       },
     );
-  }, [commitSaved, gateway, levelId, projectId, rememberProvisional, saveScale]);
+  }, [commitSaved, floorId, gateway, levelId, projectId, rememberProvisional, saveScale]);
 
   /* UX41 U56: lượt áp hỏng vì mất mạng — có mạng lại thì gửi lại đúng lượt ấy, một lần. */
   const onApplyRef = useRef(onApply);

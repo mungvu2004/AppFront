@@ -516,6 +516,11 @@ function typeRealLength(text: string): void {
 /* [NGHIEM-1] Bảy trạng thái (A11, R-63).                                      */
 /* -------------------------------------------------------------------------- */
 
+// UX-49: đoạn đo đã xác nhận nằm ở localStorage — dọn sau mỗi ca.
+afterEach(() => {
+  window.localStorage.clear();
+});
+
 describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
   it('vẽ đủ bảy trạng thái, không lần nào ném lỗi và không lần nào ra màn trắng', () => {
     let rendered = 0;
