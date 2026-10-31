@@ -120,6 +120,7 @@ import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
 import { describePipelineError } from '../pipelineErrorText';
+import { estimateSentence, typicalRunMinutes } from './processingEstimate';
 import { createAppProcessingGateway, toStageBreakdown } from './processingGateway';
 import type {
   ProcessingExtractionSummary,
@@ -206,9 +207,12 @@ const NO_RUN_SENTENCE = 'Chưa có lượt xử lý nào đang chạy.';
 /** S2-7: lúc N7 còn đang tải thì chưa biết có lượt nào — không được nói "chưa có". */
 const LOADING_RUNS_SENTENCE = 'Đang tải các lượt xử lý…';
 
-/** Ví dụ `"Đang xếp hàng: còn 2 lượt phía trước. Ảnh lớn có thể mất vài phút."`. */
-const queueSentence = (ahead: string, waited: string | null): string =>
-  `Đang xếp hàng: còn ${ahead} lượt phía trước. Ảnh lớn có thể mất vài phút.` +
+/**
+ * Ví dụ `"Đang xếp hàng: còn 2 lượt phía trước. Thường mất khoảng 2 phút."`. Chưa ước lượng được
+ * (dự án chưa có lượt xong, chưa biết cỡ ảnh) thì giữ câu chung về ảnh lớn (U09).
+ */
+const queueSentence = (ahead: string, waited: string | null, estimate: string | undefined): string =>
+  `Đang xếp hàng: còn ${ahead} lượt phía trước. ${estimate ?? 'Ảnh lớn có thể mất vài phút.'}` +
   (waited === null ? '' : ` Đã chờ ${waited}.`);
 
 /** Câu bắt buộc nói rõ xử lý VẪN TIẾP TỤC khi một tầng lỗi — chỉ khi còn tầng chưa cuối (BUG-553). */
@@ -236,6 +240,9 @@ const STAGE_LABEL_BY_ID = new Map(getPipelineStages().map((stage) => [stage.id, 
 const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
+
+/** Nhịp cập nhật câu ước lượng U09: mốc tính bằng phút, không cần mỗi giây. */
+const ESTIMATE_TICK_MS = 10 * MILLISECONDS_PER_SECOND;
 
 /** Danh tính một lượt trong sổ theo dõi nền — một dự án có thể có nhiều lượt. */
 const watchIdOf = (projectId: string, uploadId: string): string => `${projectId}:${uploadId}`;
@@ -552,6 +559,23 @@ function useNarrowViewport(): boolean {
   return isNarrow;
 }
 
+/** Megapixel của ảnh bản vẽ (đọc kích thước ảnh trong trình duyệt), `null` khi chưa biết — U09. */
+function useImageMegapixels(url: string | undefined): number | null {
+  const [megapixels, setMegapixels] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (url === undefined || typeof Image === 'undefined') return undefined;
+    const image = new Image();
+    image.onload = () => setMegapixels((image.naturalWidth * image.naturalHeight) / 1_000_000);
+    image.src = url;
+    return () => {
+      image.onload = null;
+    };
+  }, [url]);
+
+  return megapixels;
+}
+
 /**
  * Cổng đã tiêm, hoặc bản thật dựng ĐÚNG MỘT LẦN và chỉ khi cần.
  *
@@ -706,6 +730,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     },
     enabled: readPipelineRuns !== undefined,
   });
+  const sourceImageMegapixels = useImageMegapixels(
+    floorUploads.find((upload) => upload.sourceImageUrl !== undefined)?.sourceImageUrl,
+  );
   const runs = useMemo(
     () => (runsQuery.data === undefined ? undefined : runsQuery.data.map(toRunRow)),
     [runsQuery.data],
@@ -1501,6 +1528,38 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   }, [isQueued]);
   const queueWaited = queueClock === null ? null : formatDuration(queueClock.now - queueClock.since);
 
+  // U09: "Thường mất khoảng N phút" từ lịch sử lượt của dự án (hoặc cỡ ảnh). Không đếm ngược:
+  // đã chạy quá ước lượng thì nói "Lâu hơn thường lệ" — nhịp 10 giây là đủ cho mốc phút.
+  const [waitClock, setWaitClock] = useState<{ readonly since: number; readonly now: number } | null>(null);
+  useEffect(() => {
+    if (!canRunInBackground) return undefined;
+    const since = Date.now();
+    setWaitClock({ since, now: since });
+    const timer = window.setInterval(() => {
+      setWaitClock({ since, now: Date.now() });
+    }, ESTIMATE_TICK_MS);
+    return () => {
+      window.clearInterval(timer);
+      setWaitClock(null);
+    };
+  }, [canRunInBackground]);
+  const estimateLine = useMemo(() => {
+    if (waitClock === null) return undefined;
+    const minutes = typicalRunMinutes(runsQuery.data ?? [], sourceImageMegapixels);
+    if (minutes === null) return undefined;
+    // Lượt đang chạy có trong N7b thì tính từ lúc nó được tạo; không thì từ lúc màn bắt đầu chờ.
+    const uploadIds = new Set(floorUploads.map((upload) => upload.uploadId));
+    const startedAt = (runsQuery.data ?? [])
+      .filter(
+        (run) =>
+          uploadIds.has(run.uploadId) && (run.status === 'pending' || run.status === 'running'),
+      )
+      .map((run) => Date.parse(run.createdAt))
+      .filter(Number.isFinite);
+    const since = startedAt.length === 0 ? waitClock.since : Math.min(...startedAt);
+    return estimateSentence(minutes, Math.max(0, waitClock.now - since));
+  }, [floorUploads, runsQuery.data, sourceImageMegapixels, waitClock]);
+
   const partialNoticeLine =
     failedIndexes.length > 0 && failedIndexes.length < records.length
       ? partialSentence(
@@ -1582,9 +1641,19 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     logLines,
     ...(summary !== undefined ? { summary } : {}),
     overallSummaryLine,
-    ...(remainingLine !== undefined ? { remainingLine } : {}),
+    ...(remainingLine !== undefined
+      ? { remainingLine }
+      : estimateLine !== undefined && queuePosition === undefined
+        ? { remainingLine: estimateLine }
+        : {}),
     ...(queuePosition !== undefined
-      ? { queueLine: queueSentence(formatNumber(queuePosition, { fractionDigits: 0 }), queueWaited) }
+      ? {
+          queueLine: queueSentence(
+            formatNumber(queuePosition, { fractionDigits: 0 }),
+            queueWaited,
+            estimateLine,
+          ),
+        }
       : {}),
     ...(partialNoticeLine !== undefined ? { partialNoticeLine } : {}),
     ...(errorAlert !== undefined ? { errorAlert } : {}),
