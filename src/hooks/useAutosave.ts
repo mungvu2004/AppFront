@@ -4,6 +4,7 @@ import type { ApiClient } from '@/api/client';
 import type { FloorLayerSaver } from '@/lib/autosave/spatialLayerSave';
 import { getSessionSnapshot } from '@/lib/auth/state';
 import { guardBeforeUnload } from '@/lib/autosave/beforeUnload';
+import { clearPendingEdits, notePendingEdit } from '@/lib/autosave/pendingEdits';
 import { queryClient } from '@/lib/query/queryClient';
 
 import { createAutosave, type Autosave, type AutosaveEngine } from '../lib/autosave/createAutosave';
@@ -351,6 +352,10 @@ const attachSaver = (target: SaverBook, loaded: Pipes): void => {
   });
   target.saver.subscribe((unsavedFloorIds) => {
     useStore.getState().setUnsavedFloorIds(unsavedFloorIds);
+    // UX-40: đã gửi hết thì dải mất mạng không còn thao tác nào chờ.
+    if (unsavedFloorIds.length === 0) {
+      clearPendingEdits();
+    }
     bump(target);
   });
 
@@ -371,6 +376,7 @@ const closeBook = (target: SaverBook, flush: boolean): void => {
   target.stops.forEach((stop) => stop());
   mountedAutosaves.delete(target.engine);
   useStore.getState().setUnsavedFloorIds([]);
+  clearPendingEdits();
 };
 
 /** Saver của cặp `userId:projectId` hiện tại; đổi khoá thì đóng saver cũ (cùng người: xả trước). */
@@ -441,6 +447,8 @@ function openBook(projectId: string): SaverBook {
       ) {
         return;
       }
+
+      notePendingEdit();
 
       if (created.saver && pipes) {
         markChanged(

@@ -30,6 +30,7 @@ import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { AlertCircle, Loader2, WifiOff } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { ScreenMain } from '@/components/shell/ScreenMain';
 import { Button } from '@/components/ui/Button';
@@ -289,6 +290,8 @@ export function SessionGate({
       {/* SAU màn con trong DOM (dải là `fixed`, nhìn không đổi): Tab đi hết màn rồi mới tới dải,
           không chặn đầu mọi lượt Tab (review QA-01c #1). */}
       {serverUnreachable === true ? <ConnectionStrip onRetry={onRetry} /> : null}
+      {/* UX-40: mất mạng (trình duyệt báo offline) — dải trên cùng kèm số thao tác chờ gửi. */}
+      <OfflineBanner />
     </>
   );
 }
