@@ -530,6 +530,34 @@ function rowsFromLayerDimensions(document: FloorLayerDocument, frame: ImageFrame
 }
 
 /**
+ * UX-02: máy không đọc được số — gợi sẵn đoạn đo dọc bức tường thẳng dài nhất (thường là tường
+ * ngoài, nơi bản vẽ ghi số tổng). ponytail: dài nhất chưa chắc là tường ngoài; đủ làm gợi ý.
+ */
+function longestWallPixels(document: FloorLayerDocument | undefined): { readonly start: PixelPoint; readonly end: PixelPoint } | null {
+  const ratio = document?.level.scaleMillimetresPerPixel;
+
+  if (document === undefined || ratio === undefined || ratio <= 0) {
+    return null;
+  }
+
+  let best: { readonly start: PixelPoint; readonly end: PixelPoint } | null = null;
+  let bestLength = 0;
+
+  for (const wall of document.layer.walls) {
+    const start = { x: pixels(wall.centreline.start.x / ratio), y: pixels(wall.centreline.start.y / ratio) };
+    const end = { x: pixels(wall.centreline.end.x / ratio), y: pixels(wall.centreline.end.y / ratio) };
+    const length = segmentPixelLength(start, end);
+
+    if (length > bestLength) {
+      best = { start, end };
+      bestLength = length;
+    }
+  }
+
+  return best;
+}
+
+/**
  * Cỡ căn (hộp bao tường) theo tỷ lệ `ratio`, để người dùng soi bằng mắt (K17): tường N16 tính
  * bằng mm theo tỷ lệ tầng đã dựng, đổi về pixel rồi nhân tỷ lệ đang xét.
  */
@@ -1314,13 +1342,55 @@ export function useScaleCalibration(
   /** UX-R4 U06: số trên bản vẽ nhỏ — một cú bấm phóng tới số đang chọn (hoặc số đầu), không đổi lựa chọn. */
   const selectedRowIdRef = useRef(selectedRowId);
   selectedRowIdRef.current = selectedRowId;
+  const layerDocumentRef = useRef(layerDocument);
+  layerDocumentRef.current = layerDocument;
   const onZoomToNumbers = useCallback(() => {
     const rowId = selectedRowIdRef.current ?? rowsRef.current[0]?.id;
 
     if (rowId !== undefined) {
       flyToRow(rowId);
+      return;
     }
-  }, [flyToRow]);
+
+    // UX-02: không có số nào — đặt sẵn đoạn đo dọc tường dài nhất và phóng tới đó để đọc số in cạnh nó.
+    const wall = longestWallPixels(layerDocumentRef.current);
+    const size = canvasSizeRef.current;
+
+    if (wall === null || frameRef.current === null || size.width <= 0 || size.height <= 0) {
+      return;
+    }
+
+    setMethod('referenceLine');
+    setSuggestionFloorId(null);
+    setRatioEntry(null);
+    setAreaEntry(null);
+    setApplyOutcome(null);
+    setNudgeTarget('end');
+    if (dragRef.current === null) {
+      setDrag({
+        start: wall.start,
+        end: wall.end,
+        isDragging: false,
+        isAxisLocked: false,
+        snappedKind: null,
+        snappedEndpoint: null,
+        movingEndpoint: 'end',
+        grabOffset: NO_GRAB_OFFSET,
+      });
+    }
+    // Lề quanh đoạn: số kích thước thường nằm ngoài tường một khoảng.
+    const pad = Math.max(Math.abs(wall.end.x - wall.start.x), Math.abs(wall.end.y - wall.start.y)) * 0.15;
+    flyToBounds(
+      {
+        minX: pixels(Math.min(wall.start.x, wall.end.x) - pad),
+        minY: pixels(Math.min(wall.start.y, wall.end.y) - pad),
+        maxX: pixels(Math.max(wall.start.x, wall.end.x) + pad),
+        maxY: pixels(Math.max(wall.start.y, wall.end.y) + pad),
+      },
+      size.width,
+      size.height,
+    );
+  }, [flyToBounds, flyToRow]);
 
   const onStartDrag = useCallback((point: ImageRatioPoint, endpoint?: ReferenceLineEndpoint) => {
     const currentFrame = frameRef.current;

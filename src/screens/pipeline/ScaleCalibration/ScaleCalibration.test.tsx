@@ -80,6 +80,7 @@ import {
   provisionalScaleScenario,
   scenarioFor,
 } from './ScaleCalibration.stories';
+import { ScaleCalibrationMethodDimension } from './ScaleCalibrationMethodDimension';
 import {
   createScaleCalibrationGateway,
   withScaleCapabilities,
@@ -1234,5 +1235,19 @@ describe('[G57] hộp thoại "áp mọi tầng" đóng thì tiêu điểm về 
     rerender(<ScaleCalibration actions={scenario.actions} model={scenario.model} />);
 
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Xác nhận tỷ lệ' }));
+  });
+});
+
+describe('ScaleCalibrationMethodDimension — không có số (UX-02)', () => {
+  it('vẫn có nút "Phóng to vùng có số"; bấm một lần là gọi đặt đoạn đo gợi ý', () => {
+    const onZoomToNumbers = vi.fn();
+    render(
+      <ScaleCalibrationMethodDimension
+        actions={{ onHoverDimensionRow: vi.fn(), onSelectDimensionRow: vi.fn(), onZoomToNumbers }}
+        dimension={{ rows: [], selectedRowId: null, emptyNotice: null, lowConfidenceNotice: null, manualCalibrationReason: null }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Phóng to vùng có số/u }));
+    expect(onZoomToNumbers).toHaveBeenCalledTimes(1);
   });
 });

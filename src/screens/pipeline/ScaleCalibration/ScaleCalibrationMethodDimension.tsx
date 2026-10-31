@@ -58,11 +58,24 @@ export function ScaleCalibrationMethodDimension({ actions, dimension }: ScaleCal
 
   if (dimension.rows.length === 0) {
     return (
-      <EmptyState
-        description={dimension.emptyNotice ?? EMPTY_DESCRIPTION_FALLBACK}
-        icon={<Ruler aria-hidden="true" />}
-        title={EMPTY_TITLE}
-      />
+      <div className="flex flex-col gap-3">
+        <EmptyState
+          description={dimension.emptyNotice ?? EMPTY_DESCRIPTION_FALLBACK}
+          icon={<Ruler aria-hidden="true" />}
+          title={EMPTY_TITLE}
+        />
+        {/* UX-02: không có số — một cú bấm đặt sẵn đoạn đo dọc tường dài nhất và phóng tới đó. */}
+        {actions.onZoomToNumbers !== undefined && (
+          <Button
+            iconBefore={<ZoomIn aria-hidden="true" size={14} />}
+            onClick={actions.onZoomToNumbers}
+            size="sm"
+            variant="secondary"
+          >
+            {ZOOM_TO_NUMBERS}
+          </Button>
+        )}
+      </div>
     );
   }
 
