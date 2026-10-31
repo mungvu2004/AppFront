@@ -608,6 +608,29 @@ describe('rooms nobody can walk into', () => {
 
     expect(runCheck(checkRoomHasDoor, plan)).toHaveLength(1);
   });
+
+  it('[U08] counts a door on a wall piece the room does not list (AI splits walls at doors)', () => {
+    const plan = planOf({
+      walls: [wall('WA', { x: 0, y: 0 }, { x: 1500, y: 0 }), wall('WB', { x: 1500, y: 0 }, { x: 4000, y: 0 })],
+      openings: [opening('DSPLIT', wallId('WB'), 200, 900)],
+      rooms: [
+        room(
+          'BR',
+          'bedroom',
+          [
+            { x: 0, y: 0 },
+            { x: 4000, y: 0 },
+            { x: 4000, y: 3000 },
+            { x: 0, y: 3000 },
+          ],
+          [wallId('WA')],
+          12,
+        ),
+      ],
+    });
+
+    expect(runCheck(checkRoomHasDoor, plan)).toEqual([]);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
