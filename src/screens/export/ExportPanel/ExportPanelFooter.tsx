@@ -23,6 +23,8 @@ export interface ExportPanelFooterProps {
   /** Vì sao nút "Xuất" đang mờ (định dạng chưa xuất được), `null` khi không có lý do riêng. */
   readonly blockedReason?: string | null;
   readonly destinationCaption: string;
+  /** UX-22: việc còn dở ("Còn 28 mục chưa duyệt."), nói ngay cạnh nút "Xuất"; `null` khi không còn gì. */
+  readonly pendingNote?: string | null;
   /** Mô hình còn đang tải: chưa có gì để xuất (30-C-028). */
   readonly isLoading?: boolean;
   readonly onExport: () => void;
@@ -36,6 +38,7 @@ export function ExportPanelFooter({
   exportLabel = 'Xuất',
   blockedReason = null,
   destinationCaption,
+  pendingNote = null,
   isLoading = false,
   onExport,
   onCancel,
@@ -96,7 +99,10 @@ export function ExportPanelFooter({
   return (
     <footer ref={footerRef} data-sticky-footer="" className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface p-4 sm:px-6 xl:px-[max(2rem,calc((100%_-_1280px)/2))]">
       {/* Nút chính tắt thì câu bên cạnh nói vì sao (không nút chết). */}
-      <p className="text-sm text-text-secondary">{canExportSelected ? destinationCaption : (blockedReason ?? destinationCaption)}</p>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        {pendingNote !== null && <p className="text-sm font-medium text-text-primary">{pendingNote}</p>}
+        <p className="text-sm text-text-secondary">{canExportSelected ? destinationCaption : (blockedReason ?? destinationCaption)}</p>
+      </div>
       <div className="flex shrink-0 items-center gap-2">
         {onBackToProject !== undefined && (
           <Button variant="secondary" onClick={onBackToProject}>

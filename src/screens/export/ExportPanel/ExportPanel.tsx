@@ -196,6 +196,8 @@ function ExportPanelStatus({ props }: StatusProps) {
 
   // Tầng chưa duyệt xong: nói việc cần làm trước, đừng mở đầu bằng "Xuất được" (U36).
   const approvalPending = preflight.some((row) => row.id === 'approval' && row.fixHref !== null);
+  // UX-52: chỉ đếm dòng còn việc (chấm vàng); dòng "Không còn vi phạm nào." không phải một việc.
+  const todo = preflight.filter((row) => row.tone === 'attention').length;
   // Không chip xanh: A5 giữ màu "đã xác minh" cho việc của người duyệt, không cho lượt xuất.
   const badge =
     progress !== null ? (
@@ -204,12 +206,12 @@ function ExportPanelStatus({ props }: StatusProps) {
       <Badge variant="violation">Xuất chưa thành công</Badge>
     ) : (
       // Còn việc nên xem thì nói thẳng "xuất được, còn N việc" — "Sẵn sàng" cạnh ba cảnh báo làm người mới hoang mang.
-      <Badge variant={preflight.length > 0 ? 'attention' : 'neutral'}>
-        {preflight.length === 0
+      <Badge variant={todo > 0 ? 'attention' : 'neutral'}>
+        {todo === 0
           ? 'Sẵn sàng xuất'
           : approvalPending
-            ? `Chưa duyệt xong · nên làm ${count(preflight.length)} việc dưới đây trước khi xuất`
-            : `Xuất được · còn ${count(preflight.length)} việc nên xem`}
+            ? `Chưa duyệt xong · nên làm ${count(todo)} việc dưới đây trước khi xuất`
+            : `Xuất được · còn ${count(todo)} việc nên xem`}
       </Badge>
     );
 
@@ -421,6 +423,7 @@ export function ExportPanel(props: ExportPanelProps) {
         exportLabel={selectedFormat === null ? 'Xuất' : EXPORT_BUTTON_LABEL[selectedFormat.id]}
         blockedReason={noticeCaption ?? (selectedFormat?.id === 'glb' ? NO_FLOOR_CAPTION : null)}
         destinationCaption={destinationCaption}
+        pendingNote={props.pendingNote ?? null}
         isLoading={isLoading}
         onExport={onExport}
         onCancel={onCancel}

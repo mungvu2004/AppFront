@@ -466,6 +466,24 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
   return levels.length === 0 ? rows.filter((row) => row.id !== 'unreviewed') : rows;
 }
 
+/**
+ * Câu nhắc ngay trên nút "Xuất" (UX-22): việc còn dở nói bằng số, cho xuất tiếp nhưng không giấu.
+ * `null` khi không còn gì để nhắc.
+ */
+export function exportPendingNote(input: PreflightInput): string | null {
+  const { graph, levels, floorMeta } = input;
+  const unreviewed = collectUnreviewed(graph, levels);
+  const provisional = levels.some((level) => {
+    const isEmpty = graph !== null && idsOnLevel(graph, level.id).length === 0;
+    return !isEmpty && reviewReasonsOf(floorMeta?.[level.id], level, isEmpty).includes('scaleUnresolved');
+  });
+  const parts = [
+    unreviewed.count > 0 ? `Còn ${formatNumber(unreviewed.count)} mục chưa duyệt.` : null,
+    provisional ? 'Tỷ lệ chưa xác nhận - diện tích là số tạm.' : null,
+  ].filter((part): part is string => part !== null);
+  return parts.length === 0 ? null : parts.join(' ');
+}
+
 interface UnreviewedTally {
   readonly count: number;
   /** Tầng của đối tượng chưa duyệt đầu tiên — nơi liên kết "đi sửa" dẫn tới. */
