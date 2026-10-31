@@ -3,13 +3,13 @@
  * Nằm đầu khe `viewerToolbarLeft` nên không đè thanh bên; kiểu chép từ `TOOLBAR_CONTAINER`
  * của upstream `viewer-toolbar.tsx`.
  */
-import { ArrowLeft, ArrowRight, ChevronDown, Eye, PencilRuler, TriangleAlert, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChevronDown, Eye, PencilRuler, TriangleAlert, WifiOff, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 import { ROUTES } from '@/routes/paths';
 import { PROJECT_STEPS } from '@/routes/projectSteps';
 
-import type { PascalSaveStatus } from './bridge/types';
+import type { PascalConfirm, PascalSaveStatus } from './bridge/types';
 import { SCALE_NEXT_REASON } from './scaleBanner';
 import { useScaleUnresolvedFloor } from './scaleUnresolved';
 
@@ -43,8 +43,8 @@ export function EditModelButton({ collapsed, onOpen }: { readonly collapsed: boo
       type="button"
     >
       <PencilRuler aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-      {/* UX41 U58: < 800px chỉ còn biểu tượng; tên vẫn đọc được (sr-only) và hiện ở title. */}
-      <span className="@max-[800px]/appbar:sr-only">Sửa mô hình</span>
+      {/* UX41 U58 + Editor3D 01/11: < 1200px chỉ còn biểu tượng (thanh 1024 tràn); tên vẫn đọc được (sr-only) và ở title. */}
+      <span className="@max-[1200px]/appbar:sr-only">Sửa mô hình</span>
     </button>
   );
 }
@@ -68,18 +68,18 @@ function BackLink({ href, projectName }: Omit<BackToProjectCardProps, 'save'>) {
   return (
     <a
       {...(projectName !== undefined ? { 'aria-label': `Về dự án: ${projectName}` } : {})}
-      className={`${FOCUS_OUT} inline-flex h-8 max-w-56 items-center gap-1.5 @min-[1500px]/appbar:max-w-80 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none @max-[800px]/appbar:min-w-8! @max-[800px]/appbar:px-2`}
+      className={`${FOCUS_OUT} inline-flex h-8 max-w-56 shrink-[50] items-center gap-1.5 @min-[1500px]/appbar:max-w-80 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none @max-[1200px]/appbar:min-w-8! @max-[1200px]/appbar:px-2`}
       href={href}
     >
       <ArrowLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-      <span className="truncate @max-[800px]/appbar:sr-only">{projectName ?? 'Về dự án'}</span>
+      <span className="truncate @max-[1200px]/appbar:sr-only">{projectName ?? 'Về dự án'}</span>
     </a>
   );
 }
 
 const CARD = 'h-8 shrink-0 items-center rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)]';
 /** Như `CARD` nhưng màu viền/chữ theo trạng thái — hai lớp màu cùng loại thì Tailwind không chắc lớp nào thắng. */
-const STATUS_CARD = 'h-8 shrink items-center rounded-xl border bg-[var(--pa-surface)] text-[13px] shadow-[var(--pa-shadow-float)]';
+const STATUS_CARD = 'h-8 shrink-[0.01] whitespace-nowrap items-center rounded-xl border bg-[var(--pa-surface)] text-[13px] shadow-[var(--pa-shadow-float)]';
 /**
  * FE3D-FIX-004 V10: thông báo nổi (toast) góc phải dưới thanh trên, cổng ra `body` nên không chiếm
  * chỗ trong thanh và đè được canvas (thanh nằm trong khối `clipPath` của vendor).
@@ -92,6 +92,11 @@ const ALERT_TONE = 'border-[var(--pa-danger)] text-[var(--pa-danger)]';
 const SAVING_TEXT = 'Đang lưu…';
 /** Chữ của chip trên thanh khi lưu hỏng; câu đầy đủ nằm ở toast. */
 const UNSAVED_CHIP = 'Chưa lưu';
+/** K5: chip có ngay từ lúc mở, trước lượt lưu đầu. */
+export const AUTOSAVE_CHIP = 'Tự động lưu';
+/** K5/A2-06: mất mạng không gộp vào "Đang lưu…". */
+export const OFFLINE_CHIP = 'Mất mạng — chưa gửi được';
+const BUTTON_LINK = `${FOCUS_OUT} inline-flex min-h-8 shrink-0 items-center rounded-lg px-2 font-medium text-[var(--pa-accent)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-accent-hover)]`;
 
 /**
  * Chip lưu của tầng: đang lưu / đã lưu lúc … / lưu thất bại / bị khối kèm "Tải lại tầng" (v3 BE.md
@@ -101,24 +106,29 @@ const UNSAVED_CHIP = 'Chưa lưu';
  * đầy đủ và nút "Tải lại tầng" lên toast cổng ra `body`, không bị khối `clipPath` của vendor cắt.
  */
 export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
-  const alert = save.state === 'blocked' || save.state === 'failed';
-  const alertText = save.state === 'blocked' ? (save.blockMessage ?? 'Tầng này chưa lưu được.') : (save.label ?? 'Lưu thất bại');
-  const text = alert ? UNSAVED_CHIP : save.state === 'saving' ? SAVING_TEXT : save.label;
+  const alert = save.state === 'blocked' || save.state === 'failed' || save.state === 'session';
+  const offline = save.state === 'offline';
+  const alertText =
+    save.state === 'blocked' || save.state === 'session' ? (save.blockMessage ?? 'Tầng này chưa lưu được.') : (save.label ?? 'Lưu thất bại');
+  const text = alert ? UNSAVED_CHIP : offline ? OFFLINE_CHIP : save.state === 'saving' ? SAVING_TEXT : (save.label ?? AUTOSAVE_CHIP);
+  const dot = alert ? 'bg-[var(--pa-danger)]' : offline || save.state === 'saving' ? 'bg-[var(--pa-warn)]' : 'bg-[var(--pa-ok)]';
 
   return (
     <>
-      {text !== null && (
-        <div
-          aria-live="polite"
-          className={`${STATUS_CARD} inline-flex min-w-12 max-w-96 gap-2 px-2.5 @max-[1100px]/appbar:max-w-48 ${alert ? `shrink-0 ${ALERT_TONE}` : 'border-[var(--pa-border)] text-[var(--pa-text-2)]'}`}
-          role="status"
-        >
-          <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${alert ? 'bg-[var(--pa-danger)]' : save.state === 'saving' ? 'bg-[var(--pa-warn)]' : 'bg-[var(--pa-ok)]'}`} />
-          <span className="truncate" title={alert ? alertText : text}>
-            {text}
-          </span>
-        </div>
-      )}
+      <div
+        aria-live="polite"
+        className={`${STATUS_CARD} inline-flex min-w-12 max-w-96 gap-2 px-2.5 font-medium @max-[1100px]/appbar:max-w-48 ${alert ? `shrink-0 ${ALERT_TONE}` : offline ? 'shrink-0 border-[var(--pa-warn)] text-[var(--pa-text)]' : 'border-[var(--pa-border)] text-[var(--pa-text)]'}`}
+        role="status"
+      >
+        {offline ? (
+          <WifiOff aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />
+        ) : (
+          <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
+        )}
+        <span className="truncate" title={alert ? alertText : text}>
+          {text}
+        </span>
+      </div>
       {(alert || save.notice !== null) &&
         createPortal(
           <div className={TOAST_STACK} data-appfront-toast="">
@@ -127,9 +137,14 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
                 <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--pa-danger)]" />
                 <span>{alertText}</span>
                 {save.state === 'blocked' && (
-                  <button className={`${FOCUS_OUT} min-h-8 shrink-0 rounded-lg px-2 font-medium text-[var(--pa-accent)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-accent-hover)]`} onClick={save.onReloadFloor} type="button">
+                  <button className={BUTTON_LINK} onClick={save.onReloadFloor} type="button">
                     Tải lại tầng
                   </button>
+                )}
+                {save.state === 'session' && save.loginHref !== undefined && (
+                  <a className={BUTTON_LINK} href={save.loginHref}>
+                    Đăng nhập lại
+                  </a>
                 )}
               </div>
             )}
@@ -139,9 +154,8 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
                 role={save.noticeTone === 'alert' ? 'alert' : 'status'}
               >
                 <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${save.noticeTone === 'alert' ? 'bg-[var(--pa-danger)]' : 'bg-[var(--pa-ok)]'}`} />
-                <span className="truncate" title={save.notice}>
-                  {save.notice}
-                </span>
+                {/* C1/F-01: câu đủ chữ (xuống dòng, không cắt), giữ tới khi người dùng đóng. */}
+                <span className="min-w-0 break-words">{save.notice}</span>
                 <button aria-label="Đóng thông báo" className={`${FOCUS_OUT} flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)]`} onClick={save.dismissNotice} type="button">
                   <X aria-hidden="true" className="h-3.5 w-3.5" />
                 </button>
@@ -150,7 +164,42 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
           </div>,
           document.body,
         )}
+      {save.confirm !== undefined && save.confirm !== null && <ConfirmBox confirm={save.confirm} />}
     </>
+  );
+}
+
+/** Hộp hỏi trước việc làm mất dữ liệu (C4): Esc / "Huỷ" là giữ nguyên; nút huỷ nhận tiêu điểm trước. */
+function ConfirmBox({ confirm }: { readonly confirm: PascalConfirm }) {
+  return createPortal(
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-[var(--pa-overlay)] p-4" data-appfront-confirm="">
+      <div
+        aria-describedby="appfront-confirm-body"
+        aria-labelledby="appfront-confirm-title"
+        aria-modal="true"
+        className="w-full max-w-md rounded-2xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-5 text-[14px] text-[var(--pa-text)] shadow-[var(--pa-shadow-overlay)]"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') confirm.onCancel();
+        }}
+        role="alertdialog"
+      >
+        <h2 className="font-semibold text-[16px]" id="appfront-confirm-title">
+          {confirm.title}
+        </h2>
+        <p className="mt-2 text-[var(--pa-text-2)] leading-[22px]" id="appfront-confirm-body">
+          {confirm.body}
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button autoFocus className={`${FOCUS_OUT} h-9 rounded-lg border border-[var(--pa-border)] px-3 font-medium hover:bg-[var(--pa-sunken)]`} onClick={confirm.onCancel} type="button">
+            Huỷ
+          </button>
+          <button className={`${FOCUS_OUT} h-9 rounded-lg bg-[var(--pa-danger)] px-3 font-medium text-[var(--pa-surface)] hover:opacity-90`} onClick={confirm.onConfirm} type="button">
+            {confirm.confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -169,7 +218,7 @@ const VIEWER_STEP = PROJECT_STEPS.findIndex((step) => step.id === 'viewer');
  * tỷ lệ của tầng sai (bước sau vẫn mở được từ menu bước — tỷ lệ là khuyến nghị, không khoá).
  * Ngưỡng theo bề rộng thanh (container `appbar`, pascal.css): < 1500px chip chỉ còn số bước (tên ở
  * `title`) để nhường chỗ cho tên đầy đủ của nút cổng từ 1200px; 800–1199px nút còn "Quy chuẩn →" /
- * "Tỷ lệ"; < 800px chỉ còn biểu tượng (tên ở `aria-label`/`title`). Nút không bao giờ ẩn.
+ * "Tỷ lệ" (800–1599px); < 800px chỉ còn biểu tượng (tên ở `aria-label`/`title`). Nút không bao giờ ẩn.
  */
 export function ProjectStepsCard({ projectId, readOnly = false }: { readonly projectId: string; readonly readOnly?: boolean }) {
   const next = PROJECT_STEPS[VIEWER_STEP + 1];
@@ -217,8 +266,8 @@ export function ProjectStepsCard({ projectId, readOnly = false }: { readonly pro
           title={SCALE_NEXT_REASON}
         >
           <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />
-          <span className="@max-[800px]/appbar:hidden @min-[1200px]/appbar:hidden">Tỷ lệ</span>
-          <span className="hidden @min-[1200px]/appbar:inline">Đặt tỷ lệ</span>
+          <span className="@max-[800px]/appbar:hidden @min-[1600px]/appbar:hidden">Tỷ lệ</span>
+          <span className="hidden @min-[1600px]/appbar:inline">Đặt tỷ lệ</span>
         </a>
       ) : null}
       {next !== undefined ? (

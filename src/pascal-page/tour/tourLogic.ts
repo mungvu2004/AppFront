@@ -14,8 +14,8 @@ export interface TourStep {
 
 export const TOUR_STEPS: readonly TourStep[] = [
   {
-    title: 'Điều khiển góc nhìn bằng chuột',
-    body: 'Kéo chuột trái (hoặc chuột phải) để xoay. Giữ Shift và kéo để chọn nhiều đối tượng bằng khung. Lăn chuột để phóng to hoặc thu nhỏ. Để kéo khung hình, giữ chuột giữa hoặc giữ phím Space cùng chuột trái.',
+    title: 'Xem nhà 3D và sửa chỗ chưa đúng',
+    body: 'Màn này dựng nhà của bạn thành mô hình 3D từ bản vẽ. Ở đây bạn xem nhà, sửa chỗ AI làm sai (tường, cửa, đồ đạc) và làm đẹp. Kéo chuột trái (hoặc chuột phải) để xoay. Giữ Shift và kéo để chọn nhiều đối tượng bằng khung. Lăn chuột để phóng to hoặc thu nhỏ. Để kéo khung hình, giữ chuột giữa hoặc giữ phím Space cùng chuột trái.',
     keys: ['Space'],
     anchor: { selector: 'canvas' },
   },
@@ -37,7 +37,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     title: 'Đổi diện mạo cảnh rồi sang bước sau',
-    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Mọi thay đổi tự lưu, chip cạnh nút về dự án cho biết đã lưu chưa. Xong thì bấm "Sang Quy chuẩn"; nếu cạnh đó có nút "Đặt tỷ lệ" thì nên đặt tỷ lệ trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
+    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Đồ đạc, tường, cửa sổ và vật liệu trong thư viện được lưu tự động; chip cạnh nút về dự án cho biết đã lưu chưa. Kiểu cửa, màu trần, màu tự pha và việc xoá đồ gợi ý hiện chưa lưu được. Xong thì bấm "Sang Quy chuẩn"; nếu cạnh đó có nút "Đặt tỷ lệ" thì nên đặt tỷ lệ trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
     // Nhóm Phong cách (thẻ `<details>`); Ánh sáng nằm ngay cạnh.
     anchor: { selector: 'summary[aria-label^="Phong cách"]', up: 1 },
   },

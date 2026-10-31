@@ -7,6 +7,7 @@ import { create } from 'zustand';
 
 import {
   fittedAsset,
+  isCurrentModel,
   SWAP_GROUPS,
   swapCandidates,
   type SwapAsset,
@@ -58,6 +59,12 @@ describe('swapCandidates', () => {
       'double-bed',
       'single-bed',
     ]);
+  });
+
+  it('L3a-02: mẫu thật (bật realism, `/items/bed-sf/…`) vẫn tìm ra nhóm theo tên catalog', () => {
+    const real = { ...sofaAsset, id: 'appfront-bed', src: '/items/bed-sf/model.glb' };
+    expect(swapCandidates(real, CATALOG).map((c) => c.id)).toContain('single-bed');
+    expect(CATALOG.filter((item) => isCurrentModel(real, item)).map((c) => c.id)).toEqual(['double-bed']);
   });
 
   it('không có nhóm hoặc nhóm chỉ còn một mẫu cục bộ → []', () => {

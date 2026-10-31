@@ -19,6 +19,7 @@ describe('SceneStyleCard', () => {
     const buttons = screen.getByRole('list', { name: 'Danh sách phong cách' }).querySelectorAll('button');
     expect([...buttons].map((b) => b.textContent)).toEqual(Object.values(SCENE_STYLES).map((s) => s.label));
     expect(screen.getByRole('button', { pressed: true }).textContent).toBe(SCENE_STYLES['go-am'].label);
+    expect(screen.getByText('Mô hình sẽ dựng lại vài giây')).toBeTruthy();
   });
 
   it('W4a — không sửa được cài đặt: chỉ máy này (khoá riêng dự án), rồi Pascal lưu → xả tự lưu → nạp lại', async () => {
