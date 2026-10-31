@@ -269,6 +269,8 @@ export interface ExportPanelProps {
 
   /** Caption nói tệp sẽ xuất hiện ở đâu. */
   readonly destinationCaption: string;
+  /** UX-22: việc còn dở nói ngay trên nút "Xuất" ("Còn 28 mục chưa duyệt."), `null` khi không còn gì. */
+  readonly pendingNote?: string | null;
   /** Caption của trạng thái `partial`, `null` khi không cần. */
   readonly noticeCaption: string | null;
   /** Ở `forbidden`: ai được xuất. */

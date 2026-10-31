@@ -68,12 +68,16 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import { useSession } from '@/hooks/useSession';
 import { useStore } from '@/store';
 import { selectViolations } from '@/store/selectors';
+import type { FloorMetaEntry } from '@/store/spatialSlice';
 import type { ProjectRole } from '@/types/project';
+
+import { floorLayerQuery, floorScaleKeysOf } from '../../qc/shared/floorScaleKeys';
 
 import { mergeExportHistory, readExportHistory, writeExportHistory } from './exportHistoryStorage';
 import {
   buildPreflightRows,
   countPdfPages,
+  exportPendingNote,
   floorStateOf,
   ExportAccessError,
   createExportPanelGateway,
@@ -295,7 +299,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   const storeGraph = graph;
   const spatialLoading = useStore((state) => state.spatialLoading);
   const versionId = useStore((state) => state.versionId);
-  const floorMeta = useStore((state) => state.floorMeta);
+  const storeFloorMeta = useStore((state) => state.floorMeta);
   const project = useStore((state) => state.project);
   const storeFloors = useStore((state) => state.floors);
   const activeFloorId = useStore((state) => state.activeFloorId);
@@ -303,6 +307,30 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   const violations = useStore(selectViolations);
 
   const floors = storeFloors.length === 0 ? EMPTY_FLOORS : storeFloors;
+
+  // UX-52: N15 không mang `scaleStatus`, nên mở thẳng URL Xuất thì kho chưa biết tầng nào tỷ lệ tạm;
+  // sau khi qua màn Duyệt tầng, kho mới biết và khối kiểm tra mọc thêm một dòng. Đọc N16 ngay ở đây
+  // (cùng cache `layer.byFloor`) để số việc không tăng vì người dùng vừa đi duyệt.
+  const floorIds = useMemo(() => floors.map((level) => level.id), [floors]);
+  const layerDocs = useQuery({
+    queryKey: ['exportFloorScale', projectId, ...floorIds] as const,
+    queryFn: () =>
+      Promise.all(floorIds.map((floorId) => queryClient.fetchQuery(floorLayerQuery(projectId, floorId)).catch(() => undefined))),
+    enabled: injectedGateway === undefined && floorIds.length > 0,
+  }).data;
+  const floorMeta = useMemo<Readonly<Record<string, FloorMetaEntry>>>(() => {
+    if (layerDocs === undefined) {
+      return storeFloorMeta;
+    }
+    const merged: Record<string, FloorMetaEntry> = { ...storeFloorMeta };
+    floorIds.forEach((floorId, index) => {
+      const held = storeFloorMeta[floorId];
+      if (floorScaleKeysOf(layerDocs[index], held)?.scaleStatus === 'unresolved') {
+        merged[floorId] = { ...(held ?? { revision: layerDocs[index]?.revision ?? 0 }), scaleStatus: 'unresolved' };
+      }
+    });
+    return merged;
+  }, [floorIds, layerDocs, storeFloorMeta]);
 
   /* ---------------------------------------------------------------------- */
   /* Quyền — một khoá `model.export` gác cả bốn định dạng                    */
@@ -627,6 +655,10 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     () => buildPreflightRows({ projectId, graph, levels: selectedLevels, violations, floorMeta }),
     [projectId, graph, selectedLevels, violations, floorMeta],
   );
+  const pendingNote = useMemo(
+    () => exportPendingNote({ projectId, graph, levels: selectedLevels, violations, floorMeta }),
+    [projectId, graph, selectedLevels, violations, floorMeta],
+  );
 
   // U51: thông tin tệp đã xuất (không có nội dung) giữ qua lượt tải lại trang.
   const storedHistory = useMemo(() => readExportHistory(projectId), [projectId]);
@@ -877,6 +909,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     progress,
     error: errorView,
     destinationCaption: selectedFormatId === 'pdf' ? PDF_DESTINATION_CAPTION : DESTINATION_CAPTION,
+    pendingNote,
     noticeCaption,
     permissionCaption: canExport ? null : EXPORT_FORBIDDEN_CAPTION,
     isCollapsed: isCompact,
