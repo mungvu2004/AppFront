@@ -41,3 +41,15 @@ describe('deriveProcessingGate — tỷ lệ', () => {
     expect(gate.warnStepIds).toEqual([]);
   });
 });
+
+describe('deriveProcessingGate — xem 3D (UX-30)', () => {
+  it('AI xong: có "Xem mô hình 3D" cạnh nút chính; đang chạy thì không', () => {
+    let opened = false;
+    const summary = { ...SAMPLE_SUMMARY, onOpenViewer3d: () => { opened = true; } };
+    const gate = deriveProcessingGate({ ...scenarioFor('success'), summary });
+    expect(gate.viewerAction?.label).toBe('Xem mô hình 3D');
+    gate.viewerAction?.onClick();
+    expect(opened).toBe(true);
+    expect(deriveProcessingGate({ ...scenarioFor('partial'), summary }).viewerAction).toBeUndefined();
+  });
+});

@@ -145,6 +145,7 @@ import {
 } from './scaleCalibrationGateway';
 import {
   buildScaleCheck,
+  isFlatAreaImplausible,
   isPlanSizeImplausible,
   mmPerPxAt,
   mmPerPxFromFlatArea,
@@ -253,8 +254,9 @@ const COPY = {
     `Tỷ lệ 1:${ratio} ứng với 1 px ≈ ${density} mm. Bấm Xác nhận tỷ lệ để lưu.`,
   // UX-R4 U11: brochure không ghi số kích thước nhưng in diện tích căn — suy tỷ lệ từ diện tích.
   areaEntryLabel: 'Theo diện tích căn (m², số in trên brochure)',
-  areaEntryPlaceholder: '68,94',
-  areaEntryInvalid: 'Nhập diện tích bằng m², ví dụ 68,94.',
+  // UX-21: không gợi một con số — người dùng tưởng là số máy đo được.
+  areaEntryPlaceholder: 'Số m² in trên brochure',
+  areaEntryInvalid: 'Nhập diện tích bằng m², chỉ gồm số (dấu phẩy cho phần lẻ).',
   areaEntryHint: (size: string, density: string): string => `Căn rộng ${size}, 1 px ≈ ${density} mm.`,
   areaEntryNotice: (area: string, size: string): string =>
     `Căn ${area} m² thì rộng ${size}. Thấy đúng thì bấm Xác nhận tỷ lệ.`,
@@ -528,6 +530,34 @@ function rowsFromLayerDimensions(document: FloorLayerDocument, frame: ImageFrame
 }
 
 /**
+ * UX-02: máy không đọc được số — gợi sẵn đoạn đo dọc bức tường thẳng dài nhất (thường là tường
+ * ngoài, nơi bản vẽ ghi số tổng). ponytail: dài nhất chưa chắc là tường ngoài; đủ làm gợi ý.
+ */
+function longestWallPixels(document: FloorLayerDocument | undefined): { readonly start: PixelPoint; readonly end: PixelPoint } | null {
+  const ratio = document?.level.scaleMillimetresPerPixel;
+
+  if (document === undefined || ratio === undefined || ratio <= 0) {
+    return null;
+  }
+
+  let best: { readonly start: PixelPoint; readonly end: PixelPoint } | null = null;
+  let bestLength = 0;
+
+  for (const wall of document.layer.walls) {
+    const start = { x: pixels(wall.centreline.start.x / ratio), y: pixels(wall.centreline.start.y / ratio) };
+    const end = { x: pixels(wall.centreline.end.x / ratio), y: pixels(wall.centreline.end.y / ratio) };
+    const length = segmentPixelLength(start, end);
+
+    if (length > bestLength) {
+      best = { start, end };
+      bestLength = length;
+    }
+  }
+
+  return best;
+}
+
+/**
  * Cỡ căn (hộp bao tường) theo tỷ lệ `ratio`, để người dùng soi bằng mắt (K17): tường N16 tính
  * bằng mm theo tỷ lệ tầng đã dựng, đổi về pixel rồi nhân tỷ lệ đang xét.
  */
@@ -628,6 +658,44 @@ interface DragSession {
 }
 
 const NO_GRAB_OFFSET: PixelPoint = { x: pixels(0), y: pixels(0) };
+
+/**
+ * UX-49/UX-08: đoạn đo đã xác nhận được giữ theo tầng (tỉ lệ 0..1 trên ảnh), để mở lại màn Tỷ lệ
+ * thấy ngay đoạn đã đo và chỉ cần sửa số. ponytail: lưu ở trình duyệt này; máy chủ chưa có chỗ
+ * giữ đoạn đo (cần trường mới trong hợp đồng N16 nếu muốn thấy trên máy khác).
+ */
+const SAVED_SEGMENT_PREFIX = 'scale-segment:';
+
+interface SavedSegment {
+  readonly start: ImageRatioPoint;
+  readonly end: ImageRatioPoint;
+}
+
+const isRatioPoint = (value: unknown): value is ImageRatioPoint =>
+  typeof value === 'object' &&
+  value !== null &&
+  Number.isFinite((value as { x?: unknown }).x) &&
+  Number.isFinite((value as { y?: unknown }).y);
+
+export function readSavedSegment(floorId: string): SavedSegment | null {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(SAVED_SEGMENT_PREFIX + floorId) ?? 'null');
+    const segment = parsed as Partial<SavedSegment> | null;
+    return segment !== null && isRatioPoint(segment.start) && isRatioPoint(segment.end)
+      ? { start: segment.start, end: segment.end }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSavedSegment(floorId: string, segment: SavedSegment): void {
+  try {
+    window.localStorage.setItem(SAVED_SEGMENT_PREFIX + floorId, JSON.stringify(segment));
+  } catch {
+    // Trình duyệt chặn bộ nhớ: mất đoạn đo khi mở lại, tỷ lệ vẫn lưu trên máy chủ.
+  }
+}
 
 /** Điểm con trỏ cộng lệch lúc nhấn tay cầm — đầu đoạn đi theo đúng quãng con trỏ đi. */
 const grabbed = (moving: PixelPoint, offset: PixelPoint): PixelPoint => ({
@@ -883,6 +951,8 @@ export function useScaleCalibration(
   const isSuggestionChosen = suggestionFloorId === floorId;
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragSession | null>(null);
+  const dragRef = useRef(drag);
+  dragRef.current = drag;
   const [nudgeTarget, setNudgeTarget] = useState<NudgeTarget>('end');
   const [realLengthText, setRealLengthText] = useState('');
   /** UX41 U01: chữ "1:100" người dùng gõ, gắn theo tầng để đổi tầng không mang sang. */
@@ -1272,13 +1342,55 @@ export function useScaleCalibration(
   /** UX-R4 U06: số trên bản vẽ nhỏ — một cú bấm phóng tới số đang chọn (hoặc số đầu), không đổi lựa chọn. */
   const selectedRowIdRef = useRef(selectedRowId);
   selectedRowIdRef.current = selectedRowId;
+  const layerDocumentRef = useRef(layerDocument);
+  layerDocumentRef.current = layerDocument;
   const onZoomToNumbers = useCallback(() => {
     const rowId = selectedRowIdRef.current ?? rowsRef.current[0]?.id;
 
     if (rowId !== undefined) {
       flyToRow(rowId);
+      return;
     }
-  }, [flyToRow]);
+
+    // UX-02: không có số nào — đặt sẵn đoạn đo dọc tường dài nhất và phóng tới đó để đọc số in cạnh nó.
+    const wall = longestWallPixels(layerDocumentRef.current);
+    const size = canvasSizeRef.current;
+
+    if (wall === null || frameRef.current === null || size.width <= 0 || size.height <= 0) {
+      return;
+    }
+
+    setMethod('referenceLine');
+    setSuggestionFloorId(null);
+    setRatioEntry(null);
+    setAreaEntry(null);
+    setApplyOutcome(null);
+    setNudgeTarget('end');
+    if (dragRef.current === null) {
+      setDrag({
+        start: wall.start,
+        end: wall.end,
+        isDragging: false,
+        isAxisLocked: false,
+        snappedKind: null,
+        snappedEndpoint: null,
+        movingEndpoint: 'end',
+        grabOffset: NO_GRAB_OFFSET,
+      });
+    }
+    // Lề quanh đoạn: số kích thước thường nằm ngoài tường một khoảng.
+    const pad = Math.max(Math.abs(wall.end.x - wall.start.x), Math.abs(wall.end.y - wall.start.y)) * 0.15;
+    flyToBounds(
+      {
+        minX: pixels(Math.min(wall.start.x, wall.end.x) - pad),
+        minY: pixels(Math.min(wall.start.y, wall.end.y) - pad),
+        maxX: pixels(Math.max(wall.start.x, wall.end.x) + pad),
+        maxY: pixels(Math.max(wall.start.y, wall.end.y) + pad),
+      },
+      size.width,
+      size.height,
+    );
+  }, [flyToBounds, flyToRow]);
 
   const onStartDrag = useCallback((point: ImageRatioPoint, endpoint?: ReferenceLineEndpoint) => {
     const currentFrame = frameRef.current;
@@ -1416,6 +1528,30 @@ export function useScaleCalibration(
    * chỉ trong lúc kéo.
    */
   const isDragging = drag?.isDragging === true;
+
+  /* UX-49: mở lại màn Tỷ lệ — vẽ lại đoạn đo đã xác nhận lần trước; chỉ cần sửa số. */
+  const restoredFloorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (frame === null || restoredFloorRef.current === floorId) {
+      return;
+    }
+    restoredFloorRef.current = floorId;
+    const saved = readSavedSegment(floorId);
+    if (saved === null || dragRef.current !== null) {
+      return;
+    }
+    setMethod('referenceLine');
+    setDrag({
+      start: toPixelPoint(frame, saved.start),
+      end: toPixelPoint(frame, saved.end),
+      isDragging: false,
+      isAxisLocked: false,
+      snappedKind: null,
+      snappedEndpoint: null,
+      movingEndpoint: 'end',
+      grabOffset: NO_GRAB_OFFSET,
+    });
+  }, [floorId, frame]);
 
   useEffect(() => {
     if (!isDragging) {
@@ -1777,6 +1913,14 @@ export function useScaleCalibration(
         setScaleConflict(false);
         setOfflinePending(false);
         commitSaved([levelId], ratio);
+        const session = dragRef.current;
+        const savedFrame = frameRef.current;
+        if (session !== null && savedFrame !== null) {
+          writeSavedSegment(floorId, {
+            start: toRatioPoint(savedFrame, session.start),
+            end: toRatioPoint(savedFrame, session.end),
+          });
+        }
         setApplyOutcome('success');
         setApplying(false);
       },
@@ -1789,7 +1933,7 @@ export function useScaleCalibration(
         setApplying(false);
       },
     );
-  }, [commitSaved, gateway, levelId, projectId, rememberProvisional, saveScale]);
+  }, [commitSaved, floorId, gateway, levelId, projectId, rememberProvisional, saveScale]);
 
   /* UX41 U56: lượt áp hỏng vì mất mạng — có mạng lại thì gửi lại đúng lượt ấy, một lần. */
   const onApplyRef = useRef(onApply);
@@ -2070,14 +2214,17 @@ export function useScaleCalibration(
   /* ---------------------------------------------------------------------- */
 
   const warnings = useMemo<readonly ScaleWarningNotice[]>(() => {
-    if (proposedRatio === null) {
+    // UX-09: tỷ lệ đã xác nhận mà cỡ căn vô lý vẫn phải nhắc — không chỉ lúc đang đề nghị.
+    const checkRatio = proposedRatio ?? storedRatio;
+
+    if (checkRatio === null) {
       return [];
     }
 
     const notices: ScaleWarningNotice[] = [];
     const referenceWallWidthPx = record?.referenceWallWidthPx ?? null;
 
-    if (referenceWallWidthPx !== null) {
+    if (proposedRatio !== null && referenceWallWidthPx !== null) {
       const implied = inferWallThicknessFromScale(proposedRatio, referenceWallWidthPx);
       const rangeStatus = classifyScaleRange(proposedRatio);
 
@@ -2095,7 +2242,7 @@ export function useScaleCalibration(
       }
     }
 
-    if (aiSuggestion !== null) {
+    if (proposedRatio !== null && aiSuggestion !== null) {
       const deviation = compareScaleToAiEstimate(proposedRatio, aiSuggestion);
 
       if (deviation.exceedsLimit) {
@@ -2118,18 +2265,24 @@ export function useScaleCalibration(
       }
     }
 
-    const planSize = planSizeAt(layerDocument, proposedRatio);
+    const planSize = planSizeAt(layerDocument, checkRatio);
+    const built = layerDocument?.level.scaleMillimetresPerPixel;
+    const flatAreaM2 =
+      builtAreaM2 === null || built === undefined || built <= 0 ? null : builtAreaM2 * (checkRatio / built) ** 2;
 
-    if (planSize !== null && isPlanSizeImplausible(planSize, TINY_FOOTPRINT_MM, HUGE_FOOTPRINT_MM)) {
+    if (
+      planSize !== null &&
+      (isPlanSizeImplausible(planSize, TINY_FOOTPRINT_MM, HUGE_FOOTPRINT_MM) || isFlatAreaImplausible(flatAreaM2))
+    ) {
       notices.push({
-        warning: { kind: 'implausiblePlanSize', proposed: proposedRatio, ...planSize },
+        warning: { kind: 'implausiblePlanSize', proposed: checkRatio, ...planSize },
         message: planSizeMessage(planSizeText(planSize)),
         statusCode: 'attention',
       });
     }
 
     return notices;
-  }, [aiSuggestion, layerDocument, proposedRatio, record?.referenceWallWidthPx]);
+  }, [aiSuggestion, builtAreaM2, layerDocument, proposedRatio, record?.referenceWallWidthPx, storedRatio]);
   hasPlanSizeWarningRef.current = warnings.some((notice) => notice.warning.kind === 'implausiblePlanSize');
 
   /* ---------------------------------------------------------------------- */
@@ -2492,8 +2645,13 @@ export function useScaleCalibration(
           lowConfidenceNotice:
             lowConfidenceCount === 0 ? null : lowConfidenceNotice(formatNumber(lowConfidenceCount)),
           // UX-R2 K05: đã có mốc đang dùng thì "phải đặt bằng tay" là câu sai.
+          // UX-50: vừa xác nhận xong thì câu "phải đặt bằng tay" mâu thuẫn với dòng "Lệch 0 mm".
           manualCalibrationReason:
-            selectedRow === null && aiInference !== null && aiInference.status === 'needsManualCalibration'
+            selectedRow === null &&
+            state !== 'success' &&
+            applyOutcome !== 'success' &&
+            aiInference !== null &&
+            aiInference.status === 'needsManualCalibration'
               ? aiInference.reason
               : null,
         },

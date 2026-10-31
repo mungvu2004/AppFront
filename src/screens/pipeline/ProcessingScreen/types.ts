@@ -175,6 +175,8 @@ export interface ProcessingSummaryViewModel {
   readonly reviewReasons?: readonly ProcessingReviewReason[];
   readonly onReviewWalls: () => void;
   readonly onCalibrateScale: () => void;
+  /** UX-30: người chỉ muốn ngắm thì đi thẳng tới 3D, cạnh lối đi tiếp chính. */
+  readonly onOpenViewer3d?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

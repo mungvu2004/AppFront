@@ -68,7 +68,7 @@ import {
   type ScaleDrawingSnapshot,
   type ScaleRawDimensionString,
 } from './scaleCalibrationGateway';
-import { __resetScaleRatioMarks, useScaleCalibration } from './useScaleCalibration';
+import { __resetScaleRatioMarks, useScaleCalibration, writeSavedSegment } from './useScaleCalibration';
 
 /* K34: thiết lập "căn hộ riêng" của dự án; mặc định tắt như dự án chưa lưu lần nào. */
 const separateUnitsFlag = vi.hoisted(() => ({ value: false }));
@@ -470,6 +470,24 @@ function imageWidthPxOf(mounted: Mounted): number {
 /* -------------------------------------------------------------------------- */
 /* Kiểm.                                                                       */
 /* -------------------------------------------------------------------------- */
+
+// UX-49: đoạn đo giữ ở localStorage — không để lượt trước rò sang lượt sau.
+afterEach(() => {
+  window.localStorage.clear();
+});
+
+describe('useScaleCalibration — giữ đoạn đo đã xác nhận (UX-49)', () => {
+  it('mở lại màn Tỷ lệ: đoạn đo cũ hiện lại, chỉ cần nhập số', async () => {
+    writeSavedSegment(FLOOR_ID, { start: { x: 0.2, y: 0.4 }, end: { x: 0.6, y: 0.4 } } as never);
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.panel.method).toBe('referenceLine');
+    expect(mounted.result.current.model.panel.reference.draft).not.toBeNull();
+  });
+});
 
 describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
   it('G25: ảnh nền của màn QC (hình khác) trong đệm không làm canvas trắng khi vào bằng SPA', async () => {
@@ -910,7 +928,9 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
     await settle(mounted);
     await settleAsync();
 
-    expect(mounted.result.current.model.panel.areaEntry?.placeholder).toBe('68,94');
+    // UX-21: ô trống, chữ gợi ý không phải một con số.
+    expect(mounted.result.current.model.panel.areaEntry?.text).toBe('');
+    expect(mounted.result.current.model.panel.areaEntry?.placeholder).not.toMatch(/\d/u);
 
     await act(async () => {
       mounted.result.current.actions.onChangeFlatArea?.('25');
