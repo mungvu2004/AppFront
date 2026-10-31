@@ -99,6 +99,9 @@ function canDeliverFormat(
   return true;
 }
 
+/** PDF không tải tệp về: hộp thoại in đã mở, người dùng tự lưu (U01). */
+const PDF_PRINT_NOTE = 'Đã mở hộp thoại in. Chọn “Lưu thành PDF” để lưu tệp.';
+
 interface ExportPanelHistoryProps {
   readonly files: readonly ExportedFileRow[];
   readonly isLoading: boolean;
@@ -138,6 +141,9 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
             <Table.Row key={file.id}>
               <Table.Cell className="w-full max-w-0 truncate font-mono text-xs" title={file.fileName}>
                 {file.fileName}
+                {file.formatId === 'pdf' && (
+                  <span className="block truncate font-sans text-text-secondary">{PDF_PRINT_NOTE}</span>
+                )}
               </Table.Cell>
               <Table.Cell className="hidden text-xs text-text-secondary sm:table-cell">
                 {isLoading ? <SkeletonText className="h-3 w-16" /> : file.momentLabel}
@@ -149,12 +155,12 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label={`Tải về lại ${file.fileName}`}
+                  aria-label={`${file.formatId === 'pdf' ? 'Mở lại hộp thoại in' : 'Tải về lại'} ${file.fileName}`}
                   onClick={() => {
                     onDownload(file.id);
                   }}
                 >
-                  Tải về lại
+                  {file.formatId === 'pdf' ? 'Mở lại hộp thoại in' : 'Tải về lại'}
                 </Button>
               </Table.Cell>
             </Table.Row>
@@ -173,6 +179,8 @@ interface StatusProps {
 function ExportPanelStatus({ props }: StatusProps) {
   const { status, progress, exportedFiles, preflight } = props;
 
+  // Tầng chưa duyệt xong: nói việc cần làm trước, đừng mở đầu bằng "Xuất được" (U36).
+  const approvalPending = preflight.some((row) => row.id === 'approval' && row.fixHref !== null);
   // Không chip xanh: A5 giữ màu "đã xác minh" cho việc của người duyệt, không cho lượt xuất.
   const badge =
     progress !== null ? (
@@ -182,7 +190,11 @@ function ExportPanelStatus({ props }: StatusProps) {
     ) : (
       // Còn việc nên xem thì nói thẳng "xuất được, còn N việc" — "Sẵn sàng" cạnh ba cảnh báo làm người mới hoang mang.
       <Badge variant={preflight.length > 0 ? 'attention' : 'neutral'}>
-        {preflight.length > 0 ? `Xuất được · còn ${count(preflight.length)} việc nên xem` : 'Sẵn sàng xuất'}
+        {preflight.length === 0
+          ? 'Sẵn sàng xuất'
+          : approvalPending
+            ? `Chưa duyệt xong · nên làm ${count(preflight.length)} việc dưới đây trước khi xuất`
+            : `Xuất được · còn ${count(preflight.length)} việc nên xem`}
       </Badge>
     );
 
@@ -237,7 +249,7 @@ export function ExportPanel(props: ExportPanelProps) {
     const newest = exportedFiles[0];
 
     if (newest !== undefined && newest.id !== lastFileId.current) {
-      setAnnouncement(`Đã xuất ${newest.fileName}`);
+      setAnnouncement(newest.formatId === 'pdf' ? PDF_PRINT_NOTE : `Đã xuất ${newest.fileName}`);
     }
 
     lastFileId.current = newest?.id;

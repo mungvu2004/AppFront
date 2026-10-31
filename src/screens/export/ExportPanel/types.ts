@@ -136,6 +136,9 @@ export interface ExportFormatCard {
 /* Phạm vi — chọn nhiều tầng                                                  */
 /* -------------------------------------------------------------------------- */
 
+/** Chỗ của tầng trên đường duyệt — xem `floorStateOf` ở cổng. */
+export type ExportFloorState = 'approved' | 'empty' | 'scaleOnly' | 'stepOnly' | 'pending';
+
 export interface ExportFloorChoice {
   readonly id: string;
   readonly name: string;
@@ -143,6 +146,8 @@ export interface ExportFloorChoice {
   readonly isSelected: boolean;
   /** Tầng chưa duyệt **vẫn chọn được**, nhưng mang caption cần chú ý. */
   readonly isApproved: boolean;
+  /** Vắng thì suy từ `isApproved`. `empty` = chưa có bản vẽ: không tích được (U36). */
+  readonly state?: ExportFloorState;
 }
 
 /* -------------------------------------------------------------------------- */
