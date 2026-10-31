@@ -108,6 +108,8 @@ export interface UseExportPanelOptions {
   readonly canExport?: boolean;
   /** Trạng thái 7: vỏ ứng dụng báo đang thu gọn. */
   readonly isCompact?: boolean;
+  /** UX-25: người dùng đã đồng ý xuất khi còn tầng chưa duyệt ở màn trước — không hỏi lại. */
+  readonly exportAlreadyConfirmed?: boolean;
   /**
    * Nơi nhận yêu cầu đi tới một liên kết sửa của khối kiểm tra.
    *
@@ -762,7 +764,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   // U36: tầng chưa duyệt → hỏi lại một câu trước khi xuất, không xuất im lặng.
   const [unreviewedConfirm, setUnreviewedConfirm] = useState<string | null>(null);
   // UX-25: đã bấm "Vẫn xuất" một lần thì không hỏi lại ở định dạng sau.
-  const unreviewedAcceptedRef = useRef(false);
+  const unreviewedAcceptedRef = useRef(options.exportAlreadyConfirmed === true);
 
   const runExport = useCallback((askUnreviewed: boolean): void => {
     // Ba cửa chặn, mỗi cửa một lý do thật. Cửa thứ ba chỉ áp cho `.glb`: bộ
