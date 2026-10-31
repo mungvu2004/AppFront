@@ -1167,7 +1167,7 @@ export const wallOverlapRule: Rule = {
 
 export const danglingWallEndRule: Rule = {
   code: 'WALL-DANGLING-END',
-  name: 'Đầu tường nào cũng nối vào tường khác',
+  name: 'Tường nối kín với nhau, không hở đầu',
   group: 'geometry',
   severity: 'critical',
   scope: 'level',

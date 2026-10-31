@@ -113,18 +113,18 @@ export function RuleReportSummaryStrip({ summary, activeLevel, onFilterLevel }: 
 
   return (
     <dl className="grid grid-cols-2 gap-6 sm:grid-cols-5">
-      <SummaryStat value={summary.evaluated} label="Tổng số kiểm tra" filter={filterOf('all')} />
-      <SummaryStat value={summary.passed} label="Đạt" filter={filterOf('passed')} />
-      <SummaryStat value={summary.suggestions} label="Gợi ý" filter={filterOf('suggestion')} />
+      <SummaryStat value={summary.evaluated} label="Luật đã kiểm" filter={filterOf('all')} />
+      <SummaryStat value={summary.passed} label="Luật đạt" filter={filterOf('passed')} />
+      <SummaryStat value={summary.suggestions} label="Luật có gợi ý" filter={filterOf('suggestion')} />
       <SummaryStat
         value={summary.warnings}
-        label="Cảnh báo"
+        label="Luật cảnh báo"
         toneClassName="text-state-attention-text"
         filter={filterOf('warning')}
       />
       <SummaryStat
         value={summary.violations}
-        label="Nghiêm trọng"
+        label="Luật nghiêm trọng"
         toneClassName="text-state-violation-text"
         filter={filterOf('violation')}
       />

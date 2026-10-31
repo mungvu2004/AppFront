@@ -180,6 +180,15 @@ function RowMessage({ row, onSelectRow }: RowContentProps) {
   );
 }
 
+/** What to do about it, printed under the sentence so the list itself says how to fix it (UX-03). */
+function RowSuggestion({ row }: { readonly row: RuleReportRow }) {
+  if (row.suggestion.trim() === '') {
+    return null;
+  }
+
+  return <p className="mt-1 text-sm text-text-secondary">Cách sửa: {row.suggestion}</p>;
+}
+
 /** The object code, in a tag `expectVietnamese` reads as code rather than as prose. */
 function EntityCode({ code }: { readonly code: string }) {
   return <code className="font-mono text-xs text-text-secondary">{code}</code>;
@@ -236,6 +245,7 @@ export function RuleReportRows({
                 <EntityCode code={row.entityCode} />
               </div>
               <RowMessage row={row} onSelectRow={onSelectRow} />
+              <RowSuggestion row={row} />
               <div className="flex items-center justify-between gap-2">
                 <LevelText levelLabel={row.levelLabel} />
                 <RowActions row={row} onViewRow={onViewRow} />
@@ -277,6 +287,7 @@ export function RuleReportRows({
               {/* `Table.Cell` mặc định không xuống dòng: thông điệp dài đẩy Tầng, Mã và "Xem" ra khỏi khung (BUG-433). */}
               <Table.Cell className="whitespace-normal">
                 <RowMessage row={row} onSelectRow={onSelectRow} />
+                <RowSuggestion row={row} />
               </Table.Cell>
               <Table.Cell>
                 <LevelText levelLabel={row.levelLabel} />
