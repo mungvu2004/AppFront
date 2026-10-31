@@ -57,6 +57,7 @@ const ALL_FLOORS_LABEL = 'Tất cả tầng';
 const NO_DRAWING_LABEL = 'chưa có bản vẽ';
 const NEXT_STEP_SHORTCUT = 'Sang bước sau của tầng';
 const PREVIOUS_STEP_SHORTCUT = 'Về bước trước của tầng';
+const OPEN_VIEWER_SHORTCUT = 'Sang Mô hình 3D';
 /** Mục phụ thuộc số đo: khoá khi máy không đo được tỷ lệ. */
 const SCALE_LOCKED: ReadonlySet<QcLayerKey> = new Set<QcLayerKey>(['walls', 'objects', 'rooms', 'thickness']);
 const DOT_CLASS: Readonly<Record<ScaleStateView['statusCode'] | 'neutral', string>> = {
@@ -204,6 +205,8 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
   };
   useShortcut({ id: 'qcFloorNav.nextStep', combo: ']', scope: 'global', description: NEXT_STEP_SHORTCUT, onTrigger: () => goStep(1) });
   useShortcut({ id: 'qcFloorNav.previousStep', combo: '[', scope: 'global', description: PREVIOUS_STEP_SHORTCUT, onTrigger: () => goStep(-1) });
+  /* UX-12: sang Mô hình 3D không phải lần Tab qua cả màn; có trong bảng `?`. */
+  useShortcut({ id: 'qcFloorNav.openViewer', combo: 'Shift+M', scope: 'global', description: OPEN_VIEWER_SHORTCUT, onTrigger: () => void navigate(ROUTES.project.viewer(projectId)) });
   const currentOf = (key: QcLayerKey): StepProps['current'] => {
     if (key === layer) return 'page';
     return key === activeStep ? 'step' : undefined;
