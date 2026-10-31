@@ -228,6 +228,25 @@ function ObjectInspectorBody({
 
   return (
     <>
+      {!isViewerRole && (
+        /*
+         * U12: nút duyệt ở ĐẦU thẻ, ngoài vùng cuộn — chỗ của nó không đổi theo loại đồ (thân thẻ cao
+         * thấp khác nhau) và không phải cuộn mới thấy.
+         */
+        <div className="flex shrink-0 flex-col gap-2 px-5 pb-4">
+          <Button
+            aria-keyshortcuts={isSuggested ? 'Enter' : 'A'}
+            disabled={inspector.reviewed}
+            fullWidth
+            onClick={() => onApprove(inspector.id)}
+            {...(inspector.reviewed ? {} : { shortcut: isSuggested ? 'Enter' : 'A' })}
+            variant={inspector.reviewed ? 'secondary' : 'primary'}
+          >
+            {inspector.reviewed ? APPROVED_LABEL : isSuggested ? ACCEPT_SUGGESTION_LABEL : `${APPROVE_PREFIX} ${inspector.codeLabel}`}
+          </Button>
+          <p className="text-[12px] text-text-secondary">{APPROVE_HINT}</p>
+        </div>
+      )}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-5">
 
       <div className="flex items-center gap-2 px-5 pb-4">
@@ -402,22 +421,11 @@ function ObjectInspectorBody({
       </div>
 
       {!isViewerRole && (
-        /* Khối nút NGOÀI vùng cuộn, ghim đáy panel: nút duyệt luôn thấy ở 1024×768; nút xoá tách xa nút duyệt (G4a-27). */
+        /* Nút xoá ghim đáy, tách xa nút duyệt ở đầu thẻ (G4a-27). */
         <div className="flex shrink-0 flex-col gap-2 border-t border-border-default bg-bg-surface px-5 py-3">
-          <Button
-            aria-keyshortcuts={isSuggested ? 'Enter' : 'A'}
-            disabled={inspector.reviewed}
-            fullWidth
-            onClick={() => onApprove(inspector.id)}
-            {...(inspector.reviewed ? {} : { shortcut: isSuggested ? 'Enter' : 'A' })}
-            variant={inspector.reviewed ? 'secondary' : 'primary'}
-          >
-            {inspector.reviewed ? APPROVED_LABEL : isSuggested ? ACCEPT_SUGGESTION_LABEL : `${APPROVE_PREFIX} ${inspector.codeLabel}`}
-          </Button>
           <Button aria-keyshortcuts="Delete" fullWidth onClick={() => onDelete(inspector.id)} shortcut="Del" variant="secondary">
             {isSuggested ? REJECT_SUGGESTION_LABEL : isFurniture ? DELETE_FURNITURE_LABEL : DELETE_OPENING_LABEL}
           </Button>
-          <p className="text-[12px] text-text-secondary">{APPROVE_HINT}</p>
         </div>
       )}
     </>
