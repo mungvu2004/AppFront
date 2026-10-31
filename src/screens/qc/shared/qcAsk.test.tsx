@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { QcAskCard } from './QcAskCard';
+import { QcAskAnchor, QcAskCard } from './QcAskCard';
 import { ASK_CARD_WIDTH, ASK_CARD_WIDTH_NARROW, askCardPlacement, askCardWidthFor, askNavOf, stableAskPlacement } from './qcAsk';
 
 const FRAME = { width: 1400, height: 900 };
@@ -84,5 +84,25 @@ describe('QcAskCard', () => {
       </QcAskCard>,
     );
     expect(screen.getByTestId('qc-ask-reason-slot')).toHaveClass('h-9');
+  });
+});
+
+describe('QcAskAnchor', () => {
+  it('U20: dưới 1024 px thẻ thành tấm đáy (rộng hết khung, cao tối đa 45 %), không nổi che nửa phải', () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(750);
+    const height = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
+    try {
+      render(
+        <QcAskAnchor rect={{ x: 100, y: 100, width: 40, height: 40 }}>
+          <div>Thẻ</div>
+        </QcAskAnchor>,
+      );
+      expect(screen.getByTestId('qc-ask-anchor')).toHaveClass('max-lg:inset-x-2!', 'max-lg:top-auto!', 'max-lg:bottom-2!', 'max-lg:w-auto!', 'max-lg:max-h-[45%]!');
+    } finally {
+      width.mockRestore();
+      height.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 });
