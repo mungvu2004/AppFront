@@ -354,6 +354,8 @@ export interface ObjectListRowViewModel {
   readonly codeLabel: string;
   /** Ví dụ `"900 × 2.200 mm"` (P-01). */
   readonly sizeLabel: string;
+  /** "Cửa hẹp bất thường (392 mm), kiểm lại" — chỉ ở cửa đi rộng dưới 600 mm (UX-48). */
+  readonly sizeWarning?: string | null;
   /** Ví dụ `"#W-014"`. `null` khi {@link isOrphanObject}. */
   readonly hostWallLabel: string | null;
   readonly confidence: Confidence;
@@ -445,6 +447,8 @@ export interface ObjectInspectorViewModel {
   readonly furnitureKind: FurnitureKind | null;
   /** "406 × 277 mm" — Rộng × Sâu của nội thất trên mặt bằng. */
   readonly sizeLabel: string;
+  /** "Cửa hẹp bất thường (392 mm), kiểm lại" — chỉ ở cửa đi rộng dưới 600 mm (UX-48). */
+  readonly sizeWarning?: string | null;
   /** "Máy chưa chắc" / "Máy khá chắc" — cùng luật ngưỡng với danh sách (K10). */
   readonly confidenceLabel: string;
   /** Ví dụ `"900 mm"`. */

@@ -55,6 +55,7 @@ import {
   approveConfidentRoomsLabelOf,
   canonicalRoomName,
   confidentRoomsOf,
+  scaleSegmentOf,
   createMockRoomLabelReviewGateway,
   hasRoomName,
   provisionalMeasureText,
@@ -959,6 +960,8 @@ describe('[K10] tên giả của máy và đường bao tràn ra ngoài', () => 
       room('done', { reviewed: true }),
       room('fake', { name: 'phòng 5' }),
       room('spill', {}),
+      /* UX-24: tên người gõ (lệnh đổi tên đặt `source: 'human'`) không còn là "máy chắc chắn". */
+      room('typed', { source: 'human' }),
     ];
 
     expect(confidentRoomsOf(rooms, new Set(['spill'] as unknown as RoomId[])).map((item) => item.id)).toEqual(['sure']);
@@ -1041,5 +1044,22 @@ describe('[K10] đường bao tràn ra ngoài: chặn duyệt ở hook', () => {
 
     expect(reviewedInStore()).toBe(false);
     expect(useStore.getState().selectedIds).toEqual([spillRoom.id]);
+  });
+});
+
+describe('[UX-08] đoạn đo tỷ lệ vẽ lên bản vẽ Phòng', () => {
+  it('đổi tỷ lệ khung vuông sang mm của ảnh nằm giữa, kèm số đo', () => {
+    /* Ảnh 20.000 × 10.000 mm: khung vuông cạnh 20.000, dải trống dọc 5.000 mỗi bên. */
+    const segment = scaleSegmentOf(
+      { start: { x: 0.1, y: 0.5 }, end: { x: 0.502, y: 0.5 } },
+      { widthMm: 20000, heightMm: 10000 },
+    );
+
+    expect(segment?.startMm.x).toBeCloseTo(2000);
+    expect(segment?.startMm.y).toBeCloseTo(5000);
+    expect(segment?.endMm.x).toBeCloseTo(10040);
+    expect(segment?.caption).toBe('Đoạn đo tỷ lệ: 8.040 mm');
+    expect(scaleSegmentOf(null, { widthMm: 1, heightMm: 1 })).toBeNull();
+    expect(scaleSegmentOf({ start: { x: 0, y: 0 }, end: { x: 1, y: 1 } }, null)).toBeNull();
   });
 });

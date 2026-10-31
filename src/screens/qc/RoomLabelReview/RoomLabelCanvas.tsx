@@ -89,6 +89,7 @@ export function RoomLabelCanvas({
   backgroundImageUrl,
   backgroundImageAlt,
   backgroundImageSizeMm,
+  scaleSegment,
   isInteractive,
   onSelect,
   onHover,
@@ -283,6 +284,30 @@ export function RoomLabelCanvas({
                 room={room}
               />
             ))}
+            {/* UX-08: đoạn đo tỷ lệ của bước Tỷ lệ, để kỹ sư thấy số đã bám vào đâu. */}
+            {scaleSegment == null ? null : (
+              <g className="pointer-events-none" data-testid="room-scale-segment">
+                <line
+                  className="stroke-accent"
+                  strokeDasharray="6 4"
+                  strokeWidth={2}
+                  vectorEffect="non-scaling-stroke"
+                  x1={scaleSegment.startMm.x / millimetresPerPixel}
+                  x2={scaleSegment.endMm.x / millimetresPerPixel}
+                  y1={scaleSegment.startMm.y / millimetresPerPixel}
+                  y2={scaleSegment.endMm.y / millimetresPerPixel}
+                />
+                <text
+                  className="fill-accent text-[12px]"
+                  dy={-6}
+                  textAnchor="middle"
+                  x={(scaleSegment.startMm.x + scaleSegment.endMm.x) / 2 / millimetresPerPixel}
+                  y={Math.min(scaleSegment.startMm.y, scaleSegment.endMm.y) / millimetresPerPixel}
+                >
+                  {scaleSegment.caption}
+                </text>
+              </g>
+            )}
           </svg>
 
           {activeBounds === null ? null : (

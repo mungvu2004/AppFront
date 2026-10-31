@@ -1363,6 +1363,15 @@ export const formatObjectCount = (value: number): string =>
  * qua `formatLength`/`formatNumber` của `src/lib/format` nên dấu nghìn là dấu
  * chấm và dấu thập phân là dấu phẩy mà không màn nào phải tự nhớ.
  */
+/** Cửa đi hẹp hơn mức này thì gần như chắc là máy đọc sai bề rộng (UX-48). */
+export const NARROW_DOOR_MIN_WIDTH_MM = 600;
+
+/** Lời nhắc kiểm lại khi cửa đi hẹp bất thường; `null` ở cửa sổ, nội thất và cửa đủ rộng (UX-48). */
+export const doorSizeWarningOf = (object: { readonly layer: ReviewObject['layer']; readonly widthMm: number }): string | null =>
+  object.layer === 'door' && object.widthMm < NARROW_DOOR_MIN_WIDTH_MM
+    ? `Cửa hẹp bất thường (${formatObjectCount(object.widthMm)} mm), kiểm lại`
+    : null;
+
 export const formatObjectSize = (widthMm: number, heightMm: number): string =>
   `${formatObjectCount(widthMm)} × ${formatMillimetres(heightMm)}`;
 
@@ -1820,6 +1829,7 @@ export function toObjectRow(
     typeLabel: objectTypeLabelOf(object),
     codeLabel: `#${object.id}`,
     sizeLabel: formatObjectSize(object.widthMm, object.heightMm),
+    sizeWarning: doorSizeWarningOf(object),
     hostWallLabel: attached === null ? null : `#${wallCodes?.get(attached.hostWallId) ?? hostWallDisplayCode(attached.hostWallId)}`,
     confidence: object.confidence,
     statusCode: listStatusCodeOf(object, isOrphan, threshold),
@@ -1860,6 +1870,7 @@ export function toObjectInspector(
     typeLabel: objectTypeLabelOf(object),
     furnitureKind: (object as Partial<FreeFurnitureObject>).furnitureKind ?? null,
     sizeLabel: formatObjectSize(object.widthMm, object.heightMm),
+    sizeWarning: doorSizeWarningOf(object),
     confidenceLabel: isLowConfidenceObject(object.confidence, threshold) ? LOW_CONFIDENCE_LABEL : CONFIDENT_LABEL,
     widthLabel: formatMillimetres(object.widthMm),
     heightLabel: formatMillimetres(object.heightMm),
