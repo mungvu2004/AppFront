@@ -283,7 +283,7 @@ export interface ExportPanelProps {
   readonly onExport: () => void;
   /** U36: khác `null` khi bấm Xuất mà có tầng chưa duyệt — câu hỏi lại "Vẫn xuất?". */
   readonly unreviewedConfirm?: string | null;
-  /** "Xuất vẫn": xuất luôn dù tầng chưa duyệt. */
+  /** "Vẫn xuất": xuất luôn dù tầng chưa duyệt. */
   readonly onConfirmExport?: () => void;
   /** "Duyệt trước": đóng câu hỏi, về màn duyệt. */
   readonly onReviewFirst?: () => void;
@@ -292,6 +292,8 @@ export interface ExportPanelProps {
   /** Thử lại **giữ nguyên mọi thiết lập**. */
   readonly onRetry: () => void;
   readonly onDownload: (fileId: string) => void;
+  /** UX-05: lối phụ "In" cho hàng PDF — mở hộp thoại in của tệp đã xuất. */
+  readonly onPrint?: (fileId: string) => void;
   readonly onFollowFix: (rowId: PreflightRow['id']) => void;
   /**
    * Mở hộp thoại chia sẻ (`ShareDialogContainer`, S-ShareDialog). `null` khi

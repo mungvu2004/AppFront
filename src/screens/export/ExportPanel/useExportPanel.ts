@@ -57,6 +57,7 @@ import { ENDPOINTS } from '@/api/endpoints';
 import { createAppApiClient } from '@/api/appClient';
 import { describeError, toAppError } from '@/lib/errors';
 import { DEFAULT_EXPORT_OPTIONS, EXPORT_CANCELLED_MESSAGE } from '@/lib/export/exportGlb';
+import { printPdf } from '@/lib/export/pdfRaster';
 import { SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
 import { createUuid } from '@/lib/http/ids';
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
@@ -108,6 +109,8 @@ export interface UseExportPanelOptions {
   readonly canExport?: boolean;
   /** Trạng thái 7: vỏ ứng dụng báo đang thu gọn. */
   readonly isCompact?: boolean;
+  /** UX-25: người dùng đã đồng ý xuất khi còn tầng chưa duyệt ở màn trước — không hỏi lại. */
+  readonly exportAlreadyConfirmed?: boolean;
   /**
    * Nơi nhận yêu cầu đi tới một liên kết sửa của khối kiểm tra.
    *
@@ -179,12 +182,8 @@ const PHASE_COUNT_UNIT: Readonly<Record<'build' | 'encode', string>> = Object.fr
  */
 const DESTINATION_CAPTION = 'Tệp tải về thư mục tải xuống của trình duyệt.';
 
-/**
- * Hồ sơ PDF không tải tệp về: màn mở hộp thoại in, người dùng tự chọn "Lưu thành PDF" (U01).
- * Nói đúng việc ấy, không hứa một tệp .pdf nằm sẵn trong thư mục tải xuống.
- */
-export const PDF_DESTINATION_CAPTION =
-  'Hồ sơ PDF mở hộp thoại in của trình duyệt. Chọn “Lưu thành PDF” để lưu tệp.';
+/** UX-05: hồ sơ PDF là tệp .pdf thật, tải về như GLB và JSON. */
+export const PDF_DESTINATION_CAPTION = DESTINATION_CAPTION;
 
 /** Vì sao hồ sơ PDF mới đếm được trang mà chưa tải về được. */
 const PDF_NOTICE_CAPTION =
@@ -210,8 +209,8 @@ const EMPTY_SNAPSHOT: ExportRunSnapshot = Object.freeze({
 const EXPORT_RELOCK_MS = 250;
 
 /** U36: câu hỏi lại khi có tầng chọn xuất mà chưa duyệt xong. */
-export const unreviewedConfirmMessage = (floorNames: readonly string[]): string =>
-  `${floorNames.join(', ')} chưa duyệt xong. Vẫn xuất?`;
+export const unreviewedConfirmMessage = (floorNames: readonly string[], scaleOnly = false): string =>
+  `${floorNames.join(', ')} ${scaleOnly ? 'chưa xác nhận tỷ lệ' : 'chưa duyệt xong'}. Vẫn xuất?`;
 
 const EMPTY_FLOORS: readonly Level[] = Object.freeze([]);
 
@@ -486,6 +485,11 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
           dataVersion: versionId ?? '',
           preparerName,
           choice: pdfChoice,
+          provisionalArea: floors.some(
+            (level) =>
+              idsOnLevel(graph, level.id).length > 0 &&
+              (level.scaleMillimetresPerPixel === undefined || floorMeta?.[level.id]?.scaleStatus === 'unresolved'),
+          ),
         });
       }
 
@@ -642,8 +646,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     return history.map((file) => ({
       id: file.id,
       fileName: file.fileName,
-      // Hồ sơ PDF là trang in, chưa phải tệp PDF: số byte của trang in không phải dung lượng tệp người dùng lưu (U01).
-      sizeLabel: file.formatId === 'pdf' ? MISSING_VALUE : formatFileSize(file.byteLength),
+      sizeLabel: formatFileSize(file.byteLength),
       momentLabel: formatTimestamp(file.exportedAtMs, nowMs),
       formatId: file.formatId,
       // Nội dung tệp chỉ sống trong phiên đã xuất ra nó: hàng khôi phục không tải lại được.
@@ -761,6 +764,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
 
   // U36: tầng chưa duyệt → hỏi lại một câu trước khi xuất, không xuất im lặng.
   const [unreviewedConfirm, setUnreviewedConfirm] = useState<string | null>(null);
+  // UX-25: đã bấm "Vẫn xuất" một lần thì không hỏi lại ở định dạng sau.
+  const unreviewedAcceptedRef = useRef(options.exportAlreadyConfirmed === true);
 
   const runExport = useCallback((askUnreviewed: boolean): void => {
     // Ba cửa chặn, mỗi cửa một lý do thật. Cửa thứ ba chỉ áp cho `.glb`: bộ
@@ -777,15 +782,20 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     }
 
     const unreviewed = selectedLevels.filter((level) => !level.reviewed);
-    if (askUnreviewed && unreviewed.length > 0) {
-      setUnreviewedConfirm(unreviewedConfirmMessage(unreviewed.map((level) => level.name)));
+    if (askUnreviewed && !unreviewedAcceptedRef.current && unreviewed.length > 0) {
+      // UX-17: đã duyệt hết, chỉ thiếu tỷ lệ thì nói đúng việc đó.
+      const scaleOnly = unreviewed.every((level) => floorStateOf(graph, level, floorMeta?.[level.id]) === 'scaleOnly');
+      setUnreviewedConfirm(unreviewedConfirmMessage(unreviewed.map((level) => level.name), scaleOnly));
       return;
     }
 
+    if (!askUnreviewed) {
+      unreviewedAcceptedRef.current = true;
+    }
     setUnreviewedConfirm(null);
     exportLockRef.current = true;
     exportMutation.mutate(selectedFormatId);
-  }, [canExport, canExportSelected, exportMutation, graph, selectedFormatId, selectedLevels, spatialLoading]);
+  }, [canExport, canExportSelected, exportMutation, floorMeta, graph, selectedFormatId, selectedLevels, spatialLoading]);
 
   const startExport = useCallback((): void => {
     runExport(true);
@@ -812,6 +822,17 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
 
       if (file !== undefined) {
         gateway.deliver(file);
+      }
+    },
+    [gateway, projectId],
+  );
+
+  const onPrint = useCallback(
+    (fileId: string): void => {
+      const file = gateway.readSnapshot(projectId).files.find((entry) => entry.id === fileId);
+
+      if (file !== undefined) {
+        printPdf(file.blob);
       }
     },
     [gateway, projectId],
@@ -870,6 +891,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     onCancel,
     onRetry,
     onDownload,
+    onPrint,
     onFollowFix,
     onShare: shareAction,
   };

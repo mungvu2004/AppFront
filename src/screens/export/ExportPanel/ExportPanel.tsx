@@ -99,9 +99,6 @@ function canDeliverFormat(
   return true;
 }
 
-/** PDF không tải tệp về: hộp thoại in đã mở, người dùng tự lưu (U01). */
-const PDF_PRINT_NOTE = 'Đã mở hộp thoại in. Chọn “Lưu thành PDF” để lưu tệp.';
-
 /** U51: bảng giữ thông tin tệp qua lượt tải lại trang, nhưng nội dung tệp chỉ còn trong phiên đã xuất. */
 const HISTORY_CAPTION = 'Lưu 20 tệp gần nhất trên trình duyệt này. Tệp từ lần mở trước cần xuất lại để tải về.';
 const RESTORED_ROW_NOTE = 'Tệp cũ, xuất lại để tải về';
@@ -111,10 +108,11 @@ interface ExportPanelHistoryProps {
   readonly isLoading: boolean;
   readonly canPersistHistory: boolean;
   readonly onDownload: (fileId: string) => void;
+  readonly onPrint?: ((fileId: string) => void) | undefined;
 }
 
 /** Danh sách tệp đã xuất trong phiên làm việc — kèm thời điểm và dung lượng bằng chữ đều. */
-function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }: ExportPanelHistoryProps) {
+function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload, onPrint }: ExportPanelHistoryProps) {
   if (files.length === 0) {
     return null;
   }
@@ -145,9 +143,6 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
             <Table.Row key={file.id}>
               <Table.Cell className="w-full max-w-0 truncate font-mono text-xs" title={file.fileName}>
                 {file.fileName}
-                {file.formatId === 'pdf' && (
-                  <span className="block truncate font-sans text-text-secondary">{PDF_PRINT_NOTE}</span>
-                )}
               </Table.Cell>
               <Table.Cell className="hidden text-xs text-text-secondary sm:table-cell">
                 {isLoading ? <SkeletonText className="h-3 w-16" /> : file.momentLabel}
@@ -162,12 +157,24 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-label={`${file.formatId === 'pdf' ? 'Mở lại hộp thoại in' : 'Tải về lại'} ${file.fileName}`}
+                    aria-label={`Tải về lại ${file.fileName}`}
                     onClick={() => {
                       onDownload(file.id);
                     }}
                   >
-                    {file.formatId === 'pdf' ? 'Mở lại hộp thoại in' : 'Tải về lại'}
+                    Tải về lại
+                  </Button>
+                )}
+                {file.isRestored !== true && file.formatId === 'pdf' && onPrint !== undefined && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`In ${file.fileName}`}
+                    onClick={() => {
+                      onPrint(file.id);
+                    }}
+                  >
+                    In
                   </Button>
                 )}
               </Table.Cell>
@@ -245,6 +252,7 @@ export function ExportPanel(props: ExportPanelProps) {
     onCancel,
     onRetry,
     onDownload,
+    onPrint,
     onFollowFix,
     onShare,
   } = props;
@@ -258,7 +266,7 @@ export function ExportPanel(props: ExportPanelProps) {
     const newest = exportedFiles[0];
 
     if (newest !== undefined && newest.id !== lastFileId.current) {
-      setAnnouncement(newest.formatId === 'pdf' ? PDF_PRINT_NOTE : `Đã xuất ${newest.fileName}`);
+      setAnnouncement(`Đã xuất ${newest.fileName}`);
     }
 
     lastFileId.current = newest?.id;
@@ -387,6 +395,7 @@ export function ExportPanel(props: ExportPanelProps) {
           isLoading={isLoading}
           canPersistHistory={capabilities.canPersistHistory}
           onDownload={onDownload}
+          onPrint={onPrint}
         />
       </div>
 
@@ -401,7 +410,7 @@ export function ExportPanel(props: ExportPanelProps) {
             Duyệt trước
           </Button>
           <Button size="sm" onClick={props.onConfirmExport}>
-            Xuất vẫn
+            Vẫn xuất
           </Button>
         </div>
       )}

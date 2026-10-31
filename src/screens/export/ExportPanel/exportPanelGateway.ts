@@ -84,6 +84,8 @@ import type {
   ExportProgress,
 } from '@/lib/export/exportGlb';
 import * as pdfModule from '@/lib/export/exportPdf';
+import { renderPdfBlob } from '@/lib/export/pdfRaster';
+import type { PdfDocument } from '@/lib/export/pdfSchema';
 import type { ExportPdfInput } from '@/lib/export/exportPdf';
 import { PDF_SECTION_KINDS, type PdfSectionKind } from '@/lib/export/pdfSchema';
 import { BYTES_PER_UNIT } from '@/lib/format/bytes';
@@ -874,6 +876,8 @@ export interface StartPdfExportInput {
   readonly dataVersion: string;
   readonly preparerName: string;
   readonly choice: PdfSectionChoice;
+  /** UX-23: có tầng chưa xác nhận tỷ lệ — diện tích trong hồ sơ là số tạm. */
+  readonly provisionalArea?: boolean;
 }
 
 export interface StartSpatialJsonExportInput {
@@ -900,6 +904,8 @@ export interface ExportPanelGatewaySeed {
   readonly createFileId?: () => string;
   /** `POST /projects/{id}/exports` — máy chủ kiểm `model.export`. Thiếu = dùng đồ thị trong store. */
   readonly exportGraph?: (projectId: string) => Promise<ApiResult<SpatialGraphDocument>>;
+  /** Vẽ hồ sơ thành tệp .pdf. Thiếu = canvas thật ({@link renderPdfBlob}); bài kiểm tiêm bản giả. */
+  readonly renderPdf?: (document: PdfDocument) => Promise<Blob>;
 }
 
 /** Lỗi xuất có câu cho người đọc (403/404 từ tuyến xuất), hiện nguyên văn. */
@@ -930,7 +936,7 @@ export interface ExportPanelGateway {
   readonly startSpatialJsonExport: (
     input: StartSpatialJsonExportInput,
   ) => Promise<ExportedFile>;
-  /** Hồ sơ PDF: dựng trang in rồi mở hộp thoại in ("Lưu thành PDF"); không thư viện PDF. */
+  /** Hồ sơ PDF: vẽ từng trang rồi gói thành tệp .pdf thật (UX-05); không thư viện PDF. */
   readonly startPdfExport: (input: StartPdfExportInput) => Promise<ExportedFile>;
   /** Huỷ lượt đang chạy. Không có lượt nào thì không làm gì. */
   readonly cancel: (projectId: string) => void;
@@ -951,24 +957,6 @@ export interface ExportPanelGateway {
  * không thu hồi là một `Blob` không bao giờ được giải phóng.
  */
 function deliverViaAnchor(file: ExportedFile): void {
-  // PDF = trang in: nạp vào iframe ẩn rồi in, người dùng chọn "Lưu thành PDF" (tránh bị chặn cửa sổ bật lên).
-  if (file.formatId === 'pdf') {
-    void file.blob.text().then((html) => {
-      const frame = document.createElement('iframe');
-      frame.style.cssText = 'position:fixed;width:0;height:0;border:0';
-      frame.srcdoc = html;
-      frame.onload = () => {
-        frame.contentWindow?.print();
-        setTimeout(() => {
-          frame.remove();
-          // eslint-disable-next-line local/no-raw-duration -- chờ hộp thoại in, không phải chuyển động
-        }, 60_000);
-      };
-      document.body.append(frame);
-    });
-    return;
-  }
-
   const url = URL.createObjectURL(file.blob);
   const anchor = document.createElement('a');
 
@@ -1112,7 +1100,7 @@ export function createExportPanelGateway(seed: ExportPanelGatewaySeed = {}): Exp
       }
     },
 
-    startPdfExport: (input) => {
+    startPdfExport: async (input) => {
       const run = runOf(input.projectId);
 
       run.task?.cancel();
@@ -1120,7 +1108,7 @@ export function createExportPanelGateway(seed: ExportPanelGatewaySeed = {}): Exp
 
       try {
         const exportedAt = new Date(now());
-        const html = pdfModule.renderPdfHtml(
+        const blob = await (seed.renderPdf ?? renderPdfBlob)(
           pdfModule.buildPdfDocument({
             graph: input.graph,
             violations: input.violations,
@@ -1128,16 +1116,16 @@ export function createExportPanelGateway(seed: ExportPanelGatewaySeed = {}): Exp
             exportedAt,
             preparer: { name: input.preparerName },
             sections: toPdfSections(input.choice),
+            provisionalArea: input.provisionalArea ?? false,
           }),
         );
-        const blob = new Blob([html], { type: 'text/html' });
         const fileName = `${glbModule.toFileSlug(input.projectName)}_${glbModule.formatExportTimestamp(exportedAt)}.pdf`;
 
-        return Promise.resolve(finish(input.projectId, 'pdf', fileName, blob, blob.size));
+        return finish(input.projectId, 'pdf', fileName, blob, blob.size);
       } catch (error) {
         fail(input.projectId);
 
-        return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+        throw error instanceof Error ? error : new Error(String(error));
       }
     },
 
