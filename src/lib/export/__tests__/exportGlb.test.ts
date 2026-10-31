@@ -463,7 +463,7 @@ describe('exportGlb', () => {
     expect(result.blob.size).toBeGreaterThan(0);
     expect(result.blob.type).toBe(GLB_MIME_TYPE);
     expect(result.byteLength).toBe(result.blob.size);
-    expect(result.fileName).toBe('chung-cu-hoang-anh_tang-tret-den-tang-3_2026-08-17_14-32-05.glb');
+    expect(result.fileName).toBe('chung-cu-hoang-anh_level-0-den-level-3_2026-08-17_14-32-05.glb');
     expect(harness.terminated).toBe(true);
   });
 
@@ -514,14 +514,26 @@ describe('buildGlbFileName', () => {
   const exportMoment = new Date(2026, 7, 17, 14, 32, 5);
 
   it('strips diacritics, slugs the name and spans the floor range', () => {
-    expect(buildGlbFileName('Chung cư Hoàng Anh — Quận 1', [0, 3, 1, 2], exportMoment)).toBe(
+    const floors = [
+      { order: 0, name: 'Tầng trệt' },
+      { order: 3, name: 'Tầng 3' },
+      { order: 1, name: 'Tầng 1' },
+      { order: 2, name: 'Tầng 2' },
+    ];
+    expect(buildGlbFileName('Chung cư Hoàng Anh — Quận 1', floors, exportMoment)).toBe(
       'chung-cu-hoang-anh-quan-1_tang-tret-den-tang-3_2026-08-17_14-32-05.glb',
     );
   });
 
   it('names a single floor without a range', () => {
-    expect(buildGlbFileName('Nhà mẫu', [2], exportMoment)).toBe(
+    expect(buildGlbFileName('Nhà mẫu', [{ order: 2, name: 'Tầng 2' }], exportMoment)).toBe(
       'nha-mau_tang-2_2026-08-17_14-32-05.glb',
+    );
+  });
+
+  it('writes the floor by its own name, not by its order (U35)', () => {
+    expect(buildGlbFileName('Nhà mẫu', [{ order: 0, name: 'Tầng 1' }], exportMoment)).toBe(
+      'nha-mau_tang-1_2026-08-17_14-32-05.glb',
     );
   });
 
