@@ -29,7 +29,7 @@ const READ_UNSURE = 'đọc chưa chắc';
 
 const EMPTY_TITLE = 'Máy chưa đọc được số kích thước';
 const EMPTY_DESCRIPTION_FALLBACK =
-  'Máy chưa đọc được số kích thước nào để làm mốc. Kéo dọc một đoạn có ghi số trên bản vẽ rồi nhập số đó.';
+  'Máy chưa đọc được số kích thước nào để làm mốc. Phóng to bản vẽ cho rõ số, kéo dọc một đoạn có ghi số rồi nhập số đó. Không có số thì đo bề rộng cửa đi chính (900 mm).';
 
 type ManualCalibrationReason = NonNullable<ScaleDimensionMethodViewModel['manualCalibrationReason']>;
 
