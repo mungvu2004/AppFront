@@ -37,7 +37,6 @@ export interface WallLayerListProps {
 type ListItem =
   | { readonly kind: 'header'; readonly group: WallDisplayGroup; readonly count: number }
   | { readonly kind: 'bulk' }
-  | { readonly kind: 'approveAll' }
   | { readonly kind: 'row'; readonly row: WallRowViewModel };
 
 const HEADER_HEIGHT_PX = 36;
@@ -100,7 +99,6 @@ function buildItems(
   showReviewedRows: boolean,
   hasBulk: boolean,
   isScaleLocked: boolean,
-  hasApproveAll = false,
 ): readonly ListItem[] {
   const groups = new Map<WallDisplayGroup, WallRowViewModel[]>(DISPLAY_ORDER.map((group) => [group, []]));
 
@@ -123,11 +121,6 @@ function buildItems(
       items.push({ kind: 'bulk' });
     }
 
-    /* U17: nhóm đoạn máy không nghi — một nút duyệt hết, khỏi bấm từng đoạn. */
-    if (group === 'standard' && hasApproveAll) {
-      items.push({ kind: 'approveAll' });
-    }
-
     if (group !== 'reviewed' || showReviewedRows) {
       items.push(...members.map((row) => ({ kind: 'row' as const, row })));
     }
@@ -140,7 +133,7 @@ const keyOf = (item: ListItem | undefined): string =>
   item === undefined ? '' : item.kind === 'row' ? item.row.id : item.kind === 'header' ? `h-${item.group}` : item.kind;
 
 const heightOf = (item: ListItem | undefined): number =>
-  item?.kind === 'header' ? HEADER_HEIGHT_PX : item?.kind === 'bulk' || item?.kind === 'approveAll' ? BULK_HEIGHT_PX : LIST_ROW_HEIGHT_PX;
+  item?.kind === 'header' ? HEADER_HEIGHT_PX : item?.kind === 'bulk' ? BULK_HEIGHT_PX : LIST_ROW_HEIGHT_PX;
 
 export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, onOpenBulk, queueNumbers }: WallLayerListProps) {
   const { rows, selectedWallId, hoveredWallId, onSelect, onHover, onOpenRowMenu, state, emptyNotice } = panel;
@@ -158,8 +151,9 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
     showReviewedRows,
     onOpenBulk !== undefined && queue !== undefined,
     isScaleLocked,
-    onApproveConfident !== undefined && confidentCount > 0,
   );
+  /* U17/U32: nút duyệt hết đoạn máy chắc chắn đứng dính trên đầu danh sách, không chen giữa các hàng cuộn. */
+  const showApproveAll = onApproveConfident !== undefined && confidentCount > 0;
   // Thiếu tỷ lệ (hoặc tường mỏng < 50 mm): ép về chuẩn chỉ che lỗi, nên thay nút bằng câu dẫn đi đặt tỷ lệ (K09).
   const bulkLockText = queue?.lockText ?? null;
   // Vai Người xem luôn ở `forbidden`; "đang tải" của họ đọc từ dữ liệu (bất biến 7), không từ vai (16-D-008).
@@ -262,6 +256,13 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
 
   return (
     <>
+      {showApproveAll ? (
+        <div className="sticky top-0 z-10 bg-bg-surface px-1 py-1.5">
+          <Button fullWidth onClick={onApproveConfident} size="sm" variant="secondary">
+            {approveAllLabelOf(confidentCount)}
+          </Button>
+        </div>
+      ) : null}
       <div aria-label={LIST_ARIA_LABEL} className="relative" ref={containerRef} role="listbox" style={{ height: rowVirtualizer.getTotalSize() }}>
         {rowVirtualizer.getVirtualItems().map((virtualItem) => {
           const item = items[virtualItem.index];
@@ -306,16 +307,6 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
                 ) : (
                   <p className="px-1 text-caption leading-snug text-state-violation">{bulkLockText}</p>
                 )}
-              </div>
-            );
-          }
-
-          if (item.kind === 'approveAll') {
-            return (
-              <div className="absolute inset-x-0 top-0 flex h-11 items-center px-1" key="approveAll" role="presentation" style={style}>
-                <Button fullWidth onClick={onApproveConfident} size="sm" variant="secondary">
-                  {approveAllLabelOf(confidentCount)}
-                </Button>
               </div>
             );
           }

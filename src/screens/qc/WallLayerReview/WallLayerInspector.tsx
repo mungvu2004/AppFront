@@ -11,8 +11,6 @@
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
-import { wallStrokeToken } from '@/components/canvas/materialMap';
-import { wallThicknessColorBand } from './wallLayerHatch';
 import { AnimatePresence, motion } from '@/components/motion';
 import { Badge } from '@/components/ui/Badge';
 import { FieldRow } from '@/components/ui/FieldRow';
@@ -48,21 +46,6 @@ const REVIEWED_LABEL = 'Đã duyệt';
 const UNREVIEWED_LABEL = 'Chưa duyệt';
 const EMPTY_MESSAGE =
   'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để duyệt.';
-
-function ReadOnlyThickness({ choices, value }: { readonly choices: readonly WallThicknessChoice[]; readonly value: number }) {
-  return (
-    <div aria-label={THICKNESS_ARIA_LABEL} className="flex flex-wrap items-center gap-x-3 gap-y-1" role="group">
-      {choices.map((choice) => (
-        <span className="flex items-center gap-1.5" key={choice}>
-          <span aria-hidden="true" className="h-3 w-3 rounded-xs" style={{ backgroundColor: wallStrokeToken(wallThicknessColorBand(choice)) }} />
-          <span className={cn('text-[13px]', choice === value ? 'font-semibold text-text-primary' : 'text-text-secondary')}>
-            {choice} mm
-          </span>
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function ValueRow({ label, value, isLast = false }: { readonly label: string; readonly value: string; readonly isLast?: boolean }) {
   return (
@@ -134,17 +117,17 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
           <div className="mx-5 rounded-lg bg-bg-sunken px-4 py-3">
             <p className="text-caption text-text-secondary">{MEASURED_LABEL}</p>
             <p className="tabular-nums text-text-primary">
-              <span className="text-[32px] font-medium leading-10">{inspector.thicknessMm}</span>
-              <span className="ml-1 text-body-sm text-text-secondary">mm</span>
-              {inspector.detectedNote ? <span className="ml-2 text-body-sm text-text-secondary">{inspector.detectedNote}</span> : null}
+              {/* U30: dấu cách thật giữa số, đơn vị và ghi chú — chép/đọc màn hình không dính chữ. */}
+              <span className="text-[32px] font-medium leading-10">{inspector.thicknessMm}</span>{' '}
+              <span className="text-body-sm text-text-secondary">mm</span>
+              {inspector.detectedNote ? <>{' '}<span className="ml-1 text-body-sm text-text-secondary">{inspector.detectedNote}</span></> : null}
             </p>
             {extra === undefined ? null : <p className="mt-1 text-body-sm text-text-secondary">{extra.note}</p>}
           </div>
 
           <div className="px-5 pb-2 pt-3">
-            {isViewerRole ? (
-              <ReadOnlyThickness choices={thicknessChoices} value={inspector.thicknessMm} />
-            ) : (
+            {/* U37: người xem không thấy hàng "100 mm … 400 mm" (trông như nút sửa) — số hiện tại đã ở trên. */}
+            {isViewerRole ? null : (
               <label className="flex items-center gap-3">
                 <span className="shrink-0 text-caption text-text-secondary">{CHANGE_THICKNESS_LABEL}</span>
                 <select

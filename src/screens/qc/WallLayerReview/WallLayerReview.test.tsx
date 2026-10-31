@@ -180,6 +180,8 @@ class FakeResizeObserver {
 }
 
 beforeEach(() => {
+  /* U07: nhãn tường nhớ trong localStorage — không mang sang bài kiểm sau. */
+  localStorage.clear();
   resetSelectorCaches();
   Object.defineProperty(globalThis, 'ResizeObserver', {
     configurable: true,

@@ -1448,7 +1448,10 @@ export function detectedNoteOf(wall: Wall): string | null {
     return null;
   }
 
-  return `(đã sửa, máy đo ${formatNumber(detected, { fractionDigits: 0 })})`;
+  const measured = formatNumber(detected, { fractionDigits: 0 });
+
+  /* U30: chỉ nói "đã sửa" khi người đã đụng vào; còn lại là máy tự làm tròn về thang. */
+  return wall.source === 'human' ? `(đã sửa, máy đo ${measured})` : `(máy tự làm tròn, máy đo ${measured})`;
 }
 
 /** Thanh tra tường đang chọn. Mọi con số đã thành chuỗi ở đây, không ở view (A15). */

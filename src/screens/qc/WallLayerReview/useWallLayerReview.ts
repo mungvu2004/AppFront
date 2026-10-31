@@ -448,6 +448,41 @@ const railToolOf = (tool: ToolId): WallLayerToolId =>
 /* -------------------------------------------------------------------------- */
 
 /** Tường của một tầng, theo đúng thứ tự đồ thị giữ chúng. */
+/*
+ * U07: nhãn `#W-xxx` đã hiện của một tầng, giữ qua lần tải lại (localStorage, theo dự án + tầng).
+ * ponytail: chỉ trên trình duyệt này — máy khác vẫn đánh số lại. Đường nâng cấp: máy chủ cấp mã hiển thị.
+ */
+const wallCodeMemoryKey = (projectId: string, levelId: string): string => `wall-codes:${projectId}:${levelId}`;
+
+export function readWallCodeMemory(projectId: string, levelId: string | null): ReadonlyMap<string, string> {
+  if (levelId === null) {
+    return new Map();
+  }
+
+  try {
+    const raw = localStorage.getItem(wallCodeMemoryKey(projectId, levelId));
+    const parsed: unknown = raw === null ? null : JSON.parse(raw);
+
+    return Array.isArray(parsed)
+      ? new Map(parsed.filter((pair): pair is [string, string] => Array.isArray(pair) && typeof pair[0] === 'string' && typeof pair[1] === 'string'))
+      : new Map();
+  } catch {
+    return new Map();
+  }
+}
+
+export function writeWallCodeMemory(projectId: string, levelId: string | null, codes: ReadonlyMap<string, string>): void {
+  if (levelId === null || codes.size === 0) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(wallCodeMemoryKey(projectId, levelId), JSON.stringify([...codes]));
+  } catch {
+    /* Hết chỗ hoặc bị chặn: nhãn chỉ ổn định trong phiên, như trước. */
+  }
+}
+
 export function wallsOfLevel(
   graph: NormalizedSpatial | null,
   levelId: LevelId | null,
@@ -747,13 +782,15 @@ export function useWallLayerReview(
   });
   const wallCodes = useMemo(() => {
     const shown = shownWallCodesRef.current;
-    const previous = shown.levelId === levelId ? shown.codes : new Map<string, string>();
+    /* U07: tải lại trang thì đọc lại nhãn đã hiện của tầng này, không đánh số lại. */
+    const previous = shown.levelId === levelId ? shown.codes : readWallCodeMemory(projectId, levelId);
     const codes = keepDisplayCodes(previous, displayCodesOf(walls.map((wall) => wall.id)));
 
     shownWallCodesRef.current = { levelId, codes };
+    writeWallCodeMemory(projectId, levelId, codes);
 
     return codes;
-  }, [levelId, walls]);
+  }, [levelId, projectId, walls]);
 
   /* Ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
   const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
@@ -1504,6 +1541,8 @@ export function useWallLayerReview(
   /* "Duyệt và sang mục kế": `onApprove` đã tự chọn tường chưa duyệt kế tiếp. */
   const approveRef = useRef(onApprove);
   approveRef.current = onApprove;
+  const visibleWallsRef = useRef(visibleWalls);
+  visibleWallsRef.current = visibleWalls;
   useShortcut(
     {
       id: 'wallLayerReview.approveNext',
@@ -1513,6 +1552,14 @@ export function useWallLayerReview(
       onTrigger: () => {
         if (selectedRef.current !== null) {
           approveRef.current(selectedRef.current);
+          return;
+        }
+
+        /* U31: chưa chọn đoạn nào thì A chọn đoạn đầu hàng đợi — nhấn A lần nữa để duyệt. */
+        const first = visibleWallsRef.current.find((wall) => !wall.reviewed);
+
+        if (first !== undefined) {
+          onSelect(first.id);
         }
       },
     },
