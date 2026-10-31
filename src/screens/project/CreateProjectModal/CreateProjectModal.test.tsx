@@ -830,6 +830,27 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
   });
 
+  it('prefills the floor height it is given and creates on Enter at the review step (UX-20)', () => {
+    const create = vi.fn(() => new Promise<never>(() => undefined));
+    render(
+      <CreateProjectModal
+        isOpen
+        gateway={{ create, remove: vi.fn() }}
+        forceCompact={false}
+        initialFloorCount={1}
+        initialFloorHeightM={3}
+        onDismiss={noop}
+      />,
+    );
+
+    goToStep2('Chung cư Một Tầng');
+    expect(screen.getByLabelText('Chiều cao tầng (sàn–sàn) Tầng trệt')).toHaveValue('3');
+    fireEvent.click(screen.getByRole('button', { name: /^Tiếp: / }));
+    fireEvent.keyDown(document.body, { key: 'Enter' });
+
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   it('stays open on Esc while "Tạo dự án" is in flight, and offers no discard (BUG-184)', async () => {
     const onDismiss = vi.fn();
     const held = { create: () => new Promise<never>(() => undefined), remove: vi.fn() };

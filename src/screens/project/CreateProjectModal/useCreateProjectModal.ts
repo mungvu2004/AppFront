@@ -211,12 +211,12 @@ function nextFloorName(aboveCount: number): string {
 }
 
 /** The wizard's starting stack: {@link DEFAULT_FLOOR_COUNT} floors, no basement, no heights yet. */
-function createDefaultFloorRows(count: number = DEFAULT_FLOOR_COUNT): DraftFloorRow[] {
+function createDefaultFloorRows(count: number = DEFAULT_FLOOR_COUNT, clearHeightM: number | null = null): DraftFloorRow[] {
   return Array.from({ length: count }, (_unused, index) => ({
     id: createUuid(),
     name: nextFloorName(index),
     kind: 'floor' as const,
-    clearHeightM: null,
+    clearHeightM,
     isAutoName: true,
   }));
 }
@@ -595,6 +595,8 @@ export interface UseCreateProjectModalOptions {
   readonly forceCompact?: boolean;
   /** Số tầng có sẵn lúc mở hộp; mặc định 4. */
   readonly initialFloorCount?: number;
+  /** Chiều cao điền sẵn cho mỗi tầng mới (UX-20); bỏ trống thì ô trống như trước. */
+  readonly initialFloorHeightM?: number;
   readonly onCreated?: (projectId: string) => void;
   readonly onDismiss: () => void;
   /** Invariant A8's undoable toast. Injected — `Toast.Provider` is mounted by the caller. */
@@ -606,6 +608,7 @@ export function useCreateProjectModal(
 ): { readonly model: CreateProjectModel; readonly actions: CreateProjectActions } {
   const { gateway } = options;
   const role = options.role ?? 'engineer';
+  const defaultHeightM = options.initialFloorHeightM ?? null;
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [name, setNameState] = useState('');
@@ -616,7 +619,7 @@ export function useCreateProjectModal(
   const [buildingType, setBuildingTypeState] = useState(DEFAULT_BUILDING_TYPE);
   const [notes, setNotesState] = useState('');
   const [isSelectOpen, setIsSelectOpen] = useState(false);
-  const [floorRows, setFloorRows] = useState<readonly DraftFloorRow[]>(() => createDefaultFloorRows(options.initialFloorCount));
+  const [floorRows, setFloorRows] = useState<readonly DraftFloorRow[]>(() => createDefaultFloorRows(options.initialFloorCount, defaultHeightM));
   const [floorsTouched, setFloorsTouched] = useState(false);
   const [applyHeightM, setApplyHeightMState] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -773,7 +776,7 @@ export function useCreateProjectModal(
       const taken = new Set(current.map((row) => row.name.trim()));
       let number = current.filter((row) => row.kind === 'floor').length;
       while (taken.has(nextFloorName(number))) number += 1;
-      return [...current, { id: createUuid(), name: nextFloorName(number), kind: 'floor', clearHeightM: null, isAutoName: true }];
+      return [...current, { id: createUuid(), name: nextFloorName(number), kind: 'floor', clearHeightM: defaultHeightM, isAutoName: true }];
     });
   };
 
@@ -826,7 +829,7 @@ export function useCreateProjectModal(
       // The basement counts toward the cap like any floor (LIM "basement included", BUG-150).
       if (value && current.length >= PROJECT_LIMITS.floorCountMax) return current;
       if (value) {
-        return [{ id: createUuid(), name: 'Tầng hầm', kind: 'basement', clearHeightM: null }, ...current];
+        return [{ id: createUuid(), name: 'Tầng hầm', kind: 'basement', clearHeightM: defaultHeightM }, ...current];
       }
       return current.filter((row) => row.kind !== 'basement');
     });
