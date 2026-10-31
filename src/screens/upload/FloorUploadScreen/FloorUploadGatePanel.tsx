@@ -28,7 +28,8 @@ export const COUNTER_NUMBER_TEST_ID = 'floor-upload-counter-number';
 /** `id` của khung — đích cuộn của các lối "tới điều kiện". */
 export const GATE_PANEL_ID = 'dieu-kien-xu-ly';
 
-const TITLE_READY = 'Sẵn sàng xử lý';
+// UX-38: máy khách chưa kiểm được tệp có phải bản vẽ không — không hứa "sẵn sàng", nói rõ lúc nào kiểm.
+const TITLE_READY = 'Đủ điều kiện · Sẽ kiểm bản vẽ khi xử lý';
 const TITLE_PENDING = 'Điều kiện để xử lý';
 const LABEL_ELEVATION = 'Đủ cao độ sàn';
 const LABEL_OVERLAP = 'Không trùng cao độ';
