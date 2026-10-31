@@ -87,7 +87,8 @@ export function FloorReviewGate({ projectId, floorId, onNext, nextLabel, inline 
 
   /* Đang đứng ở một lớp bắt buộc chưa xong: làm tiếp lớp này trước (khi màn có mục kế tiếp). */
   const hereUnfinished = gate.layers.some((layer) => !layer.done && LAYER_ROUTES[layer.key](projectId, floorId) === pathname);
-  const afterKey = stepAfter(pathname, projectId, floorId, (key) => gate.layers.some((layer) => layer.key === key && layer.done));
+  // Chưa có đồ thị thì mọi lớp đếm 0 mục, trông như "xong": chỉ bỏ qua bước đã xong khi dữ liệu đã về.
+  const afterKey = stepAfter(pathname, projectId, floorId, (key) => graph !== null && gate.layers.some((layer) => layer.key === key && layer.done));
   const after = afterKey === undefined ? null : (gate.layers.find((layer) => layer.key === afterKey) ?? null);
 
   let action: ReactNode;

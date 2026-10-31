@@ -97,6 +97,8 @@ const ROOM_DEPENDENT_CODES = [
   'DOOR-BLOCKS-PATH',
   'ROOM-AREA-BELOW-MINIMUM',
   'ROOM-FURNITURE-MISMATCH',
+  // U08: cửa sổ giáp lô gia không bị báo, nên luật này đọc cả phòng.
+  'WINDOW-ON-INNER-WALL',
 ];
 
 /** Rules that read levels — all three building-scoped. */
