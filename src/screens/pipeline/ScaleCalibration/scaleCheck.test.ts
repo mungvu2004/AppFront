@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildScaleCheck,
   inferredDpi,
+  isFlatAreaImplausible,
   isPlanSizeImplausible,
   mmPerPxAt,
   mmPerPxFromFlatArea,
@@ -11,6 +12,13 @@ import {
 } from './scaleCheck';
 
 describe('scaleCheck', () => {
+  it('UX-09: diện tích căn ngoài 15..400 m² là vô lý', () => {
+    expect(isFlatAreaImplausible(70)).toBe(false);
+    expect(isFlatAreaImplausible(7190)).toBe(true);
+    expect(isFlatAreaImplausible(9)).toBe(true);
+    expect(isFlatAreaImplausible(null)).toBe(false);
+  });
+
   it('U11: suy mm/px từ diện tích căn — diện tích theo bình phương tỷ lệ', () => {
     expect(parseFlatAreaM2('68,94')).toBe(68.94);
     expect(parseFlatAreaM2('68.94 m²')).toBe(68.94);

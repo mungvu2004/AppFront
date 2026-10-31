@@ -133,6 +133,14 @@ export function mmPerPxFromFlatArea(targetM2: number, builtMmPerPx: number, buil
  * UX41 U34: cỡ căn vô lý cho một căn hộ — cạnh dài hơn `maxMm` (thường do thừa một số 0) hoặc
  * ngắn hơn `minMm`. Hai ngưỡng truyền vào để nơi gọi giữ một nguồn hằng số.
  */
+/** UX-09: căn hộ một tầng thật nằm trong 15..400 m²; ngoài khoảng này gần như chắc tỷ lệ sai. */
+const FLAT_AREA_MIN_M2 = 15;
+const FLAT_AREA_MAX_M2 = 400;
+
+export function isFlatAreaImplausible(areaM2: number | null): boolean {
+  return areaM2 !== null && (areaM2 < FLAT_AREA_MIN_M2 || areaM2 > FLAT_AREA_MAX_M2);
+}
+
 export function isPlanSizeImplausible(size: PlanSizeMm, minMm: number, maxMm: number): boolean {
   const longest = Math.max(size.widthMm, size.heightMm);
   return longest > maxMm || longest < minMm;

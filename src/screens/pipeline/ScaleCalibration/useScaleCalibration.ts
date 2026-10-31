@@ -145,6 +145,7 @@ import {
 } from './scaleCalibrationGateway';
 import {
   buildScaleCheck,
+  isFlatAreaImplausible,
   isPlanSizeImplausible,
   mmPerPxAt,
   mmPerPxFromFlatArea,
@@ -253,8 +254,9 @@ const COPY = {
     `Tỷ lệ 1:${ratio} ứng với 1 px ≈ ${density} mm. Bấm Xác nhận tỷ lệ để lưu.`,
   // UX-R4 U11: brochure không ghi số kích thước nhưng in diện tích căn — suy tỷ lệ từ diện tích.
   areaEntryLabel: 'Theo diện tích căn (m², số in trên brochure)',
-  areaEntryPlaceholder: '68,94',
-  areaEntryInvalid: 'Nhập diện tích bằng m², ví dụ 68,94.',
+  // UX-21: không gợi một con số — người dùng tưởng là số máy đo được.
+  areaEntryPlaceholder: 'Số m² in trên brochure',
+  areaEntryInvalid: 'Nhập diện tích bằng m², chỉ gồm số (dấu phẩy cho phần lẻ).',
   areaEntryHint: (size: string, density: string): string => `Căn rộng ${size}, 1 px ≈ ${density} mm.`,
   areaEntryNotice: (area: string, size: string): string =>
     `Căn ${area} m² thì rộng ${size}. Thấy đúng thì bấm Xác nhận tỷ lệ.`,
@@ -2070,14 +2072,17 @@ export function useScaleCalibration(
   /* ---------------------------------------------------------------------- */
 
   const warnings = useMemo<readonly ScaleWarningNotice[]>(() => {
-    if (proposedRatio === null) {
+    // UX-09: tỷ lệ đã xác nhận mà cỡ căn vô lý vẫn phải nhắc — không chỉ lúc đang đề nghị.
+    const checkRatio = proposedRatio ?? storedRatio;
+
+    if (checkRatio === null) {
       return [];
     }
 
     const notices: ScaleWarningNotice[] = [];
     const referenceWallWidthPx = record?.referenceWallWidthPx ?? null;
 
-    if (referenceWallWidthPx !== null) {
+    if (proposedRatio !== null && referenceWallWidthPx !== null) {
       const implied = inferWallThicknessFromScale(proposedRatio, referenceWallWidthPx);
       const rangeStatus = classifyScaleRange(proposedRatio);
 
@@ -2095,7 +2100,7 @@ export function useScaleCalibration(
       }
     }
 
-    if (aiSuggestion !== null) {
+    if (proposedRatio !== null && aiSuggestion !== null) {
       const deviation = compareScaleToAiEstimate(proposedRatio, aiSuggestion);
 
       if (deviation.exceedsLimit) {
@@ -2118,18 +2123,24 @@ export function useScaleCalibration(
       }
     }
 
-    const planSize = planSizeAt(layerDocument, proposedRatio);
+    const planSize = planSizeAt(layerDocument, checkRatio);
+    const built = layerDocument?.level.scaleMillimetresPerPixel;
+    const flatAreaM2 =
+      builtAreaM2 === null || built === undefined || built <= 0 ? null : builtAreaM2 * (checkRatio / built) ** 2;
 
-    if (planSize !== null && isPlanSizeImplausible(planSize, TINY_FOOTPRINT_MM, HUGE_FOOTPRINT_MM)) {
+    if (
+      planSize !== null &&
+      (isPlanSizeImplausible(planSize, TINY_FOOTPRINT_MM, HUGE_FOOTPRINT_MM) || isFlatAreaImplausible(flatAreaM2))
+    ) {
       notices.push({
-        warning: { kind: 'implausiblePlanSize', proposed: proposedRatio, ...planSize },
+        warning: { kind: 'implausiblePlanSize', proposed: checkRatio, ...planSize },
         message: planSizeMessage(planSizeText(planSize)),
         statusCode: 'attention',
       });
     }
 
     return notices;
-  }, [aiSuggestion, layerDocument, proposedRatio, record?.referenceWallWidthPx]);
+  }, [aiSuggestion, builtAreaM2, layerDocument, proposedRatio, record?.referenceWallWidthPx, storedRatio]);
   hasPlanSizeWarningRef.current = warnings.some((notice) => notice.warning.kind === 'implausiblePlanSize');
 
   /* ---------------------------------------------------------------------- */
@@ -2492,8 +2503,13 @@ export function useScaleCalibration(
           lowConfidenceNotice:
             lowConfidenceCount === 0 ? null : lowConfidenceNotice(formatNumber(lowConfidenceCount)),
           // UX-R2 K05: đã có mốc đang dùng thì "phải đặt bằng tay" là câu sai.
+          // UX-50: vừa xác nhận xong thì câu "phải đặt bằng tay" mâu thuẫn với dòng "Lệch 0 mm".
           manualCalibrationReason:
-            selectedRow === null && aiInference !== null && aiInference.status === 'needsManualCalibration'
+            selectedRow === null &&
+            state !== 'success' &&
+            applyOutcome !== 'success' &&
+            aiInference !== null &&
+            aiInference.status === 'needsManualCalibration'
               ? aiInference.reason
               : null,
         },

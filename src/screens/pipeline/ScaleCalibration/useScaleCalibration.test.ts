@@ -910,7 +910,9 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
     await settle(mounted);
     await settleAsync();
 
-    expect(mounted.result.current.model.panel.areaEntry?.placeholder).toBe('68,94');
+    // UX-21: ô trống, chữ gợi ý không phải một con số.
+    expect(mounted.result.current.model.panel.areaEntry?.text).toBe('');
+    expect(mounted.result.current.model.panel.areaEntry?.placeholder).not.toMatch(/\d/u);
 
     await act(async () => {
       mounted.result.current.actions.onChangeFlatArea?.('25');
