@@ -149,6 +149,7 @@ import {
   isPlanSizeImplausible,
   mmPerPxAt,
   mmPerPxFromFlatArea,
+  noteRatioOf,
   outlinesAreaM2,
   parseFlatAreaM2,
   planSizeText,
@@ -244,8 +245,15 @@ const COPY = {
   suggestionOffer: (density: string): string => `Máy ước lượng từ độ dày tường: 1 px ≈ ${density} mm.`,
   suggestionUse: 'Dùng tỷ lệ này',
   // UX41 U01: máy đã đặt tạm một tỷ lệ (độ dày tường hoặc ghi chú tỷ lệ) — chọn sẵn, một nút, nói thật là ước lượng.
-  autoSuggestionNotice: (density: string): string =>
-    `Máy ước lượng sẵn 1 px ≈ ${density} mm. Đây là ước lượng: kiểm lại bằng một số đo nếu cần, rồi bấm Xác nhận tỷ lệ.`,
+  autoSuggestionNotice: (density: string, size: string): string =>
+    `Máy ước lượng sẵn 1 px ≈ ${density} mm${size}. Đây chỉ là ước lượng: cỡ căn đúng thì bấm Xác nhận tỷ lệ máy đề xuất, sai thì đo theo một cách bên dưới.`,
+  // UX-02: tỷ lệ máy đặt khớp đúng ghi chú "TL 1:N" in trên PDF.
+  noteSuggestionNotice: (ratio: string, density: string, size: string): string =>
+    `Tỷ lệ lấy từ ghi chú TL 1:${ratio} trên bản vẽ: 1 px ≈ ${density} mm${size}. Thấy đúng thì bấm Xác nhận tỷ lệ máy đề xuất.`,
+  // UX-02: máy đọc được chuỗi kích thước và chọn sẵn tỷ lệ — nói số đọc được, tỷ lệ và cỡ căn, một nút.
+  machineProposalNotice: (count: string, density: string, size: string): string =>
+    `Máy đọc được ${count} số kích thước, tỷ lệ đề xuất 1 px = ${density} mm${size}. Thấy đúng thì bấm Xác nhận tỷ lệ máy đề xuất; muốn tự đo thì chọn số khác hoặc kéo đoạn.`,
+  machineApplyLabel: 'Xác nhận tỷ lệ máy đề xuất',
   // UX41 U01: nhập thẳng tỷ lệ ghi trên bản vẽ khi máy chủ biết DPI của ảnh.
   ratioEntryLabel: 'Hoặc nhập tỷ lệ ghi trên bản vẽ',
   ratioEntryPlaceholder: '1:100',
@@ -1154,7 +1162,8 @@ export function useScaleCalibration(
     floorLayer.scaleSource === 'pipeline' &&
     pipelineRatio !== null &&
     !isSuggestionChosen &&
-    rawRows.length === 0 &&
+    // UX-02: có số đọc được nhưng không số nào đủ chắc để chọn sẵn thì vẫn đề xuất tỷ lệ máy, không khoá nút.
+    selectedRow === null &&
     drag === null &&
     proposedScale === null &&
     typedRatio === null;
@@ -2600,6 +2609,16 @@ export function useScaleCalibration(
 
   const model = useMemo<ScaleCalibrationViewModel>(() => {
     const canApply = proposedRatio !== null;
+    const oneDecimal = (ratio: number): string => formatNumber(ratio, { maxFractionDigits: 1 });
+    const sizeSuffix = (ratio: number): string => {
+      const size = planSizeAt(layerDocument, ratio);
+      return size === null ? '' : ` (căn ${planSizeText(size)})`;
+    };
+    /* UX-02: tỷ lệ máy đặt từ ghi chú "TL 1:N" của PDF (khớp đúng 1:N ở DPI nguồn). */
+    const noteRatio = noteRatioOf(pipelineRatio, sourceDpi);
+    /* UX-02: máy chọn sẵn mốc từ chuỗi kích thước, người dùng chưa chạm gì. */
+    const isRowProposal = !hasStartedWork && applyOutcome === null && selectedRow !== null;
+    const isMachineProposal = canApply && (isAutoSuggestion || isRowProposal);
 
     return {
       state,
@@ -2685,6 +2704,7 @@ export function useScaleCalibration(
         applyScope: effectiveApplyScope,
         applyScopeOptions,
         canApply,
+        ...(isMachineProposal ? { applyLabel: COPY.machineApplyLabel } : {}),
         ...(applyNotice !== null ? { applyBlockedNotice: applyNotice } : {}),
         canOpenViewer3d: applyOutcome === 'success',
         isApplying,
@@ -2773,9 +2793,13 @@ export function useScaleCalibration(
           : areaEntryRatio !== null && areaM2 !== null && areaPlanSize !== null
             ? COPY.areaEntryNotice(formatNumber(areaM2), planSizeText(areaPlanSize))
           : isAutoSuggestion && pipelineRatio !== null
-            ? COPY.autoSuggestionNotice(formatNumber(pipelineRatio, { maxFractionDigits: 1 }))
+            ? noteRatio !== null
+              ? COPY.noteSuggestionNotice(formatNumber(noteRatio), oneDecimal(pipelineRatio), sizeSuffix(pipelineRatio))
+              : COPY.autoSuggestionNotice(oneDecimal(pipelineRatio), sizeSuffix(pipelineRatio))
           : isSuggestionActive
             ? COPY.suggestionNotice
+            : isRowProposal && proposedRatio !== null
+              ? COPY.machineProposalNotice(formatNumber(rows.length), oneDecimal(proposedRatio), sizeSuffix(proposedRatio))
             : !hasStartedWork && applyOutcome === null && selectedRow !== null
               ? COPY.preselectedNotice(formatNumber(selectedRow.realLength))
               : !hasStartedWork && lowConfidenceCount === 0 && applyOutcome === null && rows.length > 0

@@ -7,11 +7,20 @@ import {
   isPlanSizeImplausible,
   mmPerPxAt,
   mmPerPxFromFlatArea,
+  noteRatioOf,
   outlinesAreaM2,
   parseFlatAreaM2,
 } from './scaleCheck';
 
 describe('scaleCheck', () => {
+  it('UX-02: tỷ lệ khớp đúng ghi chú 1:N ở DPI của PDF thì ra N, ước lượng tường thì không', () => {
+    expect(noteRatioOf(6.35, 200)).toBe(50);
+    expect(noteRatioOf(12.7, 200)).toBe(100);
+    expect(noteRatioOf(6.41, 200)).toBeNull();
+    expect(noteRatioOf(6.35, null)).toBeNull();
+    expect(noteRatioOf(null, 200)).toBeNull();
+  });
+
   it('UX-09: diện tích căn ngoài 15..400 m² là vô lý', () => {
     expect(isFlatAreaImplausible(70)).toBe(false);
     expect(isFlatAreaImplausible(7190)).toBe(true);

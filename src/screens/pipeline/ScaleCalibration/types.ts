@@ -489,6 +489,8 @@ export interface ScalePanelViewModel {
    * Cảnh báo không bao giờ hạ cờ này xuống.
    */
   readonly canApply: boolean;
+  /** UX-02: nhãn nút khi đang đề xuất tỷ lệ máy đọc/đặt sẵn ("Xác nhận tỷ lệ máy đề xuất"); vắng thì nhãn thường. */
+  readonly applyLabel?: string;
   /**
    * Lượt áp hay hoàn tác gần nhất cần nói gì: không áp được và vì sao (B-V5-01), PUT
    * hỏng, báo cáo "áp mọi tầng", hay tỷ lệ cũ được đặt lại. Vắng khi không có gì để nói.

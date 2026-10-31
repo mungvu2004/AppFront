@@ -223,6 +223,25 @@ const partialSentence = (failedNames: string, othersRunning: boolean): string =>
 const NO_DIMENSION_SENTENCE =
   'Không đọc được số kích thước nào, nên hệ thống chưa tự suy ra tỷ lệ: bạn cần đặt tỷ lệ.';
 
+/**
+ * UX-02: không đọc được số kích thước nhưng mọi tầng đã có tỷ lệ (đặt tay hoặc máy đề xuất, ít nhất một
+ * tầng máy đề xuất) — nói tỷ lệ đến từ đâu thay vì "không đọc được số". `null` khi còn tầng chưa có tỷ lệ.
+ */
+export function proposedScaleNoteOf(
+  parts: readonly Pick<ProcessingExtractionSummary, 'hasScale' | 'scaleProposed' | 'scaleNoteRatio'>[],
+): string | null {
+  const proposed = parts.filter((part) => part.scaleProposed === true);
+  if (proposed.length === 0 || !parts.every((part) => part.hasScale === true || part.scaleProposed === true)) {
+    return null;
+  }
+  const ratios = new Set(proposed.map((part) => part.scaleNoteRatio));
+  const [ratio] = ratios;
+
+  return ratios.size === 1 && ratio !== undefined
+    ? `Tỷ lệ lấy từ ghi chú TL 1:${formatNumber(ratio)} trên bản vẽ`
+    : 'Máy ước lượng tỷ lệ, cần kiểm ở bước Tỷ lệ';
+}
+
 const lowConfidenceSentence = (count: string): string =>
   `${count} chỗ máy chưa chắc, nên xem lại.`;
 
@@ -1471,6 +1490,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     const isFocusedOnly = parts.length > 1 && focused !== undefined;
     const shown = isFocusedOnly ? focused : total;
     const shownParts = isFocusedOnly ? [focused] : parts;
+    const proposedScaleNote = proposedScaleNoteOf(parts);
 
     const threshold =
       total.confidenceThreshold === null
@@ -1488,7 +1508,11 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           ? 'Chưa có tỷ lệ'
           : formatArea(totalArea(shown.roomOutlinesMm)),
       ],
-      ...(total.dimensionCount === 0 ? { noDimensionSentence: NO_DIMENSION_SENTENCE } : {}),
+      ...(total.dimensionCount !== 0
+        ? {}
+        : proposedScaleNote === null
+          ? { noDimensionSentence: NO_DIMENSION_SENTENCE }
+          : { scaleSourceNote: proposedScaleNote }),
       ...(parts.every((part) => part.hasScale === true) ? { scaleKnown: true } : {}),
       ...(threshold === null
         ? {}

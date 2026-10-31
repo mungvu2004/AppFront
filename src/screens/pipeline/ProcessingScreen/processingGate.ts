@@ -180,6 +180,7 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
       chipVariant: 'attention',
       title: reasons.length === 1 ? 'Còn 1 việc cần xem lại' : `Còn ${String(reasons.length)} việc cần xem lại`,
       scaleValue: isScaleUnresolved ? 'Cần kiểm' : 'Suy từ chuỗi kích thước',
+      ...(summary.scaleSourceNote !== undefined ? { scaleNote: summary.scaleSourceNote } : {}),
       isScaleOk: !isScaleUnresolved,
       reviewRows: reasons.map((reason): ProcessingGateReviewRow => ({
         reason,
@@ -199,7 +200,9 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
     chipLabel: `Xong ${doneStepsLabel}`,
     chipVariant: 'verified',
     title: 'Sẵn sàng duyệt tầng',
-    scaleValue: scaleKnown && noDimension ? 'Đã đặt' : 'Suy từ chuỗi kích thước',
+    scaleValue:
+      scaleKnown && noDimension ? 'Đã đặt' : summary.scaleSourceNote !== undefined ? 'Máy đề xuất' : 'Suy từ chuỗi kích thước',
+    ...(summary.scaleSourceNote !== undefined ? { scaleNote: summary.scaleSourceNote } : {}),
     isScaleOk: true,
     action: { label: GO_REVIEW_LABEL, isForward: true, onClick: summary.onReviewWalls },
   };
