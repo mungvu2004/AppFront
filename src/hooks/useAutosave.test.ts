@@ -601,4 +601,62 @@ describe('useFloorLayerAutosave', () => {
     window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
   });
+
+  it('U14: tab quay lại, tầng sạch mà máy chủ có bản mới → nạp ngay, không đợi 409', async () => {
+    const { client, readLayer } = spyClient();
+
+    loadSample();
+    renderHook(() => useFloorLayerAutosave({ apiClient: client, floorId: FLOOR_A, projectId: PROJECT }));
+    await tick();
+    simulateRemoteLayerEdit(FLOOR_A);
+
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    await tick();
+
+    expect(readLayer).toHaveBeenCalledTimes(1);
+    expect(useStore.getState().floorMeta[FLOOR_A]?.revision).toBe(1);
+  });
+
+  it('U14: tầng có sửa chờ thì quay lại tab không đọc, không nạp đè', async () => {
+    const { client, readLayer } = spyClient();
+
+    loadSample();
+    renderHook(() => useFloorLayerAutosave({ apiClient: client, floorId: FLOOR_A, projectId: PROJECT }));
+    await tick();
+    act(() => editFloor(FLOOR_A));
+
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    await tick();
+
+    expect(readLayer).not.toHaveBeenCalled();
+  });
+
+  it('U15: chỉ còn tầng bị khối reload → không bật hộp hỏi rời trang', async () => {
+    const { client } = spyClient();
+
+    loadSample();
+    const { result } = renderHook(() => useFloorLayerAutosave({ apiClient: client, floorId: FLOOR_A, projectId: PROJECT }));
+
+    await tick();
+    simulateRemoteLayerEdit(FLOOR_A);
+    act(() => editFloor(FLOOR_A));
+    await tick(800);
+    expect(result.current.saveBlock?.kind).toBe('reload');
+
+    const leave = new Event('beforeunload', { cancelable: true });
+
+    window.dispatchEvent(leave);
+    expect(leave.defaultPrevented).toBe(false);
+
+    // Sửa tầng khác chưa lưu thì hộp hỏi vẫn còn.
+    act(() => editFloor(FLOOR_B));
+    const leaveWithEdit = new Event('beforeunload', { cancelable: true });
+
+    window.dispatchEvent(leaveWithEdit);
+    expect(leaveWithEdit.defaultPrevented).toBe(true);
+  });
 });
