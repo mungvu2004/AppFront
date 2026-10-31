@@ -232,11 +232,11 @@ export function FloorUploadGatePanel({
         {!footer.isSubmitHidden && (
           <Button
             className="w-full"
-            {...(gate.isReady ? { iconAfter: <ArrowRight aria-hidden="true" /> } : {})}
+            {...(gate.isReady && footer.isReprocess !== true ? { iconAfter: <ArrowRight aria-hidden="true" /> } : {})}
             loading={footer.isSubmitting}
             onClick={onSubmit}
             type="button"
-            variant={gate.isReady ? 'primary' : 'secondary'}
+            variant={gate.isReady && footer.isReprocess !== true ? 'primary' : 'secondary'}
           >
             {footer.submitLabel}
           </Button>

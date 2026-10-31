@@ -115,10 +115,11 @@ const COPY = Object.freeze({
   readOnlyKey: 'floorUpload.readOnlyNotice',
   counterKey: 'floorUpload.footer.counter',
   submit: 'Bắt đầu xử lý',
+  reprocess: 'Xử lý lại',
   submitKey: 'floorUpload.footer.submit',
   blockedTitle: 'Không thể bắt đầu xử lý',
   blockedTitleKey: 'floorUpload.blockedSubmit.title',
-  replaceTitle: 'Xử lý lại sẽ thay bản vẽ đang có. Bấm "Bắt đầu xử lý" lần nữa để đồng ý.',
+  replaceTitle: (label: string) => `Xử lý lại sẽ thay bản vẽ đang có. Bấm "${label}" lần nữa để đồng ý.`,
   noFloors: 'Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý.',
   uploadErrorTitleKey: 'errors.upload.title',
   validationErrorTitleKey: 'errors.validation.title',
@@ -387,6 +388,18 @@ const LOAD_FAILURE_FALLBACK = 'Không tải được danh sách tầng của d�
 /* -------------------------------------------------------------------------- */
 /* Hook.                                                                       */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * UX-07: dự án đã có tầng xử lý xong (`areaM2` chỉ có sau khi AI dựng) thì màn nói rõ, không như dự án mới.
+ * Đang thả tệp mới (xử lý lại) thì im, để khối điều kiện bên phải dẫn lượt đó.
+ * ponytail: #24 không có số mục đã duyệt từng tầng, nên chỉ nói số tầng đã xử lý.
+ */
+export function processedNoticeOf(floors: readonly Floor[], pendingFiles: number): string | null {
+  if (pendingFiles > 0) return null;
+  const processed = floors.filter((floor) => floor.drawings.length > 0 && (floor.areaM2 ?? 0) > 0).length;
+  if (processed === 0) return null;
+  return `Đã xử lý ${processed}/${floors.length} tầng, đang chờ duyệt. Muốn xử lý lại thì thả bản vẽ mới vào tầng; máy sẽ hỏi trước khi thay.`;
+}
 
 export function useFloorUploadScreen(
   options: UseFloorUploadScreenOptions,
@@ -1186,7 +1199,12 @@ export function useFloorUploadScreen(
     setBlockNotice(null);
   }
 
-  const replaced = floors.filter((floor) => drawnAtOpen?.has(floor.id) === true && attachmentByFloor.has(floor.id));
+  // UX-07: đã xử lý mà chưa thả tệp mới thì nút chính là "Xử lý lại" — mọi tầng có bản vẽ đều bị thay, nên hỏi như UX-51.
+  const isReprocess = processedNoticeOf(floors, attachments.length) !== null;
+  const submitLabel = isReprocess ? COPY.reprocess : COPY.submit;
+  const replaced = isReprocess
+    ? floors.filter((floor) => floor.drawings.length > 0)
+    : floors.filter((floor) => drawnAtOpen?.has(floor.id) === true && attachmentByFloor.has(floor.id));
 
   // Tệp thay đã gỡ thì lời hỏi lại cũng gỡ theo.
   if (replaceNotice !== null && replaced.length === 0) {
@@ -1228,7 +1246,7 @@ export function useFloorUploadScreen(
 
       setScrollToken(requestId);
       setReplaceNotice({
-        title: COPY.replaceTitle,
+        title: COPY.replaceTitle(submitLabel),
         titleKey: COPY.blockedTitleKey,
         reasons: replaced.map((floor) => ({
           floorId: floor.id,
@@ -1454,8 +1472,9 @@ export function useFloorUploadScreen(
       `${formatNumber(doneCount, { grouping: false })} / ` +
       `${formatNumber(rows.length, { grouping: false })} tầng đã có bản vẽ`,
     counterLabelKey: COPY.counterKey,
-    submitLabel: COPY.submit,
+    submitLabel,
     submitLabelKey: COPY.submitKey,
+    isReprocess,
     canSubmit,
     blockReasons,
     isSubmitting,
@@ -1541,6 +1560,7 @@ export function useFloorUploadScreen(
     footer,
     // Lý do hiện theo bản mới nhất, không theo bản chụp lúc bấm (G3-22).
     blockNotice: blockNotice === null ? replaceNotice : { ...blockNotice, reasons: blockReasons },
+    processedNotice: isReprocess ? processedNoticeOf(floors, attachments.length) : null,
     splitPrompt: split.splitPrompt,
     apartments: split.apartments,
   };
@@ -1583,6 +1603,8 @@ export function useFloorUploadScreen(
       canEdit && options.onNavigate !== undefined
         ? () => options.onNavigate?.(ROUTES.project.floors(projectId))
         : undefined,
+    onOpenReview:
+      options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.project.floors(projectId)),
     onBackToProjects:
       options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
     // Xác nhận "đúng tầng" chỉ gỡ cờ ghép tự động; tệp đã tải không tải lại.
