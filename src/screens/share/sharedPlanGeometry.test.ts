@@ -13,6 +13,9 @@ describe('mặt bằng trang chia sẻ', () => {
     expect(roomDisplayName(' lô gia')).toBe('Lô gia');
     expect(roomDisplayName('đ')).toBe('Đ');
     expect(roomDisplayName('')).toBe('');
+    expect(roomDisplayName('phòng 5', 'bedroom')).toBe('Phòng ngủ');
+    expect(roomDisplayName('phòng 5', 'other')).toBe('Phòng 5');
+    expect(roomDisplayName('Phòng khách', 'kitchen')).toBe('Phòng khách');
   });
 
   it('[U23] đệm tỉ lệ theo bản vẽ, không phải 500 đơn vị cố định', () => {
