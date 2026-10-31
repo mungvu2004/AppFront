@@ -49,10 +49,11 @@ useRealism.setState({ flags: realismFlagsFrom(getFeatureFlagsSnapshot().values) 
 setDetailsEnabled(useRealism.getState().flags.details);
 // B1 (bước 2): sofa/ghế bành/ghế ăn → mẫu Poly Haven `-ph` khi bật cờ materials (furnitureCatalog.ts).
 setRealismModels(useRealism.getState().flags.materials);
-// Backend thật (vendor ghi sau khi renderer init) khác phép thử `navigator.gpu` → đè lại số đèn.
+// Backend thật (vendor ghi sau khi renderer init) khác phép thử `navigator.gpu`, hoặc mức chất lượng đổi
+// (SSGI bật/tắt theo mức) → đè lại số đèn.
 // ponytail: đè tại chỗ, đèn đã vẽ chỉ đổi ở lượt dựng lại kế tiếp (đổi chủ đề/tải lại); GĐ3 nếu cần tức thì.
 useRealism.subscribe((state, prev) => {
-  if (state.backend === prev.backend) return;
+  if (state.backend === prev.backend && state.tier === prev.tier) return;
   applyRenderLook(getSceneTheme('night'), SSGI_PARAMS);
   applyDayLook(getSceneTheme(DAY_THEME_ID));
 });

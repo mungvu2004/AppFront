@@ -49,7 +49,8 @@ export const RENDER_LOOK_PALETTE = {
   // + tương phản hậu kỳ biến xám trung tính thành nâu bùn khi nhìn từ trên. Vẫn tối hơn tường.
   background: '#aaaeb1',
   sky: '#d8dadb',
-  ground: '#9a9ea1',
+  // Dáng A: đất sáng + hơi lạnh hơn (#9a9ea1 dưới đèn ấm ra nâu đục 113,103,87 trên ảnh).
+  ground: '#a6a9ae',
   ambient: '#fff1e0',
   hemiSky: '#fff6ea',
   hemiGround: '#6b5640',
@@ -65,7 +66,9 @@ export const RENDER_LOOK_PALETTE = {
 // Màu phẳng của 5 phong cách cảnh (`sceneStyles.ts`): sơn tường, tủ bếp, sứ, chậu cây, ánh đèn.
 // Tường ngoài xám của ấm áp/tối giản sẫm hơn (than xám) để khối nhà kiểu dollhouse đọc rõ.
 export const STYLE_PALETTE = {
-  amApWall: '#f5f3ef',
+  // Dáng A (docs/blender-vs-editor/BAO-CAO.md §2): trắng ngà #f5f3ef chiếm ~65 % khung, ảnh nhạt và phẳng;
+  // be ấm sáng giữ phòng sáng mà vẫn có bậc tông với sàn và đồ.
+  amApWall: '#ebe2d4',
   amApExterior: '#5f5d5a',
   amApCabinet: '#ebe7e0',
   hienDaiWall: '#f7f8f8',

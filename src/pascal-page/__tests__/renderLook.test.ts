@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { RENDER_LOOK_PALETTE } from '@/lib/pascal/scenePalette';
 
+import { useRealism } from '../realism/store';
 import { applyDayLook, applyRenderLook, DAY_LOOK_TIERS, DAY_THEME_ID, RENDER_LOOK_TIERS } from '../renderLook';
 
 const nightLike = () => ({
@@ -57,6 +58,25 @@ describe('applyRenderLook', () => {
     applyRenderLook(theme, ssgiLike());
     const tier = typeof navigator !== 'undefined' && 'gpu' in navigator ? 'high' : 'low';
     expect(theme.ambient.intensity).toBe(RENDER_LOOK_TIERS[tier].ambient);
+  });
+
+  it('WebGPU nhưng mức thấp (SSGI tắt, GPU tích hợp) → bậc `low`: không để nền tối mà không có SSGI bù', () => {
+    const before = useRealism.getState();
+    try {
+      // eslint-disable-next-line local/no-direct-set -- store realism của trang Pascal, chỉ dựng tình huống thử
+      useRealism.setState({ backend: 'webgpu', tier: 'low' });
+      const low = nightLike();
+      applyRenderLook(low, ssgiLike());
+      expect(low.ambient.intensity).toBe(RENDER_LOOK_TIERS.low.ambient);
+      // eslint-disable-next-line local/no-direct-set -- như trên
+      useRealism.setState({ tier: 'medium' });
+      const medium = nightLike();
+      applyRenderLook(medium, ssgiLike());
+      expect(medium.ambient.intensity).toBe(RENDER_LOOK_TIERS.high.ambient);
+    } finally {
+      // eslint-disable-next-line local/no-direct-set -- trả store về như cũ
+      useRealism.setState({ backend: before.backend, tier: before.tier });
+    }
   });
 
   it('phông xám trung tính sáng hơn bản nâu tối cũ, tường sáng vẫn nổi trên nền', () => {

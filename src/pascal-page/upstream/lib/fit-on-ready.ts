@@ -4,8 +4,8 @@
  * editor, the Viewer default in Preview) and upstream's `fit-scene` handler ignores Preview.
  * A fixed timer fired before the controls existed on a cold first open, so the fit was lost.
  * Here we wait for the controls to publish their first pose, then fit with `apply-pose`
- * (honoured in Preview too). The pose is ≈40° elevation with a 40° lens (upstream 50°) (FE3D-FIX-002
- * Q2), at the distance that makes the plan fill ~80% of the canvas (V5 D13).
+ * (honoured in Preview too). The pose is ≈52° elevation with a 24° lens (upstream 50°; FE3D-FIX-002
+ * Q2 had 40°/40°), at the distance that makes the plan fill ~90% of the canvas (V5 D13).
  * FE3D-FIX-004 V14: bounds come from walls + zones only (`planBoundsXZ`), the frame is the real
  * canvas rect (not the window, which counts the sidebar), and the azimuth turns the long side of
  * the plan across the screen.
@@ -15,10 +15,15 @@ import type { CameraPose } from '@pascal-app/core'
 type Bounds = { center: [number, number]; size: [number, number] }
 type Viewport = { width: number; height: number }
 
-const FIT_FOV = 40
-const ELEVATION = (40 * Math.PI) / 180
-/** Share of the free viewport the plan fills (FE3D-FIX-002 V5 D13: plans sat small in dead space). */
-const FILL = 0.8
+/**
+ * Render look A (docs/blender-vs-editor/BAO-CAO.md §4): a long lens seen from higher up reads like the
+ * architectural cut-away renders — verticals barely splay and walls hide far less floor behind them
+ * (a 3 m wall at 40° hid 3.6 m). 24° keeps orbit/zoom usable while editing (16° felt like a telescope).
+ */
+const FIT_FOV = 24
+const ELEVATION = (52 * Math.PI) / 180
+/** Share of the free viewport the plan fills (FE3D-FIX-002 V5 D13; render look A: 0.8 → 0.9). */
+const FILL = 0.9
 /** Top toolbar plus the one-line scale banner under it, overlaying the canvas (px; UX-R2 K38). */
 export const TOP_RESERVED_PX = 120
 /** Walls stand above the XZ bounds; frame their tops too. ponytail: fixed 3 m, not per level. */
@@ -105,7 +110,7 @@ export function fitAzimuth([sx, sz]: [number, number]): number {
 }
 
 /**
- * Azimuth from `fitAzimuth`, 40° elevation, 40° lens. The distance is the smallest one at which every
+ * Azimuth from `fitAzimuth`, 52° elevation, 24° lens. The distance is the smallest one at which every
  * corner of the plan box (floor to wall tops) projects inside FILL of the canvas below the toolbar —
  * exact per-corner perspective test, so long or square plans fill the frame alike. `baseY` lifts the
  * frame to a floor that stands above ground (solo mode keeps its stacked height, UX-R2 K38).
