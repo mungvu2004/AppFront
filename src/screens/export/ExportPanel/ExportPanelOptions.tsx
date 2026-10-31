@@ -4,7 +4,8 @@
  * chứa gì* trước khi bấm "xuất".
  *
  * Tầng chưa duyệt vẫn chọn được (`isSelected` không phụ thuộc `isApproved`) —
- * `Badge` chỉ đổi màu, không bao giờ khoá `Checkbox`.
+ * `Badge` chỉ đổi màu, không khoá `Checkbox` — trừ tầng chưa có bản vẽ: không có gì để
+ * xuất nên ô tích bị khoá và ghi "Chưa có bản vẽ" (U36).
  *
  * "Tuỳ chọn" gấp lại mặc định theo `options.isExpanded`; đổi định dạng thì bộ
  * tuỳ chọn hoà tan lại ở tốc độ `fast` (180 ms) bằng `animate-dropdown-open`
@@ -33,6 +34,7 @@ import type {
   ExportCapabilities,
   ExportDetailChoice,
   ExportFloorChoice,
+  ExportFloorState,
   ExportFormatId,
   ExportOptionsView,
   GlbOptionsView,
@@ -58,6 +60,18 @@ function withSpatialJson(options: ExportOptionsView, patch: Partial<SpatialJsonO
   return { ...options, spatialJson: { ...options.spatialJson, ...patch } };
 }
 
+/** Nhãn tầng trong Phạm vi: nói đúng việc còn thiếu, khớp dòng "duyệt" ở khối kiểm tra (U05, U36). */
+const FLOOR_BADGE: Readonly<Record<ExportFloorState, { label: string; variant: 'verified' | 'attention' | 'neutral' }>> = {
+  approved: { label: 'Đã duyệt', variant: 'verified' },
+  empty: { label: 'Chưa có bản vẽ', variant: 'neutral' },
+  scaleOnly: { label: 'Thiếu tỷ lệ', variant: 'attention' },
+  stepOnly: { label: 'Chờ duyệt tầng', variant: 'attention' },
+  pending: { label: 'Chưa duyệt', variant: 'attention' },
+};
+
+const floorState = (floor: ExportFloorChoice): ExportFloorState =>
+  floor.state ?? (floor.isApproved ? 'approved' : 'pending');
+
 interface ExportPanelScopeProps {
   readonly floors: readonly ExportFloorChoice[];
   readonly onToggleFloor: (id: string) => void;
@@ -75,14 +89,13 @@ function ExportPanelScope({ floors, onToggleFloor }: ExportPanelScopeProps) {
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <Checkbox
                 label={floor.name}
-                checked={floor.isSelected}
+                checked={floor.isSelected && floorState(floor) !== 'empty'}
+                disabled={floorState(floor) === 'empty'}
                 onChange={() => {
                   onToggleFloor(floor.id);
                 }}
               />
-              <Badge variant={floor.isApproved ? 'verified' : 'attention'}>
-                {floor.isApproved ? 'Đã duyệt' : 'Chưa duyệt'}
-              </Badge>
+              <Badge variant={FLOOR_BADGE[floorState(floor)].variant}>{FLOOR_BADGE[floorState(floor)].label}</Badge>
             </div>
           </div>
         ))}
