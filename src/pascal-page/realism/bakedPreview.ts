@@ -4,8 +4,10 @@
  * và vẽ tường/sàn chỉ bằng lightmap (vật liệu không qua đèn). Đồ đạc trong GLB vẫn nhận đèn thời gian thực.
  * Gọi mỗi khung từ hệ tường vendor (luật `scripts/realism/r11-baked.mjs`).
  */
-import { FileLoader, type Material, type Mesh, MeshBasicMaterial, type MeshStandardMaterial, type Object3D, SRGBColorSpace, type Texture, TextureLoader } from 'three';
+import { BackSide, FileLoader, type Material, Mesh, MeshBasicMaterial, type MeshStandardMaterial, type Object3D, SRGBColorSpace, type Texture, TextureLoader } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+import { CUT_FACE_COLOR } from './cut';
 
 export interface BakedManifest {
   lightmap: string;
@@ -48,6 +50,9 @@ export function bakedMaterial(source: Material, lightMap: Texture, manifest: Bak
   });
 }
 
+/** Nắp cắt: mặt sau của tường đã cắt (khối kín) tô gần đen, như chế độ cắt sống và ảnh Blender. */
+const capMaterial = new MeshBasicMaterial({ color: CUT_FACE_COLOR, side: BackSide });
+
 let started = false;
 let root: Object3D | null = null;
 
@@ -61,13 +66,16 @@ async function load(dir: string): Promise<Object3D> {
   lightMap.colorSpace = SRGBColorSpace;
   lightMap.flipY = false;
   lightMap.channel = manifest.channel;
+  const caps: Mesh[] = [];
   gltf.scene.traverse((child) => {
     const mesh = child as Mesh;
     if (!mesh.isMesh || !mesh.userData['lightmap']) return;
     mesh.material = Array.isArray(mesh.material)
       ? mesh.material.map((m) => bakedMaterial(m, lightMap, manifest))
       : bakedMaterial(mesh.material, lightMap, manifest);
+    caps.push(mesh);
   });
+  for (const mesh of caps) mesh.add(new Mesh(mesh.geometry, capMaterial));
   gltf.scene.name = 'baked-preview';
   return gltf.scene;
 }
