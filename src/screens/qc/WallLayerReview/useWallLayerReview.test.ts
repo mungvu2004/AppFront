@@ -47,8 +47,10 @@ import {
   applyWallFilters,
   deriveScreenState,
   nextUnreviewedWallId,
+  readWallCodeMemory,
   useWallLayerReview,
   wallsOfLevel,
+  writeWallCodeMemory,
   type UseWallLayerReviewOptions,
   type UseWallLayerReviewResult,
 } from './useWallLayerReview';
@@ -159,6 +161,8 @@ const FLOOR_ID = FIXTURE_LEVEL.id;
 /* -------------------------------------------------------------------------- */
 
 beforeEach(() => {
+  /* U07: nhãn tường nhớ trong localStorage — bài kiểm này không được mang nhãn sang bài kia. */
+  localStorage.clear();
   /* Bộ lưu lớp sống cấp module, revision mock cũng vậy — mỗi bài kiểm bắt đầu sạch. */
   __resetFloorLayerSavers();
   __resetMockLayerState();
@@ -1806,10 +1810,22 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
     expect(inspector.lengthLabel).toBe('Chưa có — cần đặt tỷ lệ');
   });
 
+  it('U07: nhãn tường nhớ qua lần tải lại, theo dự án và tầng', () => {
+    writeWallCodeMemory('p1', 'L1', new Map([['W-a', 'W-004'], ['W-b', 'W-009']]));
+
+    expect([...readWallCodeMemory('p1', 'L1')]).toEqual([['W-a', 'W-004'], ['W-b', 'W-009']]);
+    expect(readWallCodeMemory('p1', 'L2').size).toBe(0);
+    expect(readWallCodeMemory('p1', null).size).toBe(0);
+    localStorage.setItem('wall-codes:p1:L3', '{hỏng');
+    expect(readWallCodeMemory('p1', 'L3').size).toBe(0);
+  });
+
   it('U48: người đã sửa độ dày thì thanh tra giữ số máy đo', () => {
-    const edited = { ...wallAt(0), thicknessMm: 200, detectedThicknessMm: 221 } as Wall;
+    const edited = { ...wallAt(0), thicknessMm: 200, detectedThicknessMm: 221, source: 'human' } as Wall;
 
     expect(toWallInspector(edited, FIXTURE_LEVEL).detectedNote).toBe('(đã sửa, máy đo 221)');
+    /* U30: máy tự làm tròn thì không nói "đã sửa". */
+    expect(toWallInspector({ ...edited, source: 'ai' } as Wall, FIXTURE_LEVEL).detectedNote).toBe('(máy tự làm tròn, máy đo 221)');
     expect(toWallInspector({ ...edited, thicknessMm: 221 } as Wall, FIXTURE_LEVEL).detectedNote).toBeNull();
     expect(toWallInspector(wallAt(0), FIXTURE_LEVEL).detectedNote).toBeNull();
   });

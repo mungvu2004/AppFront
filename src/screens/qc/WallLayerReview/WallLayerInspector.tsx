@@ -11,12 +11,11 @@
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
-import { wallStrokeToken } from '@/components/canvas/materialMap';
-import { wallThicknessColorBand } from './wallLayerHatch';
 import { AnimatePresence, motion } from '@/components/motion';
 import { Badge } from '@/components/ui/Badge';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { durationSeconds } from '@/lib/motion';
+import { WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 import { cn } from '@/lib/utils';
 
 import type { WallLayerViewProps, WallThicknessChoice } from './types';
@@ -48,21 +47,6 @@ const REVIEWED_LABEL = 'Đã duyệt';
 const UNREVIEWED_LABEL = 'Chưa duyệt';
 const EMPTY_MESSAGE =
   'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để duyệt.';
-
-function ReadOnlyThickness({ choices, value }: { readonly choices: readonly WallThicknessChoice[]; readonly value: number }) {
-  return (
-    <div aria-label={THICKNESS_ARIA_LABEL} className="flex flex-wrap items-center gap-x-3 gap-y-1" role="group">
-      {choices.map((choice) => (
-        <span className="flex items-center gap-1.5" key={choice}>
-          <span aria-hidden="true" className="h-3 w-3 rounded-xs" style={{ backgroundColor: wallStrokeToken(wallThicknessColorBand(choice)) }} />
-          <span className={cn('text-[13px]', choice === value ? 'font-semibold text-text-primary' : 'text-text-secondary')}>
-            {choice} mm
-          </span>
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function ValueRow({ label, value, isLast = false }: { readonly label: string; readonly value: string; readonly isLast?: boolean }) {
   return (
@@ -101,7 +85,7 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
   const showLockHere = scaleLock === null && lockText !== null && !(isNonStandard && extra !== undefined && extra.targetMm !== null);
 
   return (
-    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-full">
+    <div className="order-2 flex max-h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-full">
       <div className="flex h-11 shrink-0 items-end px-5">
         <h2 className="text-caption font-medium uppercase tracking-[0.06em] text-text-secondary">{PANEL_TITLE}</h2>
       </div>
@@ -112,7 +96,8 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
           <p className="px-5 pb-5 pt-2 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col overflow-y-auto pb-5">
+        <>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="flex items-center gap-2 px-5 pb-3 pt-1">
             {/* K16: mã không gãy giữa "#W-" và "001". */}
             <p className="shrink-0 whitespace-nowrap text-title tabular-nums text-text-primary">{inspector.codeLabel}</p>
@@ -134,17 +119,17 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
           <div className="mx-5 rounded-lg bg-bg-sunken px-4 py-3">
             <p className="text-caption text-text-secondary">{MEASURED_LABEL}</p>
             <p className="tabular-nums text-text-primary">
-              <span className="text-[32px] font-medium leading-10">{inspector.thicknessMm}</span>
-              <span className="ml-1 text-body-sm text-text-secondary">mm</span>
-              {inspector.detectedNote ? <span className="ml-2 text-body-sm text-text-secondary">{inspector.detectedNote}</span> : null}
+              {/* U30: dấu cách thật giữa số, đơn vị và ghi chú — chép/đọc màn hình không dính chữ. */}
+              <span className="text-[32px] font-medium leading-10">{inspector.thicknessMm}</span>{' '}
+              <span className="text-body-sm text-text-secondary">mm</span>
+              {inspector.detectedNote ? <>{' '}<span className="ml-1 text-body-sm text-text-secondary">{inspector.detectedNote}</span></> : null}
             </p>
             {extra === undefined ? null : <p className="mt-1 text-body-sm text-text-secondary">{extra.note}</p>}
           </div>
 
           <div className="px-5 pb-2 pt-3">
-            {isViewerRole ? (
-              <ReadOnlyThickness choices={thicknessChoices} value={inspector.thicknessMm} />
-            ) : (
+            {/* U37: người xem không thấy hàng "100 mm … 400 mm" (trông như nút sửa) — số hiện tại đã ở trên. */}
+            {isViewerRole ? null : (
               <label className="flex items-center gap-3">
                 <span className="shrink-0 text-caption text-text-secondary">{CHANGE_THICKNESS_LABEL}</span>
                 <select
@@ -213,10 +198,14 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
             </AnimatePresence>
           </div>
 
-          <div className="mt-auto flex flex-col items-stretch gap-2 px-5 pt-4">
+        </div>
+
+          {/* U20: nút duyệt nằm ngoài vùng cuộn, đứng đáy thẻ — ở 768 px vẫn thấy ngay, không phải cuộn. */}
+          <div className="flex shrink-0 flex-col items-stretch gap-2 border-t border-border-default px-5 pb-5 pt-3">
             {/* Khoá tỷ lệ: thay mọi nút sửa/duyệt bằng lý do + lối sang bước Tỷ lệ. */}
             {scaleLock === null ? (
               <WallLayerInspectorActions
+                confirmDelete={inspector.kindLabel === WALL_KIND_LABELS.envelope}
                 extra={extra}
                 isNonStandard={isNonStandard}
                 isReviewed={isReviewed}
@@ -230,7 +219,7 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
               <WallScaleLockNotice lock={scaleLock} />
             )}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
