@@ -8,6 +8,8 @@ import { queryKeys } from '@/lib/query/queryKeys';
 export interface ProjectFloorItem {
   readonly id: string;
   readonly label: string;
+  /** Tầng đã có bản vẽ chưa — `QcFloorNav` ghi "chưa có bản vẽ" cho tầng trống (U52). */
+  readonly hasDrawing?: boolean;
 }
 
 type ReadFloorList = (input: { readonly projectId: string }) => Promise<ApiResult<Floor[]>>;
@@ -41,7 +43,7 @@ export function useProjectFloors(
     () =>
       [...(query.data ?? [])]
         .sort((first, second) => first.order - second.order)
-        .map((item) => ({ id: item.id, label: item.name })),
+        .map((item) => ({ id: item.id, label: item.name, hasDrawing: item.drawings.length > 0 })),
     [query.data],
   );
 }

@@ -134,8 +134,8 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
                 )}
               >
                 <StepMarker index={index} isCurrent={isCurrent} state={state} />
-                {/* Dưới 1024 chỉ bước đang đứng hiện chữ, để cả thanh và nút đi tiếp nằm trên một dòng. */}
-                <span className={cn(!isCurrent && 'hidden lg:inline')}>{step.label}</span>
+                {/* Dưới 768 chỉ bước đang đứng hiện chữ; từ 768 (máy tính bảng) mọi bước có tên (U47). */}
+                <span className={cn(!isCurrent && 'hidden md:inline')}>{step.label}</span>
               </Link>
             </li>
           );
