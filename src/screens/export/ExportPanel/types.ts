@@ -283,7 +283,7 @@ export interface ExportPanelProps {
   readonly onExport: () => void;
   /** U36: khác `null` khi bấm Xuất mà có tầng chưa duyệt — câu hỏi lại "Vẫn xuất?". */
   readonly unreviewedConfirm?: string | null;
-  /** "Xuất vẫn": xuất luôn dù tầng chưa duyệt. */
+  /** "Vẫn xuất": xuất luôn dù tầng chưa duyệt. */
   readonly onConfirmExport?: () => void;
   /** "Duyệt trước": đóng câu hỏi, về màn duyệt. */
   readonly onReviewFirst?: () => void;
