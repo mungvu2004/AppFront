@@ -33,6 +33,11 @@ export const SCENE_PALETTE = {
   bark: '#88654c',
   // Sàn gỗ sáng như cảnh Blender (`F:/runs/login-tour/pbr.py` herring): `wood` cam quá khi phủ cả sàn.
   floorOak: '#b3916f',
+  // Mặt cắt tường (chế độ "Tường: cắt", xem thử nướng) và trình bày studio (`src/pascal-page/realism/studio.ts`).
+  cutFace: '#141416',
+  studioGround: '#d6d7d8',
+  studioShadow: '#2e3134',
+  studioPlinth: '#e6e3de',
   // Màu đèn mặc định trong catalog Pascal (`catalog-items.tsx`), chép nguyên để đối chiếu.
   catalogLight: '#ffffff',
 } as const;

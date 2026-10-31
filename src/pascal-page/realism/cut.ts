@@ -3,11 +3,12 @@
  * phòng, cửa, cửa sổ, đồ cao, trần) bị cắt ở 1,0 m trên sàn tầng để nhìn từ trên xuống thấy phòng.
  * Mặt cắt của khối tường kín là mặt sau → tô phẳng gần đen. Logic thuần, phần chạy ở `cutSync.ts`.
  */
+import { SCENE_PALETTE } from '@/lib/pascal/scenePalette';
 
 /** Độ cao mặt cắt tính từ sàn tầng (m). */
 export const CUT_HEIGHT_M = 1.0;
 /** Màu mặt cắt (mặt sau tường lộ ra qua mặt cắt). */
-export const CUT_FACE_COLOR = '#141416';
+export const CUT_FACE_COLOR = SCENE_PALETTE.cutFace;
 /** Chế độ tường dùng cắt thấp (nhãn "Tường: cắt" trên thanh công cụ). */
 export const CUT_WALL_MODE = 'cutaway';
 /** Tên lưới gộp tường của vendor (`wall-batch-system.tsx`). */

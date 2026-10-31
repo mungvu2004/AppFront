@@ -4,12 +4,13 @@
  * chân nhà. Phần thuần (màu, kích thước, đường bao đế) ở đây; phần three/TSL ở `horizon.ts`,
  * luật vendor ở `scripts/realism/r10-studio.mjs`.
  */
+import { SCENE_PALETTE } from '@/lib/pascal/scenePalette';
 
 /** Màu studio (sRGB). Đất không qua đèn nên giữ đúng xám trung tính trên ảnh. */
 export const STUDIO_PALETTE = {
-  ground: '#d6d7d8',
-  shadow: '#2e3134',
-  plinth: '#e6e3de',
+  ground: SCENE_PALETTE.studioGround,
+  shadow: SCENE_PALETTE.studioShadow,
+  plinth: SCENE_PALETTE.studioPlinth,
 } as const;
 
 /** Đế: cao (m), vát cạnh (m), nhô ra ngoài mép sàn tầng thấp nhất (m, chưa tính vát). */
