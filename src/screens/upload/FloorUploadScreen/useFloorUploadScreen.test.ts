@@ -2594,6 +2594,45 @@ describe('useFloorUploadScreen — UX41 tải bản vẽ', () => {
     expect(result.current.tray.items[0]?.error?.sentence).toContain('không khớp đuôi tệp');
   });
 
+  it('U21/U29: tệp hỏng trên tầng trống nói "bị lỗi"; chọn tệp khác cho tầng thì tệp mới thay tệp hỏng', async () => {
+    const harness = createHarness(withoutServerDrawings());
+    const { result } = await ready(harness.options);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.png')]);
+    });
+
+    await waitFor(() => {
+      expect(harness.uploads.size).toBe(1);
+    });
+
+    act(() => {
+      [...harness.uploads.values()][0]?.finish({
+        percent: 0,
+        status: 'failed',
+        failure: { stage: 'complete', chunkIndex: null, attempts: 1, terminal: true, error: fileError('FILE_TYPE_MISMATCH') },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.status).toBe('error');
+    });
+
+    const floorId = result.current.floors[3]?.floorId ?? '';
+
+    expect(result.current.footer.blockReasons.some((reason) => reason.sentence.includes('bị lỗi. Hãy chọn tệp khác.'))).toBe(true);
+
+    act(() => {
+      result.current.onFilesForFloor?.(floorId, [makeFile('ch-05.jpg')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.file?.name).toBe('ch-05.jpg');
+    });
+
+    expect(result.current.floors[3]?.status).not.toBe('error');
+  });
+
   it('U55: tệp quá dung lượng nói cách làm nhỏ', async () => {
     const harness = createHarness({
       validateFile: async () => ({
