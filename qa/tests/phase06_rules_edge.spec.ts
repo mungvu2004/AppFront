@@ -136,11 +136,11 @@ interface Figures {
 /** The four settled figures of the strip (RRS SummaryStat). */
 async function figuresOf(page: Page): Promise<Figures> {
   return {
-    total: await settledInt(summaryValue(page, 'Tổng số kiểm tra')),
-    passed: await settledInt(summaryValue(page, 'Đạt')),
-    warnings: await settledInt(summaryValue(page, 'Cảnh báo')),
-    suggestions: await settledInt(summaryValue(page, 'Gợi ý')),
-    violations: await settledInt(summaryValue(page, 'Nghiêm trọng')),
+    total: await settledInt(summaryValue(page, 'Luật đã kiểm')),
+    passed: await settledInt(summaryValue(page, 'Luật đạt')),
+    warnings: await settledInt(summaryValue(page, 'Luật cảnh báo')),
+    suggestions: await settledInt(summaryValue(page, 'Luật có gợi ý')),
+    violations: await settledInt(summaryValue(page, 'Luật nghiêm trọng')),
   };
 }
 
@@ -440,9 +440,9 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
 
       await test.step('[28-A-013] every returned finding is a row (dangling ends of the isolated wall)', async () => {
         // S5-confirm: WALL-DANGLING-END raises one finding per dangling end (name: danglingWallEndRule).
-        const info = await infoOf(page, 'Đầu tường nào cũng nối vào tường khác');
+        const info = await infoOf(page, 'Tường nối kín với nhau, không hở đầu');
         expect.soft(info, 'WALL-DANGLING-END group').toBeDefined();
-        const section = ruleSection(page, 'Đầu tường nào cũng nối vào tường khác');
+        const section = ruleSection(page, 'Tường nối kín với nhau, không hở đầu');
         expect.soft(await rowsOf(section).count(), 'rows = N mục chưa xử lý').toBe(info?.open ?? -1);
         expect.soft(info?.open ?? 0, 'both ends listed').toBeGreaterThanOrEqual(2);
         await shot(page, '28-A-013', 'dangling_rows');
@@ -536,7 +536,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       await test.step('[28-A-028] radio "Đạt"', async () => {
         await levelRadio(page, 'Đạt').click();
         await expect(levelRadio(page, 'Đạt')).toHaveAttribute('aria-checked', 'true');
-        const passed = await settledInt(summaryValue(page, 'Đạt'));
+        const passed = await settledInt(summaryValue(page, 'Luật đạt'));
         await expect.soft(groupHeaders(page)).toHaveCount(0);
         await expect.soft(passedItems(page)).toHaveCount(passed);
         await shot(page, '28-A-028', 'passed');
@@ -706,7 +706,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
 
       await test.step('[28-A-025] while Nghiêm trọng > 0 the gate leads to the next violation, never to export', async () => {
         const url = page.url();
-        expect.soft(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBeGreaterThan(0);
+        expect.soft(await settledInt(summaryValue(page, 'Luật nghiêm trọng')), 'Nghiêm trọng').toBeGreaterThan(0);
         await expect.soft(confirmButton(page)).toHaveCount(0);
         await nextViolationButton(page).click();
         await expect.soft(sheet(page), 'the next critical violation opens in the sheet').toBeVisible();
@@ -735,7 +735,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
 
       await test.step('[28-B-004] zero critical: figure 0, filter bar, gate asks to look at the warnings', async () => {
         // F6 (useRuleReport.ts:596): `done` only when violations + warnings are both 0; R3 still raises warnings -> `ready`.
-        expect(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBe(0);
+        expect(await settledInt(summaryValue(page, 'Luật nghiêm trọng')), 'Nghiêm trọng').toBe(0);
         await expect(rerunButton(page)).toBeVisible();
         await expect(levelFilter(page)).toBeVisible();
         // Cụm 6: điều kiện thứ hai "Đã xem cảnh báo" — chưa xem thì nút phụ "Xem cảnh báo", không có "Sang Xuất".
@@ -745,7 +745,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       });
 
       await test.step('[28-B-005] ⚑ warnings stay reachable', async () => {
-        expect.soft(await settledInt(summaryValue(page, 'Cảnh báo')), 'Cảnh báo').toBeGreaterThan(0);
+        expect.soft(await settledInt(summaryValue(page, 'Luật cảnh báo')), 'Cảnh báo').toBeGreaterThan(0);
         await expect.soft(groupHeaders(page).first(), 'a warning/suggestion group is listed').toBeVisible();
         await expect.soft(levelFilter(page), 'filter bar').toBeVisible();
         await shot(page, '28-B-005', 'warnings_reachable');
@@ -767,8 +767,8 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
 
       await test.step('[28-B-018] zero findings -> the done panel replaces the groups', async () => {
         await expect(donePanel).toBeVisible();
-        expect.soft(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBe(0);
-        expect.soft(await settledInt(summaryValue(page, 'Cảnh báo')), 'Cảnh báo').toBe(0);
+        expect.soft(await settledInt(summaryValue(page, 'Luật nghiêm trọng')), 'Nghiêm trọng').toBe(0);
+        expect.soft(await settledInt(summaryValue(page, 'Luật cảnh báo')), 'Cảnh báo').toBe(0);
         await expect.soft(groupHeaders(page)).toHaveCount(0);
         await shot(page, '28-B-018', 'done_panel');
       });
@@ -893,7 +893,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       await test.step('[28-A-043] WALL-LENGTH off: Tổng − 1 and its group is gone', async () => {
         expect(await putRuleConfig(admin, project.id, { 'WALL-LENGTH': { enabled: false } }), 'N22 PUT').toBe(200);
         await reload();
-        expect(await settledInt(summaryValue(page, 'Tổng số kiểm tra')), 'Tổng số kiểm tra').toBe(base.total - 1);
+        expect(await settledInt(summaryValue(page, 'Luật đã kiểm')), 'Tổng số kiểm tra').toBe(base.total - 1);
         await expect(ruleSection(page, RULE_NAMES.wallLength)).toHaveCount(0);
         await shot(page, '28-A-043', 'wall_length_off');
       });
@@ -903,7 +903,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await reload();
         const info = await infoOf(page, RULE_NAMES.wallThickness);
         expect.soft(info?.severity, 'group header').toBe('Nghiêm trọng');
-        expect.soft(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBe(base.violations + 1);
+        expect.soft(await settledInt(summaryValue(page, 'Luật nghiêm trọng')), 'Nghiêm trọng').toBe(base.violations + 1);
         await shot(page, '28-C-015', 'severity_critical');
       });
 
@@ -911,7 +911,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         expect(await putRuleConfig(admin, project.id, { 'WALL-THICKNESS': { thresholds: { 'wall.minThicknessMm': 45 } } }), 'N22 PUT').toBe(200);
         await reload();
         await expect.soft(ruleSection(page, RULE_NAMES.wallThickness)).toHaveCount(0);
-        expect.soft(await settledInt(summaryValue(page, 'Đạt')), 'Đạt').toBe(base.passed + 1);
+        expect.soft(await settledInt(summaryValue(page, 'Luật đạt')), 'Đạt').toBe(base.passed + 1);
         await shot(page, '28-C-016', 'threshold_45');
       });
 
@@ -935,7 +935,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       await test.step('[28-A-042] another session disables a rule: after a reconnect Tổng drops, no reload', async () => {
         expect(await putRuleConfig(admin, project.id, {}), 'N22 PUT (all rules back on)').toBe(200);
         await reload();
-        total0 = await settledInt(summaryValue(page, 'Tổng số kiểm tra'));
+        total0 = await settledInt(summaryValue(page, 'Luật đã kiểm'));
         await page.evaluate(() => {
           (window as unknown as { __p06marker?: number }).__p06marker = 1;
         });
@@ -949,7 +949,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await reconnect();
         await reread;
         await softly
-          .poll(async () => Number((await summaryValue(page, 'Tổng số kiểm tra').innerText()).replace(/\./gu, '')))
+          .poll(async () => Number((await summaryValue(page, 'Luật đã kiểm').innerText()).replace(/\./gu, '')))
           .toBe(total0 - 1);
         expect.soft(await page.evaluate(() => (window as unknown as { __p06marker?: number }).__p06marker), 'no reload').toBe(1);
         await shot(page, '28-A-042', 'live_refetch');
@@ -984,7 +984,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await test.step('[28-D-001] admin: h2, four figures, footer, filter bar', async () => {
           await openRules(page, project.id);
           await expect(reportHeading(page)).toBeVisible();
-          expect(await settledInt(summaryValue(page, 'Tổng số kiểm tra'))).toBeGreaterThan(0);
+          expect(await settledInt(summaryValue(page, 'Luật đã kiểm'))).toBeGreaterThan(0);
           for (const label of ['Đạt', 'Cảnh báo', 'Nghiêm trọng']) await expect(summaryValue(page, label)).toBeVisible();
           await expect(confirmButton(page)).toBeVisible();
           await expect(levelFilter(page)).toBeVisible();
@@ -1135,7 +1135,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       await test.step('[28-E-007] reduced motion: final values at once, pulse 0 s', async () => {
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await openRules(page, project.id);
-        const figure = summaryValue(page, 'Tổng số kiểm tra');
+        const figure = summaryValue(page, 'Luật đã kiểm');
         const immediate = (await figure.innerText()).trim();
         expect.soft(immediate, 'first paint = settled value').toBe(await settledText(figure));
         const section = await expandRule(page, RULE_NAMES.wallThickness);
