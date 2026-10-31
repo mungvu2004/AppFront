@@ -43,6 +43,7 @@ import { ScaleBanner, ScaleEmptyNotice } from '../scaleBanner'
 import { BuildTab } from './components/build-tab'
 import { CanvasHelp, MeasureClearButton } from './components/canvas-help'
 import {
+  BottomDock,
   CommunityViewerToolbarLeft,
   CommunityViewerToolbarRight,
 } from './components/viewer-toolbar'
@@ -273,6 +274,25 @@ function useEscapeExits() {
   }, [])
 }
 
+/**
+ * Editor3D G2 (K4, L1-07): walking switches walls to "cao đủ" (vendor Editor effect) and leaving
+ * kept it. Remember the wall mode when the walk starts (this store listener runs before that
+ * effect) and put it back when the walk ends.
+ */
+function useWallModeAfterWalk() {
+  useEffect(() => {
+    let before: ReturnType<typeof useViewer.getState>['wallMode'] | null = null
+    return useEditor.subscribe((state, previous) => {
+      if (state.isFirstPersonMode === previous.isFirstPersonMode) return
+      if (state.isFirstPersonMode) {
+        before = useViewer.getState().wallMode
+      } else if (before) {
+        useViewer.getState().setWallMode(before)
+        before = null
+      }
+    })
+  }, [])
+}
 
 let viInstalled = false
 
@@ -354,6 +374,7 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
   useFitOnLevelChange()
   useSoloForSeparateUnits()
   useSelectAfterPreview()
+  useWallModeAfterWalk()
   // UX-R3 U16: left-drag from a wall orbits; it must not select the wall on release.
   useEffect(
     () =>
@@ -393,6 +414,7 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
       />
       <PreviewHeader projectName={projectName} />
       <CanvasHelp banner={<ScaleBanner projectId={projectId} readOnly={readOnly} />} />
+      <BottomDock readOnly={readOnly} />
       {/* AppFront edit (Codex P1): every floor lacks a scale -> empty scene, say why mid-screen. */}
       <ScaleEmptyNotice projectId={projectId} readOnly={readOnly} />
       <MeasureClearButton />

@@ -79,12 +79,14 @@ export function SceneStyleCard({ saveNow, flushAutosaves, reload, source = curre
       >
         <Palette aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1300px]/appbar:hidden" />
         <span className="hidden @min-[1300px]/appbar:inline">Phong cách</span>
-        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[720px]/appbar:hidden" />
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[1200px]/appbar:hidden" />
       </summary>
       <ul
         aria-label="Danh sách phong cách"
         className="absolute top-full left-0 z-50 mt-1 min-w-44 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-overlay)]"
       >
+        {/* A2-09/L1-11: chọn phong cách là dựng lại cả mô hình — báo trước. */}
+        <li className="px-2 pt-1 pb-1 text-[12px] text-[var(--pa-text-3)]">Mô hình sẽ dựng lại vài giây</li>
         {SCENE_STYLE_IDS.map((id) => (
           <li key={id}>
             <button

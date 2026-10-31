@@ -64,7 +64,7 @@ export const EDITOR_EXTRA2_VI = {
 
   [`${UI}action-menu/control-modes.tsx`]: [
     ["label: 'Select'", "label: 'Chọn'"],
-    ["label: 'Zone'", "label: 'Vùng'"],
+    ["label: 'Zone'", "label: 'Phòng'"],
     ["label: 'Delete'", "label: 'Xoá'"],
   ],
 

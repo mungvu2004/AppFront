@@ -35,7 +35,7 @@ import {
 } from '@/lib/commands/dispatch';
 import { createHistoryStack, NO_SELECTION, type HistoryStack } from '@/lib/commands/history';
 import { diffScenes, isEmptyDiff } from '@/lib/pascal/diff';
-import { createPascalEditCommand, type PascalEditResult } from '@/lib/pascal/fromPascal';
+import { createPascalEditCommand, reviewLostNotices, type PascalEditResult } from '@/lib/pascal/fromPascal';
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
 import { splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
 import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
@@ -297,7 +297,7 @@ export function usePascalEdits({
         scene,
         result,
         massDelete: massDelete && !verdict.admitted ? removed : null,
-        notices: split?.notices ?? [],
+        notices: [...(split?.notices ?? []), ...(result.ok ? reviewLostNotices(result.data) : [])],
       };
 
       return result;

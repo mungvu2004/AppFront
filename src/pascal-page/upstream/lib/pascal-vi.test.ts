@@ -44,6 +44,7 @@ describe('pascal-vi (G5-03 registry)', () => {
     expect(kindNameVi('door')).toBe('cửa đi')
     expect(kindNameVi('item')).toBe('đồ vật')
     expect(kindNameVi('roof-segment')).toBe('mảng mái')
+    expect(kindNameVi('zone')).toBe('phòng')
     expect(kindNameVi('made-up-kind')).toBe('made up kind')
   })
 })

@@ -21,7 +21,7 @@ import type { SpatialGraph } from '@/domain/spatial/types';
 
 import { fixtureF1 } from '../__fixtures__';
 import { diffScenes, isEmptyDiff } from '../diff';
-import { createPascalEditCommand, PASCAL_COMMAND_TYPE } from '../fromPascal';
+import { createPascalEditCommand, PASCAL_COMMAND_TYPE, reviewLostNotices } from '../fromPascal';
 import { appFrontIdOf, BUILDING_NODE_ID } from '../ids';
 import { isGeneratedLightId, isGeneratedNodeId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
@@ -122,7 +122,7 @@ describe('createPascalEditCommand', () => {
 
     expect(command?.type).toBe(PASCAL_COMMAND_TYPE);
     expect(command?.actorId).toBe(ACTOR);
-    expect(command?.description).toBe('Từ màn Pascal: sửa tường 1.');
+    expect(command?.description).toBe('Từ màn 3D: sửa tường 1.');
     expect(command?.changes).toHaveLength(1);
     expect(command?.changes[0]?.before).not.toBeNull();
     expect(command?.changes[0]?.after).not.toBeNull();
@@ -385,7 +385,7 @@ describe('createPascalEditCommand', () => {
 
     expect(result.ok).toBe(true);
     expect(result.ok ? result.data.changes : []).toHaveLength(2);
-    expect(result.ok ? result.data.description : '').toBe('Từ màn Pascal: sửa tường 2.');
+    expect(result.ok ? result.data.description : '').toBe('Từ màn 3D: sửa tường 2.');
   });
 
   it('xoá một tường thành lệnh xoá mang ảnh chụp cũ, nên hoàn tác được', () => {
@@ -398,7 +398,7 @@ describe('createPascalEditCommand', () => {
 
     const change = result.ok ? result.data.changes[0] : null;
 
-    expect(result.ok ? result.data.description : '').toBe('Từ màn Pascal: xoá tường 1.');
+    expect(result.ok ? result.data.description : '').toBe('Từ màn 3D: xoá tường 1.');
     expect(change?.after).toBeNull();
     expect(change?.before).not.toBeNull();
   });
@@ -442,7 +442,7 @@ describe('createPascalEditCommand', () => {
 
     const added = result.ok ? result.data.changes[0]?.after : null;
 
-    expect(result.ok ? result.data.description : '').toBe('Từ màn Pascal: thêm phòng 1.');
+    expect(result.ok ? result.data.description : '').toBe('Từ màn 3D: thêm phòng 1.');
     expect(result.ok ? result.data.changes[0]?.before : 'x').toBeNull();
     expect(added?.id.startsWith('R-')).toBe(true);
     expect(added?.reviewed).toBe(false);
@@ -509,6 +509,23 @@ describe('createPascalEditCommand', () => {
 
     expect(result.ok ? null : result.error.code).toBe('PASCAL_UNKNOWN_NODE');
     expect(result.ok ? [] : result.error.reasons).toHaveLength(1);
+  });
+});
+
+describe('reviewLostNotices (K6)', () => {
+  it('một câu mỗi loại có mục đã duyệt bị bỏ dấu; thêm mới hay chưa duyệt thì không', () => {
+    const command = {
+      changes: [
+        { kind: 'wall', before: { reviewed: true }, after: { reviewed: false } },
+        { kind: 'wall', before: { reviewed: true }, after: { reviewed: false } },
+        { kind: 'room', before: { reviewed: false }, after: { reviewed: false } },
+        { kind: 'furniture', before: null, after: { reviewed: false } },
+      ],
+    } as unknown as Parameters<typeof reviewLostNotices>[0];
+
+    expect(reviewLostNotices(command)).toEqual([
+      'Bạn vừa sửa tường đã duyệt nên dấu "đã duyệt" được bỏ. Hãy duyệt lại ở bước Duyệt tầng.',
+    ]);
   });
 });
 

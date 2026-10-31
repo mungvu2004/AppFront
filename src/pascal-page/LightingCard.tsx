@@ -143,7 +143,7 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
       >
         <Sun aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1300px]/appbar:hidden" />
         <span className="hidden @min-[1300px]/appbar:inline">Ánh sáng</span>
-        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[720px]/appbar:hidden" />
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[1200px]/appbar:hidden" />
       </summary>
       <ul
         aria-label="Danh sách ánh sáng"
@@ -203,6 +203,8 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
             value={sunAzimuth}
           />
         </li>
+        {/* A2-08: ánh sáng chỉ nhớ trong localStorage — nói ra, đừng để người dùng tưởng đã lưu vào dự án. */}
+        <li className="px-2 pt-0.5 pb-1.5 text-[12px] text-[var(--pa-text-3)]">Chỉ lưu trên máy này</li>
       </ul>
     </details>
     <QualityCard />

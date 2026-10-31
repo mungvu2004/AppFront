@@ -54,6 +54,11 @@ const subscribeToClientMount = () => () => {}
  */
 let isPageLoadMount = true
 
+/** AppFront edit (L3a-05): "Sửa mô hình" mở thẻ Dựng mà không tự cầm công cụ đầu (Tường), giữ món đang chọn. */
+export const openBuildTabWithoutArming = () => {
+  isPageLoadMount = true
+}
+
 export function BuildTab() {
   const [mepOpen, setMepOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)

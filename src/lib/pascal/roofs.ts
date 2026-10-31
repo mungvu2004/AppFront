@@ -66,7 +66,7 @@ const withDetailDefaults = (segment: Blob): Blob => {
 export const roofNodesOf = (roof: Roof, levelNodeId: PascalNodeId): readonly PascalNode[] | string => {
   const [head, ...rest] = roof.nodes;
 
-  if (head?.type !== 'roof') return 'Phần tử đầu của mái không phải node "roof".';
+  if (head?.type !== 'roof') return 'Mái này thiếu dữ liệu nên chưa lưu được.';
   if (!rest.every(isSegmentBlob)) return 'Mái có phần tử không phải một mặt mái ("roof-segment") hợp lệ.';
 
   const roofNodeId = roofNodeIdOf(roof.id);
