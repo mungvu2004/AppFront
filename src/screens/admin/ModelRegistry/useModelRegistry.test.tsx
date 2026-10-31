@@ -279,6 +279,8 @@ describe('Kích hoạt — hộp thoại A9, baseVersion, quay về', () => {
 
     const dialog = await openActivateDialog('Huấn luyện lượt 3');
     expect(within(dialog).getByText('Kích hoạt Huấn luyện lượt 3 cho nhận diện cửa và đồ đạc?')).toBeInTheDocument();
+    // UX-15: hộp xác nhận nói rõ đổi mô hình ảnh hưởng mọi người dùng.
+    expect(within(dialog).getByText(/áp dụng cho mọi người dùng trong hệ thống/)).toBeInTheDocument();
     expect(client.activateVersion).not.toHaveBeenCalled();
 
     fireEvent.keyDown(window, { key: 'Escape' });
@@ -382,6 +384,7 @@ describe('Kích hoạt — hộp thoại A9, baseVersion, quay về', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Tắt AI, dùng thuật toán cũ' }));
     const dialog = await screen.findByRole('dialog', { name: 'Quay về đường cổ điển cho tách lớp tường?' });
+    expect(within(dialog).getByText(/mọi người dùng trong hệ thống/)).toBeInTheDocument(); // UX-15
     fireEvent.click(confirmButton(dialog, 'Tắt AI, dùng thuật toán cũ'));
 
     await waitFor(() => {

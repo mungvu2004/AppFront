@@ -374,6 +374,8 @@ interface RowContext {
   readonly activeAdminCount: number;
   readonly canManage: boolean;
   readonly justChangedIds: readonly string[];
+  /** UX-47: địa chỉ (chữ thường) vừa mời xong — hàng chờ của họ được tô và cuộn tới. */
+  readonly newInviteEmails?: readonly string[];
 }
 
 /** Người này có phải chính người đang đăng nhập không. */
@@ -435,6 +437,8 @@ function buildRow(user: AdminUser, context: RowContext): UserRowModel {
       user.status === 'pending' && expiresAtMs !== null && expiresAtMs <= context.nowMs,
     canResendInvite: context.canManage && user.status === 'pending',
     justChanged: context.justChangedIds.includes(user.id),
+    isNewInvite:
+      user.status === 'pending' && (context.newInviteEmails ?? []).includes(user.email.toLowerCase()),
     roleChangeBlockedReason,
     disableBlockedReason,
     // BUG-P08-022: tự xoá bị BE chặn (422 USER_SELF_MODIFICATION) — `isSelf` thắng `lastAdmin`.
@@ -463,6 +467,22 @@ function matchesSearch(row: UserRowModel, query: string): boolean {
     needle === '' ||
     foldForSearch(row.name).includes(needle) ||
     foldForSearch(row.email).includes(needle)
+  );
+}
+
+/**
+ * UX-47: sau lượt mời, bộ lọc đang bật có che hàng mới không — che thì màn bỏ lọc để
+ * nhảy tới được hàng vừa mời (bảng không chia trang; bộ lọc là "trang khác" duy nhất).
+ */
+export function inviteHiddenByFilters(
+  invite: { readonly emails: readonly string[]; readonly role: ProjectRole },
+  filters: { readonly search: string; readonly roleFilter: RoleFilter; readonly statusFilter: StatusFilter },
+): boolean {
+  const needle = foldForSearch(filters.search).trim();
+  return (
+    (filters.roleFilter !== FILTER_ALL && filters.roleFilter !== invite.role) ||
+    (filters.statusFilter !== FILTER_ALL && filters.statusFilter !== 'pending') ||
+    (needle !== '' && !invite.emails.some((email) => foldForSearch(email).includes(needle)))
   );
 }
 
@@ -608,6 +628,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   const [removeEmail, setRemoveEmail] = useState('');
   /** Hàng vừa đổi vai xong: nền nháy đúng một nhịp `MOTION_DURATIONS_MS.slow` rồi tắt. */
   const [justChangedIds, setJustChangedIds] = useState<readonly string[]>([]);
+  const [newInviteEmails, setNewInviteEmails] = useState<readonly string[]>([]);
 
   const flashTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
@@ -712,6 +733,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       activeAdminCount,
       canManage,
       justChangedIds,
+      newInviteEmails,
     }),
     [
       gateway.currentUserId,
@@ -720,6 +742,7 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       activeAdminCount,
       canManage,
       justChangedIds,
+      newInviteEmails,
     ],
   );
 
@@ -1274,6 +1297,13 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
           () => {
             setInviteOpen(false);
             setRawEmails('');
+            // UX-47: tô hàng vừa mời và bỏ bộ lọc nếu nó che hàng ấy; bảng tự cuộn tới.
+            setNewInviteEmails(validEmails.map((email) => email.toLowerCase()));
+            if (inviteHiddenByFilters({ emails: validEmails, role: variables.role }, { search, roleFilter, statusFilter })) {
+              setSearch('');
+              setRoleFilter(FILTER_ALL);
+              setStatusFilter(FILTER_ALL);
+            }
             gateway.notify({
               type: 'user.invite',
               title: USER_MANAGEMENT_TEXT.invitedTitle,
@@ -1356,7 +1386,10 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
       removeMutation,
       removeUserId,
       resendMutation,
+      roleFilter,
       rowById,
+      search,
+      statusFilter,
     ],
   );
 
