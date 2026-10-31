@@ -2,8 +2,10 @@
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import type { SpatialGraph } from '@/domain/spatial/types';
+import { millimetres } from '@/domain/units/types';
 import { prefersReducedMotion } from '@/lib/motion/reducedMotion';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
+import { toSceneLength } from '@/lib/three/build/scene';
 import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { fitViewBox } from './sharedPlanGeometry';
@@ -15,6 +17,7 @@ const MIN_POLAR = 0.2;
 const MAX_POLAR = 1.45;
 const DEFAULT_DISTANCE_M = 20;
 const DISTANCE_MARGIN = 1.8;
+const CUT_ABOVE_FLOOR_MM = 1200;
 
 /** Một bước xoay theo độ dời con trỏ; góc chúc bị kẹp, khoảng cách giữ nguyên. */
 export function orbitFrame(frame: ViewerSceneFrame, dx: number, dy: number): ViewerSceneFrame {
@@ -29,6 +32,7 @@ export function zoomFrame(frame: ViewerSceneFrame, factor: number, homeDistanceM
 }
 
 export function homeFrame(graph: SpatialGraph, levelId: string): ViewerSceneFrame {
+  const floorMm = graph.levels.find((level) => level.id === levelId)?.elevationMm ?? 0;
   const box = fitViewBox(
     graph.walls.filter((wall) => wall.levelId === levelId),
     graph.rooms.filter((room) => room.levelId === levelId),
@@ -41,7 +45,8 @@ export function homeFrame(graph: SpatialGraph, levelId: string): ViewerSceneFram
     isOrthographic: false,
     visibleStoreyIds: [levelId],
     separation: 0,
-    sectionPlane: null,
+    // Cắt ngang ở cao bàn (1,2 m trên sàn tầng): bỏ trần và nửa trên tường để người nhận nhìn được vào phòng.
+    sectionPlane: { normalX: 0, normalY: 1, normalZ: 0, constant: -toSceneLength(millimetres(floorMm + CUT_ABOVE_FLOOR_MM)) },
     selectedEntityIds: [],
     hoveredEntityId: null,
     isolatedEntityIds: null,
