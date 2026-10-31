@@ -28,7 +28,7 @@ export interface WallLayerInspectorActionsProps {
   readonly onStandardize?: ((wallId: WallId) => void) | undefined;
   /** Câu khoá đổi độ dày (chưa có tỷ lệ): thay nút "Đổi về … mm" bằng câu này (K09). */
   readonly lockText?: string | null | undefined;
-  /** U50: tường bao — nút xoá hỏi lại một câu, kèm cách lấy lại. */
+  /** U50, UX-35: tường bao hoặc dài hơn 3 m — nút xoá hỏi lại một câu, kèm cách lấy lại. */
   readonly confirmDelete?: boolean | undefined;
 }
 
@@ -36,8 +36,8 @@ const APPROVE_LABEL = 'Duyệt đoạn này';
 const UNAPPROVE_LABEL = 'Bỏ duyệt đoạn này';
 const LATER_LABEL = 'Để sau';
 const DELETE_LABEL = 'Xoá đoạn này';
-const DELETE_CONFIRM_TEXT = 'Đây là tường bao. Xoá thật? Sau khi xoá vẫn bấm "Hoàn tác" được.';
-const DELETE_CONFIRM_LABEL = 'Xoá tường bao';
+const DELETE_CONFIRM_TEXT = 'Đây là tường bao hoặc tường dài hơn 3 m. Xoá thật? Sau khi xoá vẫn bấm "Hoàn tác" được.';
+const DELETE_CONFIRM_LABEL = 'Xoá thật';
 const DELETE_CANCEL_LABEL = 'Giữ lại';
 
 export function WallLayerInspectorActions({
