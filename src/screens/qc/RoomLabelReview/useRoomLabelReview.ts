@@ -126,6 +126,10 @@ import {
   scaleOfLevel,
   summaryOf,
   toRoomLabelRow,
+  approveConfidentRoomsLabelOf,
+  confidentRoomsOf,
+  runRoomTransaction,
+  typedNameRowOf,
   wallsOfLevel,
   ROOM_NAME_TARGETS,
   ROOM_USAGE_CHOICES,
@@ -559,10 +563,14 @@ export function useRoomLabelReview(
   const backgroundImageUrl = background?.imageUrl ?? null;
   const spillingRoomIds = useMemo(() => roomsSpillingOutside(rooms, walls), [rooms, walls]);
 
+  /* UX-24: phòng người duyệt đã tự đặt tên trong phiên — tên ấy không mang nhãn "AI đề xuất" nữa.
+     ponytail: chỉ nhớ trong phiên (lệnh đổi tên chưa đổi `source`); bền hơn khi lệnh đặt `source: 'human'`. */
+  const [renamedRoomIds, setRenamedRoomIds] = useState<ReadonlySet<RoomId>>(() => new Set());
+
   const allRows = useMemo<readonly RoomLabelViewModel[]>(
     () =>
-      rooms.map((room) =>
-        toRoomLabelRow(room, {
+      rooms.map((room) => {
+        const row = toRoomLabelRow(room, {
           measures: measures.get(room.id) ?? measureRoom(room, scale, scaleStatus, scaleSource),
           notices: noticesOfRoom(violations, room.id, ruleRouteHref).filter(
             /* G4a-30: tỷ lệ tạm thì diện tích chưa có, không nhắc "thiếu m²" trái với panel. */
@@ -572,9 +580,23 @@ export function useRoomLabelReview(
           scale,
           codes: roomCodes,
           outlineSpills: spillingRoomIds.has(room.id),
-        }),
-      ),
-    [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, scaleSource, scaleStatus, spillingRoomIds, violations],
+        });
+
+        return renamedRoomIds.has(room.id) ? typedNameRowOf(row) : row;
+      }),
+    [
+      backgroundImageUrl,
+      measures,
+      renamedRoomIds,
+      roomCodes,
+      rooms,
+      ruleRouteHref,
+      scale,
+      scaleSource,
+      scaleStatus,
+      spillingRoomIds,
+      violations,
+    ],
   );
 
   const summary = useMemo<RoomLabelSummaryViewModel>(
@@ -829,6 +851,10 @@ export function useRoomLabelReview(
       const before = roomById(roomId)?.usage;
 
       void run((context) => buildRenameRoomCommand({ roomId, name }, context)).then((renamed) => {
+        if (renamed !== null) {
+          setRenamedRoomIds((previous) => new Set(previous).add(roomId));
+        }
+
         if (renamed !== null && usage !== null && usage !== before) {
           void run((context) => buildChangeUsageCommand({ roomId, usage }, context));
         }
@@ -882,6 +908,46 @@ export function useRoomLabelReview(
     },
     [gateway, roomById, roomCodes, run, spillingRoomIds],
   );
+
+  /* UX-18: một nút duyệt mọi phòng máy chắc chắn — MỘT bước hoàn tác (Ctrl+Z hoặc nút trên toast). */
+  const confidentRooms = useMemo(
+    () => confidentRoomsOf(rooms, new Set([...spillingRoomIds, ...renamedRoomIds])),
+    [renamedRoomIds, rooms, spillingRoomIds],
+  );
+
+  const onApproveConfidentRooms = useCallback(() => {
+    if (!canEdit || confidentRooms.length === 0) {
+      return;
+    }
+
+    const label = approveConfidentRoomsLabelOf(confidentRooms.length);
+    const commands = confidentRooms.map((room) => buildApproveRoomCommand(room, gateway.actorId, roomCodes));
+
+    void runRoomTransaction(commands, dispatchBundle, label).then((result) => {
+      if (!result.ok) {
+        notifications.publish({ type: 'room.approveMany.refused', title: result.error.message, description: '' });
+
+        return;
+      }
+
+      invalidate();
+      const entryId = newestEntryId(dispatchBundle.history);
+      const ticket = createRoomLabelUndoTicket({
+        description: label,
+        now: gateway.now,
+        undo: () => {
+          const refused = undoIfNewest(dispatchBundle.history, entryId, applyUndo);
+
+          if (refused !== null) {
+            notifications.publish({ type: ROOM_UNDO_REFUSED_TYPE, title: refused, description: '' });
+          }
+        },
+      });
+
+      notifications.publish({ type: 'room.approveMany', title: label, description: '', undoTicket: ticket });
+    });
+  }, [applyUndo, canEdit, confidentRooms, dispatchBundle, gateway, invalidate, notifications, roomCodes]);
+  const canApproveConfidentRooms = canEdit && confidentRooms.length > 0;
 
   /* ---------------------------------------------------------------------- */
   /* Chuẩn hoá tên — XEM TRƯỚC rồi mới áp (CẤM TUYỆT ĐỐI).                    */
@@ -1128,6 +1194,8 @@ export function useRoomLabelReview(
     onMerge,
     onSplit,
     onApprove,
+    approveConfidentRoomsLabel: canApproveConfidentRooms ? approveConfidentRoomsLabelOf(confidentRooms.length) : null,
+    ...(canApproveConfidentRooms ? { onApproveConfidentRooms } : {}),
     onSelect,
     onHover,
     onOpenNormalizePreview,

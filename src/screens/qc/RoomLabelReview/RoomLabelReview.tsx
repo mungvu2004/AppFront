@@ -224,6 +224,8 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
             onCheckWallGaps,
             onNavigateToWalls,
             isViewerRole,
+            approveConfidentRoomsLabel: props.approveConfidentRoomsLabel ?? null,
+            ...(props.onApproveConfidentRooms === undefined ? {} : { onApproveConfidentRooms: props.onApproveConfidentRooms }),
           }}
         />
       </div>

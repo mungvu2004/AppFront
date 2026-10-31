@@ -52,7 +52,9 @@ import {
   ROOM_LABEL_FIXTURE_UNNAMED_COUNT,
 } from './roomLabelFixture';
 import {
+  approveConfidentRoomsLabelOf,
   canonicalRoomName,
+  confidentRoomsOf,
   createMockRoomLabelReviewGateway,
   hasRoomName,
   provisionalMeasureText,
@@ -946,6 +948,21 @@ describe('[K10] tên giả của máy và đường bao tràn ra ngoài', () => 
     expect(hasRoomName({ name: 'phòng 5', source: 'human' })).toBe(true);
     expect(hasRoomName({ name: 'phòng ngủ 1', source: 'ai' })).toBe(true);
     expect(hasRoomName({ name: '  ', source: 'human' })).toBe(false);
+  });
+
+  it('[UX-18] phòng duyệt hàng loạt: chưa duyệt, có tên thật, máy chắc chắn, không bị loại', () => {
+    const room = (id: string, patch: Partial<Room>): Room =>
+      ({ id, name: 'Bếp', source: 'ai', reviewed: false, confidence: 0.9, ...patch }) as unknown as Room;
+    const rooms = [
+      room('sure', {}),
+      room('unsure', { confidence: 0.4 }),
+      room('done', { reviewed: true }),
+      room('fake', { name: 'phòng 5' }),
+      room('spill', {}),
+    ];
+
+    expect(confidentRoomsOf(rooms, new Set(['spill'] as RoomId[])).map((item) => item.id)).toEqual(['sure']);
+    expect(approveConfidentRoomsLabelOf(3)).toBe('Duyệt 3 phòng máy chắc chắn');
   });
 
   it('phòng trong nhà có đỉnh vượt tường bao quá 150 mm thì bị gắn cờ; phòng nằm gọn hoặc nằm hẳn ngoài thì không', () => {

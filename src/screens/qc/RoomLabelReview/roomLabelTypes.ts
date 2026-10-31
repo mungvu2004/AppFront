@@ -407,6 +407,10 @@ export interface RoomLabelLeftPanelProps {
   readonly onNavigateToWalls: (wallId?: WallId) => void;
   /** `true` ở vai Người xem — CẤM TUYỆT ĐỐI không hộp thoại, nên chỉ ẩn nút "Chuẩn hoá tên". */
   readonly isViewerRole: boolean;
+  /** UX-18: "Duyệt N phòng máy chắc chắn" — vắng/`null` = không có nút (vai chỉ xem, hết phòng chắc). */
+  readonly approveConfidentRoomsLabel?: string | null | undefined;
+  /** UX-18: duyệt cả nhóm trên trong MỘT bước hoàn tác. */
+  readonly onApproveConfidentRooms?: (() => void) | undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -579,6 +583,10 @@ export interface RoomLabelReviewProps {
   readonly onSplit: (roomId: RoomId, at: Point) => void;
   /** Xem CẢNH BÁO #1 đầu file. */
   readonly onApprove: (roomId: RoomId) => void;
+  /** UX-18: "Duyệt N phòng máy chắc chắn" — vắng/`null` = không có nút (vai chỉ xem, hết phòng chắc). */
+  readonly approveConfidentRoomsLabel?: string | null | undefined;
+  /** UX-18: duyệt cả nhóm trên trong MỘT bước hoàn tác. */
+  readonly onApproveConfidentRooms?: (() => void) | undefined;
 
   /* -- Chọn / rê chuột (dùng chung với canvas và danh sách) ---------------- */
   readonly onSelect: (roomId: RoomId | null) => void;

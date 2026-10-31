@@ -185,6 +185,7 @@ import {
   type HistoryStack,
   type SelectionSnapshot,
 } from '@/lib/commands/history';
+import { runTransaction } from '@/lib/commands/transaction';
 import type { Command } from '@/lib/commands/types';
 import { fitText } from '@/lib/export/fitText';
 import { formatArea, formatLength } from '@/lib/format/measure';
@@ -1099,6 +1100,17 @@ export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): Room
   };
 }
 
+/** UX-24: nhãn tin cậy của tên người duyệt tự gõ — không phải "AI đề xuất". */
+export const TYPED_NAME_LABEL = 'Tên do bạn đặt';
+
+/** UX-24: dòng của phòng người duyệt vừa tự đặt tên — bỏ dấu OCR/AI, không còn ảnh cắt chữ máy đọc. */
+export const typedNameRowOf = (row: RoomLabelViewModel): RoomLabelViewModel => ({
+  ...row,
+  nameFromOcr: false,
+  confidenceLabel: TYPED_NAME_LABEL,
+  crop: null,
+});
+
 /* -------------------------------------------------------------------------- */
 /* Chuẩn hoá tên — phép quy chiếu VĂN BẢN, xem khối chú thích đầu file.        */
 /* -------------------------------------------------------------------------- */
@@ -1582,6 +1594,34 @@ export async function runRoomCommand(
 
   return dispatch(command, bundle.deps);
 }
+
+/** UX-18: nhiều lệnh duyệt phòng trong MỘT bước hoàn tác (như "Duyệt N mục máy chắc chắn" của bước Cửa). */
+export async function runRoomTransaction(
+  commands: readonly Command[],
+  bundle: RoomLabelDispatchDeps,
+  label: string,
+): Promise<DispatchResult> {
+  bundle.setLabel(label);
+
+  return runTransaction(commands, bundle.deps, { label });
+}
+
+/** UX-18: ngưỡng "máy chắc chắn" của tên phòng — như mặc định 0,75 của bước Cửa và nội thất. */
+export const ROOM_CONFIDENT_THRESHOLD = 0.75;
+
+/**
+ * UX-18: phòng duyệt hàng loạt được — chưa duyệt, có tên thật, máy chắc chắn, đường bao không tràn.
+ * Phòng người duyệt vừa tự gõ tên cũng không vào nhóm này (đã có nút duyệt riêng).
+ */
+export const confidentRoomsOf = (
+  rooms: readonly Room[],
+  excluded: ReadonlySet<RoomId>,
+  threshold: number = ROOM_CONFIDENT_THRESHOLD,
+): readonly Room[] =>
+  rooms.filter((room) => !room.reviewed && hasRoomName(room) && !excluded.has(room.id) && room.confidence >= threshold);
+
+/** UX-18: nhãn nút (và câu hoàn tác) — "Duyệt 5 phòng máy chắc chắn". */
+export const approveConfidentRoomsLabelOf = (count: number): string => `Duyệt ${count} phòng máy chắc chắn`;
 
 /** Vùng chọn rỗng, cho lượt ghi không có gì được chọn trước đó. */
 export const NO_ROOM_SELECTION: SelectionSnapshot = NO_SELECTION;
