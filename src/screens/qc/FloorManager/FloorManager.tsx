@@ -112,7 +112,7 @@ export function FloorManager(props: FloorManagerViewProps) {
   /* Đọc hỏng (404, mạng, 5xx): chỉ còn câu lỗi và lối đi — câu "chỉ sống trong phiên" và
      lát cắt trống cạnh nó là nói về những tầng chưa đọc được (BUG-060). */
   const isLoadError = state === 'error';
-  const nextTask = nextTaskOf(props.rows);
+  const nextTask = nextTaskOf(props.rows, props.canEdit);
   const separateUnits = props.separateUnits === true;
   const unbuiltCount = props.rows.filter((row) => row.needsDrawing || row.isScaleMissing).length;
   const showSeparateUnitsSwitch =

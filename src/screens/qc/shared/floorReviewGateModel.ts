@@ -1,5 +1,6 @@
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { entitiesOfKind } from '@/lib/commands/business/shared';
+import { formatNumber } from '@/lib/format/number';
 import { isMeasuredScaleImplausible, isScaleMissing, type ScaleSource, type ScaleState } from '@/lib/viewmodel/provisionalScale';
 
 /**
@@ -77,6 +78,28 @@ export function floorReviewGateOf(counts: FloorReviewCounts): FloorReviewGateSta
 /** Chữ điều kiện trên cổng: "Tường 3/81", "Cửa 0/12". */
 export const floorReviewConditionLabel = (layer: FloorReviewLayerState): string =>
   `${CONDITION_LABELS[layer.key]} ${layer.reviewed}/${layer.total}`;
+
+const PENDING_NOUNS: Readonly<Record<RequiredLayerKey, string>> = {
+  walls: 'tường',
+  objects: 'cửa và nội thất',
+  rooms: 'phòng',
+};
+
+/**
+ * UX-22: câu nhắc phần chưa xong khi cổng cho đi tiếp sang Mô hình 3D
+ * ("Còn 28 tường, 34 cửa và nội thất chưa duyệt; tỷ lệ chưa xác nhận"). Xong cả thì `null`.
+ */
+export function floorPendingText(gate: FloorReviewGateState, scale: FloorScaleState | null): string | null {
+  const counts = gate.layers
+    .filter((layer) => layer.reviewed < layer.total)
+    .map((layer) => `${formatNumber(layer.total - layer.reviewed, { fractionDigits: 0 })} ${PENDING_NOUNS[layer.key]}`);
+  const parts = [
+    ...(counts.length > 0 ? [`${counts.join(', ')} chưa duyệt`] : []),
+    ...(scale !== null && scale !== 'confirmed' ? ['tỷ lệ chưa xác nhận'] : []),
+  ];
+
+  return parts.length === 0 ? null : `Còn ${parts.join('; ')}`;
+}
 
 /**
  * Tỷ lệ tầng đã do người đặt: tài liệu tầng không mang `scaleStatus: 'unresolved'`
