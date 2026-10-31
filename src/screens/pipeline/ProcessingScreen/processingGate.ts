@@ -42,6 +42,8 @@ export interface ProcessingGateModel {
   readonly action?: ProcessingGateAction;
   /** Tỷ lệ chưa kiểm (máy đoán/mặc định): lối đi tiếp mềm, không chặn cứng. */
   readonly secondaryAction?: ProcessingGateAction;
+  /** UX-30: "Xem mô hình 3D" cạnh nút chính khi AI đã xong. */
+  readonly viewerAction?: ProcessingGateAction;
   /** Kết quả hiện trên hàng bước, theo `step.id`. */
   readonly resultByStepId: ReadonlyMap<string, string>;
   readonly warnStepIds: readonly string[];
@@ -52,6 +54,7 @@ export interface ProcessingGateModel {
 export const GATE_LABEL = 'Để sang Duyệt tầng';
 export const CALIBRATE_LABEL = 'Đặt tỷ lệ';
 export const GO_REVIEW_LABEL = 'Sang Duyệt tầng';
+export const VIEW_3D_LABEL = 'Xem mô hình 3D';
 export const WAITING_NOTE = 'Khi AI xong, nút sang Duyệt tầng hiện ở đây.';
 
 const NO_DIMENSION_NOTE = 'Không đọc được số kích thước nào';
@@ -98,6 +101,9 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
   const base = {
     doneStepsLabel,
     isAiDone,
+    ...(isAiDone && summary?.onOpenViewer3d !== undefined
+      ? { viewerAction: { label: VIEW_3D_LABEL, isForward: true, onClick: summary.onOpenViewer3d } }
+      : {}),
     resultByStepId: resultsOf(props),
     warnStepIds: isAiDone && noDimension && !scaleKnown ? ['dimensionReading'] : [],
   };
