@@ -315,3 +315,17 @@ export async function renderPdfBlob(document: PdfDocument): Promise<Blob> {
 
   return new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
 }
+
+/** Lối phụ "In": nạp tệp PDF vào khung ẩn rồi mở hộp thoại in của trình duyệt. */
+export function printPdf(blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const frame = window.document.createElement('iframe');
+
+  frame.style.cssText = 'position:fixed;width:0;height:0;border:0';
+  frame.src = url;
+  frame.onload = () => {
+    frame.contentWindow?.print();
+  };
+  // ponytail: khung và URL sống tới khi rời trang; hộp thoại in không báo lúc đóng.
+  window.document.body.append(frame);
+}

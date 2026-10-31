@@ -108,10 +108,11 @@ interface ExportPanelHistoryProps {
   readonly isLoading: boolean;
   readonly canPersistHistory: boolean;
   readonly onDownload: (fileId: string) => void;
+  readonly onPrint?: ((fileId: string) => void) | undefined;
 }
 
 /** Danh sách tệp đã xuất trong phiên làm việc — kèm thời điểm và dung lượng bằng chữ đều. */
-function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }: ExportPanelHistoryProps) {
+function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload, onPrint }: ExportPanelHistoryProps) {
   if (files.length === 0) {
     return null;
   }
@@ -162,6 +163,18 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
                     }}
                   >
                     Tải về lại
+                  </Button>
+                )}
+                {file.isRestored !== true && file.formatId === 'pdf' && onPrint !== undefined && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`In ${file.fileName}`}
+                    onClick={() => {
+                      onPrint(file.id);
+                    }}
+                  >
+                    In
                   </Button>
                 )}
               </Table.Cell>
@@ -239,6 +252,7 @@ export function ExportPanel(props: ExportPanelProps) {
     onCancel,
     onRetry,
     onDownload,
+    onPrint,
     onFollowFix,
     onShare,
   } = props;
@@ -381,6 +395,7 @@ export function ExportPanel(props: ExportPanelProps) {
           isLoading={isLoading}
           canPersistHistory={capabilities.canPersistHistory}
           onDownload={onDownload}
+          onPrint={onPrint}
         />
       </div>
 

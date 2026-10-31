@@ -292,6 +292,8 @@ export interface ExportPanelProps {
   /** Thử lại **giữ nguyên mọi thiết lập**. */
   readonly onRetry: () => void;
   readonly onDownload: (fileId: string) => void;
+  /** UX-05: lối phụ "In" cho hàng PDF — mở hộp thoại in của tệp đã xuất. */
+  readonly onPrint?: (fileId: string) => void;
   readonly onFollowFix: (rowId: PreflightRow['id']) => void;
   /**
    * Mở hộp thoại chia sẻ (`ShareDialogContainer`, S-ShareDialog). `null` khi

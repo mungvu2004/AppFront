@@ -57,6 +57,7 @@ import { ENDPOINTS } from '@/api/endpoints';
 import { createAppApiClient } from '@/api/appClient';
 import { describeError, toAppError } from '@/lib/errors';
 import { DEFAULT_EXPORT_OPTIONS, EXPORT_CANCELLED_MESSAGE } from '@/lib/export/exportGlb';
+import { printPdf } from '@/lib/export/pdfRaster';
 import { SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
 import { createUuid } from '@/lib/http/ids';
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
@@ -826,6 +827,17 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     [gateway, projectId],
   );
 
+  const onPrint = useCallback(
+    (fileId: string): void => {
+      const file = gateway.readSnapshot(projectId).files.find((entry) => entry.id === fileId);
+
+      if (file !== undefined) {
+        printPdf(file.blob);
+      }
+    },
+    [gateway, projectId],
+  );
+
   const onNavigate = options.onNavigate;
   const onFollowFix = useCallback(
     (rowId: PreflightRow['id']): void => {
@@ -879,6 +891,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     onCancel,
     onRetry,
     onDownload,
+    onPrint,
     onFollowFix,
     onShare: shareAction,
   };

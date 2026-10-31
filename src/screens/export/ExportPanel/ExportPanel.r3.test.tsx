@@ -68,6 +68,15 @@ describe('UX-05 — PDF là tệp tải về như GLB/JSON', () => {
     expect(screen.getByRole('button', { name: 'Tải về lại ho-so.pdf' })).toBeTruthy();
     expect(screen.queryByText(/hộp thoại in/u)).toBeNull();
   });
+
+  it('hàng PDF có lối phụ "In"; bấm gọi onPrint với mã tệp', () => {
+    const onPrint = vi.fn();
+    const file = buildSampleExportedFile({ id: 'P1', fileName: 'ho-so.pdf', formatId: 'pdf' });
+    render(<ExportPanel {...buildExportPanelProps('success', { exportedFiles: [file], onPrint })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'In ho-so.pdf' }));
+    expect(onPrint).toHaveBeenCalledWith('P1');
+  });
 });
 
 describe('U36 (R4) — bấm Xuất khi còn tầng chưa duyệt thì hỏi lại', () => {
