@@ -961,7 +961,7 @@ describe('[K10] tên giả của máy và đường bao tràn ra ngoài', () => 
       room('spill', {}),
     ];
 
-    expect(confidentRoomsOf(rooms, new Set(['spill'] as RoomId[])).map((item) => item.id)).toEqual(['sure']);
+    expect(confidentRoomsOf(rooms, new Set(['spill'] as unknown as RoomId[])).map((item) => item.id)).toEqual(['sure']);
     expect(approveConfidentRoomsLabelOf(3)).toBe('Duyệt 3 phòng máy chắc chắn');
   });
 
