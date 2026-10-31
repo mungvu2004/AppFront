@@ -34,7 +34,10 @@
  */
 
 import { computeCentroid, computeLargestInnerRectangle } from '../../rooms/area';
-import { openingsOfRoom as openingsOfRoomOfAnyKind } from '../../spatial/roomOpenings';
+import {
+  openGapsOfRoom,
+  openingsOfRoom as openingsOfRoomOfAnyKind,
+} from '../../spatial/roomOpenings';
 import { displayCodeIn } from '../../spatial/normalize';
 import type {
   BoundingBox,
@@ -558,92 +561,13 @@ function hasSwingingLeaf(opening: Opening): boolean {
 /* 1 — ROOM-NO-DOOR.                                                           */
 /* -------------------------------------------------------------------------- */
 
-/** Narrowest wall-less stretch of a room's outline a person still walks through. */
-export const OPEN_PASSAGE_MIN_MM = 600;
-
-const PASSAGE_SAMPLE_STEP_MM = 50;
-
-/** Does a wall run along this point of the outline edge (parallel, close, within its length)? */
-interface Xy {
-  readonly x: number;
-  readonly y: number;
-}
-
-function isWalledAt(point: Xy, edge: Xy, walls: readonly Wall[]): boolean {
-  return walls.some((wall) => {
-    const { start, end } = wall.centreline;
-    const runX = end.x - start.x;
-    const runY = end.y - start.y;
-    const length = Math.hypot(runX, runY);
-
-    if (isNearlyZero(length)) {
-      return false;
-    }
-
-    // Parallel only: a wall meeting the edge at a corner does not close the edge.
-    if (Math.abs(runX * edge.y - runY * edge.x) / length > 0.17) {
-      return false;
-    }
-
-    const along = ((point.x - start.x) * runX + (point.y - start.y) * runY) / (length * length);
-
-    if (along < -0.001 || along > 1.001) {
-      return false;
-    }
-
-    const across = Math.abs((point.x - start.x) * runY - (point.y - start.y) * runX) / length;
-
-    return across <= Math.max(250, wall.thicknessMm / 2);
-  });
-}
-
 /**
- * A door-wide stretch of the room's outline with no wall on it.
- *
- * Real case (r4 H-01, "phòng ngủ 01"): the bedroom's top edge runs 1,1 m along
- * an unlabelled lobby with no wall at all, so the room is entered through that
- * gap, not through a door. Reporting "no door" there sent the reviewer looking
- * for a door the plan never needed. Whether the gap should have been a wall is
- * the closed-outline rule's finding, not this one.
+ * A door-wide stretch of the room's outline with no wall on it, facing another
+ * room or an undrawn hall (shared helper `openGapsOfRoom`). Whether the gap
+ * should have been a wall is the closed-outline rule's finding, not this one.
  */
 function hasOpenPassage(context: RuleContext, room: Room): boolean {
-  // A room with no wall attached is not a room with a gap; it is not drawn yet.
-  if (room.wallIds.length === 0) {
-    return false;
-  }
-
-  const walls = entitiesInScope(context, 'wall').filter((wall) => wall.levelId === room.levelId);
-  const outline = room.outline;
-
-  for (let index = 0; index < outline.length; index += 1) {
-    const start = outline[index];
-    const end = outline[(index + 1) % outline.length];
-
-    if (start === undefined || end === undefined) {
-      continue;
-    }
-
-    const length = Math.hypot(end.x - start.x, end.y - start.y);
-
-    if (length < OPEN_PASSAGE_MIN_MM) {
-      continue;
-    }
-
-    const edge = { x: (end.x - start.x) / length, y: (end.y - start.y) / length };
-    let open = 0;
-
-    for (let at = 0; at <= length; at += PASSAGE_SAMPLE_STEP_MM) {
-      const point = { x: start.x + edge.x * at, y: start.y + edge.y * at };
-
-      open = isWalledAt(point, edge, walls) ? 0 : open + PASSAGE_SAMPLE_STEP_MM;
-
-      if (open >= OPEN_PASSAGE_MIN_MM) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  return openGapsOfRoom(room, entitiesInScope(context, 'wall')).length > 0;
 }
 
 /**
@@ -824,6 +748,31 @@ function buildDoorLinks(context: RuleContext, rooms: readonly Room[]): DoorLink[
       roomIds,
       leadsOutside: wall.kind === 'envelope' || (!plannedEnvelope && roomIds.length === 1),
     });
+  }
+
+  // A wall-less gap onto a hall nobody drew as a room is walked through like a
+  // door onto one room (r4 H-01 "phòng ngủ 01"); gaps between two drawn rooms
+  // are `openPassages`' job.
+  const walls = entitiesInScope(context, 'wall');
+
+  for (const room of rooms) {
+    for (const gap of openGapsOfRoom(room, walls)) {
+      const shared = rooms.some(
+        (other) =>
+          other !== room &&
+          compareNearly(distanceToOutline(gap.at, other.outline), onOutlineToleranceMm) <= 0,
+      );
+
+      if (!shared) {
+        links.push({
+          // The room itself: a gap is no entity a finding could point at.
+          openingId: room.id,
+          at: gap.at,
+          roomIds: [room.id],
+          leadsOutside: !plannedEnvelope,
+        });
+      }
+    }
   }
 
   return [...links, ...openPassages(context, rooms, onOutlineToleranceMm)];

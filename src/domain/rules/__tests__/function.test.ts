@@ -544,6 +544,8 @@ describe('rooms nobody can walk into', () => {
       wall('PS', { x: 7506, y: 9271 }, { x: 11309, y: 9271 }),
       wall('PE', { x: 11309, y: 5099 }, { x: 11309, y: 9271 }),
       wall('PN', { x: topWallStartX, y: 6548 }, { x: 11309, y: 6548 }),
+      // The lobby's far side: the gap faces an enclosed hall, not the outdoors.
+      wall('LB', { x: 7506, y: 5099 }, { x: 11309, y: 5099 }),
     ];
     const outline = [
       { x: 7506, y: 6548 },
