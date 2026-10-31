@@ -56,13 +56,14 @@ import {
   SwatchBook,
   Tag,
 } from 'lucide-react'
-import { emitter } from '@pascal-app/core'
+import { emitter, useScene } from '@pascal-app/core'
 import Image from 'next/image'
 import { type ReactNode, useCallback, useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
 import { cn } from '../lib/utils'
-import { fitModel, viewedFrame } from '../lib/view-frame'
+import { roomsOf } from '../lib/fit-on-ready'
+import { fitModel, fitRoom, viewedFrame } from '../lib/view-frame'
 import { isSeparateUnits } from '../../bridge'
 import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
 // AppFront edit (P40, G5-11; QA-2 L1; impeccable D1): text labels of the level/wall/display buttons
@@ -365,6 +366,36 @@ const EDGE_OPTIONS = [
 
 const SUBMENU_CONTENT_CLASS = 'min-w-56 rounded-xl border-[var(--pa-border)] bg-[var(--pa-surface)] shadow-[var(--pa-shadow-overlay)]'
 
+/**
+ * AppFront edit (UX-R4 U40): the 3D view names no room, so "Đi tới phòng" lists the rooms of the
+ * viewed floor (solo) or every floor, with their area; picking one flies the camera there.
+ * Reads the scene once per menu open (rendered only while the menu is open), no subscription.
+ */
+function RoomJumpMenu() {
+  const { levelMode, selection } = useViewer.getState()
+  const rooms = roomsOf(useScene.getState().nodes, levelMode === 'solo' ? selection.levelId : null)
+  if (rooms.length === 0) return null
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger title="Chọn một phòng để xem gần">
+        <Tag className="h-4 w-4" />
+        <span>Đi tới phòng</span>
+        <span className="ml-auto text-muted-foreground text-xs">{rooms.length}</span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className={cn(SUBMENU_CONTENT_CLASS, 'max-h-80 overflow-y-auto')}>
+        {rooms.map((room) => (
+          <DropdownMenuItem key={room.id} onSelect={() => fitRoom(room.id)}>
+            <span className="truncate">{room.name}</span>
+            <span className="ml-auto shrink-0 text-muted-foreground text-xs">
+              {room.areaM2.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} m²
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  )
+}
+
 function DisplayMenu() {
   const viewMode = useEditor((state) => state.viewMode)
   const showGrid = useViewer((state) => state.showGrid)
@@ -434,6 +465,7 @@ function DisplayMenu() {
           <span>Lưới</span>
           <OnOff on={showGrid} />
         </DropdownMenuItem>
+        {viewMode !== '2d' ? <RoomJumpMenu /> : null}
         {viewMode !== '2d' ? (
           <DropdownMenuItem
             onSelect={(e) => keepOpen(e, () => setShowMeasurements(!showMeasurements))}
