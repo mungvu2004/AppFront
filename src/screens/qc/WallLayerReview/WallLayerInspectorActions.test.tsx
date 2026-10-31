@@ -119,6 +119,30 @@ describe('U16: nút "Xoá đoạn này" ở thanh tra', () => {
     expect(onDelete).toHaveBeenCalledWith(wallId);
   });
 
+  it('U50: tường bao hỏi lại một câu trước khi xoá', () => {
+    const onDelete = vi.fn();
+
+    renderWithProviders(
+      <WallLayerInspectorActions
+        confirmDelete
+        extra={undefined}
+        isNonStandard={false}
+        isReviewed={false}
+        panel={{ ...panel, onDelete } as unknown as WallLayerViewProps}
+        thicknessMm={330}
+        wallId={wallId}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá đoạn này' }));
+    expect(onDelete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Giữ lại' }));
+    expect(onDelete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá đoạn này' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá tường bao' }));
+    expect(onDelete).toHaveBeenCalledWith(wallId);
+  });
+
   it('vai người xem: không có nút xoá', () => {
     renderWithProviders(
       <WallLayerInspectorActions

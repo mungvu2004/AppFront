@@ -4,9 +4,12 @@
  * - không chuẩn, dày/mỏng bất thường: "Giữ 509 mm" (chính, A) · "Để sau" (S);
  * - đúng chuẩn: "Duyệt đoạn này" (chính, A) · "Để sau" (S);
  * - đã duyệt: "Bỏ duyệt đoạn này"; vai người xem: một câu giải thích, không nút.
- * - mọi đoạn (trừ vai người xem): "Xoá đoạn này" (Delete) — xoá tức thì, toast có Hoàn tác (U16).
+ * - mọi đoạn (trừ vai người xem): "Xoá đoạn này" (Delete) — xoá tức thì, toast có Hoàn tác (U16);
+ *   tường bao thì hỏi lại một câu trước khi xoá (U50).
  * Tên truy cập của nút là nhãn trơn (`aria-label`), phím nằm ở `aria-keyshortcuts` + ô phím.
  */
+
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
 
@@ -25,12 +28,17 @@ export interface WallLayerInspectorActionsProps {
   readonly onStandardize?: ((wallId: WallId) => void) | undefined;
   /** Câu khoá đổi độ dày (chưa có tỷ lệ): thay nút "Đổi về … mm" bằng câu này (K09). */
   readonly lockText?: string | null | undefined;
+  /** U50: tường bao — nút xoá hỏi lại một câu, kèm cách lấy lại. */
+  readonly confirmDelete?: boolean | undefined;
 }
 
 const APPROVE_LABEL = 'Duyệt đoạn này';
 const UNAPPROVE_LABEL = 'Bỏ duyệt đoạn này';
 const LATER_LABEL = 'Để sau';
 const DELETE_LABEL = 'Xoá đoạn này';
+const DELETE_CONFIRM_TEXT = 'Đây là tường bao. Xoá thật? Sau khi xoá vẫn bấm "Hoàn tác" được.';
+const DELETE_CONFIRM_LABEL = 'Xoá tường bao';
+const DELETE_CANCEL_LABEL = 'Giữ lại';
 
 export function WallLayerInspectorActions({
   panel,
@@ -41,19 +49,47 @@ export function WallLayerInspectorActions({
   extra,
   onStandardize,
   lockText,
+  confirmDelete = false,
 }: WallLayerInspectorActionsProps) {
   const { isViewerRole, viewerRoleNotice, onApprove, onUnapprove, onSkip, onDelete } = panel;
+  /* Câu hỏi lại gắn với đúng đoạn đang hỏi — chọn đoạn khác thì câu tự tắt. */
+  const [confirmingId, setConfirmingId] = useState<WallId | null>(null);
 
   if (isViewerRole) {
     return <p className="text-[13px] text-text-secondary">{viewerRoleNotice}</p>;
   }
 
   /* U16: nét thừa thì xoá — nút thấy được, không bắt đoán phím Delete. */
-  const deleteButton = (
-    <Button aria-keyshortcuts="Delete" aria-label={DELETE_LABEL} onClick={() => onDelete(wallId)} shortcut="Del" variant="ghost">
-      {DELETE_LABEL}
-    </Button>
-  );
+  const deleteButton =
+    confirmDelete && confirmingId === wallId ? (
+      <div className="flex flex-col gap-2 rounded-md border border-border-default p-3" role="alert">
+        <p className="text-[13px] text-text-primary">{DELETE_CONFIRM_TEXT}</p>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              setConfirmingId(null);
+              onDelete(wallId);
+            }}
+            variant="secondary"
+          >
+            {DELETE_CONFIRM_LABEL}
+          </Button>
+          <Button onClick={() => setConfirmingId(null)} variant="ghost">
+            {DELETE_CANCEL_LABEL}
+          </Button>
+        </div>
+      </div>
+    ) : (
+      <Button
+        aria-keyshortcuts="Delete"
+        aria-label={DELETE_LABEL}
+        onClick={() => (confirmDelete ? setConfirmingId(wallId) : onDelete(wallId))}
+        shortcut="Del"
+        variant="ghost"
+      >
+        {DELETE_LABEL}
+      </Button>
+    );
 
   if (isReviewed) {
     return (

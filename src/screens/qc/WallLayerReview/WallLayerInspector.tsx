@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from '@/components/motion';
 import { Badge } from '@/components/ui/Badge';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { durationSeconds } from '@/lib/motion';
+import { WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 import { cn } from '@/lib/utils';
 
 import type { WallLayerViewProps, WallThicknessChoice } from './types';
@@ -200,6 +201,7 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
             {/* Khoá tỷ lệ: thay mọi nút sửa/duyệt bằng lý do + lối sang bước Tỷ lệ. */}
             {scaleLock === null ? (
               <WallLayerInspectorActions
+                confirmDelete={inspector.kindLabel === WALL_KIND_LABELS.envelope}
                 extra={extra}
                 isNonStandard={isNonStandard}
                 isReviewed={isReviewed}
