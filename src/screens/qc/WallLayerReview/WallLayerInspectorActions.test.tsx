@@ -5,7 +5,7 @@ import type { WallId } from '@/domain/spatial/types';
 import { renderWithProviders } from '@/lib/testing/render';
 
 import type { WallLayerViewProps } from './types';
-import { WallLayerInspector } from './WallLayerInspector';
+import { parseCustomThickness, WallLayerInspector } from './WallLayerInspector';
 import { WallLayerInspectorActions } from './WallLayerInspectorActions';
 import type { WallRowExtra } from './wallReviewQueue';
 
@@ -139,7 +139,7 @@ describe('U16: nút "Xoá đoạn này" ở thanh tra', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Giữ lại' }));
     expect(onDelete).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Xoá đoạn này' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Xoá tường bao' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá thật' }));
     expect(onDelete).toHaveBeenCalledWith(wallId);
   });
 
@@ -156,5 +156,15 @@ describe('U16: nút "Xoá đoạn này" ở thanh tra', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Xoá đoạn này' })).toBeNull();
+  });
+});
+describe('UX-10: độ dày "Khác…" nhận số mm của bản vẽ', () => {
+  it('nhận số nguyên 60–600, từ chối ngoài khoảng và chữ', () => {
+    expect(parseCustomThickness('240')).toBe(240);
+    expect(parseCustomThickness(' 120 ')).toBe(120);
+    expect(parseCustomThickness('59')).toBeNull();
+    expect(parseCustomThickness('601')).toBeNull();
+    expect(parseCustomThickness('12.5')).toBeNull();
+    expect(parseCustomThickness('')).toBeNull();
   });
 });
