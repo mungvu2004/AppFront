@@ -35,7 +35,8 @@ import {
   type EntityByKind,
   type NormalizedSpatial,
 } from '../spatial/normalize';
-import type { LevelId, RoomUsage } from '../spatial/types';
+import type { LevelId, RoomUsage, Wall } from '../spatial/types';
+import { openingsOfRoom } from '../spatial/roomOpenings';
 import { MAX_WALL_THICKNESS_MM } from './limits';
 import type { EntityKind } from '../spatial/ids';
 import { MILLIMETRES_PER_METRE } from '../units/types';
@@ -612,19 +613,26 @@ const roomHasDoorRule: Rule = {
   dependsOn: ['room', 'wall', 'opening'],
   check: (context) =>
     entitiesInScope(context, 'room').flatMap((room) => {
-      const hasDoor = room.wallIds.some((wallId) => {
+      // Every wall in scope, not only `room.wallIds`: the AI splits a wall at
+      // the door and the door's piece is often unlisted (U08), as ROOM-NO-DOOR.
+      const walls = new Map<string, Wall>(
+        entitiesInScope(context, 'wall').map((wall) => [wall.id, wall]),
+      );
+
+      for (const wallId of room.wallIds) {
         const wall = findEntity(context, 'wall', wallId);
 
-        if (wall === null) {
-          return false;
+        if (wall !== null) {
+          walls.set(wall.id, wall);
         }
+      }
 
-        return wall.openingIds.some((openingId) => {
-          const opening = findEntity(context, 'opening', openingId);
-
-          return opening !== null && opening.kind === 'door';
-        });
-      });
+      const openings = [...walls.values()]
+        .flatMap((wall) => wall.openingIds)
+        .flatMap((openingId) => findEntity(context, 'opening', openingId) ?? []);
+      const hasDoor = openingsOfRoom(room, [...walls.values()], openings).some(
+        (opening) => opening.kind === 'door',
+      );
 
       if (hasDoor) {
         return [];

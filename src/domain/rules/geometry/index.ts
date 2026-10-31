@@ -110,6 +110,16 @@ export const MIN_SUPPORT_SHARE = 0.8;
 /** How far a stair may sit off the one below before the core stops lining up. */
 export const STAIR_ALIGNMENT_TOLERANCE_MM = 250;
 
+/**
+ * How close a wall-less stretch of one room's outline must run to another
+ * room's outline to count as the edge the two rooms share. A quarter of a
+ * metre covers outlines traced on opposite faces of a missing wall.
+ */
+export const SHARED_OUTLINE_TOLERANCE_MM = 250;
+
+/** Sampling step when walking a gap to see whether another room lies along it. */
+const SHARED_SAMPLE_STEP_MM = 50;
+
 /* -------------------------------------------------------------------------- */
 /* What a geometry rule reports.                                               */
 /* -------------------------------------------------------------------------- */
@@ -369,6 +379,52 @@ function gapsIn(covered: readonly Interval[], lengthMm: number): Interval[] {
 }
 
 /** Walls with a centreline worth measuring; a collapsed one is integrity's job. */
+/** Distance from a point to the nearest edge of a closed outline. */
+function distanceToOutline(point: Point, outline: readonly Point[]): number {
+  let smallest = Number.POSITIVE_INFINITY;
+
+  for (let index = 0; index < outline.length; index += 1) {
+    smallest = Math.min(
+      smallest,
+      distanceToLine(point, {
+        start: itemAt(outline, index),
+        end: itemAt(outline, (index + 1) % outline.length),
+      }),
+    );
+  }
+
+  return smallest;
+}
+
+/**
+ * Does this stretch of an edge run along another room's outline?
+ *
+ * Such a gap is an open passage — a hall open onto the living room, an
+ * archway — not a side open to nothing (U08). The same reading
+ * `openPassages` in the function group uses to let a person walk through it.
+ */
+function liesAlongAnotherRoom(
+  edge: Line,
+  gap: Interval,
+  others: readonly { readonly outline: readonly Point[] }[],
+): boolean {
+  const samples: Point[] = [];
+
+  for (let along = gap.low + SHARED_SAMPLE_STEP_MM / 2; along < gap.high; along += SHARED_SAMPLE_STEP_MM) {
+    samples.push(pointAlong(edge, along));
+  }
+
+  if (samples.length === 0) {
+    samples.push(pointAlong(edge, (gap.low + gap.high) / 2));
+  }
+
+  return others.some((other) =>
+    samples.every(
+      (at) => compareNearly(distanceToOutline(at, other.outline), SHARED_OUTLINE_TOLERANCE_MM) <= 0,
+    ),
+  );
+}
+
 function usableWalls(walls: readonly Wall[]): Wall[] {
   return walls.filter((wall) => !isNearlyZero(lengthOf(wall.centreline)));
 }
@@ -594,6 +650,9 @@ export const checkRoomClosure: GeometryCheck = (context) => {
       continue;
     }
 
+    const others = rooms.filter(
+      (other) => other !== room && other.levelId === room.levelId && other.outline.length >= 3,
+    );
     let perimeterMm = 0;
     let uncoveredMm = 0;
     let gapCount = 0;
@@ -649,6 +708,10 @@ export const checkRoomClosure: GeometryCheck = (context) => {
         const inMiddle = compareNearly(gap.low, 0) > 0 && compareNearly(gap.high, edgeLengthMm) < 0;
 
         if (inMiddle && compareNearly(gapMm, DOORWAY_MAX_GAP_MM) <= 0) {
+          continue;
+        }
+
+        if (liesAlongAnotherRoom(edge, gap, others)) {
           continue;
         }
 

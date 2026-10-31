@@ -151,9 +151,14 @@ export interface RoomNotClosedInput {
 
 export function roomNotClosedText(input: RoomNotClosedInput): RuleText {
   // Plain words, no plan coordinates (U08): "Sửa" already zooms to the room.
+  // A name that already says "phòng …" is not prefixed twice ("Phòng phòng khách").
+  const name = input.roomName.trim();
+  const subject = /^phòng(\s|$)/iu.test(name)
+    ? name.charAt(0).toLocaleUpperCase('vi') + name.slice(1)
+    : `Phòng ${name}`;
   return {
     message:
-      `Phòng ${input.roomName} (${input.roomId}) còn ${countText(input.gapCount)} chỗ hở chưa có tường, ` +
+      `${subject} (${input.roomId}) còn ${countText(input.gapCount)} chỗ hở chưa có tường, ` +
       `tổng ${lengthText(input.uncoveredMm)}; chỗ dài nhất ${lengthText(input.worstGapMm)}.`,
     suggestion:
       'Bấm "Sửa" để mở phòng trên mặt bằng, rồi vẽ thêm tường vào chỗ hở, ' +

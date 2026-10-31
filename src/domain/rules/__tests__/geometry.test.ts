@@ -644,6 +644,52 @@ describe('rooms that are not sealed', () => {
     expect(runCheck(checkRoomClosure, { ...plan, rooms }, GROUND)).toEqual([]);
   });
 
+  it('reads a wall-less side shared with another room as an open passage (U08)', () => {
+    // A hall open onto the living room along x = 4000: no wall there at all.
+    const plan = planOf({
+      walls: [
+        wall('PSOUTH', { x: 0, y: 0 }, { x: 7000, y: 0 }),
+        wall('PEAST', { x: 7000, y: 0 }, { x: 7000, y: 3000 }),
+        wall('PNORTH', { x: 7000, y: 3000 }, { x: 0, y: 3000 }),
+        wall('PWEST', { x: 0, y: 3000 }, { x: 0, y: 0 }),
+      ],
+      rooms: [
+        room(
+          'RLIVING',
+          [
+            { x: 0, y: 0 },
+            { x: 4000, y: 0 },
+            { x: 4000, y: 3000 },
+            { x: 0, y: 3000 },
+          ],
+          [wallId('PSOUTH'), wallId('PNORTH'), wallId('PWEST')],
+        ),
+        room(
+          'RHALL',
+          [
+            { x: 4000, y: 0 },
+            { x: 7000, y: 0 },
+            { x: 7000, y: 3000 },
+            { x: 4000, y: 3000 },
+          ],
+          [wallId('PSOUTH'), wallId('PEAST'), wallId('PNORTH')],
+        ),
+      ],
+    });
+
+    expect(runCheck(checkRoomClosure, plan, GROUND)).toEqual([]);
+    // Take the hall away and the same side is open to nothing again.
+    const alone = runCheck(
+      checkRoomClosure,
+      { ...plan, rooms: plan.rooms.slice(0, 1).map((item) => ({ ...item, name: 'phòng khách' })) },
+      GROUND,
+    );
+
+    expect(alone).toHaveLength(1);
+    // The name already says "phòng": not "Phòng phòng khách".
+    expect(alone[0]?.message).toMatch(/^Phòng khách \(/u);
+  });
+
   it('says nothing about a room whose every side has a wall along it', () => {
     expect(runCheck(checkRoomClosure, createCleanPlan(), GROUND)).toEqual([]);
     expect(runCheck(checkRoomClosure, createCleanPlan(), FIRST)).toEqual([]);
