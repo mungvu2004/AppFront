@@ -182,6 +182,9 @@ export function ScaleCalibrationPanel({
           >
             {panel.isApplying ? APPLY_APPLYING : (panel.applyLabel ?? APPLY_PRIMARY)}
           </Button>
+          {panel.applyMissingHint !== undefined && (
+            <p className="text-[12px] text-text-secondary">{panel.applyMissingHint}</p>
+          )}
           {panel.applyBlockedNotice !== undefined && (
             <InlineAlert level="attention" message={panel.applyBlockedNotice} />
           )}

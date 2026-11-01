@@ -153,6 +153,9 @@ import {
   outlinesAreaM2,
   parseFlatAreaM2,
   planSizeText,
+  FLAT_SIZE_MISMATCH_PERCENT,
+  ratioFromFlatSize,
+  wallBoxPx,
   type PlanSizeMm,
 } from './scaleCheck';
 import type {
@@ -166,6 +169,7 @@ import type {
   ScaleApplyScopeOption,
   ScaleCalibrationActions,
   ScaleCalibrationMethod,
+  FlatSizeEntryState,
   ScaleCalibrationState,
   ScaleCalibrationViewModel,
   ScaleComputationViewModel,
@@ -261,6 +265,9 @@ const COPY = {
   ratioEntryNotice: (ratio: string, density: string): string =>
     `Tỷ lệ 1:${ratio} ứng với 1 px ≈ ${density} mm. Bấm Xác nhận tỷ lệ để lưu.`,
   // UX-R4 U11: brochure không ghi số kích thước nhưng in diện tích căn — suy tỷ lệ từ diện tích.
+  applyMissingHint: 'Thiếu: nhập rộng × dài của căn, hoặc kéo một đoạn rồi nhập chiều dài.',
+  sizeEntryMismatch: (percent: string): string =>
+    `Hai cạnh cho hai tỷ lệ khác nhau (lệch ${percent} %). Kiểm lại số đã nhập hoặc đo một đoạn.`,
   areaEntryLabel: 'Theo diện tích căn (m², số in trên brochure)',
   // UX-21: không gợi một con số — người dùng tưởng là số máy đo được.
   areaEntryPlaceholder: 'Số m² in trên brochure',
@@ -595,6 +602,14 @@ function planSizeAt(document: FloorLayerDocument | undefined, ratio: number | nu
     heightMm: (Math.max(...ys) - Math.min(...ys)) * factor,
   };
 }
+
+/** D1: chữ trong ô rộng/dài (mm) → số; trống hoặc sai thì `NaN`. */
+function parseMm(text: string): number {
+  const value = Number(text.replace(/[.\s]/g, '').replace(',', '.'));
+  return text.trim() === '' ? Number.NaN : value;
+}
+
+const EMPTY_SIZE_ENTRY: FlatSizeEntryState = { widthText: '', lengthText: '', isSwapped: false, isOuter: true };
 
 /** Chiều dài một đoạn trên ảnh, tính bằng pixel. */
 function segmentPixelLength(start: PixelPoint, end: PixelPoint): Pixels {
@@ -967,6 +982,8 @@ export function useScaleCalibration(
   const [ratioEntry, setRatioEntry] = useState<{ readonly floorId: string; readonly text: string } | null>(null);
   /** UX-R4 U11: diện tích căn (m²) người dùng gõ, gắn theo tầng như `ratioEntry`. */
   const [areaEntry, setAreaEntry] = useState<{ readonly floorId: string; readonly text: string } | null>(null);
+  /** D1: ô "Căn rộng × dài (mm)" của tầng đang mở. */
+  const [sizeEntry, setSizeEntry] = useState<(FlatSizeEntryState & { readonly floorId: string }) | null>(null);
   const [applyScope, setApplyScope] = useState<ScaleApplyScope>('thisFloor');
   const [isCollapsedByUser, setIsCollapsedByUser] = useState(false);
   const [canvasSize, setCanvasSize] = useState<{ readonly width: number; readonly height: number }>({
@@ -1156,8 +1173,30 @@ export function useScaleCalibration(
   }, [areaM2, builtAreaM2, layerDocument?.level.scaleMillimetresPerPixel]);
   /** Cỡ căn ở tỷ lệ suy từ diện tích — để người dùng soi trước khi xác nhận (ví dụ ≈ 8,7 × 8,2 m). */
   const areaPlanSize = useMemo(() => planSizeAt(layerDocument, areaEntryRatio), [areaEntryRatio, layerDocument]);
-  /** Tỷ lệ người dùng gõ thẳng (1:N hoặc diện tích căn); hai ô loại trừ nhau. */
-  const typedRatio = ratioEntryRatio ?? areaEntryRatio;
+  const sizeState: FlatSizeEntryState = sizeEntry?.floorId === floorId ? sizeEntry : EMPTY_SIZE_ENTRY;
+  /** D1: tỷ lệ từ rộng × dài căn, đo trên hộp bao tường (mép ngoài hoặc tim tường). */
+  const sizeEntryResult = useMemo(() => {
+    const built = layerDocument?.level.scaleMillimetresPerPixel;
+    if (layerDocument === undefined || built === undefined || built <= 0) {
+      return null;
+    }
+    const box = wallBoxPx(
+      layerDocument.layer.walls.map((wall) => ({
+        x1: wall.centreline.start.x / built,
+        y1: wall.centreline.start.y / built,
+        x2: wall.centreline.end.x / built,
+        y2: wall.centreline.end.y / built,
+        thicknessPx: wall.thicknessMm / built,
+      })),
+      sizeState.isOuter,
+    );
+    return box === null
+      ? null
+      : ratioFromFlatSize(parseMm(sizeState.widthText), parseMm(sizeState.lengthText), box, sizeState.isSwapped);
+  }, [layerDocument, sizeState]);
+  const sizeEntryRatio = sizeEntryResult === null ? null : millimetresPerPixel(sizeEntryResult.mmPerPx);
+  /** Tỷ lệ người dùng gõ thẳng (1:N, diện tích hoặc rộng × dài căn); các ô loại trừ nhau. */
+  const typedRatio = ratioEntryRatio ?? areaEntryRatio ?? sizeEntryRatio;
   const isAutoSuggestion =
     floorLayer.scaleSource === 'pipeline' &&
     pipelineRatio !== null &&
@@ -1734,6 +1773,7 @@ export function useScaleCalibration(
     (text: string) => {
       setRatioEntry({ floorId, text });
       setAreaEntry(null);
+      setSizeEntry(null);
       setApplyOutcome(null);
     },
     [floorId],
@@ -1744,6 +1784,23 @@ export function useScaleCalibration(
     (text: string) => {
       setAreaEntry({ floorId, text });
       setRatioEntry(null);
+      setSizeEntry(null);
+      setSuggestionFloorId(null);
+      setApplyOutcome(null);
+    },
+    [floorId],
+  );
+
+  /** D1: sửa một phần ô rộng × dài; các ô tỷ lệ khác bị xoá để chỉ một nguồn. */
+  const onChangeFlatSize = useCallback(
+    (patch: Partial<FlatSizeEntryState>) => {
+      setSizeEntry((current) => ({
+        ...(current?.floorId === floorId ? current : EMPTY_SIZE_ENTRY),
+        ...patch,
+        floorId,
+      }));
+      setRatioEntry(null);
+      setAreaEntry(null);
       setSuggestionFloorId(null);
       setApplyOutcome(null);
     },
@@ -2704,6 +2761,7 @@ export function useScaleCalibration(
         applyScope: effectiveApplyScope,
         applyScopeOptions,
         canApply,
+        ...(canApply ? {} : { applyMissingHint: COPY.applyMissingHint }),
         ...(isMachineProposal ? { applyLabel: COPY.machineApplyLabel } : {}),
         ...(applyNotice !== null ? { applyBlockedNotice: applyNotice } : {}),
         canOpenViewer3d: applyOutcome === 'success',
@@ -2731,7 +2789,26 @@ export function useScaleCalibration(
           // Kích thước đã biết để kiểm chéo: một chuỗi OCR KHÁC chuỗi đang dùng để đo, không tự kiểm chính nó.
           knownDimension: rows.find((row) => row.id !== selectedRowId) ?? null,
           planSizeMm: planSizeAt(layerDocument, proposedRatio ?? storedRatio ?? provisionalRatio),
+          dimensionCount: layerDocument?.dimensions.length ?? 0,
+          isGuess: storedRatio === null && typedRatio === null && proposedScale === null && drag === null && selectedRow === null,
         }),
+        ...(layerDocument !== undefined &&
+        layerDocument.layer.walls.length > 0 &&
+        (layerDocument.level.scaleMillimetresPerPixel ?? 0) > 0 &&
+        canEdit
+          ? {
+              sizeEntry: {
+                widthText: sizeState.widthText,
+                lengthText: sizeState.lengthText,
+                isSwapped: sizeState.isSwapped,
+                isOuter: sizeState.isOuter,
+                error:
+                  sizeEntryResult !== null && sizeEntryResult.mismatchPercent > FLAT_SIZE_MISMATCH_PERCENT
+                    ? COPY.sizeEntryMismatch(formatNumber(sizeEntryResult.mismatchPercent, { fractionDigits: 1 }))
+                    : null,
+              },
+            }
+          : {}),
         shortcutHints: isNoDrawing ? [] : shortcutHints,
         ...(sourceDpi !== null && canEdit
           ? {
@@ -2843,6 +2920,11 @@ export function useScaleCalibration(
     ratioEntryRatio,
     ratioText,
     areaEntryRatio,
+    sizeState,
+    sizeEntryResult,
+    typedRatio,
+    proposedScale,
+    drag,
     areaM2,
     areaPlanSize,
     areaText,
@@ -2918,6 +3000,7 @@ export function useScaleCalibration(
       onUseSuggestedScale,
       onChangeDrawingRatio,
       onChangeFlatArea,
+      onChangeFlatSize,
       onZoomToNumbers,
       onChangeApplyScope,
       onConfirmAllFloors,
@@ -2933,6 +3016,7 @@ export function useScaleCalibration(
       onCancelAllFloors,
       onChangeDrawingRatio,
       onChangeFlatArea,
+      onChangeFlatSize,
       onZoomToNumbers,
       onConfirmAllFloors,
       onCancelDrag,
