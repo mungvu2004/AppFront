@@ -146,8 +146,15 @@ export interface GeometryFinding extends RuleFinding {
 /** A geometry check: pure, read-only, one rule's worth of work. */
 export type GeometryCheck = (context: RuleContext) => readonly GeometryFinding[];
 
-function finding(text: RuleText, entityId: string, relatedIds: readonly string[]): GeometryFinding {
-  return { entityId, message: text.message, suggestion: text.suggestion, relatedIds };
+function finding(
+  text: RuleText,
+  entityId: string,
+  relatedIds: readonly string[],
+  at?: Point,
+): GeometryFinding {
+  const base = { entityId, message: text.message, suggestion: text.suggestion, relatedIds };
+
+  return at === undefined ? base : { ...base, at };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -631,6 +638,7 @@ export const checkDanglingWallEnds: GeometryCheck = (context) => {
           }),
           wall.id,
           nearestWallId === null ? [wall.id] : [wall.id, nearestWallId],
+          at,
         ),
       );
     }
@@ -786,6 +794,7 @@ export const checkRoomClosure: GeometryCheck = (context) => {
         room.id,
         // The room's own walls first, then any other wall found running along it.
         [...new Set<string>([room.id, ...room.wallIds, ...guiltyWallIds])],
+        worstGapAt,
       ),
     );
   }

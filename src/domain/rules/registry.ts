@@ -35,7 +35,7 @@ import {
   type EntityByKind,
   type NormalizedSpatial,
 } from '../spatial/normalize';
-import type { LevelId, RoomUsage, Wall } from '../spatial/types';
+import type { LevelId, Point, RoomUsage, Wall } from '../spatial/types';
 import { openingsOfRoom } from '../spatial/roomOpenings';
 import { wallLength } from '../spatial/arc';
 import { MAX_WALL_THICKNESS_MM } from './limits';
@@ -158,6 +158,12 @@ export interface RuleFinding {
   readonly message: string;
   /** Vietnamese sentence saying what to change. */
   readonly suggestion: string;
+  /**
+   * Plan point of the defect in millimetres, when it is one spot rather than
+   * the whole entity (a wall gap, a loose wall end). The floor layers mark and
+   * zoom to it; without it they fall back to the entity's own centre.
+   */
+  readonly at?: Point;
 }
 
 /** A finding, stamped with the rule and level it came from. */
@@ -248,6 +254,7 @@ export function toViolation(rule: Rule, levelId: LevelId | null, finding: RuleFi
     entityId: finding.entityId,
     message: finding.message,
     suggestion: finding.suggestion,
+    ...(finding.at === undefined ? {} : { at: finding.at }),
   };
 }
 

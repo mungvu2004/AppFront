@@ -14,6 +14,7 @@ import type { CommandItem } from '@/hooks/useCommandPalette';
 import { useScreenCommands } from '@/hooks/useScreenCommands';
 
 import { QC_COMMAND_GROUP } from '../shared/qcLayout';
+import { QcRuleIssues, type QcRuleIssuesProps } from '../shared/QcRuleIssues';
 import { WallLayerList } from './WallLayerList';
 import type { WallLayerFilterKey, WallLayerViewProps, WallRowViewModel } from './types';
 import type { WallReviewQueue } from './wallReviewQueue';
@@ -42,6 +43,8 @@ export interface WallLayerLeftPanelExtras {
   readonly flashingWallId: WallRowViewModel['id'] | null;
   /** Ctrl/Cmd-bấm một hàng: thêm/bớt khỏi vùng chọn (NL-07). */
   readonly onToggleSelect: (wallId: WallRowViewModel['id']) => void;
+  /** Lỗi quy chuẩn của lớp tường trên tầng này (P03) — dải lỗi đang chỉ + danh sách gấp. */
+  readonly ruleIssues?: QcRuleIssuesProps | undefined;
 }
 
 export interface WallLayerLeftPanelProps {
@@ -81,6 +84,9 @@ export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers }: WallL
     [bulkCount, canBulk, onOpenThickness],
   );
   useScreenCommands(commands);
+  const ruleIssues = extras.ruleIssues;
+  const hasRuleIssues =
+    ruleIssues !== undefined && (ruleIssues.issues.length > 0 || ruleIssues.focused !== null || ruleIssues.focusResolved);
 
   return (
     /*
@@ -88,6 +94,13 @@ export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers }: WallL
      * vẽ, chỉ danh sách cuộn bên trong (G4a-07). Con CUỐI luôn là vùng danh sách (BUG-621).
      */
     <div className="order-1 flex min-h-0 w-full flex-1 shrink-0 flex-col lg:order-0 lg:h-full lg:min-h-0 lg:w-full lg:overflow-hidden">
+
+      {/* P03: mở từ nút "Sửa" của màn Quy chuẩn thì lỗi đó nói ngay đầu cột — lỗi gì, sửa thế nào. */}
+      {hasRuleIssues && (
+        <div className="shrink-0 border-b border-border-default px-4 py-3">
+          <QcRuleIssues {...ruleIssues} />
+        </div>
+      )}
 
       <div className="flex shrink-0 flex-col gap-1 border-b border-border-default px-4 py-3">
         {filterKeys.map((key) => (

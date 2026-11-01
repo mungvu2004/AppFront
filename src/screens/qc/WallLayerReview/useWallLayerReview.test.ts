@@ -608,6 +608,38 @@ describe('đổi độ dày', () => {
     mounted.unmount();
   });
 
+  it('P03: đổi chiều dài giữ đầu tường, dời đầu cuối dọc hướng tường, hoàn tác được', async () => {
+    const mounted = await mountSettled();
+    const wall = wallAt(0);
+    const { start, end } = wall.centreline;
+    const length = Math.hypot(end.x - start.x, end.y - start.y);
+    const next = Math.round(length / 2);
+    const current = (): Wall =>
+      wallsOfLevel(useStore.getState().spatial, FIXTURE_LEVEL.id).find((item) => item.id === wall.id) as Wall;
+
+    await act(async () => {
+      mounted.result.current.panel.onChangeLength?.(wall.id, next);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(current().centreline.end.x).toBeCloseTo(start.x + ((end.x - start.x) * next) / length, 3);
+    });
+    expect(current().centreline.start).toEqual(start);
+    expect(current().centreline.end.y).toBeCloseTo(start.y + ((end.y - start.y) * next) / length, 3);
+
+    await act(async () => {
+      mounted.result.current.panel.onUndo();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(current().centreline.end).toEqual(end);
+    });
+
+    mounted.unmount();
+  });
+
   it('ba lựa chọn độ dày là ba băng của hệ thiết kế, không phải ô nhập tự do', async () => {
     const mounted = await mountSettled();
 

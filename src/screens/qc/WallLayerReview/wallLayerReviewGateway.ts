@@ -67,12 +67,14 @@ import { readProjectConfidenceThreshold, type ReadConfidenceThreshold } from '@/
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
 import {
   createDeleteWallCommand,
+  createDragWallEndCommand,
   createDrawWallCommand,
   createChangeWallThicknessCommand,
   createMergeWallsCommand,
   createSplitWallCommand,
   type ChangeWallThicknessInput,
   type DeleteWallInput,
+  type DragWallEndInput,
   type DrawWallInput,
   type MergeWallsInput,
   type SplitWallInput,
@@ -595,6 +597,12 @@ export const buildChangeThicknessCommand = (
   input: ChangeWallThicknessInput,
   context: CommandContext,
 ): CommandResult => createChangeWallThicknessCommand(input, context);
+
+/** Dời một đầu tường (ô "Chiều dài" của thanh tra) — gọi lại S-07, cùng lệnh kéo đỉnh. */
+export const buildDragWallEndCommand = (
+  input: DragWallEndInput,
+  context: CommandContext,
+): CommandResult => createDragWallEndCommand(input, context);
 
 /** Tách đoạn — gọi lại S-07. Điểm cắt được chính hình học rơi xuống tim tường. */
 export const buildSplitWallCommand = (

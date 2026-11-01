@@ -37,6 +37,7 @@ import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { QcPin } from '../shared/qcViewMode';
+import type { QcRuleIssuesProps } from '../shared/QcRuleIssues';
 
 import type { LayerGate } from './layerGate';
 
@@ -694,6 +695,10 @@ export interface ObjectLayerReviewModel {
   /** Nhóm đang vẽ (rail "Vẽ …"); `null` khi không vẽ. */
   readonly drawLayer: ObjectLayerId | null;
   readonly onStartDraw: (layer: ObjectLayerId) => void;
+  /** Lỗi quy chuẩn của lớp này trên tầng (P03): dải "Đang sửa" + danh sách ở panel trái. */
+  readonly ruleIssues: QcRuleIssuesProps;
+  /** Dấu chỗ lỗi đang chỉ, pixel bản vẽ (cùng hệ `viewBoxPx`); `null` khi không chỉ lỗi có chỗ. */
+  readonly ruleIssueMarker: { readonly x: number; readonly y: number; readonly radius: number } | null;
   /**
    * Bấm lên bản vẽ ở chế độ vẽ: đặt một món mới tại điểm ấy (pixel bản vẽ, cùng hệ với `viewBoxPx`).
    * Kéo khi vẽ nội thất: `corner` là góc đối diện, món mới phủ đúng hộp kéo (B3).

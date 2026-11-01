@@ -33,6 +33,8 @@ export interface WallLayerInspectorProps {
 const PANEL_TITLE = 'Đoạn tường';
 const ADVANCED_TITLE = 'Thông số nâng cao';
 const LENGTH_LABEL = 'Chiều dài';
+const LENGTH_INPUT_LABEL = 'Chiều dài tường';
+const LENGTH_ERROR = 'Nhập một số lớn hơn 0.';
 const HEIGHT_LABEL = 'Chiều cao';
 const CONFIDENCE_LABEL = 'Độ tin cậy';
 const CONFIDENCE_SCORE_LABEL = 'Điểm tin cậy';
@@ -113,6 +115,78 @@ function CustomThicknessField({
         </p>
       ) : null}
     </form>
+  );
+}
+
+/**
+ * Ô "Chiều dài" sửa được (P03): Enter hoặc rời ô thì áp, Esc trả số cũ. Số theo đơn vị dự án
+ * (mm hoặc m, dấu phẩy thập phân được); `onCommit` nhận mm.
+ */
+function LengthField({
+  edit,
+  onCommit,
+}: {
+  readonly edit: { readonly valueText: string; readonly unit: 'mm' | 'm' };
+  readonly onCommit: (lengthMm: number) => void;
+}) {
+  const [text, setText] = useState(edit.valueText);
+  const [error, setError] = useState<string | null>(null);
+  const committedRef = useRef(edit.valueText);
+  const errorId = useId();
+
+  const commit = () => {
+    if (text === committedRef.current) {
+      setError(null);
+      return;
+    }
+
+    /* mm: "4.250" là bốn nghìn hai trăm năm mươi (dấu chấm nghìn); dấu phẩy luôn là thập phân. */
+    const compact = text.replace(/\s/g, '');
+    const value = Number((edit.unit === 'mm' ? compact.replace(/\./g, '') : compact).replace(',', '.'));
+
+    if (text.trim() === '' || !Number.isFinite(value) || value <= 0) {
+      setError(LENGTH_ERROR);
+      return;
+    }
+
+    setError(null);
+    committedRef.current = text;
+    onCommit(edit.unit === 'm' ? value * 1000 : value);
+  };
+
+  return (
+    <div className="flex flex-col gap-1 py-1">
+      <div className="flex items-center gap-2">
+        <input
+          aria-describedby={error === null ? undefined : errorId}
+          aria-invalid={error !== null}
+          aria-label={LENGTH_INPUT_LABEL}
+          className="h-9 min-w-0 flex-1 rounded-md border border-border-default bg-bg-surface px-2 text-[14px] tabular-nums text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          inputMode="decimal"
+          onBlur={commit}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commit();
+            } else if (event.key === 'Escape') {
+              /* Esc chỉ huỷ số đang gõ, không bỏ chọn đoạn. */
+              event.stopPropagation();
+              setText(committedRef.current);
+              setError(null);
+            }
+          }}
+          type="text"
+          value={text}
+        />
+        <span className="text-body-sm text-text-secondary">{edit.unit}</span>
+      </div>
+      {error === null ? null : (
+        <p className="text-caption text-state-violation" id={errorId}>
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -244,7 +318,18 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
           </div>
 
           <div className="flex flex-col px-5">
-            <ValueRow label={LENGTH_LABEL} value={inspector.lengthLabel} />
+            {/* P03: cùng điều kiện với đổi độ dày (vai sửa, không khoá tỷ lệ); tường cong vẫn chỉ đọc. */}
+            {!isViewerRole && lockText === null && inspector.lengthEdit != null && panel.onChangeLength !== undefined ? (
+              <FieldRow label={LENGTH_LABEL}>
+                <LengthField
+                  edit={inspector.lengthEdit}
+                  key={`${inspector.id}:${inspector.lengthEdit.valueText}`}
+                  onCommit={(lengthMm) => panel.onChangeLength?.(inspector.id, lengthMm)}
+                />
+              </FieldRow>
+            ) : (
+              <ValueRow label={LENGTH_LABEL} value={inspector.lengthLabel} />
+            )}
             <ValueRow label={HEIGHT_LABEL} value={inspector.heightLabel} />
             {queue?.showConfidence === false ? null : <ValueRow label={CONFIDENCE_LABEL} value={inspector.confidenceText} />}
             <FieldRow isLast label={MATERIAL_LABEL}>

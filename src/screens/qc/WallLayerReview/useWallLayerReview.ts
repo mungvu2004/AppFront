@@ -96,6 +96,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
+import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import { useFloorLayerAutosave, type FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
@@ -136,6 +137,7 @@ import {
   buildUnapproveWallCommand,
   buildChangeThicknessCommand,
   buildDeleteWallCommand,
+  buildDragWallEndCommand,
   buildMergeWallsCommand,
   buildSplitWallCommand,
   commandContextOf,
@@ -159,6 +161,7 @@ import {
   runWallCommand,
   toWallInspector,
   toWallRow,
+  wallLengthNumberOf,
   canvasLabelOf,
   drawingSizeOf,
   legendLevelsOf,
@@ -194,6 +197,7 @@ import {
 import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
+import { useLayerRuleIssues } from '../shared/useLayerRuleIssues';
 import { useScaleLock } from '../shared/useScaleLock';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { wallThicknessColorGroupOf } from './wallLayerHatch';
@@ -429,6 +433,11 @@ const RAIL_TOOL_IDS: readonly WallLayerToolId[] = ['select', 'drawWall', 'splitW
  * nó là một quyết định đọc được chứ không phải một mặc định ẩn của component.
  */
 /** G4a-05: bề ngang chừa cho bản đồ nhỏ + chú giải khi "vừa khung" (tối đa 22% khung). */
+/** P03: phóng tới lỗi quy chuẩn — khung nhìn phủ chừng 3 m quanh chỗ lỗi. */
+const RULE_FOCUS_HALF_MM = 1500;
+/** Bán kính dấu lỗi: không nhỏ hơn 300 mm trên bản vẽ hay 18 px trên màn. */
+const RULE_MARKER_MIN_MM = 300;
+const RULE_MARKER_MIN_FRAME_PX = 18;
 const FIT_OVERLAY_RESERVE_PX = 240;
 const FIT_OVERLAY_MIN_FRAME_PX = 600;
 
@@ -773,6 +782,8 @@ export function useWallLayerReview(
 
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
+  /* P03: lỗi quy chuẩn của lớp tường trên tầng này; mở từ nút "Sửa" thì có sẵn lỗi đang chỉ. */
+  const ruleIssues = useLayerRuleIssues({ projectId, levelId, layer: 'walls' });
   const walls = useMemo(() => wallsOfLevel(graph, levelId), [graph, levelId]);
   /*
    * Nhãn tường tính trên mọi tường của tầng, nên không trùng dù mã BE hay mã A14 — và GIỮ
@@ -1129,6 +1140,46 @@ export function useWallLayerReview(
     [isScaleLocked, notifyScaleLocked, run, thicknessLockText],
   );
 
+  /** P03: ô "Chiều dài" — giữ đầu tường, dời đầu cuối dọc hướng tường qua lệnh kéo đỉnh (hoàn tác được). */
+  const onChangeLength = useCallback(
+    (wallId: WallId, lengthMm: number) => {
+      if (isScaleLocked) {
+        notifyScaleLocked();
+        return;
+      }
+
+      const wall = wallById(wallId);
+
+      if (thicknessLockText !== null || wall === null || !(lengthMm > 0)) {
+        return;
+      }
+
+      const { start, end } = wall.centreline;
+      const current = Math.hypot(end.x - start.x, end.y - start.y);
+
+      if (current === 0) {
+        return;
+      }
+
+      const ratio = lengthMm / current;
+      const to = {
+        x: millimetres(start.x + (end.x - start.x) * ratio),
+        y: millimetres(start.y + (end.y - start.y) * ratio),
+      };
+
+      void run((context) => {
+        const result = buildDragWallEndCommand({ wallId, end: 'end', to }, context);
+
+        return result.ok ? result.data : null;
+      }).then((ok) => {
+        if (ok) {
+          setFlashingWallId(wallId);
+        }
+      });
+    },
+    [isScaleLocked, notifyScaleLocked, run, thicknessLockText, wallById],
+  );
+
   const onSplit = useCallback(
     (wallId: WallId, at: Point) => {
       const secondWallId = gateway.nextWallId();
@@ -1466,9 +1517,22 @@ export function useWallLayerReview(
 
     const wall = wallById(selectedWallId);
 
-    return wall === null
-      ? null
-      : toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus, lengthUnit, floorLayer.scaleSource);
+    if (wall === null) {
+      return null;
+    }
+
+    const lengthMm = Math.hypot(wall.centreline.end.x - wall.centreline.start.x, wall.centreline.end.y - wall.centreline.start.y);
+    /* P03: tường thẳng đã có tỷ lệ thì sửa được chiều dài; tường cong giữ chỉ đọc. */
+    const lengthEdit =
+      wall.curveOffsetMm !== undefined && wall.curveOffsetMm !== 0
+        ? null
+        : wallLengthNumberOf(lengthMm, floorLayer.scaleStatus, floorLayer.scaleSource) === null
+          ? null
+          : lengthUnit === 'mm'
+            ? { valueText: String(Math.round(lengthMm)), unit: 'mm' as const }
+            : { valueText: formatNumber(millimetresToMetres(millimetres(lengthMm)), { fractionDigits: 2 }), unit: 'm' as const };
+
+    return { ...toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus, lengthUnit, floorLayer.scaleSource), lengthEdit };
   }, [floorLayer.scaleSource, floorLayer.scaleStatus, lengthUnit, level, selectedWallId, wallById, wallCodes]);
 
   /* Bộ đếm chạy 12 → 13 ở nấc `standard` (260 ms) — xem ghi chú đầu file. */
@@ -1793,6 +1857,17 @@ export function useWallLayerReview(
     ],
   );
 
+  /* P03: nút "Sửa" xin bật "Vẽ tường" (phòng hở) — bật một lần khi lớp đã tải và được sửa. */
+  const initialToolDoneRef = useRef(false);
+  useEffect(() => {
+    if (initialToolDoneRef.current || ruleIssues.initialTool !== 'wall' || isLoading || !canEdit || isScaleLocked) {
+      return;
+    }
+
+    initialToolDoneRef.current = true;
+    onSelectTool('drawWall');
+  }, [canEdit, isLoading, isScaleLocked, onSelectTool, ruleIssues.initialTool]);
+
   /* ---------------------------------------------------------------------- */
   /* Giá trị ra.                                                             */
   /* ---------------------------------------------------------------------- */
@@ -2072,6 +2147,45 @@ export function useWallLayerReview(
   }, [baseScale, fitFramePx, fitReferencePx, frameSizePx, level, selectedWallId, setViewCenter, setZoom, shapes, viewMode]);
 
   /*
+   * P03: lỗi quy chuẩn vừa được chỉ (từ URL hoặc bấm trong danh sách) — chọn tường lỗi nếu có, rồi
+   * phóng sát chỗ lỗi ở CẢ hai chế độ nhìn. Chạy một lần mỗi lỗi; khoá `viewKeyRef` để khối trên
+   * không phóng ngược ra cả đoạn khi vùng chọn đổi theo.
+   */
+  const ruleFocus = ruleIssues.focused;
+  const ruleFocusKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (ruleFocus === null) {
+      ruleFocusKeyRef.current = null;
+      return;
+    }
+
+    if (ruleFocus.at === null || ruleFocusKeyRef.current === ruleFocus.key || isLoading || level === null || frameSizePx === null || fitReferencePx === null) {
+      return;
+    }
+
+    ruleFocusKeyRef.current = ruleFocus.key;
+    const wallId = walls.find((wall) => wall.id === ruleFocus.entityId)?.id ?? null;
+
+    if (wallId !== null && wallId !== selectedWallId) {
+      onSelect(wallId);
+    }
+
+    if (viewMode === 'task') {
+      viewKeyRef.current = `task:${wallId ?? selectedWallId ?? ''}`;
+    }
+
+    const scale = scaleOfLevel(level);
+    const centre = toPixelPoint(ruleFocus.at, scale);
+    const halfPx = Math.abs(toPixelPoint({ x: millimetres(ruleFocus.at.x + RULE_FOCUS_HALF_MM), y: ruleFocus.at.y }, scale).x - centre.x);
+    const frame = focusFrameOf(frameSizePx);
+    const fitted = fitCanvasView(frame, { x: centre.x - halfPx, y: centre.y - halfPx, width: halfPx * 2, height: halfPx * 2 });
+    const nextZoom = fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale);
+
+    setZoom(nextZoom);
+    setViewCenter(toMillimetrePoint({ x: centre.x + (frameSizePx.width - frame.width) / 2 / (nextZoom * baseScale), y: centre.y }, scale));
+  }, [baseScale, fitReferencePx, frameSizePx, isLoading, level, onSelect, ruleFocus, selectedWallId, setViewCenter, setZoom, viewMode, walls]);
+
+  /*
    * Surface the mini map draws: the drawing image, else the box hugging the walls
    * (same fallback as the canvas `surface`), so a floor without a drawing still has
    * a working mini map instead of a dead one (R46).
@@ -2281,6 +2395,7 @@ export function useWallLayerReview(
     onSkip,
     onOpenRowMenu,
     onChangeThickness,
+    onChangeLength,
     onDelete,
     onSplit,
     onMerge,
@@ -2332,8 +2447,22 @@ export function useWallLayerReview(
           midPx: onFrame(measurement.midPx),
         };
 
+  /* P03: dấu chỗ lỗi đang chỉ, pixel bản vẽ; to ít nhất 18 px khung hoặc 300 mm để thấy cả khe vài cm. */
+  const ruleMarkerPx = (() => {
+    if (ruleFocus?.at == null || level === null) {
+      return null;
+    }
+
+    const scale = scaleOfLevel(level);
+    const centre = toPixelPoint(ruleFocus.at, scale);
+    const markPx = Math.abs(toPixelPoint({ x: millimetres(ruleFocus.at.x + RULE_MARKER_MIN_MM), y: ruleFocus.at.y }, scale).x - centre.x);
+
+    return { x: centre.x, y: centre.y, radius: Math.max(RULE_MARKER_MIN_FRAME_PX / viewport.zoom, markPx) };
+  })();
+
   const canvas: WallLayerCanvasViewProps = {
     shapes,
+    ruleMarkerPx,
     selectedWallId,
     selectedWallIds,
     menuRequest,
@@ -2393,6 +2522,7 @@ export function useWallLayerReview(
     onToggleWallLayer,
     flashingWallId,
     onToggleSelect,
+    ruleIssues,
   };
 
   return { panel, canvas, toolRail, statusBar, leftPanel, queue, saveBlock, provisionalScaleNotice, readFailure };

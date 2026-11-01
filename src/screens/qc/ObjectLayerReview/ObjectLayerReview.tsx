@@ -266,6 +266,7 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
       onHover={model.onHover}
       onSelect={model.onSelect}
       placements={model.placements}
+      ruleIssueMarker={model.ruleIssueMarker}
       selectedObjectId={model.selectedObjectId}
       surfaceRectPx={model.surfaceRectPx}
       unitPx={model.unitPx}
@@ -295,6 +296,7 @@ function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewMod
             onToggleSubtypeFilter={model.onToggleSubtypeFilter}
             reviewCounter={model.reviewCounter}
             reviewProgressLabel={model.reviewProgressLabel}
+            ruleIssues={model.ruleIssues}
             subtypeFilters={model.subtypeFilters}
           />
         )}

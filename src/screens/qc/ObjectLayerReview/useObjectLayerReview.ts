@@ -57,6 +57,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { displayCodesOf, keepDisplayCodes, sortByDisplayCode } from '@/domain/spatial/ids';
 import type { EntityId, FurnitureKind, Level, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { RelativePosition } from '@/domain/openings/types';
+import { millimetres } from '@/domain/units/types';
 import type { Wall as SolidWall } from '@/domain/walls/types';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { isFloorNotFound, useFloorLayer } from '@/hooks/useFloorLayer';
@@ -192,6 +193,7 @@ import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 
 import { layerGateOf } from './layerGate';
 import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
+import { useLayerRuleIssues } from '../shared/useLayerRuleIssues';
 import { objectReasonRank } from './objectReviewReasons';
 
 /** Hàng đợi duyệt (Z/S-16): chưa duyệt trước, trong đó tin cậy thấp lên đầu. */
@@ -237,6 +239,12 @@ const REFUSED_NOTIFICATION_TYPE = 'objectLayerReview.refused';
 
 /** Loại thông báo của một lượt gắn vào tường gần nhất — viết đúng một chỗ (R-71). */
 const ATTACH_NOTIFICATION_TYPE = 'objectLayerReview.attachToNearestWall';
+
+/** Nửa cạnh khung bay tới chỗ lỗi quy chuẩn (P03), mm. */
+const ISSUE_FLIGHT_HALF_MM = 2500;
+/** Bán kính tối thiểu của dấu lỗi: theo màn hình và theo bản vẽ. */
+const ISSUE_MARKER_MIN_SCREEN_PX = 18;
+const ISSUE_MARKER_MIN_MM = 300;
 
 /** Loại thông báo của một lượt thêm tay — viết đúng một chỗ (R-71). */
 const ADD_NOTIFICATION_TYPE = 'objectLayerReview.addManually';
@@ -2099,6 +2107,63 @@ export function useObjectLayerReview(
   }, [endFlight, fitView, flyToBounds, frameSizePx, placements, selectedObjectId, surfacePx, viewMode]);
 
   /*
+   * Lỗi quy chuẩn của lớp (P03). Mở từ nút "Sửa" hay bấm một dòng: bay tới chỗ lỗi (khung
+   * ±2,5 m — đủ thấy cả phòng thiếu cửa), chọn đối tượng nếu lỗi là của một món trong lớp.
+   * Khoá có khổ khung: cột việc dựng xong đổi khổ thì "vừa khung" của chế độ nhìn đè lên, bay lại.
+   */
+  const ruleIssues = useLayerRuleIssues({ projectId, levelId: level?.id ?? null, layer: 'objects' });
+  const focusedIssue = ruleIssues.focused;
+  const issueFlightRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (focusedIssue === null || frameSizePx === null || isLoading) {
+      return;
+    }
+
+    const key = `${focusedIssue.key}@${frameSizePx.width}x${frameSizePx.height}`;
+
+    if (key === issueFlightRef.current) {
+      return;
+    }
+
+    issueFlightRef.current = key;
+    const object = objects.find((item) => item.id === focusedIssue.entityId || item.entityId === focusedIssue.entityId);
+
+    if (object !== undefined && object.id !== selectedObjectId) {
+      onSelect(object.id);
+    }
+
+    if (focusedIssue.at === null) {
+      return;
+    }
+
+    const scale = scaleOfLevel(level);
+    const centre = toPixelPoint(focusedIssue.at, scale);
+    const half = scale.millimetresToPixels(millimetres(ISSUE_FLIGHT_HALF_MM));
+    const min = toFramePoint(fitView, { x: centre.x - half, y: centre.y - half });
+    const max = toFramePoint(fitView, { x: centre.x + half, y: centre.y + half });
+
+    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, focusFrameOf(frameSizePx).width, frameSizePx.height);
+  }, [fitView, flyToBounds, focusedIssue, frameSizePx, isLoading, level, objects, onSelect, selectedObjectId]);
+
+  /* `?tool=door|window` của nút "Sửa": bật sẵn "Vẽ cửa đi/cửa sổ" một lần khi lớp đã đọc xong. */
+  const initialToolRef = useRef(ruleIssues.initialTool);
+
+  useEffect(() => {
+    const tool = initialToolRef.current;
+
+    if (isLoading || (tool !== 'door' && tool !== 'window')) {
+      return;
+    }
+
+    initialToolRef.current = null;
+
+    if (canEdit) {
+      setDrawLayer(tool);
+    }
+  }, [canEdit, isLoading]);
+
+  /*
    * Số đo hai đầu tường của đối tượng đang chọn.
    *
    * Trạng thái là `'measuring'` trong lúc kéo và `'idle'` khi chỉ đang chọn —
@@ -2145,6 +2210,8 @@ export function useObjectLayerReview(
   const activePlacement =
     placements.find((placement) => placement.id === (selectedObjectId ?? hoveredObjectId)) ?? null;
   const onFrame = (point: PixelPoint): PixelPoint => toFramePoint(view, point);
+  const issueScale = scaleOfLevel(level);
+  const issueAtPx = focusedIssue?.at == null ? null : toPixelPoint(focusedIssue.at, issueScale);
 
   const hasFurnitureAttention = furnitureQuery.isError;
 
@@ -2256,6 +2323,21 @@ export function useObjectLayerReview(
     onSelectSubtypeSlot,
     drawLayer: canEdit ? drawLayer : null,
     onStartDraw,
+    ruleIssues: {
+      issues: ruleIssues.issues,
+      focused: ruleIssues.focused,
+      focusResolved: ruleIssues.focusResolved,
+      onFocus: ruleIssues.onFocus,
+      onClearFocus: ruleIssues.onClearFocus,
+    },
+    /* Bán kính ≥ 18 px màn hình hoặc 300 mm, lấy cái lớn hơn: thấy được ở mọi mức phóng. */
+    ruleIssueMarker:
+      issueAtPx === null
+        ? null
+        : {
+            ...issueAtPx,
+            radius: Math.max(ISSUE_MARKER_MIN_SCREEN_PX / view.zoom, issueScale.millimetresToPixels(millimetres(ISSUE_MARKER_MIN_MM))),
+          },
     onPlaceAt,
     onResize,
     onRotate,

@@ -18,6 +18,8 @@ import { AppWindow, ChevronDown, DoorOpen, Sofa, type LucideIcon } from 'lucide-
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { cn } from '@/lib/utils';
 
+import { QcRuleIssues } from '../shared/QcRuleIssues';
+
 import type { ObjectLayerLeftPanelViewProps } from './objectLayerSymbols';
 import type { ObjectLayerCounts, ObjectLayerId, ObjectSubtype } from './objectLayerTypes';
 import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS, OBJECT_SUBTYPES, OBJECT_SUBTYPE_LABELS } from './objectLayerTypes';
@@ -54,12 +56,16 @@ export function ObjectLayerLeftPanel({
   listLayerFilter,
   onFilterLayer,
   onToggleSubtypeFilter,
+  ruleIssues,
   subtypeFilters,
 }: ObjectLayerLeftPanelViewProps) {
   const subtypes = OBJECT_SUBTYPES.filter((subtype) => subtypeFilters.has(subtype) || availableSubtypes.has(subtype));
 
   return (
     <div className="flex flex-col gap-3 border-b border-border-default px-4 py-3">
+      {/* Mở từ nút "Sửa" của Quy chuẩn: nói lỗi gì, cách sửa, trước bộ lọc (P03). */}
+      {ruleIssues === undefined ? null : <QcRuleIssues {...ruleIssues} />}
+
       <div aria-label={FILTER_ROW_LABEL} className="flex flex-wrap gap-2" role="group">
         {OBJECT_LAYER_IDS.map((layer) => {
           const Icon = LAYER_ICONS[layer];

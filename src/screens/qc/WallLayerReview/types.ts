@@ -262,6 +262,11 @@ export interface WallInspectorViewModel {
   readonly isLongWall?: boolean;
   /** Chiều dài đã định dạng — ví dụ `"4.250,00 mm"` (`formatLength(..., { unit: 'mm', fractionDigits: 2 })`). */
   readonly lengthLabel: string;
+  /**
+   * Ô sửa chiều dài (P03): số đang có ở đúng đơn vị của dự án, chưa phân cách nghìn. Vắng/`null`
+   * = chỉ đọc (tường cong, chưa có tỷ lệ).
+   */
+  readonly lengthEdit?: { readonly valueText: string; readonly unit: 'mm' | 'm' } | null;
   /** Chiều cao đã định dạng — ví dụ `"3,00 m"`. */
   readonly heightLabel: string;
   readonly confidence: Confidence;
@@ -376,6 +381,8 @@ export interface WallLayerViewProps {
   readonly onOpenRowMenu?: (wallId: WallId) => void;
   /** UX-10: một bậc của {@link WALL_THICKNESS_CHOICES}, hoặc số người gõ ở "Khác…" (60–600 mm, đúng như bản vẽ). */
   readonly onChangeThickness: (wallId: WallId, thicknessMm: number) => void;
+  /** Đổi chiều dài tường thẳng: giữ đầu, dời đầu cuối dọc hướng tường (P03). */
+  readonly onChangeLength?: ((wallId: WallId, lengthMm: number) => void) | undefined;
   /** Xoá dùng vé hoàn tác (A8, CẤM TUYỆT ĐỐI "không hộp thoại"); toast Hoàn tác do hook dựng. */
   readonly onDelete: (wallId: WallId) => void;
   /** `at` là điểm cắt trên tim tường; hook tự mint `secondWallId` — xem ghi chú đầu file. */

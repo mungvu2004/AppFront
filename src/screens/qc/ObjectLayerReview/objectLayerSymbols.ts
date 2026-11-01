@@ -291,6 +291,8 @@ export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
   readonly onPlaceAt?: ObjectLayerReviewModel['onPlaceAt'] | undefined;
   /** Ghim của lớp chế độ nhìn (Tổng thể); công tắc lớp nằm trong popover "Hiển thị" của màn. */
   readonly viewPins: ObjectLayerReviewModel['viewPins'];
+  /** Dấu chỗ lỗi quy chuẩn đang chỉ (P03); vắng/`null` = không vẽ. */
+  readonly ruleIssueMarker?: ObjectLayerReviewModel['ruleIssueMarker'] | undefined;
 }
 
 /**
@@ -308,6 +310,8 @@ export interface ObjectLayerLeftPanelViewProps extends ObjectLayerLeftPanelProps
   readonly onFilterLayer: (layer: ObjectLayerId) => void;
   /** Nhóm đang lọc danh sách; `null` = không lọc. */
   readonly listLayerFilter: ObjectLayerId | null;
+  /** Lỗi quy chuẩn của lớp (P03); vắng = không vẽ khối lỗi. */
+  readonly ruleIssues?: ObjectLayerReviewModel['ruleIssues'] | undefined;
 }
 
 /**

@@ -31,6 +31,7 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 
 import { QcAskAnchor } from '../shared/QcAskCard';
+import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
 import { useQcAskSlot } from '../shared/qcAsk';
 import { QcViewLayer } from '../shared/QcViewLayer';
 import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
@@ -87,6 +88,7 @@ export function ObjectLayerCanvas({
   onPlaceAt,
   onSelect,
   placements,
+  ruleIssueMarker = null,
   selectedObjectId,
   surfaceRectPx,
   unitPx,
@@ -299,6 +301,9 @@ export function ObjectLayerCanvas({
               unitPx={unitPx}
             />
           ))}
+
+          {/* Chỗ lỗi quy chuẩn đang chỉ (P03) — không bắt chuột, vẽ cửa đè lên vẫn được. */}
+          {ruleIssueMarker === null ? null : <QcRuleIssueMarker {...ruleIssueMarker} />}
 
           {/* Lớp bắt bấm của chế độ vẽ, trên mọi ký hiệu: bấm trúng một món cũ vẫn là đặt món mới. */}
           {isDrawing && viewBoxPx !== null ? (

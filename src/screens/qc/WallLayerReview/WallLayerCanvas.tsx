@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 
 import { QcAskAnchor } from '../shared/QcAskCard';
 import { useQcAskSlot } from '../shared/qcAsk';
+import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
 import { QcViewLayer } from '../shared/QcViewLayer';
 import { WallDraftGuide, WallDrawingBackground, WallLayerLegend, WallLayerMiniMap } from './WallLayerCanvasParts';
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
@@ -81,6 +82,7 @@ export function WallLayerCanvas({
   isWallLayerVisible,
   legendLevels,
   measurement,
+  ruleMarkerPx = null,
   millimetresPerPixel,
   onApprove,
   onCanvasPoint,
@@ -367,6 +369,7 @@ export function WallLayerCanvas({
                 ))}
 
                 {draftGuidePx === null ? null : <WallDraftGuide draftGuidePx={draftGuidePx} unitPx={unitPx} />}
+                {ruleMarkerPx === null ? null : <QcRuleIssueMarker {...ruleMarkerPx} />}
               </svg>
 
               {haloRectPx === null ? null : (
