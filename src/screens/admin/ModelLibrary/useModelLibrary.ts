@@ -132,6 +132,7 @@ const CATEGORY_BY_FILTER: Readonly<Record<LibraryFilterId, FurnitureCategoryId>>
   sanitary: 'sanitary',
   kitchen: 'kitchen',
   technical: 'equipment',
+  decor: 'decor',
   mine: 'mine',
 };
 

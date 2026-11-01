@@ -768,6 +768,26 @@ const MOCK_LIBRARY_ITEMS: readonly LibraryItem[] = [
     triangleCount: 1_240_000,
     widthMm: 2_400,
   }),
+  makeLibraryItem({
+    depthMm: 650,
+    fileSizeBytes: 610_000,
+    group: 'decor',
+    heightMm: 1_600,
+    id: 'library-decor-1',
+    name: 'chậu cây lá chuối lớn',
+    triangleCount: 30_000,
+    widthMm: 1_080,
+  }),
+  makeLibraryItem({
+    depthMm: 1_800,
+    fileSizeBytes: 5_000,
+    group: 'decor',
+    heightMm: 34,
+    id: 'library-decor-2',
+    name: 'thảm chữ nhật be',
+    triangleCount: 1_100,
+    widthMm: 2_770,
+  }),
 ];
 
 /**

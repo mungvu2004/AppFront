@@ -11,6 +11,7 @@ import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
 
 import { fixtureF2 } from '../__fixtures__';
 import { createPascalEditCommand } from '../fromPascal';
+import { registerServerLibrary } from '../furnitureCatalog';
 import { toPascalScene } from '../toPascal';
 import { adoptableRoomOf, toSpatialGraph } from '../toSpatial';
 import type { PascalItemNode, PascalNode, PascalScene } from '../types';
@@ -107,6 +108,17 @@ describe('W3b — đồ đạc giữ khe, mẫu, độ cao', () => {
     );
 
     expect(odd.ok ? 'ok' : odd.error.code).toBe('PASCAL_NO_CHANGE');
+  });
+
+  it('mẫu thư viện máy chủ: lưu đường `/items/<id>/…` thay URL ký, nạp lại tra URL ký mới', () => {
+    const signed = 'https://minio.test/library/srv-sofa-l/model.glb?X-Sig=1';
+    registerServerLibrary([{ id: 'srv-sofa-l', widthMm: 2600, heightMm: 590, depthMm: 2870, modelUrl: signed, attribution: 'a · CC-BY 4.0' }]);
+    const after = afterOf(
+      commit(graph, edit(sceneOf(graph), nodeId, (node) => ({ asset: { ...node.asset, id: 'srv-sofa-l', src: signed } })), nodeId),
+    );
+
+    expect(after.model).toEqual({ id: 'srv-sofa-l', src: '/items/srv-sofa-l/model.glb' });
+    expect((expectStable(after).nodes[nodeId] as PascalItemNode).asset).toMatchObject({ id: 'srv-sofa-l', src: signed });
   });
 
   it('kéo cao (scale y) → `heightMm`, nâng (position y) → `liftMm`; nạp lại ổn định', () => {

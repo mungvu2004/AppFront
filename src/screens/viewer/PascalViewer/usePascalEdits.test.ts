@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { registerServerLibrary } from '@/lib/pascal/furnitureCatalog';
 import { SCENE_STYLES } from '@/lib/pascal/sceneStyles';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalNode, PascalScene } from '@/lib/pascal/types';
@@ -158,6 +159,14 @@ describe('unsavedPascalEdits (v3 V3 + W3e — phần sửa máy chủ chưa nh�
     expect(unsavedPascalEdits(added, swapped)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
     expect(unsavedPascalEdits(SCENE, swapped)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
     expect(unsavedPascalEdits(dressed, SCENE)).toEqual(['xoá đồ bày sẵn']);
+
+    // Mẫu thư viện máy chủ: URL ký không lưu nguyên được nhưng toSpatial lưu `/items/<id>/…` thay vào.
+    registerServerLibrary([{ id: 'srv-sofa', widthMm: 2000, heightMm: 800, depthMm: 900, modelUrl: 'https://minio.test/s?sig=1' }]);
+    const server: PascalScene = {
+      nodes: { ...SCENE.nodes, item_new: { ...item, asset: { id: 'srv-sofa', src: 'https://minio.test/s?sig=1' } } as unknown as PascalNode },
+      rootNodeIds: SCENE.rootNodeIds,
+    };
+    expect(unsavedPascalEdits(SCENE, server)).toEqual([]);
 
     // H4 — zone khai món ấy (`dressIds`): xoá lưu được (`Room.dressingOff`), không báo.
     const zone = {

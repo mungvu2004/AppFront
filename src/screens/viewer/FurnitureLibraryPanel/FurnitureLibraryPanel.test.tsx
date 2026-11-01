@@ -33,7 +33,7 @@
  *
  * Đồ thị luôn là bộ mẫu chuẩn của A14 (`@/lib/testing/fixtures` — 4 tầng, 48
  * tường, 21 món đồ đạc, 14 phòng, 248,60 m²), danh mục model luôn là
- * `src/api/__mocks__/client.ts` (16 mục, 2 mục thiếu ảnh xem trước), và bốn món
+ * `src/api/__mocks__/client.ts` (18 mục, 2 mục thiếu ảnh xem trước), và bốn món
  * đồ đạc của `[N4]` được đặt vào bằng ĐÚNG đường lệnh `createAddFurnitureCommand`
  * chứ không phải bằng một đồ thị bịa tại chỗ (R-70).
  *

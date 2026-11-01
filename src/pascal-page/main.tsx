@@ -16,7 +16,7 @@ import { type ReactNode, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { flushAutosaves } from '@/hooks/useAutosave';
-import { setRealismModels } from '@/lib/pascal/furnitureCatalog';
+import { serverCatalogTiles, setRealismModels } from '@/lib/pascal/furnitureCatalog';
 import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
 import { BRIDGE_SESSION_ERROR, loginHrefOf, savePascalNow, usePascalProjectBridge } from './bridge';
@@ -25,6 +25,7 @@ import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToPr
 import { syncChromeTheme } from './chromeTheme';
 import { HomeownerCardMount } from './HomeownerCardMount';
 import { LightingCard } from './LightingCard';
+import { ModelCreditCard } from './ModelCreditCard';
 import { realismFlagsFrom, useRealism } from './realism/store';
 import { setDetailsEnabled } from './realism/details';
 import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
@@ -168,6 +169,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
             <LightingCard projectId={projectId} useViewer={useViewer} />
             {readOnly ? null : <BakeLightingCard exportGlb={exportSceneGlb} projectId={projectId} />}
             <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
+            <ModelCreditCard stores={{ useScene, useViewer }} />
           </div>
         </>
       }
@@ -193,7 +195,10 @@ const serverLibraryLoaded = Promise.all([import('@/api/appClient'), import('@/ro
   .then(async ([{ createAppApiClient }, { startAppSession }]) => {
     if (!(await startAppSession())) return 0;
     const { loadServerLibrary } = await import('@/lib/pascal/serverLibrary');
-    return loadServerLibrary(createAppApiClient().library);
+    const count = await loadServerLibrary(createAppApiClient().library);
+    // Mẫu tải về của máy chủ vào bảng đồ Pascal (bảng đồ chỉ đọc `CATALOG_ITEMS`).
+    CATALOG_ITEMS.push(...serverCatalogTiles());
+    return count;
   })
   .catch(() => 0);
 

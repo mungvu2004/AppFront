@@ -80,6 +80,7 @@ export const LIBRARY_GROUPS = [
   'sanitary',
   'kitchen',
   'technical',
+  'decor',
 ] as const;
 
 export type LibraryGroup = (typeof LIBRARY_GROUPS)[number];
@@ -112,6 +113,7 @@ export const FURNITURE_KIND_BY_LIBRARY_GROUP = {
   storage: 'wardrobe',
   table: 'table',
   technical: 'other',
+  decor: 'other',
 } as const satisfies Record<LibraryGroup, FurnitureKind>;
 
 const wireLibraryGroupSchema = z.enum(LIBRARY_GROUPS);
@@ -131,6 +133,8 @@ export const LibraryItemSchema = z
     modelUrl: z.string().url(),
     name: z.string().min(1),
     previewUrl: z.string().url().optional(),
+    /** Ghi công tác giả + giấy phép của mẫu tải về (CC-BY bắt buộc); mẫu dựng sẵn không có. */
+    attribution: z.string().min(1).optional(),
     source: wireLibrarySourceSchema,
     triangleCount: positiveIntegerSchema,
     widthMm: positiveIntegerSchema,
@@ -146,6 +150,7 @@ export const LibraryItemSchema = z
     modelUrl: wireItem.modelUrl,
     name: wireItem.name,
     ...(wireItem.previewUrl !== undefined ? { previewUrl: wireItem.previewUrl } : {}),
+    ...(wireItem.attribution !== undefined ? { attribution: wireItem.attribution } : {}),
     source: wireItem.source,
     triangleCount: wireItem.triangleCount,
     widthMm: wireItem.widthMm,
