@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { CATALOG_MODELS, isServerModel, modelSrcOf, thumbnailOf } from '../furnitureCatalog';
+import {
+  CATALOG_MODELS,
+  isServerModel,
+  modelSrcOf,
+  serverAttributionOf,
+  serverCatalogTiles,
+  serverKindOf,
+  thumbnailOf,
+} from '../furnitureCatalog';
 import { loadServerLibrary } from '../serverLibrary';
 
 const item = (id: string) => ({
@@ -27,6 +35,30 @@ describe('loadServerLibrary', () => {
     expect(isServerModel(bundledId)).toBe(true);
     expect(modelSrcOf(bundledId)).toBe(`https://cdn.example.test/library/${bundledId}.glb`);
     expect(CATALOG_MODELS[bundledId]?.dimensions).toEqual([1.2, 0.75, 0.6]);
+  });
+
+  it('ô bảng đồ Pascal chỉ cho mẫu tải về (có ghi công); nhóm → hạng mục, loại đồ, ghi công tra được', async () => {
+    const withMeta = (id: string, group: string, attribution?: string) => ({
+      ...item(id),
+      name: `Mẫu ${id}`,
+      group,
+      furnitureKind: 'sanitaryFixture' as const,
+      ...(attribution === undefined ? {} : { attribution }),
+    });
+    await loadServerLibrary(okApi([withMeta('srv-toilet', 'sanitary', 'Urpo · CC-BY 4.0'), withMeta('srv-box', 'table')] as never));
+    const tiles = serverCatalogTiles();
+
+    expect(tiles.find((tile) => tile.id === 'srv-box')).toBeUndefined();
+    expect(tiles.find((tile) => tile.id === 'srv-toilet')).toMatchObject({
+      category: 'bathroom',
+      name: 'Mẫu srv-toilet',
+      src: 'https://cdn.example.test/library/srv-toilet.glb',
+      thumbnail: 'https://cdn.example.test/library/srv-toilet.webp',
+      dimensions: [1.2, 0.75, 0.6],
+    });
+    expect(serverKindOf('srv-toilet')).toBe('sanitaryFixture');
+    expect(serverAttributionOf('srv-toilet')).toBe('Urpo · CC-BY 4.0');
+    expect(serverAttributionOf('srv-box')).toBeUndefined();
   });
 
   it('API lỗi / ném / treo → 0, danh mục đóng gói giữ nguyên', async () => {

@@ -40,7 +40,7 @@ import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business
 import { EXTERIOR_SKIRTING, isDetailsEnabled } from '@/pascal-page/realism/details';
 
 import { applyFloorTransforms, floorDisplayTransformsOf } from './floorAlignment';
-import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, thumbnailOf } from './furnitureCatalog';
+import { CATALOG_MODELS, VARIANT_MODEL, isServerModel, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
 import { expandKitchenRuns, isKitchenRunHost } from './kitchenRuns';
 import { orientDetectedFurniture } from './orientDetected';
@@ -841,7 +841,11 @@ const itemNodeOf = (
       thumbnail: fit === null ? '' : thumbnailOf(fit.folder),
       // `asset://…` là dạng nội bộ mà `AssetUrl` nhận (`schema/asset-url.js`);
       // chỉ còn `stair` dùng nó làm chỗ giữ chỗ — chưa có mô hình thang (ngoài C2).
-      src: furniture.model?.src ?? (fit === null ? `asset://appfront/${furniture.kind}` : modelSrcOf(fit.folder)),
+      // Mẫu máy chủ lưu đường `/items/<id>/…`; URL thật là URL ký mới của lượt mở này.
+      src:
+        fit !== null && isServerModel(fit.folder)
+          ? modelSrcOf(fit.folder)
+          : (furniture.model?.src ?? (fit === null ? `asset://appfront/${furniture.kind}` : modelSrcOf(fit.folder))),
       dimensions: [widthM, heightM, depthM],
       ...(fit === null ? {} : { offset: fit.offset, rotation: fit.rotation, scale: fit.scale }),
       // Đèn của bản vẽ (cây/bàn/trần/tường) phát sáng thật, bật sẵn, theo phong cách.

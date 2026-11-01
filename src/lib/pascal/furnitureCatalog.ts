@@ -1,5 +1,7 @@
 // Bảng tay chép từ vendor/pascal catalog-items.tsx (không import: file đó mang 333 URL supabase,
 // còn toPascal được app chính import). furnitureCatalog.test.ts đối chiếu từng dòng với catalog.
+import type { FurnitureKind } from '@/domain/spatial/types';
+
 import { SCENE_PALETTE } from './scenePalette';
 import SURFACE_TOPS from './surfaceTops.json' with { type: 'json' };
 
@@ -606,9 +608,6 @@ export const VARIANT_MODEL: Readonly<
   shrub: { folder: 'bush' },
 };
 
-/** Thư viện máy chủ (`GET /api/library`) đã nạp: thư mục → URL tệp. Rỗng = chỉ danh mục đóng gói. */
-const SERVER_FILES = new Map<string, { readonly model: string; readonly preview?: string }>();
-
 /** Mục thư viện máy chủ tối thiểu mà danh mục cần (khớp `LibraryItem` của `@/api/client`). */
 export interface ServerLibraryModel {
   readonly id: string;
@@ -617,7 +616,14 @@ export interface ServerLibraryModel {
   readonly depthMm: number;
   readonly modelUrl: string;
   readonly previewUrl?: string;
+  readonly name?: string;
+  readonly group?: string;
+  readonly furnitureKind?: FurnitureKind;
+  readonly attribution?: string;
 }
+
+/** Thư viện máy chủ (`GET /api/library`) đã nạp: thư mục → URL tệp. Rỗng = chỉ danh mục đóng gói. */
+const SERVER_FILES = new Map<string, { readonly model: string; readonly preview?: string; readonly item: ServerLibraryModel }>();
 
 /**
  * Gộp thư viện máy chủ vào `CATALOG_MODELS` (thư mục = `id` mục): mục máy chủ thắng mục đóng gói
@@ -637,7 +643,7 @@ export const registerServerLibrary = (items: readonly ServerLibraryModel[]): num
       folder: item.id,
       dimensions: [item.widthMm / 1000, item.heightMm / 1000, item.depthMm / 1000],
     };
-    SERVER_FILES.set(item.id, { model: item.modelUrl, ...(item.previewUrl === undefined ? {} : { preview: item.previewUrl }) });
+    SERVER_FILES.set(item.id, { model: item.modelUrl, ...(item.previewUrl === undefined ? {} : { preview: item.previewUrl }), item });
     count += 1;
   }
   return count;
@@ -645,6 +651,59 @@ export const registerServerLibrary = (items: readonly ServerLibraryModel[]): num
 
 /** true khi thư mục đến từ thư viện máy chủ. */
 export const isServerModel = (folder: string): boolean => SERVER_FILES.has(folder);
+
+/** Loại đồ của mẫu máy chủ (theo nhóm thư viện) — món mới đặt từ bảng đồ chưa có `kind` trong siêu dữ liệu. */
+export const serverKindOf = (folder: string): FurnitureKind | undefined => SERVER_FILES.get(folder)?.item.furnitureKind;
+
+/** Ghi công tác giả + giấy phép của mẫu máy chủ tải về; mẫu dựng sẵn không có. */
+export const serverAttributionOf = (folder: string): string | undefined => SERVER_FILES.get(folder)?.item.attribution;
+
+/**
+ * `src` lưu xuống của mẫu máy chủ: URL ký hết hạn nên không lưu được; lưu dạng `/items/<id>/model.glb`
+ * (khớp `MODEL_SRC` của toSpatial), lượt mở lại tra `modelSrcOf` ra URL ký mới.
+ */
+export const serverModelPath = (folder: string): string => `/items/${folder}/model.glb`;
+
+/** Nhóm thư viện → hạng mục bảng đồ Pascal (`CatalogCategory`); còn lại là đồ nội thất. */
+const PASCAL_CATEGORY_BY_GROUP: Readonly<Record<string, string>> = {
+  sanitary: 'bathroom',
+  kitchen: 'kitchen',
+  technical: 'appliance',
+};
+
+/** Một ô bảng đồ Pascal (`CatalogItem` của `@pascal-app/editor`, khai lỏng vì lib không nhập Pascal). */
+export interface ServerCatalogTile {
+  readonly id: string;
+  readonly category: string;
+  readonly name: string;
+  readonly tags: string[];
+  readonly thumbnail: string;
+  readonly src: string;
+  readonly dimensions: [number, number, number];
+  readonly offset: [number, number, number];
+  readonly rotation: [number, number, number];
+  readonly scale: [number, number, number];
+}
+
+/**
+ * Ô bảng đồ cho các mẫu máy chủ tải về (có ghi công). Mẫu hộp dựng sẵn của máy chủ không vào:
+ * Pascal đã có mẫu thật cùng loại, hộp màu chỉ làm rối bảng đồ.
+ */
+export const serverCatalogTiles = (): ServerCatalogTile[] =>
+  [...SERVER_FILES.entries()]
+    .filter(([, file]) => file.item.attribution !== undefined)
+    .map(([id, file]) => ({
+      id,
+      category: PASCAL_CATEGORY_BY_GROUP[file.item.group ?? ''] ?? 'furniture',
+      name: file.item.name ?? id,
+      tags: ['floor'],
+      thumbnail: file.preview ?? '',
+      src: file.model,
+      dimensions: [file.item.widthMm / 1000, file.item.heightMm / 1000, file.item.depthMm / 1000],
+      offset: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+    }));
 
 export const modelSrcOf = (folder: string): string =>
   SERVER_FILES.get(folder)?.model ?? `/items/${fileFolderOf(folder)}/model.glb`;

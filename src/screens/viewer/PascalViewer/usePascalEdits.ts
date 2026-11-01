@@ -39,6 +39,7 @@ import { createPascalEditCommand, reviewLostNotices, type PascalEditResult } fro
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
 import { splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
 import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
+import { isServerModel } from '@/lib/pascal/furnitureCatalog';
 import { dismissableNodeIdsOf, saveableModelSrc, saveableRef, type PascalIdBook } from '@/lib/pascal/toSpatial';
 import type { PascalScene } from '@/lib/pascal/types';
 import { buildSplitRoomCommandFromWalls } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
@@ -179,7 +180,9 @@ export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): st
     else if (type === 'wall' && painted && paintUnsaved(before, after)) labels.add('màu tường');
     else if (type === 'item') {
       if (painted && paintUnsaved(before, after)) labels.add('màu đồ đạc');
-      if (assetSrcOf(before) !== assetSrcOf(after) && !saveableModelSrc(assetSrcOf(after))) labels.add('mẫu đồ đạc');
+      // Mẫu thư viện máy chủ: `src` là URL ký nhưng toSpatial lưu đường `/items/<id>/…` thay vào.
+      const serverModel = isServerModel(String(fieldsOf(after['asset'])['id']));
+      if (assetSrcOf(before) !== assetSrcOf(after) && !serverModel && !saveableModelSrc(assetSrcOf(after))) labels.add('mẫu đồ đạc');
     } else if (type === 'door' || type === 'window') {
       if (painted) labels.add('màu cửa');
       const kindFields = type === 'door' ? DOOR_FIELDS : WINDOW_FIELDS;

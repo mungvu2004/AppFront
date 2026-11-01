@@ -49,6 +49,7 @@ export const FURNITURE_CATEGORY_IDS = [
   'sanitary',
   'kitchen',
   'equipment',
+  'decor',
   'mine',
 ] as const;
 
@@ -65,6 +66,7 @@ export const FURNITURE_CATEGORY_LABELS: Readonly<Record<FurnitureCategoryId, str
   sanitary: 'Thiết bị vệ sinh',
   kitchen: 'Bếp',
   equipment: 'Thiết bị kỹ thuật',
+  decor: 'Trang trí',
   mine: 'Của tôi',
 };
 

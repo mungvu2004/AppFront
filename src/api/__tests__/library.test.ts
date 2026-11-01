@@ -69,7 +69,7 @@ const itemOf = (overrides: Partial<Pick<LibraryItem, 'group' | 'source'>>): Pick
 /* -------------------------------------------------------------------------- */
 
 describe('LIBRARY_GROUPS', () => {
-  it('khai đúng tám nhóm loại đồ, theo thứ tự chip trên màn', () => {
+  it('khai đúng chín nhóm loại đồ, theo thứ tự chip trên màn', () => {
     expect([...LIBRARY_GROUPS]).toEqual([
       'table',
       'chair',
@@ -79,6 +79,7 @@ describe('LIBRARY_GROUPS', () => {
       'sanitary',
       'kitchen',
       'technical',
+      'decor',
     ]);
   });
 
@@ -151,8 +152,8 @@ describe('LibraryItemSchema', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('LIBRARY_FILTER_IDS', () => {
-  it('có đúng mười chip: "all", tám nhóm, rồi "mine"', () => {
-    expect(LIBRARY_FILTER_IDS).toHaveLength(10);
+  it('có đúng mười một chip: "all", chín nhóm, rồi "mine"', () => {
+    expect(LIBRARY_FILTER_IDS).toHaveLength(11);
     expect(LIBRARY_FILTER_IDS[0]).toBe('all');
     expect(LIBRARY_FILTER_IDS[LIBRARY_FILTER_IDS.length - 1]).toBe('mine');
     expect([...LIBRARY_FILTER_IDS].slice(1, -1)).toEqual([...LIBRARY_GROUPS]);
@@ -272,8 +273,8 @@ describe('createMockApiClient().library', () => {
     return result.data;
   };
 
-  it('dựng đủ mười sáu mục cho lưới hai cột', async () => {
-    expect(await readItems()).toHaveLength(16);
+  it('dựng đủ mười tám mục cho lưới hai cột', async () => {
+    expect(await readItems()).toHaveLength(18);
   });
 
   it('phủ cả tám nhóm, mỗi nhóm ít nhất hai mục', async () => {

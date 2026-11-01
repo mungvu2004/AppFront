@@ -113,6 +113,7 @@ export const GROUP_LABEL_VI: Readonly<Record<LibraryGroup, string>> = {
   sanitary: 'thiết bị vệ sinh',
   kitchen: 'Bếp',
   technical: 'Kỹ thuật',
+  decor: 'Trang trí',
 };
 
 const FILTER_LABEL_VI: Readonly<Record<LibraryFilterId, string>> = {

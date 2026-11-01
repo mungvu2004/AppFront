@@ -67,6 +67,7 @@ import {
 } from '@/domain/units/types';
 import { AUTHORED_BY_HAND, toPointMm } from '@/lib/commands/business/shared';
 
+import { isServerModel, serverKindOf, serverModelPath } from './furnitureCatalog';
 import { appFrontIdOf, BUILDING_NODE_ID, toPascalId } from './ids';
 import { LIBRARY_MATERIAL_IDS } from './libraryMaterialIds';
 import { roofOf } from './roofs';
@@ -413,14 +414,18 @@ const itemFieldsOf = (item: PascalItemNode, kind: FurnitureKind): Partial<Furnit
       : readNumber(fields, 'heightMm');
   const liftMm = Math.abs(liftNowMm - styleLiftMm) > 1 ? Math.max(0, Math.round(liftNowMm)) : readNumber(fields, 'liftMm');
   const slots = itemSlotsFieldOf(item);
-  const swapped = item.asset.id !== `appfront-${kind}` && MODEL_SRC.test(item.asset.src);
+  // Mẫu thư viện máy chủ: `src` là URL ký hết hạn — lưu đường `/items/<id>/…` cố định thay vào.
+  const server = isServerModel(item.asset.id);
+  const swapped = server || (item.asset.id !== `appfront-${kind}` && MODEL_SRC.test(item.asset.src));
 
   return {
     ...(variant === null ? {} : { variant }),
     ...(heightMm === null ? {} : { heightMm: millimetres(heightMm) }),
     ...(liftMm === null ? {} : { liftMm: millimetres(liftMm) }),
     ...(slots === null ? {} : { slots }),
-    ...(swapped ? { model: { id: item.asset.id.slice(0, 120), src: item.asset.src } } : {}),
+    ...(swapped
+      ? { model: { id: item.asset.id.slice(0, 120), src: server ? serverModelPath(item.asset.id) : item.asset.src } }
+      : {}),
   };
 };
 
@@ -742,7 +747,7 @@ const collectItem = (scene: PascalScene, item: PascalItemNode, levelId: LevelId,
     const min = readCorner(fields, 'min');
     const max = readCorner(fields, 'max');
     const roomId = readString(fields, 'roomId');
-    const kind = readOneOf(fields, 'kind', FURNITURE_KINDS) ?? 'other';
+    const kind = readOneOf(fields, 'kind', FURNITURE_KINDS) ?? serverKindOf(item.asset.id) ?? 'other';
 
     collector.furniture.push({
       ...reviewOf(item, knownId !== null),

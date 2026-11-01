@@ -115,6 +115,7 @@ export const LIBRARY_FILTER_BY_CATEGORY: Readonly<Record<FurnitureCategoryId, Li
   sanitary: 'sanitary',
   kitchen: 'kitchen',
   equipment: 'technical',
+  decor: 'decor',
   mine: 'mine',
 };
 
