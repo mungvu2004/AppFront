@@ -11,6 +11,7 @@
 
 import type { Furniture, FurnitureId, Room, RoomUsage, SpatialGraph, Wall } from '@/domain/spatial/types';
 
+import { worldBoxOf } from './orientDetected';
 import { furnitureFacingDeg, roomEdges } from './placement';
 import { GENERATED_DRESS_PREFIX } from './sceneDressing';
 
@@ -113,6 +114,12 @@ interface Box {
   readonly maxY: number;
 }
 
+/** Hộp thế giới → khung riêng của món quay `rotationDeg` (hoán cạnh quanh tâm khi 90°/270°). */
+const localBoxOf = (b: Box, rotationDeg: number): Box => {
+  const { min, max } = worldBoxOf({ min: { x: b.minX, y: b.minY }, max: { x: b.maxX, y: b.maxY } } as Furniture['boundingBox'], rotationDeg);
+  return { minX: min.x, minY: min.y, maxX: max.x, maxY: max.y };
+};
+
 const asFurnitureBox = (b: Box): Pick<Furniture, 'centre' | 'boundingBox'> => ({
   centre: { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 },
   boundingBox: { min: { x: b.minX, y: b.minY }, max: { x: b.maxX, y: b.maxY } },
@@ -123,16 +130,16 @@ const asFurnitureBox = (b: Box): Pick<Furniture, 'centre' | 'boundingBox'> => ({
  * thật dựng theo nó, tâm node giữ nguyên), `leg` = nhánh còn lại, đồ sinh ra `DRESS-runLeg-<id>`
  * (không `roomId` → không bao giờ được nhận nuôi hay lưu). `null` khi không phải chữ L tựa hai tường.
  */
-// ponytail: chỉ hộp không xoay (`rotationDeg` 0) và cạnh phòng song song trục; nhánh dài giữ
-// hướng mặt của món đồ thật. Mở rộng khi có bản dò cho dãy tủ xoay.
+// ponytail: chỉ góc bội 90° và cạnh phòng song song trục; nhánh dài giữ hướng mặt của món đồ thật.
+// Tách theo hộp thế giới, nhánh dài trả về khung riêng của món (hoán cạnh khi 90°/270°).
 export const lShapedRunArms = (
   furniture: Furniture,
   room: Room | undefined,
   graph: SpatialGraph,
 ): { readonly long: Pick<Furniture, 'centre' | 'boundingBox'>; readonly leg: Furniture } | null => {
-  if (furniture.kind !== 'kitchenCabinet' || room === undefined || ((furniture.rotationDeg % 360) + 360) % 360 !== 0) return null;
+  if (furniture.kind !== 'kitchenCabinet' || room === undefined || ((furniture.rotationDeg % 90) + 90) % 90 !== 0) return null;
   if (furniture.variant !== 'baseRun' && furniture.variant !== 'upperRun') return null;
-  const { min, max } = furniture.boundingBox;
+  const { min, max } = worldBoxOf(furniture.boundingBox, furniture.rotationDeg);
   const w = max.x - min.x;
   const d = max.y - min.y;
   if (!(Math.min(w, d) > L_RUN_MIN_SHORT_MM)) return null;
@@ -176,7 +183,7 @@ export const lShapedRunArms = (
   const inward = alongX ? { x: sideX.at === 'min' ? 1 : -1, y: 0 } : { x: 0, y: sideY.at === 'min' ? 1 : -1 };
   const withoutRoom = Object.fromEntries(Object.entries(furniture).filter(([key]) => key !== 'roomId')) as Omit<typeof furniture, 'roomId'>;
   return {
-    long: asFurnitureBox(longBox),
+    long: asFurnitureBox(localBoxOf(longBox, furniture.rotationDeg)),
     leg: {
       ...withoutRoom,
       id: `${GENERATED_DRESS_PREFIX}runLeg-${furniture.id}` as FurnitureId,

@@ -9,7 +9,7 @@
 
 import { outlineContains, signedAreaMm2 } from '@/domain/rooms/area';
 import type { Furniture, LevelId, Point, Room, SpatialGraph } from '@/domain/spatial/types';
-import { isFinitePoint, toPointMm } from '@/lib/commands/business/shared';
+import { FURNITURE_KIND_LABELS, isFinitePoint, toPointMm } from '@/lib/commands/business/shared';
 
 export interface Rect {
   readonly cx: number;
@@ -213,4 +213,70 @@ export const furnitureFacingDeg = (inwardNormal: Point): number => {
   const deg = Math.round(((Math.atan2(-inwardNormal.x, inwardNormal.y) * 180) / Math.PI) * 100) / 100;
   const wrapped = ((deg % 360) + 360) % 360;
   return wrapped === 360 || Object.is(wrapped, -0) ? 0 : wrapped;
+};
+
+/** Diện tích (mm²) phần chung của hai hình xoay: cắt đa giác lồi (Sutherland–Hodgman). */
+export const overlapAreaMm2 = (a: Rect, b: Rect): number => {
+  const clip = rectCorners(b);
+  let poly = rectCorners(a);
+  for (let i = 0; i < clip.length && poly.length > 0; i += 1) {
+    const p = clip[i] as Point;
+    const q = clip[(i + 1) % clip.length] as Point;
+    const inside = (v: Point): boolean => cross(p, q, v) >= -EPS;
+    const hit = (u: Point, v: Point): Point => {
+      const du = cross(p, q, u);
+      const t = du / (du - cross(p, q, v));
+      return { x: u.x + (v.x - u.x) * t, y: u.y + (v.y - u.y) * t };
+    };
+    poly = poly.flatMap((v, j) => {
+      const u = poly[(j + poly.length - 1) % poly.length] as Point;
+      if (inside(v)) return inside(u) ? [v] : [hit(u, v), v];
+      return inside(u) ? [hit(u, v)] : [];
+    });
+  }
+  return poly.length < 3 ? 0 : Math.abs(signedAreaMm2(poly.map(toPointMm)));
+};
+
+export interface PlacementIssue {
+  readonly kind: 'overlap' | 'doorSwing' | 'wall';
+  readonly furnitureIds: readonly string[];
+  readonly message: string;
+}
+
+/** Hai món chồng nhau quá tỉ lệ này của món nhỏ hơn là lỗi. */
+const OVERLAP_MAX_FRACTION = 0.3;
+/** Dung sai lấn (mm): hộp dò sát tường/cửa thường lấn vài chục mm, chưa phải lỗi. */
+const PENETRATION_SLACK_MM = 50;
+const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+/** Thảm/tấm mỏng hơn mức này (mm) nằm dưới đồ khác: không xét. */
+const FLAT_MAX_MM = 50;
+
+/**
+ * C7 — lỗi đặt đồ của cả đồ thị (chỉ báo, không dời): chồng nhau > 30 % diện tích món nhỏ, chắn vùng
+ * mở cửa đi, xuyên tường. Bỏ đồ gợi ý chưa nhận, thang và thảm.
+ */
+export const scenePlacementIssues = (graph: SpatialGraph): PlacementIssue[] => {
+  const items = graph.furniture.filter(
+    (f) => f.suggested !== true && f.kind !== 'stair' && !(f.heightMm !== undefined && f.heightMm < FLAT_MAX_MM),
+  );
+  const issues: PlacementIssue[] = [];
+  const levels = new Set(items.map((f) => f.levelId));
+  for (const levelId of levels) {
+    const onLevel = items.filter((f) => f.levelId === levelId).map((f) => ({ f, r: rectOfFurniture(f) }));
+    const swings = doorSwingRects(graph, levelId);
+    const walls = wallRects(graph, levelId);
+    onLevel.forEach(({ f, r }, i) => {
+      for (const { f: g, r: s } of onLevel.slice(i + 1)) {
+        if (!rectsOverlap(r, s)) continue;
+        const smaller = Math.min(r.w * r.d, s.w * s.d);
+        if (smaller > 0 && overlapAreaMm2(r, s) / smaller > OVERLAP_MAX_FRACTION)
+          issues.push({ kind: 'overlap', furnitureIds: [f.id, g.id], message: `${capital(FURNITURE_KIND_LABELS[f.kind])} chồng lên ${FURNITURE_KIND_LABELS[g.kind]}` });
+      }
+      if (swings.some((sw) => rectsOverlap(r, sw, -PENETRATION_SLACK_MM)))
+        issues.push({ kind: 'doorSwing', furnitureIds: [f.id], message: `${capital(FURNITURE_KIND_LABELS[f.kind])} chắn lối mở cửa` });
+      if (walls.some((w) => rectsOverlap(r, w, -PENETRATION_SLACK_MM)))
+        issues.push({ kind: 'wall', furnitureIds: [f.id], message: `${capital(FURNITURE_KIND_LABELS[f.kind])} lấn vào tường` });
+    });
+  }
+  return issues;
 };

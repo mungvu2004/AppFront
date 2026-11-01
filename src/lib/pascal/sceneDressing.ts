@@ -65,9 +65,23 @@ export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
       },
     },
   },
+  // C6 — viền đồ chưa xác nhận: cam nhạt, đục 0,35 để vẫn thấy sàn bên dưới.
+  {
+    id: 'mat_appfront_unconfirmed',
+    name: 'Đồ chưa xác nhận',
+    material: {
+      preset: 'custom',
+      properties: { color: '#f59e0b', roughness: 0.8, metalness: 0, opacity: 0.35, transparent: true, side: 'front' },
+    },
+  },
 ];
 
+/** Khe của tấm viền đồ chưa xác nhận (C6, `toPascal.suggestedOutlineOf`). */
+export const UNCONFIRMED_MATERIAL_REF = 'scene:mat_appfront_unconfirmed';
+
 const GLASS = 'library:preset-glass';
+/** Kính lan can lô gia (cùng kính tường thấp). */
+export const RAILING_GLASS_REF = GLASS;
 const PLASTER = 'scene:mat_appfront_plaster';
 /** Mặt trần mặc định; `Room.ceilingMaterial` khác cái này thì mới ghi (H4, `toSpatial`). */
 export const CEILING_DEFAULT = PLASTER;
@@ -97,6 +111,8 @@ export const floorMaterialOf = (
 
 /** Tường thấp hơn mức này là lan can/vách kính, không phải tường phòng. */
 const LOW_WALL_MAX_MM = 1200;
+/** Lan can lô gia (QCVN 04:2021/BXD, nhà cao tầng): cao 1,4 m, kính như tường thấp (`toPascal.railingNodeOf`). */
+export const LOGGIA_RAILING_MM = 1400;
 
 /**
  * Khe mặt tường + len chân + phào. Mọi trường viết đủ: `setScene` không áp mặc định

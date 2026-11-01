@@ -97,6 +97,13 @@ describe('orientDetectedFurniture', () => {
     expect(bed?.rotationDeg).toBe(270);
   });
 
+  it('bàn máy chủ đã quay 90°: ghế nhìn vào hộp thế giới của bàn, không phải khung riêng', () => {
+    // Khung riêng 2000 × 800 quay 90° → trên bản vẽ bàn đứng dọc 800 × 2000 (x 2600–3400); ghế ở bên phải.
+    const table = item('tb', 'table', 3000, 4000, 2000, 800, { rotationDeg: degrees(90) });
+    const [, chair] = orientDetectedFurniture([table, item('ch', 'chair', 3650, 4600, 300, 300)], []);
+    expect(chair?.rotationDeg).toBe(90);
+  });
+
   it('món đã duyệt, đã xoay, hoặc của người vẽ thì để nguyên', () => {
     const reviewed = item('r', 'chair', 5921, 4976, 280, 431, { reviewed: true });
     const rotated = item('t', 'chair', 5921, 4976, 280, 431, { rotationDeg: degrees(45) });

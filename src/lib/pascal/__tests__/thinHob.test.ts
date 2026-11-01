@@ -45,4 +45,30 @@ describe('mặt bếp mỏng', () => {
     expect(srcs.filter((s) => s === '/items/kitchen/model.glb')).toHaveLength(2);
     expect(srcs.filter((s) => s === '/items/kitchen-cabinet/model.glb').length).toBeGreaterThan(0);
   });
+
+  it.each([90, 180, 270])('tủ bếp máy chủ quay %i° (hộp khung riêng hoán cạnh): mặt bếp, chậu vẫn tìm đúng tủ chủ', (deg) => {
+    const graph = SpatialGraphDocumentSchema.parse(houseModelSpatial({ ext: true })).graph;
+    const turned = {
+      ...graph,
+      furniture: graph.furniture.map((f) => {
+        if (f.kind !== 'kitchenCabinet' || f.variant === 'hob' || f.variant === 'sink') return f;
+        const { min, max } = f.boundingBox;
+        const [hw, hd] = [(max.x - min.x) / 2, (max.y - min.y) / 2];
+        const [lw, ld] = deg === 180 ? [hw, hd] : [hd, hw];
+        const { x, y } = f.centre;
+        return {
+          ...f,
+          rotationDeg: degrees(deg),
+          boundingBox: {
+            min: { x: millimetres(x - lw), y: millimetres(y - ld) },
+            max: { x: millimetres(x + lw), y: millimetres(y + ld) },
+          },
+        };
+      }),
+    };
+    const items = Object.values(toPascalScene(turned).scene.nodes).filter((n) => n.type === 'item');
+    const hobNode = items.find((n) => n.asset.src === '/items/hob-sf/model.glb');
+    expect(hobNode?.position[1]).toBeCloseTo(0.9 * topFractionOf('kitchen-cabinet')!, 3);
+    expect(items.filter((n) => n.asset.src === '/items/kitchen/model.glb')).toHaveLength(2);
+  });
 });

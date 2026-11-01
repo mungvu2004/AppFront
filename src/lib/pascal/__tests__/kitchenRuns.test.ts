@@ -93,3 +93,28 @@ describe('expandKitchenRuns', () => {
     for (const f of out.filter((x) => isGeneratedNodeId(toPascalId('item', x.id)))) expect(f.roomId).toBeUndefined();
   });
 });
+
+describe('expandKitchenRuns — tủ bếp máy chủ đã quay (BE ghi rotationDeg)', () => {
+  /** Cùng chỗ trên bản vẽ, quay `deg`: 90/270 thì hộp khung riêng hoán hai cạnh quanh tâm. */
+  const turned = (f: Furniture, deg: number): Furniture => {
+    if (deg % 180 === 0) return { ...f, rotationDeg: degrees(deg) };
+    const [w, d] = size(f) as [number, number];
+    const { x, y } = f.centre;
+    return {
+      ...f,
+      rotationDeg: degrees(deg),
+      boundingBox: { min: { x: mm(x - d / 2), y: mm(y - w / 2) }, max: { x: mm(x + d / 2), y: mm(y + w / 2) } },
+    };
+  };
+  const boxes = (out: readonly Furniture[]) => out.slice(1).map((r) => [r.id, r.boundingBox, r.rotationDeg]);
+
+  it.each([90, 180, 270])('quay %i° vẫn tách đúng các dãy như góc 0', (deg) => {
+    const host = turned(L_TOP_LEFT, deg);
+    expect(isKitchenRunHost(host)).toBe(true);
+    expect(boxes(expandKitchenRuns([host], WALLS))).toEqual(boxes(expandKitchenRuns([L_TOP_LEFT], WALLS)));
+  });
+
+  it('góc xiên giữ nguyên một khối', () => {
+    expect(isKitchenRunHost({ ...L_TOP_LEFT, rotationDeg: degrees(45) })).toBe(false);
+  });
+});

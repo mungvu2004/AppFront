@@ -254,14 +254,23 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(wardrobe.asset.dimensions[1]).toBeCloseTo(2.2, 3);
   });
 
-  it('C3 khớp theo nhóm: dãy bếp rất dài kéo đủ chiều dài hộp (bỏ trần 1,8×), sâu trong [0,8; 1,25]', () => {
+  it('C3 khớp theo nhóm: dãy bếp rất dài kéo đủ chiều dài hộp (bỏ trần 1,8×), sâu ≤ 1,25 × mẫu và không vượt hộp', () => {
     const run = oneItem('baseRun', 5000, 600, 900);
-    const [w] = footprintOf(run);
+    const [w, d] = footprintOf(run);
     expect(w).toBeCloseTo(5, 3);
+    // FE-H: biên dưới 0,8 không được đẩy mặt bằng ra ngoài hộp (mẫu sâu 0,77 m vào hộp 0,6 m ra đúng 0,6 m).
+    expect(d).toBeCloseTo(0.6, 3);
     const depthScale = run.asset.scale![2] / (CATALOG_MODELS['kitchen-cabinet']!.scale ?? [1, 1, 1])[2];
-    expect(depthScale).toBeGreaterThanOrEqual(0.8 - 1e-9);
     expect(depthScale).toBeLessThanOrEqual(1.25 + 1e-9);
     expect(run.position[0]).toBeCloseTo(2.5); // tâm giữ đúng centre
+  });
+
+  it('FE-H: mẫu khác dáng hộp không phình quá hộp ở trục bị chặn (tủ đầu giường 0,38 m, chậu, kệ nông)', () => {
+    for (const [variant, w, d] of [['nightstand', 380, 380], ['wardrobe', 2300, 360], ['basin', 450, 770], ['shelves', 390, 2070]] as const) {
+      const [fw, fd] = footprintOf(oneItem(variant, w, d));
+      expect(fw).toBeLessThanOrEqual(w / 1000 + 1e-6);
+      expect(fd).toBeLessThanOrEqual(d / 1000 + 1e-6);
+    }
   });
 
   it('C3 tủ áo 3,0 × 0,6 m không heightMm: ra dài 3,0 m, cao ≥ 2,0 m', () => {
@@ -344,7 +353,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     const expected: Record<string, string> = {
       // Bàn 900×600 của F2 nằm ở phòng khách → bàn ăn (desk chỉ ở phòng ngủ/kho/khác).
       table: '/items/dining-table/model.glb',
-      // Ghế F2 hộp 900 × 600: vai ghế ăn chỉ còn mẫu ghế ăn (phong cách không đổi loại món), nên ra ghế ăn.
+      // Ghế F2 hộp 900 × 600: FE-A bỏ office-chair khỏi vai ghế ăn (C2) nên giữ ghế ăn, chỉ co theo cỡ.
       chair: '/items/dining-chair/model.glb',
       bed: '/items/single-bed/model.glb',
       wardrobe: '/items/closet/model.glb',
