@@ -9,6 +9,8 @@
  * qua danh sách thay đổi bên dưới; trỏ/bấm hình chỉ là lối tắt cho chuột.
  */
 
+import type { SVGAttributes } from 'react';
+
 import { formatNumber } from '@/lib/format/number';
 
 import { DIFF_TONE_TOKENS } from './types';
@@ -32,6 +34,26 @@ const TONE_DASH: Readonly<Record<DiffTone, string | undefined>> = {
   removed: '8 5',
   changed: '1 5',
 };
+
+/** Nét dùng chung cho `<line>` lẫn `<polyline>`. */
+type StrokePaint = Pick<
+  SVGAttributes<SVGElement>,
+  'stroke' | 'strokeWidth' | 'strokeOpacity' | 'strokeLinecap' | 'strokeDasharray' | 'vectorEffect'
+>;
+
+/** Một nét theo cung khi hình có `points` (tường cong), không thì đoạn thẳng `x1..y2`. */
+function Stroke({
+  shape,
+  ...paint
+}: StrokePaint & {
+  readonly shape: { readonly x1: number; readonly y1: number; readonly x2: number; readonly y2: number; readonly points?: string };
+}) {
+  return shape.points === undefined ? (
+    <line x1={shape.x1} y1={shape.y1} x2={shape.x2} y2={shape.y2} {...paint} />
+  ) : (
+    <polyline points={shape.points} fill="none" {...paint} />
+  );
+}
 
 const IDLE = 'var(--wall-idle)';
 const ACCENT = 'var(--accent)';
@@ -158,23 +180,21 @@ export function VersionPlanDiff({ plan, isPairPicked = true, onHover, onPick }: 
         })}
 
         {plan.walls.map((wall) => {
-          const line = { x1: wall.x1, y1: wall.y1, x2: wall.x2, y2: wall.y2 };
-
           return (
             <g key={'w-' + wall.id} {...groupProps(wall)}>
               {wall.focused ? (
-                <line {...line} stroke={ACCENT} strokeWidth={wall.thickness + FOCUS_HALO_MM} strokeLinecap="square" />
+                <Stroke shape={wall} stroke={ACCENT} strokeWidth={wall.thickness + FOCUS_HALO_MM} strokeLinecap="square" />
               ) : null}
-              <line
-                {...line}
+              <Stroke
+                shape={wall}
                 stroke={colorOf(wall.tone)}
                 strokeWidth={wall.thickness}
                 strokeOpacity={wall.tone === 'same' ? 1 : BODY_OPACITY}
                 strokeLinecap="square"
               />
               {wall.tone === 'same' ? null : (
-                <line
-                  {...line}
+                <Stroke
+                  shape={wall}
                   stroke={colorOf(wall.tone)}
                   strokeWidth={OUTLINE_PX}
                   strokeDasharray={dashOf(wall.tone)}
@@ -188,11 +208,8 @@ export function VersionPlanDiff({ plan, isPairPicked = true, onHover, onPick }: 
 
         {plan.openings.map((opening) => (
           <g key={'o-' + opening.id} {...groupProps(opening)}>
-            <line
-              x1={opening.x1}
-              y1={opening.y1}
-              x2={opening.x2}
-              y2={opening.y2}
+            <Stroke
+              shape={opening}
               stroke={opening.tone === 'same' ? 'var(--bg-surface)' : colorOf(opening.tone)}
               strokeWidth={opening.focused ? OPENING_PX * 2 : OPENING_PX}
               strokeDasharray={dashOf(opening.tone)}

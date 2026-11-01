@@ -971,6 +971,7 @@ const MERGE_REFUSAL_REASONS: Readonly<Record<MergeRefusal, string>> = {
   elevationMismatch: 'Hai tường khác cao độ nên không gộp được.',
   angleTooWide: 'Hai tường lệch phương quá nhiều nên không nằm trên cùng một đường.',
   tooFarApart: 'Hai tường nằm cách nhau quá xa nên đường gộp sẽ không phủ hết chỗ nối.',
+  curvedWall: 'Tường cong không gộp được với tường khác.',
 };
 
 /** Everything wrong with welding these two walls; empty when they may be welded. */

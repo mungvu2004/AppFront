@@ -18,7 +18,7 @@ import type {
   WallId,
   WallKind,
 } from '../../spatial/types';
-import { degrees } from '../../units/types';
+import { degrees, millimetres } from '../../units/types';
 import { createRuleRegistry, ROOM_USAGE_LABELS, type RuleContext } from '../registry';
 import { runRules } from '../runner';
 import {
@@ -378,6 +378,17 @@ describe('checkFixtureOffWall', () => {
     expect(gapOf(onTheFace)).toEqual([]);
     expect(gapOf(onTheFace - WALL_HUGGING_TOLERANCE_MM)).toEqual([]);
     expect(gapOf(onTheFace - WALL_HUGGING_TOLERANCE_MM - 10)).toHaveLength(1);
+  });
+
+  it('measures a curved wall to its arc, not to its chord', () => {
+    // Chord (0,0)→(4000,0), sagitta 1000: apex (2000, −1000). The basin's top edge sits on the apex.
+    const chord = wall('CV1', { x: 0, y: 0 }, { x: 4000, y: 0 });
+    const basin = furniture('BS9', { x: 2000, y: -1300 }, { kind: 'sanitaryFixture' });
+    const gapOf = (host: Wall): readonly FitoutFinding[] =>
+      runCheck(checkFixtureOffWall, planOf({ walls: [host], furniture: [basin] }));
+
+    expect(gapOf(chord)).toHaveLength(1);
+    expect(gapOf({ ...chord, curveOffsetMm: millimetres(1000) })).toEqual([]);
   });
 
   it('measures to the wall face, not to the centreline', () => {

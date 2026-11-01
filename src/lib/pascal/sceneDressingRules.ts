@@ -10,6 +10,7 @@
  * đèn bàn luôn đặt trên tủ đầu giường (món chủ đã hợp lệ).
  */
 
+import { pointAtArcLength } from '@/domain/spatial/arc';
 import type { Furniture, FurnitureId, FurnitureVariant, Millimetres, Point, Room, SpatialGraph } from '@/domain/spatial/types';
 
 import { CATALOG_MODELS, VARIANT_MODEL, modelSrcOf, topFractionOf } from './furnitureCatalog';
@@ -184,11 +185,11 @@ const windowsOfRoom = (graph: SpatialGraph, room: Room): WindowOnWall[] => {
       const { start, end } = wall.centreline;
       const length = Math.hypot(end.x - start.x, end.y - start.y);
       if (!(length > 1)) return [];
-      const dir = { x: (end.x - start.x) / length, y: (end.y - start.y) / length };
-      const along = o.offsetMm + o.widthMm / 2;
+      // Tường cong: tâm cửa sổ trên cung (đo dọc cung), hướng theo tiếp tuyến tại đó; thẳng → như cũ.
+      const { point, tangent: dir } = pointAtArcLength(start, end, wall.curveOffsetMm, o.offsetMm + o.widthMm / 2);
       const frame: Rect = {
-        cx: start.x + dir.x * along,
-        cy: start.y + dir.y * along,
+        cx: point.x,
+        cy: point.y,
         w: o.widthMm,
         d: wall.thicknessMm,
         rotationDeg: (Math.atan2(dir.y, dir.x) * 180) / Math.PI,

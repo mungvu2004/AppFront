@@ -8,6 +8,7 @@
  */
 import { computeCentroid, computeLargestInnerRectangle } from '@/domain/rooms/area';
 import { ROOM_USAGE_LABELS } from '@/domain/rules/registry';
+import { arcPoints, pointAtArcLength, wallLength } from '@/domain/spatial/arc';
 import type { Opening, Point, Room, RoomUsage, Wall } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 
@@ -32,7 +33,7 @@ const PAD_RATIO = 0.06;
 /** Khung bao tường + phòng, đệm 6% cạnh dài. `null` khi tầng trống. */
 export function fitViewBox(walls: readonly Wall[], rooms: readonly Room[]): ViewBox | null {
   const points: Point[] = [
-    ...walls.flatMap((wall) => [wall.centreline.start, wall.centreline.end]),
+    ...walls.flatMap((wall) => wallPoints(wall)),
     ...rooms.flatMap((room) => room.outline),
   ];
   if (points.length === 0) {
@@ -102,17 +103,42 @@ export function roomDisplayName(name: string, usage?: RoomUsage): string {
   return text.charAt(0).toLocaleUpperCase('vi') + text.slice(1);
 }
 
-/** Đoạn của ô mở trên tim tường: từ `offsetMm` tới `offsetMm + widthMm` tính từ đầu tường. */
-export function openingSegment(wall: Wall, opening: Opening): { start: Point; end: Point } | null {
+/** Các đỉnh tim tường để vẽ `<polyline>`: hai đầu khi thẳng, cung chia ≤ 10° khi cong. */
+export function wallPoints(wall: Wall): readonly Point[] {
   const { start, end } = wall.centreline;
-  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  if (!wall.curveOffsetMm) {
+    return [start, end];
+  }
+  return arcPoints(start, end, wall.curveOffsetMm).map((point) => ({
+    x: millimetres(point.x),
+    y: millimetres(point.y),
+  }));
+}
+
+/** Chuỗi `points` của SVG cho một dãy đỉnh. */
+export function svgPoints(points: readonly Point[]): string {
+  return points.map((point) => `${String(point.x)},${String(point.y)}`).join(' ');
+}
+
+/**
+ * Đoạn của ô mở trên tim tường: từ `offsetMm` tới `offsetMm + widthMm` tính từ đầu tường, kẹp trong
+ * tường; tường cong đo dọc cung (như AppBack) và trả cả các đỉnh cung ở giữa.
+ */
+export function openingSegment(wall: Wall, opening: Opening): readonly Point[] | null {
+  const { start, end } = wall.centreline;
+  const length = wallLength(start, end, wall.curveOffsetMm);
   if (length === 0) {
     return null;
   }
-  const at = (distance: number): Point => {
-    const t = Math.min(1, Math.max(0, distance / length));
-    return { x: millimetres(start.x + (end.x - start.x) * t), y: millimetres(start.y + (end.y - start.y) * t) };
-  };
+  const from = Math.min(length, Math.max(0, opening.offsetMm));
+  const to = Math.min(length, Math.max(0, opening.offsetMm + opening.widthMm));
+  // Cùng mật độ đỉnh với cả bức tường: số dây tỉ lệ với phần cung ô mở chiếm.
+  const chords = wall.curveOffsetMm
+    ? Math.max(1, Math.ceil(((arcPoints(start, end, wall.curveOffsetMm).length - 1) * (to - from)) / length))
+    : 1;
 
-  return { start: at(opening.offsetMm), end: at(opening.offsetMm + opening.widthMm) };
+  return Array.from({ length: chords + 1 }, (_, index) => {
+    const { point } = pointAtArcLength(start, end, wall.curveOffsetMm, from + ((to - from) * index) / chords);
+    return { x: millimetres(point.x), y: millimetres(point.y) };
+  });
 }

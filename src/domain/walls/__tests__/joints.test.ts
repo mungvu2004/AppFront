@@ -844,3 +844,30 @@ describe('resolveJoints, ends that share no common height', () => {
     expect(redrawn).toEqual(drawn);
   });
 });
+
+describe('resolveWallShapes, a curved wall', () => {
+  // Chord (0,0)→(2000,0), sagitta 1000: half circle about (1000, 0), radius 1000; faces at 900 and 1100.
+  const CURVED: Wall = {
+    ...makeWall('W-CURVED0001', point(0, 0), point(2000, 0)),
+    curveOffsetMm: millimetres(1000),
+  };
+
+  it('follows the arc on both faces and stays counter-clockwise', () => {
+    const [shape] = resolveWallShapes([CURVED]).shapes;
+    const radii = (shape?.outline ?? []).map((vertex) => Math.hypot(vertex.x - 1000, vertex.y));
+
+    expect(radii.length).toBeGreaterThan(30);
+    for (const radius of radii) expect([900, 1100].some((face) => Math.abs(radius - face) < 1e-6)).toBe(true);
+    expect(doubleSignedArea(shape?.outline ?? [])).toBeGreaterThan(0);
+  });
+
+  it('meets a straight wall along the tangent of its end', () => {
+    // At (2000, 0) the half circle runs straight up (+y); a wall carrying on up meets it collinear.
+    const above = makeWall('W-ABOVE00001', point(2000, 0), point(2000, 1500));
+    const { shapes, joints } = resolveWallShapes([CURVED, above]);
+
+    expect(joints).toHaveLength(1);
+    expect(shapes[1]?.outline).toHaveLength(4);
+    for (const vertex of shapes[1]?.outline ?? []) expect([1900, 2100]).toContain(vertex.x);
+  });
+});

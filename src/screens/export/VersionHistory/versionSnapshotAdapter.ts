@@ -48,6 +48,7 @@ export function toVersionSnapshot({ dimensions, layer }: VersionSnapshotSource):
     snapshot.wall[wall.id] = present({
       thickness_mm: wall.thicknessMm,
       height_mm: wall.heightMm,
+      curve_offset_mm: wall.curveOffsetMm,
       kind: wall.kind,
       paint: wall.paint,
     });

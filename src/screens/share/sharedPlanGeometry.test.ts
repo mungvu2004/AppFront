@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Opening, Room, Wall } from '@/domain/spatial/types';
 
-import { cameraViewBox, fitCamera, fitViewBox, MAX_ZOOM, openingSegment, panCamera, roomDisplayName, zoomCamera } from './sharedPlanGeometry';
+import { cameraViewBox, fitCamera, fitViewBox, MAX_ZOOM, openingSegment, panCamera, roomDisplayName, wallPoints, zoomCamera } from './sharedPlanGeometry';
 
 const wall = (x1: number, y1: number, x2: number, y2: number) =>
   ({ centreline: { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } } }) as unknown as Wall;
@@ -49,7 +49,23 @@ describe('mặt bằng trang chia sẻ', () => {
 
   it('đoạn cửa nằm trên tim tường từ offset tới offset + rộng, kẹp trong tường', () => {
     const opening = { offsetMm: 100, widthMm: 900 } as unknown as Opening;
-    expect(openingSegment(wall(0, 0, 1000, 0), opening)).toEqual({ start: { x: 100, y: 0 }, end: { x: 1000, y: 0 } });
+    expect(openingSegment(wall(0, 0, 1000, 0), opening)).toEqual([
+      { x: 100, y: 0 },
+      { x: 1000, y: 0 },
+    ]);
     expect(openingSegment(wall(5, 5, 5, 5), opening)).toBeNull();
+  });
+
+  it('tường cong: tim là cung, ô mở nằm trên cung đo dọc cung', () => {
+    // Nửa vòng tròn tâm (1000, 0) bán kính 1000, phồng về −y (sagitta 1000).
+    const curved = { ...wall(0, 0, 2000, 0), curveOffsetMm: 1000 } as Wall;
+    const points = wallPoints(curved);
+    expect(points).toHaveLength(19);
+    expect(points[9]?.y).toBeCloseTo(-1000);
+    const quarter = (Math.PI * 1000) / 2;
+    const door = openingSegment(curved, { offsetMm: quarter - 450, widthMm: 900 } as unknown as Opening) ?? [];
+    expect(door.length).toBeGreaterThan(2);
+    for (const point of door) expect(Math.hypot(point.x - 1000, point.y)).toBeCloseTo(1000);
+    expect(door[0]?.x).toBeCloseTo(1000 - 1000 * Math.sin(0.45));
   });
 });

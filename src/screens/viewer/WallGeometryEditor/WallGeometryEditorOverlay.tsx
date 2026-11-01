@@ -113,17 +113,27 @@ export function WallGeometryEditorOverlay({
   return (
     <>
       <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
-        {edgeHighlights.map((highlight) => (
-          <line
-            key={highlight.edgeId}
-            stroke={toneVar(highlight.tone)}
-            strokeWidth={3}
-            x1={highlight.fromPx.xPx}
-            x2={highlight.toPx.xPx}
-            y1={highlight.fromPx.yPx}
-            y2={highlight.toPx.yPx}
-          />
-        ))}
+        {edgeHighlights.map((highlight) =>
+          highlight.pathPx === undefined ? (
+            <line
+              key={highlight.edgeId}
+              stroke={toneVar(highlight.tone)}
+              strokeWidth={3}
+              x1={highlight.fromPx.xPx}
+              x2={highlight.toPx.xPx}
+              y1={highlight.fromPx.yPx}
+              y2={highlight.toPx.yPx}
+            />
+          ) : (
+            <polyline
+              key={highlight.edgeId}
+              fill="none"
+              stroke={toneVar(highlight.tone)}
+              strokeWidth={3}
+              points={highlight.pathPx.map((point) => `${String(point.xPx)},${String(point.yPx)}`).join(' ')}
+            />
+          ),
+        )}
         {snap.activeGuides.map((guide) => (
           <line
             key={guide.id}
