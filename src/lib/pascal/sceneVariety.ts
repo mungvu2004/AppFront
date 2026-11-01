@@ -12,6 +12,7 @@ import type { Furniture, RoomUsage } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 
 import { CATALOG_MODELS, VARIANT_MODEL } from './furnitureCatalog';
+import { rectOfFurniture, rectsOverlap } from './placement';
 import type { SceneStyle } from './sceneStyles';
 
 export type FurnitureRole =
@@ -164,7 +165,7 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
       if (long > LONG_SEAT_M) return short >= SOFA_MIN_SHORT_M ? 'sofa' : 'bench';
       return short >= 0.65 && long <= 1.5 ? 'armchair' : 'diningChair';
     case 'table':
-      // ponytail: chưa xét khoảng cách tới giường (≤ 0,3 m) — roleOf không thấy giường; thêm ngữ cảnh khi cần.
+      // Khoảng cách tới giường (≤ 0,3 m) xét ở `contextRolesOf` — roleOf chỉ thấy một món.
       if (long < 0.6 && usage === 'bedroom') return 'nightstand';
       if (living && h !== undefined && h < 0.5) return 'coffeeTable';
       return short <= 0.8 && long <= 1.6 && DESK_USAGES.has(usage) ? 'desk' : 'diningTable';
@@ -226,8 +227,10 @@ export const modelFolderOf = (
     Partial<Pick<Furniture, 'heightMm'>>,
   style: SceneStyle,
   usage?: RoomUsage,
+  /** Vai trò theo ngữ cảnh phòng (`contextRolesOf`): đè cả variant, chỉ đổi mẫu. */
+  roleOverride?: FurnitureRole,
 ): string | null => {
-  const role = roleOf(f, usage);
+  const role = roleOverride ?? roleOf(f, usage);
   const catalogue = ROLE_MODELS[role];
   const best = Math.min(...catalogue.map((folder) => sizeCostOf(f, folder)));
   const isNearBest = (folder: string): boolean => sizeCostOf(f, folder) <= best * STYLE_TIE + 1e-9;
@@ -235,7 +238,7 @@ export const modelFolderOf = (
   const key = PER_ITEM_ROLES.has(role) ? f.id : `${f.roomId ?? 'none'}|${role}`;
   const pickHashed = (folders: readonly string[]): string => folders[fnv1a(key) % folders.length] as string;
 
-  const byVariant = variantModelOf(f);
+  const byVariant = roleOverride === undefined ? variantModelOf(f) : null;
   if (byVariant) {
     return preferred.some((folder) => folder !== byVariant.folder) ? pickHashed(preferred) : byVariant.folder;
   }
@@ -247,4 +250,42 @@ export const modelFolderOf = (
   const [fallback] = catalogue as readonly [string, ...string[]];
   if (isNearBest(fallback)) return fallback;
   return catalogue.reduce((a, folder) => (sizeCostOf(f, folder) < sizeCostOf(f, a) ? folder : a));
+};
+
+/** Một phòng có tối đa chừng này bồn cầu; món thừa (độ tin thấp nhất trước) dựng thành lavabo. */
+const MAX_TOILETS_PER_ROOM = 2;
+/** Bàn nhỏ phòng ngủ là tủ đầu giường chỉ khi cách giường gần nhất ≤ chừng này (mm). */
+const NIGHTSTAND_MAX_GAP_MM = 300;
+
+type Placed = Shaped & Pick<Furniture, 'id' | 'centre' | 'roomId' | 'confidence'>;
+
+/**
+ * Vai trò theo ngữ cảnh cả phòng, đè lên `roleOf` khi chọn mẫu (không ghi variant vào dữ liệu):
+ * phòng quá 2 bồn cầu thì món thừa thành lavabo; tủ đầu giường xa giường > 0,3 m thành bàn phụ.
+ */
+export const contextRolesOf = (
+  items: readonly Placed[],
+  usageOf: (f: Placed) => RoomUsage | undefined,
+): ReadonlyMap<string, FurnitureRole> => {
+  const roles = new Map<string, FurnitureRole>();
+  const toiletsOf = new Map<string, Placed[]>();
+  const beds = items.filter((f) => f.kind === 'bed');
+
+  for (const f of items) {
+    const role = roleOf(f, usageOf(f));
+    if (role === 'toilet' && f.roomId !== undefined) toiletsOf.set(f.roomId, [...(toiletsOf.get(f.roomId) ?? []), f]);
+    if (role === 'nightstand') {
+      const rect = rectOfFurniture(f);
+      const nearBed = beds.some((bed) => rectsOverlap(rect, rectOfFurniture(bed), NIGHTSTAND_MAX_GAP_MM + 1));
+      // Bàn phụ: mẫu bàn trà co về cỡ bàn nhỏ (catalog chưa có mẫu bàn phụ riêng).
+      if (!nearBed) roles.set(f.id, 'coffeeTable');
+    }
+  }
+  for (const toilets of toiletsOf.values()) {
+    [...toilets]
+      .sort((a, b) => b.confidence - a.confidence || a.id.localeCompare(b.id))
+      .slice(MAX_TOILETS_PER_ROOM)
+      .forEach((f) => roles.set(f.id, 'basin'));
+  }
+  return roles;
 };

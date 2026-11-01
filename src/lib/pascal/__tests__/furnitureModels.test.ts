@@ -344,8 +344,8 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     const expected: Record<string, string> = {
       // Bàn 900×600 của F2 nằm ở phòng khách → bàn ăn (desk chỉ ở phòng ngủ/kho/khác).
       table: '/items/dining-table/model.glb',
-      // Ghế F2 hộp 900 × 600 (w = 1,5·d): chọn theo cỡ (C3) thì ghế văn phòng 0,66 × 0,69 gần hơn ghế ăn 0,47 × 0,5.
-      chair: '/items/office-chair/model.glb',
+      // Ghế F2 hộp 900 × 600: FE-A bỏ office-chair khỏi vai ghế ăn (C2) nên giữ ghế ăn, chỉ co theo cỡ.
+      chair: '/items/dining-chair/model.glb',
       bed: '/items/single-bed/model.glb',
       wardrobe: '/items/closet/model.glb',
       // FR1-F2: tủ bếp dưới có cửa + tay nắm, không còn khối hộp trơn kitchen-counter.
