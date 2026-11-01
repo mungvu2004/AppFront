@@ -12,6 +12,7 @@
 import type { Furniture, FurnitureId, Wall } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 
+import { worldBoxOf } from './orientDetected';
 import { furnitureFacingDeg } from './placement';
 import { GENERATED_DRESS_PREFIX } from './sceneDressing';
 
@@ -32,21 +33,21 @@ type Side = 'top' | 'bottom' | 'left' | 'right';
  * Tủ bếp dò được (không variant, không mẫu người dùng chọn) quá sâu để là một dãy.
  * Dãy `baseRun`/`upperRun` của bản vẽ người vẽ đi đường V1 (`lShapedRunArms`).
  */
-// ponytail: chỉ hộp không xoay; mở rộng khi bản dò cho tủ bếp xoay.
+// ponytail: chỉ góc bội 90° (hộp thế giới vẫn thẳng trục); góc xiên giữ nguyên một khối.
 export const isKitchenRunHost = (f: Furniture): boolean => {
   const { min, max } = f.boundingBox;
   return (
     f.kind === 'kitchenCabinet' &&
     f.variant === undefined &&
     f.model === undefined &&
-    ((f.rotationDeg % 360) + 360) % 360 === 0 &&
+    ((f.rotationDeg % 90) + 90) % 90 === 0 &&
     Math.min(max.x - min.x, max.y - min.y) > RUN_HOST_MIN_SHORT_MM
   );
 };
 
 /** Mép hộp nào tựa một tường thẳng song song trục (cùng tầng, chồng lên nhau theo chiều dọc mép). */
 const touchingSides = (f: Furniture, walls: readonly Wall[]): ReadonlySet<Side> => {
-  const { min, max } = f.boundingBox;
+  const { min, max } = worldBoxOf(f.boundingBox, f.rotationDeg);
   const sides = new Set<Side>();
   for (const wall of walls) {
     if (wall.levelId !== f.levelId || wall.curveOffsetMm) continue;
@@ -76,7 +77,7 @@ interface Run {
 }
 
 const runsOf = (f: Furniture, sides: ReadonlySet<Side>): readonly Run[] => {
-  const { min, max } = f.boundingBox;
+  const { min, max } = worldBoxOf(f.boundingBox, f.rotationDeg);
   const w = max.x - min.x;
   const h = max.y - min.y;
   if (sides.size === 0) {

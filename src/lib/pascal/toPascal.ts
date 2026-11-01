@@ -632,7 +632,7 @@ const RUG_SCALE_Y = 0.5;
 /**
  * Đồ kéo dài được theo từng trục (dãy tủ, kệ, chậu rửa liền tủ, bồn cây…): một tỉ lệ chung
  * thu cả dãy 3 m về một mô-đun. Kéo hết theo trục dài của hộp (không trần — tủ áo 3 m ra 3 m),
- * trục kia trong `[FIT_AXIS_MIN; FIT_AXIS_MAX]` × mẫu, cao giữ thật.
+ * trục kia trong `[FIT_AXIS_MIN; FIT_AXIS_MAX]` × mẫu nhưng không quá hộp, cao giữ thật.
  */
 const STRETCH_FOLDERS: ReadonlySet<string> = new Set([
   'closet',
@@ -856,7 +856,9 @@ const itemNodeOf = (
     const rz = depthM / cd;
     const heightOf = (ref: number): number =>
       fixedH === undefined ? Math.min(clampTo(ref, FIT_HEIGHT_MIN, FIT_HEIGHT_MAX), maxH / ch) : fixedH / ch;
-    const [sx, sy, sz] = ((): PascalVec3 => {
+    // Không trục mặt bằng nào vượt hộp bao (FE-H): biên [0,8; 1,25] chỉ chống co thiếu — mẫu khác dáng
+    // hộp (chậu, tủ đầu giường, kệ nông) từng phình gấp đôi hộp ở trục bị chặn.
+    const [ax, sy, az] = ((): PascalVec3 => {
       if (RUG_FOLDERS.has(model.folder)) return [rx, fixedH === undefined ? RUG_SCALE_Y : fixedH / ch, rz];
       if (STRETCH_FOLDERS.has(model.folder)) {
         // Kéo hết theo trục dài của hộp (so với mẫu), trục kia giữ gần chiều sâu mẫu.
@@ -868,6 +870,8 @@ const itemNodeOf = (
       const g = Math.sqrt(rx * rz);
       return [clampTo(rx, g * FIT_AXIS_MIN, g * FIT_AXIS_MAX), heightOf(g), clampTo(rz, g * FIT_AXIS_MIN, g * FIT_AXIS_MAX)];
     })();
+    const sx = Math.min(ax, rx);
+    const sz = Math.min(az, rz);
     // `asset.scale` nhân thẳng vào GLB gốc; catalog nào có scale riêng thì `dimensions`
     // là cỡ sau scale đó (cọ: GLB cao 11,9 m × 0,37) — phải nhân lại, không thì cao gấp đôi tường.
     const [kx, ky, kz] = catalog.scale ?? [1, 1, 1];
