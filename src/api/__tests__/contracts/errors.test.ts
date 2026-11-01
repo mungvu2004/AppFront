@@ -97,7 +97,11 @@ describe('ApiErrorBodySchema', () => {
     expect(ApiErrorBodySchema.safeParse({ ...minimalError, resource: 'shareLink' }).success).toBe(true);
   });
 
-  it('từ chối resource ngoài mười sáu giá trị', () => {
+  it('nhận resource lightingBake — dự án chưa nướng ánh sáng lần nào trả NOT_FOUND (N43)', () => {
+    expect(ApiErrorBodySchema.safeParse({ ...minimalError, resource: 'lightingBake' }).success).toBe(true);
+  });
+
+  it('từ chối resource ngoài mười bảy giá trị', () => {
     expect(ApiErrorBodySchema.safeParse({ ...minimalError, resource: 'wall' }).success).toBe(false);
   });
 
