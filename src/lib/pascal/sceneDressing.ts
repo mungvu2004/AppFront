@@ -71,7 +71,7 @@ export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
     name: 'Đồ chưa xác nhận',
     material: {
       preset: 'custom',
-      properties: { color: '#f59e0b', roughness: 0.8, metalness: 0, opacity: 0.35, transparent: true, side: 'front' },
+      properties: { color: SCENE_PALETTE.unconfirmed, roughness: 0.8, metalness: 0, opacity: 0.35, transparent: true, side: 'front' },
     },
   },
 ];

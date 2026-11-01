@@ -40,6 +40,8 @@ export const SCENE_PALETTE = {
   studioPlinth: '#e6e3de',
   // Màu đèn mặc định trong catalog Pascal (`catalog-items.tsx`), chép nguyên để đối chiếu.
   catalogLight: '#ffffff',
+  // Viền đồ chưa xác nhận (C6, `sceneDressing.ts`): cam nhạt.
+  unconfirmed: '#f59e0b',
 } as const;
 
 /**
