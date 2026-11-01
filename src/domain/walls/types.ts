@@ -22,6 +22,7 @@
 import { compareNearly, isNearlyZero, type PointMm } from '../units/compare';
 import { distanceBetween } from '../units/snap';
 import { millimetres, type Millimetres } from '../units/types';
+import { wallLength } from '../spatial/arc';
 import type { WallId } from '../spatial/types';
 
 export type { PointMm } from '../units/compare';
@@ -62,6 +63,8 @@ export interface Wall {
   readonly id: WallId;
   readonly kind: WallKind;
   readonly centreline: WallCentreline;
+  /** Sagitta có dấu của tường cong (quy ước `@/domain/spatial/arc`); vắng = thẳng. */
+  readonly curveOffsetMm?: Millimetres | undefined;
   readonly thicknessMm: Millimetres;
   /** Height of the bottom of the wall, from the datum. */
   readonly baseElevationMm: Millimetres;
@@ -91,7 +94,10 @@ export function endPoint(wall: Wall, end: WallEnd): PointMm {
 
 /** Length of the centreline. */
 export function centrelineLength(wall: Wall): Millimetres {
-  return distanceBetween(wall.centreline.start, wall.centreline.end);
+  // Tường cong đo dọc cung: `offsetMm` của ô mở cũng đo dọc cung (AppBack `arc.py`).
+  return wall.curveOffsetMm
+    ? millimetres(wallLength(wall.centreline.start, wall.centreline.end, wall.curveOffsetMm))
+    : distanceBetween(wall.centreline.start, wall.centreline.end);
 }
 
 /**

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { distanceBetween } from '../../units/snap';
 import { millimetres, type Millimetres } from '../../units/types';
 import type { PointMm } from '../../units/compare';
-import type { Wall } from '../../walls/types';
+import { centrelineLength, type Wall } from '../../walls/types';
 import {
   attachToWall,
   DEFAULT_ATTACH_RADIUS_MM,
@@ -432,5 +432,23 @@ describe('leaving the arguments alone', () => {
     const opening = traced('1', point(1234, 56));
 
     expect(attachToWall(opening, EVERY_RUN)).toEqual(attachToWall(opening, EVERY_RUN));
+  });
+});
+
+describe('a curved host', () => {
+  // Chord (0,0)→(2000,0), sagitta 1000: half circle about (1000, 0), arc length π·1000 > chord.
+  const CURVED: Wall = { ...wall('9', point(0, 0), point(2000, 0)), curveOffsetMm: millimetres(1000) };
+
+  it('measures along the arc, so an opening past the chord length still fits', () => {
+    expect(centrelineLength(CURVED)).toBeCloseTo(Math.PI * 1000);
+    expect(centrelineLength(RUN_ALONG_X)).toBe(4000);
+  });
+
+  it('places and attaches on the arc: the apex is half way along', () => {
+    const apex = placeOnWall(CURVED, 0.5);
+    expect(apex.x).toBeCloseTo(1000);
+    expect(apex.y).toBeCloseTo(-1000);
+    const attached = attachToWall(traced('9', point(1000, -1050)), [CURVED]);
+    expect(positionOf(attached.opening)).toBeCloseTo(0.5);
   });
 });

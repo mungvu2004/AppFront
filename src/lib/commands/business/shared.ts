@@ -338,6 +338,7 @@ export const toSolidWall = (wall: GraphWall, level: Level): SolidWall => ({
     start: toPointMm(wall.centreline.start),
     end: toPointMm(wall.centreline.end),
   },
+  ...(wall.curveOffsetMm ? { curveOffsetMm: millimetres(wall.curveOffsetMm) } : {}),
   thicknessMm: millimetres(wall.thicknessMm),
   baseElevationMm: millimetres(level.elevationMm),
   topElevationMm: millimetres(level.elevationMm + wall.heightMm),

@@ -133,7 +133,8 @@ export interface Wall extends ReviewMetadata {
   /**
    * Tường cong (cung ≤ 180°): sagitta có dấu, đỉnh cung = trung điểm tim − giá trị · n với
    * `n = (-dy, dx) / L` — đúng `curveOffset` của Pascal, |giá trị| ≤ L/2. Vắng = thẳng.
-   * Trình 2D, dò phòng và luật hình học còn coi tường cong là dây `centreline`.
+   * Đa giác 2D (`resolveWallShapes`), chỗ đặt ô mở và luật hở mặt tường theo cung (`./arc`); dò phòng
+   * và các luật hình học khác còn coi tường cong là dây `centreline`.
    */
   curveOffsetMm?: Millimetres | undefined;
   thicknessMm: Millimetres;

@@ -40,6 +40,7 @@
 import { compareNearly, isNearlyZero, type PointMm } from '../units/compare';
 import { distanceBetween } from '../units/snap';
 import { millimetres, type Millimetres } from '../units/types';
+import { nearestOnWall, pointAtArcLength } from '../spatial/arc';
 import type { WallId } from '../spatial/types';
 import { centrelineLength, type Wall } from '../walls/types';
 import {
@@ -136,6 +137,14 @@ function projectOntoWall(centre: PointMm, wall: Wall): RelativePosition | null {
 
   if (isNearlyZero(lengthSquared)) {
     return null;
+  }
+
+  if (wall.curveOffsetMm) {
+    // Tường cong: phân số đo dọc cung, như `offsetMm` (AppBack `arc.py`).
+    const { start, end } = wall.centreline;
+    return clampRelativePosition(
+      nearestOnWall(start, end, wall.curveOffsetMm, centre).along / centrelineLength(wall),
+    );
   }
 
   const along =
@@ -318,6 +327,16 @@ export function placeOnWall(wall: Wall, relativePosition: RelativePosition): Poi
   }
 
   const along = clampRelativePosition(relativePosition);
+
+  if (wall.curveOffsetMm) {
+    const { point } = pointAtArcLength(
+      wall.centreline.start,
+      wall.centreline.end,
+      wall.curveOffsetMm,
+      along * centrelineLength(wall),
+    );
+    return { x: millimetres(point.x), y: millimetres(point.y) };
+  }
 
   return {
     x: millimetres(
