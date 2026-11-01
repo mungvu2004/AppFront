@@ -52,6 +52,7 @@ import { Button } from '@/components/ui/Button';
 import { FloorUploadCard } from './FloorUploadCard';
 import { FloorUploadDropZone } from './FloorUploadDropZone';
 import { FloorUploadGatePanel } from './FloorUploadGatePanel';
+import { FloorUploadSheetRegions } from './FloorUploadSheetRegions';
 import { FloorUploadSplitPanel } from './FloorUploadSplitPanel';
 import { SheetGlyph } from './FloorUploadGlyphs';
 import { FloorUploadTray } from './FloorUploadTray';
@@ -328,6 +329,15 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
                   }}
                   apartments={props.apartments}
                   splitPrompt={props.splitPrompt}
+                />
+                <FloorUploadSheetRegions
+                  actions={{
+                    onSelectSheetFloor: props.onSelectSheetFloor,
+                    onSetSheetRegion: props.onSetSheetRegion,
+                    onConfirmSheetRegions: props.onConfirmSheetRegions,
+                    onCloseSheetRegions: props.onCloseSheetRegions,
+                  }}
+                  model={props.sheetRegions}
                 />
                 {body}
                 <FloorUploadTray actions={actions} tray={tray} />

@@ -43,7 +43,7 @@
  */
 
 import { createAppApiClient } from '@/api/appClient';
-import type { ApiClient, ApiResult, Floor, Project } from '@/api/client';
+import type { ApiClient, ApiResult, DrawingCrop, Floor, Project } from '@/api/client';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
 import { createUuid } from '@/lib/http/ids';
@@ -96,6 +96,8 @@ export interface CreateFloorUploadInput {
   readonly onProgress: (state: UploadTaskState) => void;
   /** Trang PDF (từ 0) cần dựng; vắng với ảnh và PDF một trang. */
   readonly pageIndex?: number;
+  /** Vùng của tầng này trên tờ nhiều tầng; vắng = cả trang. */
+  readonly crop?: DrawingCrop;
   readonly id?: string;
 }
 
@@ -280,7 +282,7 @@ export function createFloorUploadGateway(
       return result.ok ? result.data : [];
     },
 
-    createUpload: ({ file, floorId, id, onProgress, pageIndex, projectId }) => {
+    createUpload: ({ crop, file, floorId, id, onProgress, pageIndex, projectId }) => {
       const task = createUploadTask({
         api: client.drawings,
         file,
@@ -288,6 +290,7 @@ export function createFloorUploadGateway(
         projectId,
         onProgress,
         ...(pageIndex !== undefined ? { pageIndex } : {}),
+        ...(crop !== undefined ? { crop } : {}),
         ...(id !== undefined ? { id } : {}),
       });
 

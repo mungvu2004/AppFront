@@ -98,3 +98,22 @@ describe('drawings.pageThumbnails (N41)', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe('drawings.initUpload crop (tờ nhiều tầng)', () => {
+  const base = { fileName: 'to.png', floorId: 'L1', mimeType: 'image/png', projectId: 'project-1', sizeBytes: 10 };
+  const sentBody = async (body: Parameters<ReturnType<typeof createApiClient>['drawings']['initUpload']>[0]['body']) => {
+    const post = vi.fn(() => ok({}));
+    await createApiClient({ post } as unknown as HttpClient).drawings.initUpload({ body });
+    const [, options] = post.mock.calls[0] as unknown as [string, { body: Record<string, unknown> }];
+    return options.body;
+  };
+
+  it('sends crop when set', async () => {
+    const crop = { xRatio: 0.5, yRatio: 0, widthRatio: 0.5, heightRatio: 1 };
+    expect((await sentBody({ ...base, crop })).crop).toEqual(crop);
+  });
+
+  it('omits crop when absent', async () => {
+    expect('crop' in (await sentBody(base))).toBe(false);
+  });
+});
