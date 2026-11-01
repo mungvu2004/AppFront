@@ -111,6 +111,7 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
                     onChangeRealLength: actions.onChangeRealLength,
                     onConfirmRealLength: actions.onConfirmRealLength,
                     onNudgeEndpoint: actions.onNudgeEndpoint,
+                    ...(actions.onPickDimensionChip !== undefined ? { onPickDimensionChip: actions.onPickDimensionChip } : {}),
                     onPlaceSegment: actions.onPlaceSegment,
                     onRemeasure: actions.onRemeasure,
                   }}
