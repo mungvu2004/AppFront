@@ -90,3 +90,26 @@ describe('createScaleCalibrationGateway — detected-geometry', () => {
     expect((await gateway.readTypicalDoorWidth(INPUT)).supported).toBe(false);
   });
 });
+
+describe('createScaleCalibrationGateway — dimension-strings (chip)', () => {
+  it('đổi hộp px trang sang tỉ lệ khung vuông; máy chủ cũ → []', async () => {
+    const base = createMockApiClient();
+    const dimensionStrings = vi.fn(async () => ({
+      ok: true as const,
+      data: {
+        pagePx: [2000, 1000] as [number, number],
+        items: [
+          { id: 'n1', text: '10275', valueMm: 10275, box: box(0, 0, 200, 100), confidence: 0.9, orientation: 'horizontal' as const },
+        ],
+      },
+    }));
+    const gateway = createScaleCalibrationGateway({ ...base, quality: { ...base.quality, dimensionStrings } });
+
+    const chips = (await gateway.readDimensionChips?.(INPUT)) ?? [];
+
+    expect(chips).toEqual([
+      { id: 'n1', text: '10275', valueMm: 10275, box: { min: { x: 0, y: 0.25 }, max: { x: 0.1, y: 0.3 } } },
+    ]);
+    expect(await createScaleCalibrationGateway(base).readDimensionChips?.(INPUT)).toEqual([]);
+  });
+});

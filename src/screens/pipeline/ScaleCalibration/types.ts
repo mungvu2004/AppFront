@@ -274,6 +274,12 @@ export interface ScaleReferenceMethodViewModel {
    * nhập để người dùng thấy hậu quả trước khi rời tay.
    */
   readonly inlineWarning: ScaleWarningNotice | null;
+  /** D1: số máy đọc được (`dimension-strings`) làm chip; bấm một chip để đo theo số đó. */
+  readonly chips?: readonly { readonly id: string; readonly label: string; readonly isSelected: boolean }[];
+  /** D1: câu dưới khối chip — hướng dẫn kéo, hoặc "máy không đọc được số". */
+  readonly chipNotice?: string | null;
+  /** D1: "Đo được 322 px → 31,9 mm/px" ngay khi kéo. `null` khi chưa đủ hai vế. */
+  readonly liveMeasureLine?: string | null;
   /** `false` khi chưa có đoạn nào để đo lại. Phím `R`. */
   readonly canRemeasure: boolean;
   /** UX41 U04: chưa có đoạn và đã có ảnh — nút/phím `N` đặt sẵn một đoạn để chỉnh bằng bàn phím. */
@@ -715,6 +721,8 @@ export interface ScaleCalibrationActions {
   readonly onChangeRealLength: (text: string) => void;
   /** Phím `Enter` trong ô "Chiều dài thật". */
   readonly onConfirmRealLength: () => void;
+  /** D1: bấm chip số — phóng tới số, bật đo, điền sẵn "Chiều dài thật". */
+  readonly onPickDimensionChip?: (chipId: string) => void;
   /** Phím `R` — xoá đoạn hiện tại và kéo lại từ đầu. */
   readonly onRemeasure: () => void;
   /** Phím `N` / nút "Đặt đoạn đo giữa bản vẽ": đoạn ngang giữa ảnh để chỉnh bằng bàn phím (UX41 U04). */
@@ -838,6 +846,7 @@ export interface ScaleCalibrationPanelProps {
     | 'onGoToViewer3d'
     | 'onHoverDimensionRow'
     | 'onNudgeEndpoint'
+    | 'onPickDimensionChip'
     | 'onPlaceSegment'
     | 'onRemeasure'
     | 'onSelectDimensionRow'
@@ -861,7 +870,12 @@ export interface ScaleCalibrationMethodReferenceProps {
   readonly reference: ScaleReferenceMethodViewModel;
   readonly actions: Pick<
     ScaleCalibrationActions,
-    'onChangeRealLength' | 'onConfirmRealLength' | 'onNudgeEndpoint' | 'onPlaceSegment' | 'onRemeasure'
+    | 'onChangeRealLength'
+    | 'onConfirmRealLength'
+    | 'onNudgeEndpoint'
+    | 'onPickDimensionChip'
+    | 'onPlaceSegment'
+    | 'onRemeasure'
   >;
 }
 

@@ -2158,3 +2158,39 @@ describe('D1 — bắt dính vào điểm máy dò và cảnh báo cửa đi', (
     expect(door?.warning).toBeUndefined();
   });
 });
+
+describe('D1 — chip số máy đọc được', () => {
+  it('bấm chip → bật đo, điền sẵn chiều dài thật, hiện câu hướng dẫn kéo', async () => {
+    const base = await makeHarness();
+    const gateway = withScaleCapabilities(base.gateway, {
+      readDimensionChips: async () => [
+        { id: 'n1', text: '10275', valueMm: millimetres(10275), box: { min: { x: 0.1, y: 0.1 }, max: { x: 0.2, y: 0.12 } } },
+      ],
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.panel.reference.chips?.map((chip) => chip.label)).toEqual(['10275']);
+
+    await act(async () => {
+      mounted.result.current.actions.onPickDimensionChip?.('n1');
+    });
+
+    const reference = mounted.result.current.model.panel.reference;
+    expect(reference.realLengthText).toBe('10275');
+    expect(reference.chips?.[0]?.isSelected).toBe(true);
+    expect(reference.chipNotice).toBe(
+      'Kéo từ đầu đến cuối đường kích thước có số 10275. Đoạn sẽ tự bắt vào đầu tường hoặc giao điểm gần nhất.',
+    );
+    expect(mounted.result.current.model.canvas.focusBox).toEqual({ min: { x: 0.1, y: 0.1 }, max: { x: 0.2, y: 0.12 } });
+  });
+
+  it('không có số → câu "Máy không đọc được số kích thước…"', async () => {
+    const mounted = mountHook((await makeHarness()).gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.panel.reference.chipNotice).toMatch(/^Máy không đọc được số kích thước trên bản vẽ này\./u);
+  });
+});

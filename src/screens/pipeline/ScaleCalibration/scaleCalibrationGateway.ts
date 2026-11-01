@@ -138,6 +138,14 @@ export interface ScaleRawDimensionString {
   readonly boundingBox: ImageRatioBox;
 }
 
+/** Một số máy đọc được trên trang, hộp theo tỉ lệ khung vuông `0..1` như `boundingBox`. */
+export interface ScaleDimensionChip {
+  readonly id: string;
+  readonly text: string;
+  readonly valueMm: Millimetres;
+  readonly box: ImageRatioBox;
+}
+
 /** Hộp bao của phòng lớn nhất, đo trên ảnh bằng pixel. */
 export interface ScaleRoomBoxPx {
   readonly widthPx: Pixels;
@@ -185,6 +193,8 @@ export interface ScaleCalibrationGateway {
   readonly readDimensionStrings: (
     input: ReadFloorGeometryInput,
   ) => Promise<ScaleCapabilityResult<readonly ScaleRawDimensionString[]>>;
+  /** D1: số máy đọc được, chưa có độ dài px — chip "Hoặc chọn một số". Lỗi/máy chủ cũ → `[]`. */
+  readonly readDimensionChips?: (input: ReadFloorGeometryInput) => Promise<readonly ScaleDimensionChip[]>;
   /**
    * Bề rộng của một nét tường điển hình trên ảnh, tính bằng pixel.
    *
@@ -346,6 +356,29 @@ export function createScaleCalibrationGateway(
     },
 
     readDimensionStrings: async () => unsupported('dimensionStrings'),
+    readDimensionChips: async ({ floorId, projectId }) => {
+      const read = client.quality.dimensionStrings;
+      const result = read === undefined ? null : await read.call(client.quality, { floorId, projectId }).catch(() => null);
+
+      if (result === null || !result.ok) {
+        return [];
+      }
+
+      // Khung vuông cạnh = cạnh dài trang, trang nằm giữa — cùng phép `imageFrameOf` của hook.
+      const [width, height] = result.data.pagePx;
+      const edge = Math.max(width, height);
+      const toRatio = (x: number, y: number): { x: number; y: number } => ({
+        x: (x + (edge - width) / 2) / edge,
+        y: (y + (edge - height) / 2) / edge,
+      });
+
+      return result.data.items.map((item) => ({
+        id: item.id,
+        text: item.text,
+        valueMm: millimetres(item.valueMm),
+        box: { min: toRatio(item.box.xMin, item.box.yMin), max: toRatio(item.box.xMax, item.box.yMax) },
+      }));
+    },
     readReferenceWallWidth: async (input) => {
       const geometry = await geometryOf(input);
       const median = geometry?.wallThicknessPx?.median;
