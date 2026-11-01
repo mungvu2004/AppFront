@@ -1057,6 +1057,7 @@ export function useWallGeometryEditor(
         edgeId: edgeIdOf(finding.wallId),
         fromPx: projection.toPx(finding.fromMm),
         toPx: projection.toPx(finding.toMm),
+        ...(finding.pathMm === undefined ? {} : { pathPx: finding.pathMm.map((point) => projection.toPx(point)) }),
         tone: finding.severity,
       })),
     [projection, review.findings, wallCodes],

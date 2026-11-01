@@ -1050,3 +1050,24 @@ describe('the seven staying out of each other’s way', () => {
     expect(JOINT_TOLERANCE_MM).toBe(50);
   });
 });
+
+describe('a curved wall in the geometry checks', () => {
+  // Half circle about (2000, 0), radius 2000, bulging to −y; its apex is (2000, −2000).
+  const arc: Wall = { ...wall('ARC', { x: 0, y: 0 }, { x: 4000, y: 0 }), curveOffsetMm: 2000 };
+
+  it('counts an end on the arc as joined, though it is two metres off the chord', () => {
+    const spur = wall('SPUR', { x: 2000, y: -2000 }, { x: 2000, y: -4000 });
+    const found = runCheck(checkDanglingWallEnds, planOf({ walls: [arc, spur] }), GROUND);
+
+    // Only the spur's far end hangs free; its near end sits on the arc's apex.
+    expect(found.filter((item) => item.entityId === wallId('SPUR'))).toHaveLength(1);
+  });
+
+  it('sees a wall crossing the arc, not the chord', () => {
+    const through = wall('THRU', { x: 2150, y: -1000 }, { x: 2150, y: -3000 });
+    const onChordOnly = wall('CHRD', { x: 1000, y: 500 }, { x: 1000, y: -500 });
+
+    expect(runCheck(checkWallOverlap, planOf({ walls: [arc, through] }), GROUND)).toHaveLength(1);
+    expect(runCheck(checkWallOverlap, planOf({ walls: [arc, onChordOnly] }), GROUND)).toEqual([]);
+  });
+});

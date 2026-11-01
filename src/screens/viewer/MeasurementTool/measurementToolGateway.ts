@@ -71,6 +71,7 @@ import {
   squareMillimetres,
   type MeasurePoint,
 } from '@/domain/measure/measure';
+import { arcApex } from '@/domain/spatial/arc';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Axis, Point, Wall } from '@/domain/spatial/types';
 import type { PointMm } from '@/domain/units/compare';
@@ -241,7 +242,10 @@ export function snapTargetsOf(
     targets.push({
       kind: 'midpoint',
       id: midpointTargetId(String(wall.id)),
-      position: midpointOf(toPointMm(wall.centreline.start), toPointMm(wall.centreline.end)),
+      // Tường cong: "trung điểm" là đỉnh cung, điểm giữa thân tường thật.
+      position: wall.curveOffsetMm
+        ? toPointMm(arcApex(wall.centreline.start, wall.centreline.end, wall.curveOffsetMm))
+        : midpointOf(toPointMm(wall.centreline.start), toPointMm(wall.centreline.end)),
     });
   }
 

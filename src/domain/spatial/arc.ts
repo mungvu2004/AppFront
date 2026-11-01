@@ -9,6 +9,8 @@
  * Hàm thuần, không gắn đơn vị: dùng chung cho mm (domain) và px (canvas).
  */
 
+import type { Wall } from './types';
+
 /** Một điểm hay một hướng trên mặt bằng. */
 export interface XY {
   readonly x: number;
@@ -102,10 +104,42 @@ export function arcPoints(
   return points;
 }
 
+/**
+ * Mỗi tường cong thành các tường thẳng theo từng dây cung (≤ 10°, cùng mã, bỏ độ cong); tường thẳng giữ
+ * nguyên — cho các phép tính chỉ biết đoạn thẳng (đường đi, khe hở cạnh phòng).
+ */
+export function chordWalls(walls: readonly Wall[]): Wall[] {
+  return walls.flatMap((wall) => {
+    if (!wall.curveOffsetMm) return [wall];
+    const points = arcPoints(wall.centreline.start, wall.centreline.end, wall.curveOffsetMm);
+    const chords: Wall[] = [];
+    for (let index = 1; index < points.length; index += 1) {
+      const from = points[index - 1];
+      const to = points[index];
+      if (from !== undefined && to !== undefined) chords.push({ ...wall, centreline: { start: from, end: to }, curveOffsetMm: undefined });
+    }
+    return chords;
+  });
+}
+
+/** Bán kính cung; tường thẳng → `Infinity`. */
+export function arcRadius(start: XY, end: XY, sagitta: number | undefined): number {
+  return arcOf(start, end, sagitta)?.radius ?? Number.POSITIVE_INFINITY;
+}
+
 /** Chiều dài tường đo dọc tim: độ dài cung, hay độ dài dây khi thẳng. */
 export function wallLength(start: XY, end: XY, sagitta: number | undefined): number {
   const arc = arcOf(start, end, sagitta);
   return arc === null ? Math.hypot(end.x - start.x, end.y - start.y) : arc.radius * arc.sweep;
+}
+
+/**
+ * Sagitta có dấu của một khúc cung dài `length` (đo dọc cung) trên cùng đường tròn: `dấu(s)·r·(1 − cos(φ/2))`
+ * với `φ = length / r` — để tách một tường cong thành hai tường cong khớp đúng cung cũ. Thẳng → 0.
+ */
+export function subArcSagitta(start: XY, end: XY, sagitta: number | undefined, length: number): number {
+  const arc = arcOf(start, end, sagitta);
+  return arc === null ? 0 : arc.sign * arc.radius * (1 - Math.cos(length / (2 * arc.radius)));
 }
 
 /** Đỉnh cung (trung điểm dây − sagitta · n); tường thẳng → trung điểm dây. */

@@ -50,6 +50,7 @@ import { placeOnWall } from '@/domain/openings/attach';
 import { reflowOpenings, reflowOpeningsAcrossSplit } from '@/domain/openings/reflow';
 import type { AttachedOpening } from '@/domain/openings/types';
 import { checkDanglingWallEnds, checkWallOverlap } from '@/domain/rules/geometry';
+import { arcPoints } from '@/domain/spatial/arc';
 import { createId, displayCodesOf, isIdOfKind } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId, Point, Wall as GraphWall, WallId } from '@/domain/spatial/types';
@@ -675,6 +676,8 @@ export interface WallGeometryEdgeFinding {
   readonly message: string;
   readonly fromMm: WallGeometryPointMm;
   readonly toMm: WallGeometryPointMm;
+  /** Tường cong: các đỉnh trên cung từ `fromMm` tới `toMm`; vắng = cạnh thẳng. */
+  readonly pathMm?: readonly WallGeometryPointMm[];
 }
 
 /** Kết quả của ba phép hình học chạy lại sau một lệnh. */
@@ -707,9 +710,19 @@ export const EMPTY_WALL_GEOMETRY_REVIEW: WallGeometryReview = Object.freeze({
 });
 
 /** Cạnh của một tường, bằng toạ độ mô hình. */
-const edgeOf = (wall: SolidWall): { from: WallGeometryPointMm; to: WallGeometryPointMm } => ({
+const edgeOf = (
+  wall: SolidWall,
+): { from: WallGeometryPointMm; to: WallGeometryPointMm; path?: readonly WallGeometryPointMm[] } => ({
   from: { xMm: wall.centreline.start.x, yMm: wall.centreline.start.y },
   to: { xMm: wall.centreline.end.x, yMm: wall.centreline.end.y },
+  ...(wall.curveOffsetMm
+    ? {
+        path: arcPoints(wall.centreline.start, wall.centreline.end, wall.curveOffsetMm).map((point) => ({
+          xMm: point.x,
+          yMm: point.y,
+        })),
+      }
+    : {}),
 });
 
 /** M-04 — tường nào dùng chung một nút nối với tường đang sửa. */
@@ -765,6 +778,7 @@ function cleanupFindingsFor(
         message: change.message,
         fromMm: edge.from,
         toMm: edge.to,
+        ...(edge.path === undefined ? {} : { pathMm: edge.path }),
       });
     }
 
@@ -856,6 +870,7 @@ export function reviewWallGeometry(
         message: finding.message,
         fromMm: edge.from,
         toMm: edge.to,
+        ...(edge.path === undefined ? {} : { pathMm: edge.path }),
       });
     }
   }

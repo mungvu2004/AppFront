@@ -253,6 +253,8 @@ export interface PlanDiffModel {
     readonly y1: number;
     readonly x2: number;
     readonly y2: number;
+    /** Tường cong: chuỗi `points` của `<polyline>` theo cung (`x1..y2` vẫn là hai đầu); vắng = thẳng. */
+    readonly points?: string;
     readonly thickness: number;
   })[];
   readonly rooms: readonly (PlanDiffShape & { readonly points: string })[];
@@ -261,6 +263,8 @@ export interface PlanDiffModel {
     readonly y1: number;
     readonly x2: number;
     readonly y2: number;
+    /** Ô mở trên tường cong: các đỉnh trên cung; vắng = đoạn thẳng `x1..y2`. */
+    readonly points?: string;
   })[];
   readonly furniture: readonly (PlanDiffShape & { readonly x: number; readonly y: number })[];
   /** Số đếm là số HÌNH theo tone (một tường sửa hai trường vẫn là một). */
