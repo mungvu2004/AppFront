@@ -975,6 +975,17 @@ export interface ChangeObjectKindInput {
 }
 
 /**
+ * `doorStyle` (lùa âm tường / cửa xếp, đặt ở màn 3D) chỉ hợp lệ trên cửa đi lùa — AppBack trả 422 cho
+ * cả lần lưu tầng nếu còn nó sau khi đổi chiều mở hay đổi cửa đi thành cửa sổ (review EDITOR3D-DOT2 #1).
+ */
+function withSlidingStyleChecked(opening: GraphOpening): GraphOpening {
+  if (opening.doorStyle === undefined || (opening.kind === 'door' && opening.swing === 'sliding')) return opening;
+  const rest = { ...opening };
+  delete rest.doorStyle;
+  return rest;
+}
+
+/**
  * Lệnh đổi loại một lỗ mở (cửa đi ↔ cửa sổ).
  *
  * Đi qua `validateOpening` của M-08 TRƯỚC khi nhận: màn không tự kiểm chồng
@@ -989,12 +1000,12 @@ export function buildChangeObjectKindCommand(input: ChangeObjectKindInput): Comm
     return refuse(OBJECT_CHANGE_KIND_COMMAND_TYPE, [NOT_AN_OPENING_SUBTYPE_REASON]);
   }
 
-  const after: GraphOpening = {
+  const after = withSlidingStyleChecked({
     ...input.before,
     kind: shape.kind,
     sillHeightMm: shape.sillHeightMm,
     swing: shape.swing,
-  };
+  });
 
   if (
     after.kind === input.before.kind &&
@@ -1053,7 +1064,7 @@ export function buildChangeObjectSwingCommand(input: ChangeObjectSwingInput): Co
       actorId: input.actorId,
       description: changeSwingDescription(input.displayId, input.swing),
       changes: [
-        changeForUpdate('opening', input.before, { ...input.before, swing: input.swing }),
+        changeForUpdate('opening', input.before, withSlidingStyleChecked({ ...input.before, swing: input.swing })),
       ],
     }),
   );
