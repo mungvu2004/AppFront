@@ -319,22 +319,40 @@ const doorLeafOf = (
   swingDirection: 'inward' | 'outward' = 'inward',
 ): Pick<
   PascalDoorNode,
-  'doorType' | 'hingesSide' | 'leafCount' | 'openingKind' | 'swingAngle' | 'swingDirection' | 'operationState'
+  | 'doorType'
+  | 'hingesSide'
+  | 'leafCount'
+  | 'openingKind'
+  | 'swingAngle'
+  | 'swingDirection'
+  | 'operationState'
+  | 'slideDirection'
 > => {
+  // H4 — "Đổi hướng mở" đã lưu: cánh bản lề sang mặt kia của luật, cửa lùa lùa sang phải.
+  const flipped = opening.reversed === true;
   const hinged = {
     doorType: 'hinged',
     leafCount: 1,
     hingesSide: 'left',
     openingKind: 'door',
     swingAngle: DOOR_SWING_ANGLE,
-    swingDirection,
+    swingDirection: flipped ? (swingDirection === 'inward' ? 'outward' : 'inward') : swingDirection,
     operationState: 0,
   } as const;
   switch (opening.swing) {
     case 'double':
-      return { ...hinged, leafCount: 2 };
+      // Pascal chỉ vẽ hai cánh khi `doorType` là `double`/`french` (`door-system.tsx`); `hinged` bỏ qua `leafCount`.
+      return { ...hinged, doorType: 'double', leafCount: 2 };
     case 'sliding':
-      return { ...hinged, doorType: 'sliding', swingAngle: 0, operationState: 0.5 };
+      return opening.doorStyle === 'folding'
+        ? { ...hinged, doorType: 'folding', leafCount: 4, swingAngle: 0, operationState: 0.65 }
+        : {
+            ...hinged,
+            doorType: opening.doorStyle ?? 'sliding',
+            swingAngle: 0,
+            operationState: 0.5,
+            slideDirection: flipped ? 'right' : 'left',
+          };
     case 'right':
       return { ...hinged, hingesSide: 'right' };
     case 'fixed':
@@ -427,7 +445,8 @@ const openingNodeOf = (
     rotation: [0, 0, 0],
     width: metresOf(opening.widthMm),
     height: metresOf(opening.heightMm),
-    metadata: { appfront: originOf(opening, { swing: opening.swing }) },
+    // `ruleSwing`: hướng luật cho (`swingDirectionOf`) — lượt về so với nó để biết người dùng có đảo không (H4).
+    metadata: { appfront: originOf(opening, { swing: opening.swing, ruleSwing: swingDirection }) },
   } as const;
 
   return opening.kind === 'door'
@@ -1249,8 +1268,13 @@ export const toPascalScene = (
     rooms: builtRooms.map((room) => ({ ...room, usage: furnishingUsageOf(room) })),
     furniture: builtFurniture,
   };
-  const furnished = furnishEmptyRooms(usable, style);
-  const dressed = dressingOf({ ...usable, furniture: [...builtFurniture, ...furnished] }, style);
+  /* H4 — món tự bày người dùng đã xoá (`Room.dressingOff`) không bày lại; lọc trước `dressingOf`
+     để gối/đèn không bày lên một cái giường đã xoá. */
+  const offIds = new Set(builtRooms.flatMap((room) => room.dressingOff ?? []));
+  const notOff = (furniture: Furniture): boolean => !offIds.has(furniture.id);
+  const furnished = furnishEmptyRooms(usable, style).filter(notOff);
+  const dressed = dressingOf({ ...usable, furniture: [...builtFurniture, ...furnished] }, style).filter(notOff);
+  const dressIdsOf = new Map<string, string[]>();
 
   for (const furniture of [...furnished, ...dressed]) {
     const levelNodeId = levelNodeIdOf.get(furniture.levelId);
@@ -1263,6 +1287,27 @@ export const toPascalScene = (
 
     nodes[node.id] = { ...node, metadata: { ...node.metadata, generated: 'dressing' } };
     adopt(levelNodeId, node.id);
+    if (furniture.roomId !== undefined) dressIdsOf.set(furniture.roomId, [...(dressIdsOf.get(furniture.roomId) ?? []), furniture.id]);
+  }
+
+  /* H4 — zone mang danh sách món tự bày của phòng (`dressIds`) và danh sách đã bỏ (`dressingOff`):
+     lượt về thấy món nào trong `dressIds` vắng khỏi cảnh thì thêm vào `dressingOff` (`toSpatial`). */
+  for (const room of builtRooms) {
+    const zoneId = toPascalId('zone', room.id);
+    const zone = nodes[zoneId];
+    const origin = zone?.metadata?.appfront;
+
+    if (zone === undefined || origin === undefined) continue;
+    nodes[zoneId] = {
+      ...zone,
+      metadata: {
+        ...zone.metadata,
+        appfront: {
+          ...origin,
+          fields: { ...origin.fields, dressIds: dressIdsOf.get(room.id) ?? [], dressingOff: room.dressingOff ?? [] },
+        },
+      },
+    };
   }
 
   for (const axis of graph.axes) {

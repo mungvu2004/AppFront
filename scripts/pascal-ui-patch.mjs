@@ -99,6 +99,17 @@ export const UI_PATCHES = {
   'editor/src/components/editor-2d/renderers/floorplan-registry-layer.tsx': [
     ['stroke={outlined ? palette.measurementStroke : undefined}', "stroke={outlined ? '#334155' : undefined}", 1],
   ],
+  // Đợt sửa 2 H1 (C2): ở chế độ Chọn, bấm giường/ghế/tủ hay trúng tường cắt (ẩn) hoặc sàn lọt giữa chân ghế.
+  // Trước khi Pascal xử lý cú bấm, hỏi src/pascal-page/upstream/lib/select-priority-install.ts (cài từ page.tsx):
+  // có đồ vật đứng trước mặt chắn đầu tiên thì thay sự kiện bằng sự kiện của đồ vật. Chưa cài hook → như cũ.
+  // Hàm onClick này chỉ đăng ký khi mode === 'select', nên công cụ Tường/Cửa/Sơn giữ nguyên hành vi Pascal.
+  'editor/src/components/editor/selection-manager.tsx': [
+    [
+      "      if (activeScope.kind === 'reshaping' && activeScope.reshape === 'endpoint') return\n\n      if (dispatchSceneAction(event.node, getEventObject(event))) {",
+      "      if (activeScope.kind === 'reshaping' && activeScope.reshape === 'endpoint') return\n\n      event =\n        ((globalThis as Record<string, unknown>).__appfrontPreferItemHit as\n          | ((e: NodeEvent) => NodeEvent | null)\n          | undefined)?.(event) ?? event\n\n      if (dispatchSceneAction(event.node, getEventObject(event))) {",
+      1,
+    ],
+  ],
 };
 
 export function applyUiPatches(code, file, pairs) {

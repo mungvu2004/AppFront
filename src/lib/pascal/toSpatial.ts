@@ -36,6 +36,7 @@ import type {
   FurnitureKind,
   Level,
   LevelId,
+  DoorStyle,
   Opening,
   OpeningId,
   Point,
@@ -66,12 +67,13 @@ import {
 } from '@/domain/units/types';
 import { AUTHORED_BY_HAND, toPointMm } from '@/lib/commands/business/shared';
 
-import { appFrontIdOf, BUILDING_NODE_ID } from './ids';
+import { appFrontIdOf, BUILDING_NODE_ID, toPascalId } from './ids';
 import { LIBRARY_MATERIAL_IDS } from './libraryMaterialIds';
 import { roofOf } from './roofs';
-import { isGeneratedLightId, isGeneratedNodeId, SCENE_MATERIALS } from './sceneDressing';
+import { CEILING_DEFAULT, isGeneratedLightId, isGeneratedNodeId, SCENE_MATERIALS } from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, SCENE_STYLES, sceneStyleOf } from './sceneStyles';
 import type {
+  PascalDoorNode,
   PascalLevelNode,
   PascalNode,
   PascalNodeId,
@@ -80,6 +82,7 @@ import type {
   PascalItemNode,
   PascalVec3,
   PascalWallNode,
+  PascalWindowNode,
   SkippedEntity,
 } from './types';
 
@@ -277,6 +280,83 @@ const floorFieldsOf = (
   const finish = (Object.keys(style.floor) as RoomFinish[]).find((key) => style.floor[key] === surface);
 
   return finish === undefined ? { floorMaterial: surface } : { finish };
+};
+
+/**
+ * H4 — kiểu cửa đi Pascal → `Opening.swing` (+ `doorStyle`, `reversed`). Trường đọc lỏng (`string`):
+ * Pascal có cả french/barn/garage-* mà AppFront không ghi ra. Bản lề một cánh theo `hingesSide`;
+ * french = hai cánh; barn = lùa; garage-* chưa có chỗ chứa → giữ `swing` đã lưu (`unsavedPascalEdits` báo).
+ */
+const doorSwingOf = (
+  door: PascalDoorNode,
+  fields: Fields,
+): Pick<Opening, 'swing'> & { doorStyle?: DoorStyle; reversed?: boolean } => {
+  const stored = readOneOf(fields, 'swing', SWING_DIRECTIONS) ?? 'left';
+
+  if (door.openingKind === 'opening') return { swing: 'fixed' };
+
+  const type: string = door.doorType ?? 'hinged';
+
+  if (type === 'sliding' || type === 'pocket' || type === 'barn' || type === 'folding') {
+    return {
+      swing: 'sliding',
+      ...(type === 'pocket' || type === 'folding' ? { doorStyle: type } : {}),
+      ...(type !== 'folding' && door.slideDirection === 'right' ? { reversed: true } : {}),
+    };
+  }
+
+  if (type !== 'hinged' && type !== 'double' && type !== 'french') return { swing: stored };
+
+  const rule = readOneOf(fields, 'ruleSwing', ['inward', 'outward'] as const);
+  const reversed = rule !== null && door.swingDirection !== undefined && door.swingDirection !== rule;
+  const swing =
+    type !== 'hinged' || (door.leafCount ?? 1) >= 2 ? 'double' : door.hingesSide === 'right' ? 'right' : 'left';
+
+  return { swing, ...(reversed ? { reversed: true } : {}) };
+};
+
+/** H4 — kiểu cửa sổ Pascal → `Opening.swing`; kiểu dây chưa chứa (hất, chớp…) → `null` (giữ `swing` đã lưu). */
+const windowSwingOf = (node: PascalWindowNode): Opening['swing'] | null => {
+  const type: string = node.windowType ?? 'fixed';
+
+  if (type === 'fixed') return 'fixed';
+  if (type === 'sliding') return 'sliding';
+  if (type !== 'casement') return null;
+
+  return node.casementStyle === 'french' ? 'double' : node.hingesSide === 'right' ? 'right' : 'left';
+};
+
+/** H4 — mặt trần `ceiling_<phòng>` → `Room.ceilingMaterial`; thạch cao mặc định hay tham chiếu lạ thì vắng. */
+const ceilingFieldsOf = (scene: PascalScene, roomId: RoomId): { ceilingMaterial?: MaterialRef } => {
+  const ceiling = scene.nodes[`ceiling_${roomId}`];
+  const surface = ceiling?.type === 'ceiling' ? ceiling.slots['surface'] : undefined;
+
+  return surface !== CEILING_DEFAULT && saveableRef(surface) ? { ceilingMaterial: surface } : {};
+};
+
+const readStrings = (fields: Fields, key: string): string[] => {
+  const value = fields[key];
+
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+};
+
+/** H4 — mọi node món tự bày mà zone khai (`dressIds`, toPascal): có trong đây thì xoá nó lưu được. */
+export const dismissableNodeIdsOf = (scene: PascalScene): Set<PascalNodeId> =>
+  new Set(
+    Object.values(scene.nodes).flatMap((node) =>
+      node.type === 'zone' ? readStrings(fieldsOf(node), 'dressIds').map((id) => toPascalId('item', id)) : [],
+    ),
+  );
+
+/**
+ * H4 — `Room.dressingOff` của một zone: danh sách đã lưu cộng món tự bày (`dressIds`) không còn trong
+ * cảnh. Hoàn tác lượt xoá thì món về cảnh và rời danh sách (trừ khi đã lưu từ lượt mở trước).
+ */
+const dressingOffOf = (scene: PascalScene, fields: Fields): { dressingOff?: string[] } => {
+  const removed = readStrings(fields, 'dressIds').filter((id) => scene.nodes[toPascalId('item', id)] === undefined);
+  const off = [...new Set([...readStrings(fields, 'dressingOff'), ...removed])];
+
+  return off.length === 0 ? {} : { dressingOff: off };
 };
 
 /** Khe mặt tường → `Wall.paint`, chỉ những mặt khác khe phong cách cho. */
@@ -630,7 +710,9 @@ const collectWallChildren = (
       widthMm,
       heightMm,
       sillHeightMm: roundMeasurement(millimetres(millimetresOf(child.position[1]) - heightMm / 2)),
-      swing: readOneOf(fieldsOf(child), 'swing', SWING_DIRECTIONS) ?? 'left',
+      ...(child.type === 'door'
+        ? doorSwingOf(child, fieldsOf(child))
+        : { swing: windowSwingOf(child) ?? readOneOf(fieldsOf(child), 'swing', SWING_DIRECTIONS) ?? 'left' }),
     });
   }
 };
@@ -797,6 +879,8 @@ const collectLevelChildren = (
           areaM2: readNumber(fields, 'areaM2') ?? computeArea(outline.map(toPointMm)),
           wallIds: [],
           ...(knownId === null ? {} : floorFieldsOf(scene, knownId)),
+          ...(knownId === null ? {} : ceilingFieldsOf(scene, knownId)),
+          ...dressingOffOf(scene, fields),
         });
         break;
       }

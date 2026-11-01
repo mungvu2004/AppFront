@@ -226,6 +226,10 @@ const furnitureSlotsSchema = z
   .record(z.string().regex(/^[a-z][a-z0-9_]{0,23}$/), materialRefSchema)
   .refine((slots) => Object.keys(slots).length <= 8);
 
+/** Id đồ tự bày (`sceneDressingRules.ts`): `DRESS-<vai>-<id neo>[-<n>]`; khớp `DressingId` của AppBack. */
+const DRESSING_ID = /^DRESS-[A-Za-z0-9_.:-]{1,160}$/;
+const DRESSING_OFF_MAX = 200;
+
 /** A5: đầu ra của máy không bao giờ được tự nhận là đã có người duyệt. */
 const humanOnlyReview = (entity: ReviewMetadata): boolean =>
   !(entity.source === 'ai' && entity.reviewed);
@@ -271,9 +275,18 @@ export const OpeningSchema: z.ZodType<Opening, z.ZodTypeDef, unknown> = z
     swing: z.enum(['left', 'right', 'double', 'sliding', 'fixed']),
     wallId: wallIdSchema,
     widthMm: positiveMillimetresSchema,
+    /** H4: cửa lùa âm tường / cửa xếp (chỉ khi `swing: 'sliding'`). */
+    doorStyle: z.enum(['pocket', 'folding']).optional(),
+    /** H4: "Đổi hướng mở" — cánh mở phía kia (bản lề) hay lùa sang phải. */
+    reversed: z.boolean().optional(),
   })
   .strict()
-  .refine(humanOnlyReview);
+  .refine(humanOnlyReview)
+  .transform(({ doorStyle, reversed, ...wireOpening }) => ({
+    ...wireOpening,
+    ...(doorStyle !== undefined ? { doorStyle } : {}),
+    ...(reversed === true ? { reversed } : {}),
+  }));
 
 export const RoomSchema: z.ZodType<Room, z.ZodTypeDef, unknown> = z
   .object({
@@ -298,14 +311,20 @@ export const RoomSchema: z.ZodType<Room, z.ZodTypeDef, unknown> = z
     wallIds: z.array(wallIdSchema),
     finish: z.enum(['wood', 'tile', 'mosaic', 'decking', 'concrete']).optional(),
     floorMaterial: materialRefSchema.optional(),
+    /** Đồ AppFront tự bày (`DRESS-…`) người dùng đã xoá trong 3D — không bày lại (H4). */
+    dressingOff: z.array(z.string().regex(DRESSING_ID)).max(DRESSING_OFF_MAX).optional(),
+    /** H4: vật liệu trần; vắng = thạch cao mặc định. */
+    ceilingMaterial: materialRefSchema.optional(),
   })
   .strict()
   .refine(humanOnlyReview)
   /* `finish` vắng là vắng khoá (xem chú thích của `FurnitureSchema` bên dưới). */
-  .transform(({ finish, floorMaterial, ...wireRoom }) => ({
+  .transform(({ finish, floorMaterial, dressingOff, ceilingMaterial, ...wireRoom }) => ({
     ...wireRoom,
+    ...(ceilingMaterial !== undefined ? { ceilingMaterial } : {}),
     ...(finish !== undefined ? { finish } : {}),
     ...(floorMaterial !== undefined ? { floorMaterial } : {}),
+    ...(dressingOff !== undefined && dressingOff.length > 0 ? { dressingOff } : {}),
   }));
 
 /**

@@ -13,6 +13,8 @@ import { toPointMm } from '@/lib/commands/business/shared';
 import { fixtureF2 } from '../__fixtures__';
 import { toPascalId } from '../ids';
 import { swingDirectionOf, toPascalScene } from '../toPascal';
+import { toSpatialGraph } from '../toSpatial';
+import type { PascalNode, PascalScene } from '../types';
 
 const graph = SpatialGraphDocumentSchema.parse(fixtureF2().doc).graph;
 const { nodes } = toPascalScene(graph).scene;
@@ -28,7 +30,8 @@ const hinged = { openingKind: 'door', doorType: 'hinged', leafCount: 1, hingesSi
 const DOOR: Record<SwingDirection, object> = {
   left: hinged,
   right: { ...hinged, hingesSide: 'right' },
-  double: { ...hinged, leafCount: 2 },
+  // Pascal chỉ vẽ hai cánh khi `doorType` là `double`/`french` (`door-system.tsx`).
+  double: { ...hinged, doorType: 'double', leafCount: 2 },
   sliding: { ...hinged, doorType: 'sliding', swingAngle: 0, operationState: 0.5 },
   fixed: { ...hinged, openingKind: 'opening', swingAngle: 0 },
 };
@@ -124,5 +127,78 @@ describe('mặt trong/ngoài của tường (cutaway + sơn ngoài đúng mặt)
       expect([node.frontSide, node.backSide], wall.id).toEqual(front ? ['interior', 'exterior'] : ['exterior', 'interior']);
     }
     expect(sided).toBeGreaterThan(0);
+  });
+});
+
+describe('H4 — kiểu cửa Pascal về Opening (khứ hồi)', () => {
+  const scene = toPascalScene(graph).scene;
+  const back = (of: PascalScene) => new Map(toSpatialGraph(of).graph.openings.map((o) => [o.id, o]));
+  const door = graph.openings.find((o) => o.kind === 'door' && o.swing === 'left') as Opening;
+  const win = graph.openings.find((o) => o.kind === 'window' && o.swing === 'fixed') as Opening;
+  const edited = (opening: Opening, patch: Record<string, unknown>): Opening | undefined => {
+    const id = toPascalId(opening.kind, opening.id);
+    const node = { ...scene.nodes[id], ...patch } as PascalNode;
+
+    return back({ ...scene, nodes: { ...scene.nodes, [id]: node } }).get(opening.id);
+  };
+
+  it('không sửa gì: mọi ô mở về đúng như bản vẽ (không sinh lệnh từ hư không)', () => {
+    const openings = back(scene);
+
+    for (const opening of graph.openings) {
+      expect(pick(openings.get(opening.id), ['swing', 'doorStyle', 'reversed'])).toEqual({
+        swing: opening.swing,
+        doorStyle: undefined,
+        reversed: undefined,
+      });
+    }
+  });
+
+  it.each([
+    [{ doorType: 'hinged', leafCount: 1, hingesSide: 'right' }, { swing: 'right' }],
+    [{ doorType: 'double', leafCount: 2 }, { swing: 'double' }],
+    [{ doorType: 'french', leafCount: 2 }, { swing: 'double' }],
+    [{ doorType: 'sliding', leafCount: 2 }, { swing: 'sliding' }],
+    [{ doorType: 'sliding', slideDirection: 'right' }, { swing: 'sliding', reversed: true }],
+    [{ doorType: 'pocket', leafCount: 1 }, { swing: 'sliding', doorStyle: 'pocket' }],
+    [{ doorType: 'folding', leafCount: 4 }, { swing: 'sliding', doorStyle: 'folding' }],
+    [{ openingKind: 'opening' }, { swing: 'fixed' }],
+    [{ doorType: 'garage-rollup' }, { swing: 'left' }],
+  ])('cửa đi %j → %j', (patch, expected) => {
+    expect(pick(edited(door, patch), ['swing', 'doorStyle', 'reversed'])).toEqual({
+      doorStyle: undefined,
+      reversed: undefined,
+      ...expected,
+    });
+  });
+
+  it('đổi hướng mở cánh bản lề → reversed; đảo lại → vắng', () => {
+    const node = scene.nodes[toPascalId('door', door.id)] as { swingDirection?: string };
+    const flipped = node.swingDirection === 'inward' ? 'outward' : 'inward';
+
+    expect(edited(door, { swingDirection: flipped })?.reversed).toBe(true);
+    expect(edited(door, { swingDirection: node.swingDirection })).not.toHaveProperty('reversed');
+  });
+
+  it('lưu rồi mở lại: lùa âm tường đảo hướng, cánh đôi đảo hướng ra đúng trường Pascal', () => {
+    const saved = {
+      ...graph,
+      openings: graph.openings.map((o) =>
+        o.id === door.id ? { ...o, swing: 'sliding' as const, doorStyle: 'pocket' as const, reversed: true } : o,
+      ),
+    };
+    const node = toPascalScene(saved).scene.nodes[toPascalId('door', door.id)];
+
+    expect(pick(node, ['doorType', 'slideDirection'])).toEqual({ doorType: 'pocket', slideDirection: 'right' });
+    expect(back(toPascalScene(saved).scene).get(door.id)).toMatchObject({ swing: 'sliding', doorStyle: 'pocket', reversed: true });
+  });
+
+  it.each([
+    [{ windowType: 'sliding' }, 'sliding'],
+    [{ windowType: 'casement', casementStyle: 'single', hingesSide: 'right' }, 'right'],
+    [{ windowType: 'casement', casementStyle: 'french' }, 'double'],
+    [{ windowType: 'awning' }, 'fixed'],
+  ])('cửa sổ %j → swing %s', (patch, swing) => {
+    expect(edited(win, patch)?.swing).toBe(swing);
   });
 });

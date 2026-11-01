@@ -22,6 +22,7 @@ import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 import { BRIDGE_SESSION_ERROR, loginHrefOf, savePascalNow, usePascalProjectBridge } from './bridge';
 import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
+import { HomeownerCardMount } from './HomeownerCardMount';
 import { LightingCard } from './LightingCard';
 import { realismFlagsFrom, useRealism } from './realism/store';
 import { setDetailsEnabled } from './realism/details';
@@ -171,6 +172,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
       readOnly={readOnly}
     />
     <PascalTour hasModel={hasWalls} />
+    <HomeownerCardMount readOnly={readOnly} />
     </>
   );
 }

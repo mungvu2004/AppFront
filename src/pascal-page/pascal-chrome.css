@@ -295,3 +295,20 @@ button[data-slot="button"]:has(> svg.lucide-volume-2),
 button[data-slot="button"]:has(> svg.lucide-volume-x) {
   display: none !important;
 }
+
+/* Editor3D đợt 2: "Đi bộ" now starts inside a room (viewer-toolbar.tsx `toggleWalkthrough`), so the walk HUD's
+ * "Chưa có điểm xuất phát: vào tab Dựng…" line (first-person-controls.tsx, the only text-xs pill in the HUD's
+ * top column; the room name pill is text-sm) is hidden. If Pascal changes those classes the line just shows again. */
+.dark.pointer-events-none.absolute.inset-0.z-30 > .top-6.flex-col > .corner-smooth.text-center.text-xs {
+  display: none;
+}
+
+/* Đợt 2: thanh dưới bên phải không đủ chỗ (viewer-toolbar `useDockCompact`) → chỉ còn biểu tượng. */
+[data-appfront-dock][data-compact] .dock-label {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}

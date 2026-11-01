@@ -255,15 +255,6 @@ describe('src/lib/auth/refresh', () => {
       0,
       1_000,
     ],
-    [
-      'a request past REFRESH_TIMEOUT_MS',
-      ((signal: AbortSignal | null) =>
-        new Promise<Response>((_resolve, reject) => {
-          signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
-        })) as RefreshTurn,
-      15_000,
-      1_000,
-    ],
   ])('keeps the session alive through %s', async (_label, turn, failAfterMs, retryDelayMs) => {
     const server = createAuthServer([ok('u1', 'token-1'), turn, ok('u1', 'token-3')]);
     configure(server.fetchImpl);
@@ -291,6 +282,99 @@ describe('src/lib/auth/refresh', () => {
     expect(getSession().serverUnreachable).toBe(false);
     expect(getAccessToken()).toBe('token-3');
     expect(getSession().serverError).toBe(false);
+  });
+
+  /**
+   * N2 / L3a-T07: máy chủ chậm 20 s. Bản giả xoay mã như AppBack `auth/sessions.py` `_judge`
+   * (ân hạn 30 s, mã cũ quá ân hạn = dùng lại → thu hồi) và chỉ "đặt cookie" khi trả lời tới được
+   * trình duyệt — yêu cầu bị huỷ thì máy chủ vẫn xoay nhưng cookie đứng ở mã cũ.
+   * Trước bản sửa: hết 15 s là huỷ, gửi lại mã cũ, ~72 s sau thì 401 SESSION_REVOKED.
+   */
+  it('waits out a slow refresh instead of aborting it, so the session is never revoked as reuse', async () => {
+    const graceMs = 30_000;
+    const server = { answerAfterMs: 0, calls: 0, revoked: false };
+    let cookie = 'T0';
+    let current = 'T0';
+    let previous: string | null = null;
+    let rotatedAt = Number.NEGATIVE_INFINITY;
+    let serial = 0;
+
+    const judge = (sent: string): string | null => {
+      const now = Date.now();
+      const inGrace = now - rotatedAt <= graceMs;
+      if (server.revoked) {
+        return null;
+      }
+      if (sent === current) {
+        if (!inGrace) {
+          previous = current;
+          serial += 1;
+          current = `T${serial}`;
+          rotatedAt = now;
+        }
+        return current;
+      }
+      if (sent === previous && inGrace) {
+        return current;
+      }
+      server.revoked = true;
+      return null;
+    };
+
+    const fetchImpl: AuthFetch = (_input, init) =>
+      new Promise<Response>((resolve, reject) => {
+        server.calls += 1;
+        const sent = cookie;
+        const signal = init?.signal;
+        let delivered = true;
+        signal?.addEventListener(
+          'abort',
+          () => {
+            delivered = false;
+            reject(signal.reason);
+          },
+          { once: true },
+        );
+        setTimeout(() => {
+          const next = judge(sent);
+          if (!delivered) {
+            return;
+          }
+          if (next === null) {
+            resolve(makeJsonResponse(errorBody('SESSION_REVOKED'), { status: 401 }));
+            return;
+          }
+          cookie = next;
+          resolve(makeJsonResponse(w16Body('u1', next)));
+        }, server.answerAfterMs);
+      });
+    configure(fetchImpl);
+
+    const booted = bootstrapSession();
+    await flush();
+    expect(await booted).toBe(true);
+    await vi.advanceTimersByTimeAsync(graceMs + 1_000);
+    signedOut.mockClear();
+
+    server.answerAfterMs = 20_000;
+    const slow = refreshSingleFlight({ source: 'local' });
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(await slow).toBe(false);
+    expect(getSession().serverUnreachable).toBe(true);
+    expect(getSession().status).toBe('authenticated');
+
+    // Lượt thử lại (giây 16) chờ tiếp CHÍNH yêu cầu cũ; giây 20 máy chủ trả T2 và cookie theo kịp.
+    await vi.advanceTimersByTimeAsync(5_000);
+    await flush();
+    expect(getAccessToken()).toBe('T2');
+    expect(getSession().serverUnreachable).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(100_000);
+    expect(server.revoked).toBe(false);
+    expect(server.calls).toBe(2);
+    expect(getSession().status).toBe('authenticated');
+    expect(signedOut).not.toHaveBeenCalled();
   });
 
   it('leaves an unknown session unknown when the server is unreachable', async () => {

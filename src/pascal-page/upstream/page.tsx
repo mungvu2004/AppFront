@@ -22,6 +22,8 @@
  *   10. FE3D WP8: ../scaleBanner.tsx (drawing-scale warning) heads the CanvasHelp column - see ./README.md.
  *   11. UX-R2: frame the viewed floor (./lib/view-frame.ts) on open and on every floor switch; the
  *       project setting "separate units" pins solo mode; the build panel opens collapsed (K35).
+ *   12. Editor3D đợt 2: the snapshot callback passes `requestId` (the dock's "Ảnh" shot saves as
+ *       `<tên>-3d.png`); `BottomDock` gets `projectId` (Ảnh, Gửi người nhà).
  */
 
 import { emitter, nodeRegistry, onRegistryChange, useScene } from '@pascal-app/core'
@@ -48,6 +50,7 @@ import {
   CommunityViewerToolbarRight,
 } from './components/viewer-toolbar'
 import { installDragNotSelect } from './lib/drag-not-select'
+import { installSelectPriority } from './lib/select-priority-install'
 import { useEditorPreferencesPersistence } from './lib/editor-preferences'
 import { fitWhenControlsReady } from './lib/fit-on-ready'
 import { translateDefinition } from './lib/pascal-vi'
@@ -385,6 +388,7 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
       }),
     [],
   )
+  useEffect(installSelectPriority, []) // H1 C2: bấm trúng đồ vật, không trúng tường cắt/sàn trước nó
   const handleLoad = useCallback(async () => {
     const graph = await onLoad()
     // After Editor's own continuation has applied the graph (it awaits this promise).
@@ -399,8 +403,8 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
         {...(onSave ? { onSave } : {})}
         // F2: không có API lưu snapshot -> nút chụp tải ảnh về máy (trước đây báo "Snapshot storage is unavailable").
         // Overlay chỉ đóng khi nghe `snapshot:saved` — không phát thì nút chụp khoá mãi.
-        onThumbnailCapture={(blob) => {
-          downloadSnapshot(blob, projectName)
+        onThumbnailCapture={(blob, camera) => {
+          downloadSnapshot(blob, projectName, camera.requestId)
           emitter.emit('snapshot:saved', { projectId, id: 'download', url: '', width: 0, height: 0 })
         }}
         projectId={projectId}
@@ -415,7 +419,7 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
       />
       <PreviewHeader projectName={projectName} />
       <CanvasHelp banner={<ScaleBanner projectId={projectId} readOnly={readOnly} />} />
-      <BottomDock readOnly={readOnly} />
+      <BottomDock projectId={projectId} readOnly={readOnly} />
       {/* AppFront edit (Codex P1): every floor lacks a scale -> empty scene, say why mid-screen. */}
       <ScaleEmptyNotice projectId={projectId} readOnly={readOnly} />
       <MeasureClearButton />

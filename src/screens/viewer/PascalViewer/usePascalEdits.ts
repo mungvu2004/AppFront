@@ -39,7 +39,7 @@ import { createPascalEditCommand, reviewLostNotices, type PascalEditResult } fro
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
 import { splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
 import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
-import { saveableModelSrc, saveableRef, type PascalIdBook } from '@/lib/pascal/toSpatial';
+import { dismissableNodeIdsOf, saveableModelSrc, saveableRef, type PascalIdBook } from '@/lib/pascal/toSpatial';
 import type { PascalScene } from '@/lib/pascal/types';
 import { buildSplitRoomCommandFromWalls } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
 import { useStore } from '@/store';
@@ -124,7 +124,16 @@ export const commitOfScenes = (
 const PAINT_FIELDS = ['slots', 'material', 'materialPreset'] as const;
 /** Màu tự pha (vật liệu riêng của node) — bản vẽ chưa có chỗ chứa. */
 const CUSTOM_PAINT_FIELDS = ['material', 'materialPreset'] as const;
-const DOOR_FIELDS = ['doorType', 'leafCount', 'hingesSide', 'swingDirection'] as const;
+const DOOR_FIELDS = ['doorType', 'leafCount', 'hingesSide', 'swingDirection', 'slideDirection', 'openingKind'] as const;
+const WINDOW_FIELDS = ['windowType', 'casementStyle', 'hingesSide', 'awningDirection'] as const;
+/** H4 — kiểu `toSpatial` ghi được lên `Opening` (`doorSwingOf`/`windowSwingOf`). */
+const SAVED_DOOR_TYPES: ReadonlySet<unknown> = new Set(['hinged', 'double', 'french', 'sliding', 'pocket', 'barn', 'folding']);
+const SAVED_WINDOW_TYPES: ReadonlySet<unknown> = new Set(['fixed', 'sliding', 'casement']);
+/** Kiểu cửa vừa đổi mà dây chưa chứa: cửa đi garage-*, cửa sổ hất/chớp…; ô trống không cánh thì lưu được. */
+const openingKindUnsaved = (type: unknown, after: Readonly<Record<string, unknown>>): boolean =>
+  type === 'door'
+    ? after['openingKind'] !== 'opening' && !SAVED_DOOR_TYPES.has(after['doorType'] ?? 'hinged')
+    : !SAVED_WINDOW_TYPES.has(after['windowType'] ?? 'fixed');
 
 const fieldsOf = (node: unknown): Readonly<Record<string, unknown>> => (node ?? {}) as Readonly<Record<string, unknown>>;
 const assetSrcOf = (node: Readonly<Record<string, unknown>>): unknown => fieldsOf(node['asset'])['src'];
@@ -148,7 +157,8 @@ const paintUnsaved = (before: Readonly<Record<string, unknown>>, after: Readonly
 
 /**
  * Những gì Pascal sửa được mà bản vẽ AppBack chưa có chỗ chứa (v3 BE.md major 2, EDIT.md):
- * màu trần/cửa, kiểu cửa, xoá đồ bày sẵn, màu tự pha. Màu sàn/tường/đồ và mẫu đồ `/items/…`
+ * màu cửa, kiểu cửa ngoài từ vựng `swing` (garage, cửa sổ hất…), xoá đèn trần, màu tự pha. Màu trần,
+ * kiểu cửa đơn/đôi/lùa/xếp + hướng mở, xoá đồ tự bày đã lưu được (H4). Màu sàn/tường/đồ và mẫu đồ `/items/…`
  * đã lưu được (W3a, W3b) nên chỉ báo khi tham chiếu mới nằm ngoài luật ghi của `toSpatial`.
  * Lượt sửa ấy vẫn "lưu" phần còn lại (hoặc ra PASCAL_NO_CHANGE), nên phải nói rõ phần nào chưa lưu.
  */
@@ -164,7 +174,7 @@ export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): st
     if (before === null) continue;
     const painted = differs(before, after, PAINT_FIELDS);
 
-    if (type === 'ceiling' && painted) labels.add('màu trần');
+    if (type === 'ceiling' && painted && paintUnsaved(before, after)) labels.add('màu trần');
     else if (type === 'slab' && painted && paintUnsaved(before, after)) labels.add('màu sàn');
     else if (type === 'wall' && painted && paintUnsaved(before, after)) labels.add('màu tường');
     else if (type === 'item') {
@@ -172,11 +182,20 @@ export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): st
       if (assetSrcOf(before) !== assetSrcOf(after) && !saveableModelSrc(assetSrcOf(after))) labels.add('mẫu đồ đạc');
     } else if (type === 'door' || type === 'window') {
       if (painted) labels.add('màu cửa');
-      if (type === 'door' && differs(before, after, DOOR_FIELDS)) labels.add('kiểu cửa');
+      const kindFields = type === 'door' ? DOOR_FIELDS : WINDOW_FIELDS;
+
+      if (differs(before, after, kindFields) && openingKindUnsaved(type, after)) labels.add('kiểu cửa');
     }
   }
 
-  if (Object.keys(previous.nodes).some((nodeId) => next.nodes[nodeId] === undefined && isGeneratedNodeId(nodeId))) {
+  // H4 — món tự bày mà zone khai (`dressIds`) xoá thì lưu được (`Room.dressingOff`); đèn trần, nhánh tủ chữ L thì chưa.
+  const dismissable = dismissableNodeIdsOf(previous);
+
+  if (
+    Object.keys(previous.nodes).some(
+      (nodeId) => next.nodes[nodeId] === undefined && isGeneratedNodeId(nodeId) && !dismissable.has(nodeId),
+    )
+  ) {
     labels.add('xoá đồ bày sẵn');
   }
 
