@@ -1,9 +1,27 @@
-import { Color, MeshStandardMaterial, Texture } from 'three';
-import { describe, expect, it } from 'vitest';
+import type * as ThreeModule from 'three';
+import { Color, Group, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SCENE_PALETTE } from '@/lib/pascal/scenePalette';
 
-import { bakedDirFrom, bakedMaterial } from './bakedPreview';
+import { bakedDirFrom, bakedMaterial, hideBakedPreview, showBakedPreview, syncBakedPreview } from './bakedPreview';
+
+vi.mock('three/examples/jsm/loaders/GLTFLoader.js', () => ({
+  GLTFLoader: class {
+    async loadAsync() {
+      const scene = new Group();
+      const wall = new Mesh(undefined, new MeshStandardMaterial());
+      wall.userData['lightmap'] = true;
+      scene.add(wall);
+      return { scene };
+    }
+  },
+}));
+
+vi.mock('three', async (importOriginal) => {
+  const actual = await importOriginal<typeof ThreeModule>();
+  return { ...actual, TextureLoader: class { async loadAsync() { return new actual.Texture(); } } };
+});
 
 describe('xem thử ánh sáng nướng', () => {
   it('chỉ nhận thư mục cùng origin; bỏ gạch chéo cuối', () => {
@@ -24,5 +42,19 @@ describe('xem thử ánh sáng nướng', () => {
     expect(out.lightMap).toBe(lightMap);
     expect(out.lightMapIntensity).toBe(6);
     expect(out.side).toBe(source.side);
+  });
+
+  it('nạp từ ba URL blob: gắn cảnh nướng, ẩn tầng sống; tắt thì gỡ và hiện lại', async () => {
+    const scene = new Object3D();
+    const level = new Object3D();
+    const registry = { nodes: { get: (id: string) => (id === 'L1' ? level : undefined) }, byType: { level: new Set(['L1']) } };
+    await showBakedPreview({ glbUrl: 'blob:a', lightmapUrl: 'blob:b', manifest: { lightmap: 'lightmap.png', intensity: 2, channel: 1 } });
+    syncBakedPreview(scene, registry);
+    const baked = scene.getObjectByName('baked-preview');
+    expect(baked).toBeDefined();
+    expect(level.visible).toBe(false);
+    hideBakedPreview();
+    expect(scene.getObjectByName('baked-preview')).toBeUndefined();
+    expect(level.visible).toBe(true);
   });
 });
