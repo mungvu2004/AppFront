@@ -9,6 +9,7 @@ import type { MillimetresPerPixel } from '@/domain/units/types';
 import type { ProjectSettings } from '../schemas/projectSettings';
 import type { ProjectSummary } from '../schemas/projectSummaries';
 import type { Me } from '../schemas/me';
+import type { LightingBake } from '../schemas/lightingBake';
 import type { PipelineRun } from '../schemas/pipelineRuns';
 import type { ProjectRuleConfig } from '../schemas/ruleConfig';
 import type { FloorLayerDocument } from '../schemas/spatialLayer';
@@ -1459,6 +1460,43 @@ const createMockVersionsApi = (readFloors: () => readonly Floor[]): VersionsApi 
   };
 };
 
+/**
+ * N42–N44 trong bộ nhớ: lượt mới là `queued`, sau `MOCK_LIGHTING_BAKE_MS` đọc lại thấy `done`.
+ * Tệp là Blob giữ chỗ (manifest hợp lệ, GLB/PNG không dựng được cảnh) — đủ cho luồng trạng thái.
+ */
+export const MOCK_LIGHTING_BAKE_MS = 3000;
+const mockBakes = new Map<string, { id: string; createdAt: string; startMs: number }>();
+
+const mockBakeView = (bake: { id: string; createdAt: string; startMs: number }): LightingBake =>
+  Date.now() - bake.startMs < MOCK_LIGHTING_BAKE_MS
+    ? { id: bake.id, status: 'queued', createdAt: bake.createdAt }
+    : { id: bake.id, status: 'done', createdAt: bake.createdAt, startedAt: bake.createdAt, endedAt: new Date().toISOString() };
+
+const mockLightingBakes: ApiClient['lightingBakes'] = {
+  readFile: async (_projectId, _bakeId, name) =>
+    ok(
+      name === 'manifest.json'
+        ? new Blob([JSON.stringify({ lightmap: 'lightmap.png', intensity: 1, channel: 1 })], { type: 'application/json' })
+        : new Blob([name], { type: name === 'baked.glb' ? 'model/gltf-binary' : 'image/png' }),
+    ),
+  readLatest: async (projectId) => {
+    const bake = mockBakes.get(projectId);
+    return ok(bake === undefined ? null : mockBakeView(bake));
+  },
+  start: async (projectId) => {
+    const current = mockBakes.get(projectId);
+    if (current !== undefined && mockBakeView(current).status === 'queued') {
+      return {
+        ok: false,
+        error: { kind: 'http', status: 409, code: 'LIGHTING_BAKE_IN_PROGRESS', requestId: 'mock', retryable: false, raw: null },
+      };
+    }
+    const bake = { id: `bak_01JMBAKE${String(mockBakes.size).padStart(18, '0')}`, createdAt: new Date().toISOString(), startMs: Date.now() };
+    mockBakes.set(projectId, bake);
+    return ok(mockBakeView(bake));
+  },
+};
+
 export const MOCK_SHARE_TOKEN = 'mock-share-ok';
 
 export const createMockApiClient = (): ApiClient => {
@@ -1715,6 +1753,7 @@ export const createMockApiClient = (): ApiClient => {
           ),
         ),
     },
+    lightingBakes: mockLightingBakes,
     /** N11–N14 có trạng thái trong mock: sửa xong đọc lại thấy ngay; `''` ở `jobTitle`/`phone` là xoá. */
     me: {
       changePassword: async () => ok(undefined),

@@ -34,6 +34,7 @@ import {
   type PasswordResetConfirm,
   type PasswordResetRequest,
 } from './schemas/auth';
+import { LightingBakeSchema, type LightingBake, type LightingBakeFileName } from './schemas/lightingBake';
 import { PipelineRunSchema, type PipelineRun } from './schemas/pipelineRuns';
 import { UserSchema, type SignInInput, type User as ApiUser } from './schemas';
 import {
@@ -855,6 +856,7 @@ export interface ApiClient {
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
   library: LibraryApi;
+  lightingBakes: LightingBakesApi;
   me: MeApi;
   members: MembersApi;
   notifications: NotificationsApi;
@@ -876,6 +878,17 @@ export const SharedModelSchema = z.object({
   graph: SpatialGraphDocumentSchema,
 });
 export type SharedModel = z.infer<typeof SharedModelSchema>;
+
+/**
+ * N42–N44 — nướng ánh sáng. `readLatest` trả `null` khi dự án chưa có lượt nào (404), vì
+ * "chưa nướng" là trạng thái bình thường của màn, không phải lỗi. `readFile` trả Blob (tệp cần
+ * header Bearer nên không gắn thẳng URL vào loader được; nơi gọi tự `URL.createObjectURL`).
+ */
+export interface LightingBakesApi {
+  readFile(projectId: string, bakeId: string, name: LightingBakeFileName, options?: RequestOptions): Promise<ApiResult<Blob>>;
+  readLatest(projectId: string, options?: RequestOptions): Promise<ApiResult<LightingBake | null>>;
+  start(projectId: string, glb: Blob, options?: RequestOptions): Promise<ApiResult<LightingBake>>;
+}
 
 export interface ShareApi {
   /** `GET /share/{token}` công khai, chỉ đọc; token lạ/hết hạn/thu hồi → 404 `resource:"share_link"`. */
@@ -1215,6 +1228,32 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         await callGet<unknown>(http, ENDPOINTS.library.detail(libraryItemId), signal),
         LibraryItemSchema,
         'library.read',
+      ),
+  },
+  lightingBakes: {
+    readFile: async (projectId, bakeId, name, options) =>
+      asApiResult(
+        await http.get<Blob>(ENDPOINTS.lightingBakes.file(projectId, bakeId, name), {
+          responseType: 'blob',
+          timeoutMode: 'file',
+          ...(options?.signal !== undefined ? { signal: options.signal } : {}),
+        }),
+      ),
+    readLatest: async (projectId, options) => {
+      const result = await callGet<unknown>(http, ENDPOINTS.lightingBakes.latest(projectId), options?.signal);
+      if (!result.ok && result.error.status === 404) return { ok: true, data: null };
+      return decodeSingle(result, LightingBakeSchema, 'lightingBakes.readLatest');
+    },
+    start: async (projectId, glb, options) =>
+      decodeSingle(
+        await http.post<unknown, Blob>(ENDPOINTS.lightingBakes.start(projectId), {
+          body: glb,
+          headers: { 'Content-Type': 'model/gltf-binary' },
+          timeoutMode: 'file',
+          ...(options?.signal !== undefined ? { signal: options.signal } : {}),
+        }),
+        LightingBakeSchema,
+        'lightingBakes.start',
       ),
   },
   me: {
