@@ -12,6 +12,25 @@ const QcAskSlotContext = createContext<ReactNode>(null);
 export const QcAskSlot = QcAskSlotContext.Provider;
 export const useQcAskSlot = (): ReactNode => useContext(QcAskSlotContext);
 
+/** Lớp nội dung `translate(offset) scale(scale)` quanh tâm khung `width × height`. */
+export interface QcContentView {
+  readonly scale: number;
+  readonly offset: { readonly x: number; readonly y: number };
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Điểm ở toạ độ lớp nội dung → toạ độ khung, để thẻ/ghim đứng ngoài lớp phóng mà vẫn bám đối tượng. */
+export function pointInFrame<P extends { readonly x: number; readonly y: number }>(point: P, view: QcContentView): P {
+  const cx = view.width / 2;
+  const cy = view.height / 2;
+  return { ...point, x: cx + view.offset.x + view.scale * (point.x - cx), y: cy + view.offset.y + view.scale * (point.y - cy) };
+}
+
+export function rectInFrame(rect: QcAskRect, view: QcContentView): QcAskRect {
+  return { ...pointInFrame(rect, view), width: rect.width * view.scale, height: rect.height * view.scale };
+}
+
 export const ASK_CARD_WIDTH = 360;
 const GAP = 16;
 const MARGIN = 12;

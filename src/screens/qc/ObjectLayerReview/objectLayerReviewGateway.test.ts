@@ -12,6 +12,7 @@ import {
   confidentObjectsOf,
   confirmUnsureLabelOf,
   doorSizeWarningOf,
+  inwardSwingIdsOf,
   drawnFurnitureInputOf,
   levelOfGraph,
   objectPlacementsOf,
@@ -231,5 +232,23 @@ describe('objectLayerReviewGateway: doorStyle chỉ đi cùng cửa đi lùa (re
     const after = result.data.changes[0]?.after;
     expect(after).toMatchObject({ swing: 'left' });
     expect(after).not.toHaveProperty('doorStyle');
+  });
+});
+
+describe('inwardSwingIdsOf (cung cửa 2D cùng phía với 3D)', () => {
+  // Tường ngang y = 0 từ (0,0) tới (4000,0); +y cục bộ của ký hiệu = mặt `inward` của Pascal.
+  const wall = { id: 'W', levelId: 'L', thicknessMm: 200, centreline: { start: { x: 0, y: 0 }, end: { x: 4000, y: 0 } } };
+  const room = (y0: number, y1: number) => ({ id: 'R', levelId: 'L', usage: 'kitchen', areaM2: 16, outline: [{ x: 0, y: y0 }, { x: 4000, y: y0 }, { x: 4000, y: y1 }, { x: 0, y: y1 }] });
+  const door = (extra: object = {}) => ({ id: 'D', wallId: 'W', kind: 'door', offsetMm: 1500, widthMm: 900, swing: 'left', ...extra });
+  const graphOf = (rooms: object[], openings: object[]) => ({ walls: [wall], rooms, openings }) as unknown as Parameters<typeof inwardSwingIdsOf>[0];
+
+  it('cửa tường bao mở vào phòng: phòng ở +y → lật về +y; phòng ở −y → giữ −y', () => {
+    expect([...inwardSwingIdsOf(graphOf([room(0, 4000)], [door()]))]).toEqual(['D']);
+    expect([...inwardSwingIdsOf(graphOf([room(-4000, 0)], [door()]))]).toEqual([]);
+  });
+
+  it('"Đổi hướng mở" đảo phía; cửa sổ không bao giờ lật', () => {
+    expect([...inwardSwingIdsOf(graphOf([room(0, 4000)], [door({ reversed: true })]))]).toEqual([]);
+    expect([...inwardSwingIdsOf(graphOf([room(0, 4000)], [door({ kind: 'window' })]))]).toEqual([]);
   });
 });

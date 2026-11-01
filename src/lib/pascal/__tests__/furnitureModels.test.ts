@@ -289,7 +289,8 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
       // FR1-F2: tủ bếp dưới có cửa + tay nắm, không còn khối hộp trơn kitchen-counter.
       kitchenCabinet: '/items/kitchen-cabinet/model.glb',
       sanitaryFixture: '/items/bathroom-sink/model.glb',
-      other: '/items/indoor-plant/model.glb',
+      // Món `other` dò được không bao giờ là cây (open-plan-20261101): hộp tủ trung tính.
+      other: '/items/dresser/model.glb',
     };
     const items = itemsOf(graphOf(fixtureF2().doc));
     // 32 đồ đạc, 4 cái là thang → node `stair` thật (U13, stair.test.ts), không còn item giữ chỗ.
@@ -305,7 +306,8 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     try {
       setRealismModels(true);
       const ph = srcs().filter((s) => s.includes('-ph/'));
-      expect(new Set(ph)).toEqual(new Set(['/items/sofa-ph/model.glb', '/items/armchair-ph/model.glb', '/items/dining-chair-ph/model.glb', '/items/plant-ph/model.glb', '/items/planter-ph/model.glb', '/items/bedside-table-ph/model.glb']));
+      // Món `other` không variant của F1 nay là tủ, không còn cây (open-plan-20261101); cây -ph xem P1/2A.
+      expect(new Set(ph)).toEqual(new Set(['/items/sofa-ph/model.glb', '/items/armchair-ph/model.glb', '/items/dining-chair-ph/model.glb', '/items/bedside-table-ph/model.glb']));
       for (const s of ph) expect(existsSync(resolve(ROOT, 'assets/appfront-items', `.${s.slice('/items'.length)}`)), s).toBe(true);
       expect(modelSrcOf('rectangular-carpet')).toBe('/items/rug-nf/model.glb');
       expect(existsSync(resolve(ROOT, 'assets/appfront-items/rug-nf/model.glb'))).toBe(true);

@@ -12,7 +12,8 @@ import { toPointMm } from '@/lib/commands/business/shared';
 
 import { fixtureF2 } from '../__fixtures__';
 import { toPascalId } from '../ids';
-import { swingDirectionOf, toPascalScene } from '../toPascal';
+import { swingDirectionOf } from '../swingDirection';
+import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
 import type { PascalNode, PascalScene } from '../types';
 

@@ -144,6 +144,29 @@ describe('sceneVariety (J7)', () => {
     }
   });
 
+  it('món `other` dò được không bao giờ là cây; bếp: tủ lạnh/bếp nấu, chậu rửa thành dãy tủ có chậu', () => {
+    const styles = Object.values(SCENE_STYLES);
+    const plants = new Set(['indoor-plant', 'small-indoor-plant', 'bush']);
+    // open-plan-20261101: tủ lạnh 559 × 692 và 585 × 829, bếp nấu 733 × 636 (cùng cỡ tủ lạnh), món nhỏ 400 × 400.
+    for (const style of styles) {
+      expect(modelFolderOf(item('K1', 'other', 559, 692, { roomId: 'R-k' }), style, 'kitchen')).toBe('fridge');
+      expect(modelFolderOf(item('K2', 'other', 585, 829, { roomId: 'R-k' }), style, 'kitchen')).toBe('fridge');
+      expect(modelFolderOf(item('K3', 'other', 400, 400, { roomId: 'R-k' }), style, 'kitchen')).toBe('stove');
+      expect(modelFolderOf(item('S1', 'sanitaryFixture', 820, 535, { roomId: 'R-k' }), style, 'kitchen')).toBe('kitchen');
+      for (const usage of [undefined, 'bedroom', 'livingRoom', 'bathroom'] as const) {
+        for (const [w, d] of [[400, 400], [700, 800], [1200, 600]] as const) {
+          expect(plants.has(modelFolderOf(item(`O${w}`, 'other', w, d), style, usage) ?? '')).toBe(false);
+        }
+      }
+      // Cây của đồ bày biện vẫn là cây.
+      expect(plants.has(modelFolderOf(item('P', 'other', 600, 600, { variant: 'plant' }), style, 'kitchen') ?? '')).toBe(true);
+      expect(modelFolderOf(item('P2', 'other', 1200, 400, { variant: 'planter' }), style, 'kitchen')).toBe('bush');
+    }
+    expect(roleOf(item('O1', 'other', 700, 800), 'bedroom')).toBe('cabinet');
+    expect(modelFolderOf(item('O1', 'other', 700, 800), AM_AP, 'bedroom')).toBe('dresser');
+    expect(roleOf(item('S2', 'sanitaryFixture', 500, 600), 'bathroom')).toBe('basin');
+  });
+
   it('C1: đèn tường/bình hoa/bồn cây/tre/ghế băng có mô hình riêng, không đoán theo hộp', () => {
     expect(modelFolderOf(item('V1', 'other', 300, 200, { variant: 'sconce' }), AM_AP, 'bedroom')).toBe('wall-sconce');
     expect(modelFolderOf(item('V2', 'other', 300, 300, { variant: 'vase' }), AM_AP, 'livingRoom')).toBe('ceramic-vase');

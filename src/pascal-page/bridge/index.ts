@@ -507,6 +507,7 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
     readOnly,
     backHref,
     onLoad,
+    rebaseLoaded: setLoadedScene as (scene: PascalSceneGraph) => void,
     onSave,
     ...(readOnly ? {} : { save }),
   };
