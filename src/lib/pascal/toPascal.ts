@@ -573,8 +573,8 @@ const RUG_FOLDERS: ReadonlySet<string> = new Set(['rectangular-carpet', 'round-c
 const RUG_SCALE_Y = 0.5;
 /**
  * Đồ kéo dài được theo từng trục (dãy tủ, kệ, chậu rửa liền tủ, bồn cây…): một tỉ lệ chung
- * thu cả dãy 3 m về một mô-đun. Mỗi trục ngang ≤ `MAX_STRETCH_RATIO` × trục ngang nhỏ hơn —
- * quá thì giữ mức kéo tối đa và đặt giữa hộp, để tủ không thành sợi mì.
+ * thu cả dãy 3 m về một mô-đun. Kéo hết theo trục dài của hộp (không trần — tủ áo 3 m ra 3 m),
+ * trục kia trong `[FIT_AXIS_MIN; FIT_AXIS_MAX]` × mẫu, cao giữ thật.
  */
 const STRETCH_FOLDERS: ReadonlySet<string> = new Set([
   'closet',
@@ -591,7 +591,13 @@ const STRETCH_FOLDERS: ReadonlySet<string> = new Set([
   // Bàn trà chữ nhật vào ô vuông 0,9 × 0,9 (F1): co đều thì chỉ còn sâu 0,5 m.
   'coffee-table',
 ]);
-const MAX_STRETCH_RATIO = 1.8;
+/** Biên co giãn một trục mặt bằng quanh tỉ lệ chung (C3, GIAI-PHAP 3.4): lệch hơn thì mẫu méo dáng. */
+const FIT_AXIS_MIN = 0.8;
+const FIT_AXIS_MAX = 1.25;
+/** Biên hệ số cao khi bản vẽ không cho `heightMm`: giữ cao thật của mẫu (bàn ăn không còn 0,30 m). */
+const FIT_HEIGHT_MIN = 0.9;
+const FIT_HEIGHT_MAX = 1.1;
+const clampTo = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 /** `heightMm` là bề dày tấm trên bản vẽ (mặt bếp 20 mm), không phải cao mẫu: khớp theo mặt bằng, giữ cao thật. */
 const OWN_HEIGHT_FOLDERS: ReadonlySet<string> = new Set(['hob-sf']);
 
@@ -783,19 +789,26 @@ const itemNodeOf = (
     const maxH =
       fixedH ??
       Math.min(metresOf(levelHeightMm), TALL_PLANT_FOLDERS.has(model.folder) ? TALL_PLANT_MAX_M : ch * 1.25);
-    // Tỉ lệ từng trục [sx, sy, sz] theo nhóm: thảm phủ mặt bằng, đồ kéo dài co giãn từng trục
-    // (có chặn lệch), còn lại một tỉ lệ chung như cũ. Chỉ `asset.scale` lệch trục — lượt về
+    // Tỉ lệ từng trục [sx, sy, sz] theo nhóm: thảm phủ mặt bằng, đồ kéo dài kéo theo chiều dài,
+    // đồ cứng co giãn từng trục có chặn lệch. Chỉ `asset.scale` lệch trục — lượt về
     // chỉ đọc `node.scale` nên không đổi gì.
+    // Hộp bao là khung riêng của món (K1: `orientDetected` đã đổi cạnh khi quay 90/270), node
+    // quay theo `rotationDeg` — nên `rx`/`rz` so trục riêng với trục mẫu, không đụng `asset.rotation`.
+    const rx = widthM / cw;
+    const rz = depthM / cd;
+    const heightOf = (ref: number): number =>
+      fixedH === undefined ? Math.min(clampTo(ref, FIT_HEIGHT_MIN, FIT_HEIGHT_MAX), maxH / ch) : fixedH / ch;
     const [sx, sy, sz] = ((): PascalVec3 => {
-      if (RUG_FOLDERS.has(model.folder)) return [widthM / cw, fixedH === undefined ? RUG_SCALE_Y : fixedH / ch, depthM / cd];
+      if (RUG_FOLDERS.has(model.folder)) return [rx, fixedH === undefined ? RUG_SCALE_Y : fixedH / ch, rz];
       if (STRETCH_FOLDERS.has(model.folder)) {
-        const lo = Math.min(widthM / cw, depthM / cd);
-        const cap = lo * MAX_STRETCH_RATIO;
-        const y = fixedH === undefined ? Math.min(lo, maxH / ch) : fixedH / ch;
-        return [Math.min(widthM / cw, cap), y, Math.min(depthM / cd, cap)];
+        // Kéo hết theo trục dài của hộp (so với mẫu), trục kia giữ gần chiều sâu mẫu.
+        const alongX = rx >= rz;
+        const deep = clampTo(alongX ? rz : rx, FIT_AXIS_MIN, FIT_AXIS_MAX);
+        return alongX ? [rx, heightOf(deep), deep] : [deep, heightOf(deep), rz];
       }
-      const s = Math.min(widthM / cw, depthM / cd, maxH / ch);
-      return [s, s, s];
+      // Đồ cứng: mỗi trục co giãn riêng trong [0,8; 1,25] × trung bình nhân hai trục.
+      const g = Math.sqrt(rx * rz);
+      return [clampTo(rx, g * FIT_AXIS_MIN, g * FIT_AXIS_MAX), heightOf(g), clampTo(rz, g * FIT_AXIS_MIN, g * FIT_AXIS_MAX)];
     })();
     // `asset.scale` nhân thẳng vào GLB gốc; catalog nào có scale riêng thì `dimensions`
     // là cỡ sau scale đó (cọ: GLB cao 11,9 m × 0,37) — phải nhân lại, không thì cao gấp đôi tường.
