@@ -20,6 +20,7 @@ import { setRealismModels } from '@/lib/pascal/furnitureCatalog';
 import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
 import { BRIDGE_SESSION_ERROR, loginHrefOf, savePascalNow, usePascalProjectBridge } from './bridge';
+import { BakeLightingCard } from './BakeLightingCard';
 import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { HomeownerCardMount } from './HomeownerCardMount';
@@ -123,6 +124,10 @@ const applyRejectedRevert = (scene: unknown) => {
 const hasWalls = () =>
   Object.values(useScene.getState().nodes).some((node) => (node as { type?: unknown }).type === 'wall');
 
+/** Nướng ánh sáng: GLB của cảnh đang sửa qua bộ xuất của Pascal, không tải về máy. */
+const exportSceneGlb = async (): Promise<Blob | null> =>
+  (await useEditor.getState().modelExport?.('glb', { download: false }))?.blob ?? null;
+
 function PascalPage({ projectId }: { readonly projectId: string }) {
   const bridge = usePascalProjectBridge(projectId, applyRejectedRevert);
   const readOnly = bridge.status === 'ready' && bridge.readOnly;
@@ -161,6 +166,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
           <div aria-label="Cảnh" className="inline-flex shrink-0 items-center" data-appfront-cluster="" role="group">
             <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
             <LightingCard projectId={projectId} useViewer={useViewer} />
+            {readOnly ? null : <BakeLightingCard exportGlb={exportSceneGlb} projectId={projectId} />}
             <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
           </div>
         </>

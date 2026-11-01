@@ -140,6 +140,13 @@ export const ENDPOINTS = {
     detail: (libraryItemId: string): string => `${LIBRARY_ROOT}/${libraryItemId}`,
     list: LIBRARY_ROOT,
   },
+  /** N42–N44 — nướng ánh sáng: gửi GLB, đọc lượt mới nhất, tải một trong ba tệp kết quả. */
+  lightingBakes: {
+    file: (projectId: string, bakeId: string, fileName: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/lighting-bakes/${bakeId}/files/${fileName}`,
+    latest: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/lighting-bakes/latest`,
+    start: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/lighting-bakes`,
+  },
   /** N11–N14 — hồ sơ của người đang đăng nhập: đọc/sửa, đổi mật khẩu, thay ảnh đại diện. */
   me: {
     avatar: `${ME_ROOT}/avatar`,
