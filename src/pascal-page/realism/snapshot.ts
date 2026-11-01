@@ -198,25 +198,68 @@ export function captureHq({
 /** Thời gian (ms) vẽ + đọc ngược của lần chụp HQ gần nhất — cho đo đạc. */
 export let lastHqCaptureMs = 0
 
+/** Tên dự án dùng được làm tên file: ký tự điều khiển + ký tự cấm -> '-'; rỗng -> 'anh-chup'. */
+function fileBase(projectName: string | null | undefined): string {
+  // ký tự điều khiển (mã < 32) đổi thành '/' trước, rồi cùng các ký tự cấm gộp thành '-'
+  const visible = Array.from(projectName ?? '', (c) => (c.charCodeAt(0) < 32 ? '/' : c)).join('')
+  return visible.replace(/[/:*?"<>|]+/g, '-').trim() || 'anh-chup'
+}
+
 /** `<tên dự án>-<yyyyMMdd-HHmm>.webp|png` (giờ máy); ký tự cấm trong tên file -> '-'. */
 export function snapshotFileName(projectName: string | null | undefined, type: string, now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0')
   const stamp = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}`
-  // ký tự điều khiển (mã < 32) đổi thành '/' trước, rồi cùng các ký tự cấm gộp thành '-'
-  const visible = Array.from(projectName ?? '', (c) => (c.charCodeAt(0) < 32 ? '/' : c)).join('')
-  const base = visible.replace(/[/:*?"<>|]+/g, '-').trim() || 'anh-chup'
-  return `${base}-${stamp}.${type === 'image/png' ? 'png' : 'webp'}`
+  return `${fileBase(projectName)}-${stamp}.${type === 'image/png' ? 'png' : 'webp'}`
+}
+
+/**
+ * Editor3D đợt 2: nút "Ảnh" ở thanh dưới chụp khung đang nhìn qua lệnh chụp của vendor
+ * (`camera-controls:generate-thumbnail`, `captureMode: 'viewport'`) với `requestId` này; ảnh về
+ * `onThumbnailCapture` như ảnh chụp thường, nhận ra nhờ `requestId` và tải về `<tên dự án>-3d.png`.
+ */
+export const QUICK_SHOT_REQUEST_ID = 'appfront-quick-shot'
+
+export function quickShotFileName(projectName: string | null | undefined): string {
+  return `${fileBase(projectName)}-3d.png`
+}
+
+/** Vendor chụp ra webp; nút "Ảnh" hứa PNG — vẽ lại qua canvas 2D (ảnh đã PNG thì giữ nguyên). */
+async function asPng(blob: Blob): Promise<Blob> {
+  if (blob.type === 'image/png') return blob
+  const bitmap = await createImageBitmap(blob)
+  const canvas = document.createElement('canvas')
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+  canvas.getContext('2d')?.drawImage(bitmap, 0, 0)
+  bitmap.close()
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((png) => (png ? resolve(png) : reject(new Error('PNG encode failed'))), 'image/png'),
+  )
 }
 
 /** Thời gian chờ trước khi thu hồi URL tải về (không phải chuyển động). */
 const REVOKE_DOWNLOAD_URL_MS = 10_000
 
-/** Trang 3D không có API lưu snapshot: ảnh chụp (thường lẫn HQ) tải file về máy. */
-export function downloadSnapshot(blob: Blob, projectName?: string | null): void {
+function saveBlob(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = snapshotFileName(projectName, blob.type)
+  a.download = name
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), REVOKE_DOWNLOAD_URL_MS)
+}
+
+/**
+ * Trang 3D không có API lưu snapshot: ảnh chụp (thường lẫn HQ) tải file về máy. Ảnh của nút "Ảnh"
+ * (`requestId` = {@link QUICK_SHOT_REQUEST_ID}) về `<tên dự án>-3d.png`; đổi PNG hỏng thì tải ảnh gốc.
+ */
+export function downloadSnapshot(blob: Blob, projectName?: string | null, requestId?: string): void {
+  if (requestId !== QUICK_SHOT_REQUEST_ID) {
+    saveBlob(blob, snapshotFileName(projectName, blob.type))
+    return
+  }
+  void asPng(blob).then(
+    (png) => saveBlob(png, quickShotFileName(projectName)),
+    () => saveBlob(blob, snapshotFileName(projectName, blob.type)),
+  )
 }

@@ -437,7 +437,7 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
   const idBook: PascalIdBook = input.idBook ?? new Map();
   /* V4 — sửa (dời/xoay/kéo) một món bày biện sinh ra còn trong cảnh thì cả bộ
      của phòng ấy thành đồ thật trong cùng lệnh: nhận nửa bộ thì nửa kia biến
-     mất ở lượt mở sau (`furnishEmptyRooms` chỉ lo phòng trống). Xoá thì vẫn chưa lưu được. */
+     mất ở lượt mở sau (`furnishEmptyRooms` chỉ lo phòng trống). Xoá thì ghi `Room.dressingOff` (H4). */
   const adoptRoomIds = new Set(
     input.commit.changedNodeIds
       .map((nodeId) => input.scene.nodes[nodeId])
@@ -522,6 +522,24 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
 
     if (minted !== undefined && change !== null) {
       seen.add(minted);
+      changes.push(change);
+    }
+  }
+
+  /* H4 — xoá món tự bày, sơn trần (node "kết cấu", vòng trên bỏ qua) là sửa phòng của nó:
+     `dressingOff` / `ceilingMaterial` mới. */
+  for (const room of after.rooms) {
+    const before = graphEntity(input.graph, room.id);
+
+    if (seen.has(room.id) || before === undefined || !isEntityOfKind('room', before)) continue;
+    if (sameValue(before.dressingOff ?? [], room.dressingOff ?? []) && before.ceilingMaterial === room.ceilingMaterial) {
+      continue;
+    }
+
+    const change = changeBetween('room', before, room);
+
+    if (change !== null) {
+      seen.add(room.id);
       changes.push(change);
     }
   }

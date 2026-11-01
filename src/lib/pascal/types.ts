@@ -192,9 +192,12 @@ export interface PascalDoorNode extends PascalNodeCommon {
   readonly rotation: PascalVec3;
   readonly width: number;
   readonly height: number;
-  readonly leafCount?: 1 | 2;
+  readonly leafCount?: 1 | 2 | 3 | 4;
   readonly hingesSide?: 'left' | 'right';
-  readonly doorType?: 'hinged' | 'sliding';
+  /** Tập con `DoorType` AppFront ghi/đọc; Pascal còn french/barn/garage-* (lượt về đọc lỏng). */
+  readonly doorType?: 'hinged' | 'double' | 'sliding' | 'pocket' | 'folding';
+  /** Cửa lùa/âm tường: lùa về bên nào (`door.ts`, mặc định `left`). */
+  readonly slideDirection?: 'left' | 'right';
   /** `'opening'` = ô trống không cánh (vòm, lối thông). */
   readonly openingKind?: 'door' | 'opening';
   /** Góc mở cánh bản lề, radian 0..π/2. Cửa trượt không đọc. */

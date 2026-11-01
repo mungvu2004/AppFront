@@ -140,7 +140,9 @@ function WiredExportPanel(props: WiredExportPanelProps) {
   const storeRoles = useStore((state) => state.userRoles);
   const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
 
-  const [isShareOpen, setShareOpen] = useState(false);
+  const location = useLocation();
+  // "Gửi người nhà" ở màn 3D mở Xuất với `?share=1` để vào thẳng hộp Chia sẻ.
+  const [isShareOpen, setShareOpen] = useState(() => new URLSearchParams(location.search).get('share') === '1');
 
   const onNavigate =
     props.onNavigateToFix ??
@@ -149,7 +151,7 @@ function WiredExportPanel(props: WiredExportPanelProps) {
     });
 
   // UX-25: đã đồng ý "Vẫn sang Xuất" ở Quy chuẩn thì Xuất không hỏi lại.
-  const routeState = useLocation().state as { readonly exportConfirmed?: boolean } | null;
+  const routeState = location.state as { readonly exportConfirmed?: boolean } | null;
 
   const viewProps = useExportPanel({
     exportAlreadyConfirmed: routeState?.exportConfirmed === true,

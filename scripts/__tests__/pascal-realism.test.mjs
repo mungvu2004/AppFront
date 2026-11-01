@@ -81,11 +81,18 @@ describe('u40/u42: nhan ten phong thuong truc, khoi cho tai noi that thap va co 
     assert.match(out, /<boxGeometry args=\{\[w, Math\.min\(h, 0\.3\), d\]\} \/>/);
   });
 
-  it('u40: nhan theo co roomLabels, nam ngoai showZones, khong chan chuot', () => {
+  it('u40: nhan theo co roomLabels, nam ngoai showZones, bam la bay toi phong (N1)', () => {
     const out = apply('nodes/src/zone/renderer.tsx');
     assert.match(out, /useFloorplanAnnotationVisibility\(\(s\) => s\.visibility\.roomLabels\)/);
     const label = out.indexOf('{showRoomLabelsU40 && node.name && (');
     assert.ok(label > 0 && label < out.indexOf('{showZones && ('));
-    assert.match(out.slice(label, out.indexOf('{showZones && (')), /pointerEvents: 'none'[\s\S]*opacity: 1/);
+    const block = out.slice(label, out.indexOf('{showZones && ('));
+    // Html boc ngoai khong an chuot; nut ben trong chi an chuot o che do Chon / Xem truoc.
+    assert.match(block, /style=\{\{ pointerEvents: 'none' \}\}/);
+    assert.match(block, /pointerEvents: labelClickU40 \? 'auto' : 'none', cursor: 'pointer'[\s\S]*opacity: 1/);
+    assert.match(block, /appfront:fit-room', \{ detail: node\.id \}/);
+    // R3F nghe pointerdown/up tren khung chua canvas: chan o nut thi khong chon tuong phia sau.
+    assert.match(block, /onPointerDown=\{\(e\) => e\.stopPropagation\(\)\}/);
+    assert.match(block, /onPointerUp=\{\(e\) => e\.stopPropagation\(\)\}/);
   });
 });

@@ -134,7 +134,7 @@ export const EDITOR_EXTRA_VI = {
     ["label: 'Redo'", "label: 'Làm lại'"],
     ["label: 'Export Scene (JSON)'", "label: 'Xuất cảnh (JSON)'"],
     ["label: 'Export 3D Model (GLB)'", "label: 'Xuất mô hình 3D (GLB)'"],
-    ["label: 'Copy Share Link'", "label: 'Sao chép liên kết chia sẻ'"],
+    ["label: 'Copy Share Link'", "label: 'Sao chép địa chỉ trang này'"],
     ["label: 'Take Screenshot'", "label: 'Chụp màn hình'"],
     ["group: 'Scene'", "group: 'Cảnh'"],
     ["group: 'Levels'", "group: 'Tầng'"],

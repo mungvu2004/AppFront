@@ -69,6 +69,8 @@ export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
 
 const GLASS = 'library:preset-glass';
 const PLASTER = 'scene:mat_appfront_plaster';
+/** Mặt trần mặc định; `Room.ceilingMaterial` khác cái này thì mới ghi (H4, `toSpatial`). */
+export const CEILING_DEFAULT = PLASTER;
 const BARK = 'scene:mat_appfront_bark';
 
 /** Phong cách mặc định — tham số mặc định của mọi hàm dưới đây (J8). */
@@ -305,7 +307,7 @@ export const interiorPointOf = (polygon: readonly PascalPoint2[]): PascalPoint2 
  * ngoài trời (`RoomUsage` không có ban công) nên phòng nào cũng có trần.
  */
 export const ceilingNodesOf = (
-  room: Pick<Room, 'id' | 'outline' | 'finish'>,
+  room: Pick<Room, 'id' | 'outline' | 'finish' | 'ceilingMaterial'>,
   levelNodeId: PascalNodeId,
   style: SceneStyle = DEFAULT_STYLE,
 ): readonly [PascalCeilingNode, PascalItemNode] | undefined => {
@@ -330,7 +332,7 @@ export const ceilingNodesOf = (
       holes: [],
       holeMetadata: [],
       autoFromWalls: false,
-      slots: { surface: PLASTER },
+      slots: { surface: room.ceilingMaterial ?? PLASTER },
     },
     {
       object: 'node',

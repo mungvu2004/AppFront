@@ -18,7 +18,7 @@ import {
   setServerUnreachable,
   setSessionRevoked,
 } from './state';
-import type { AuthUser, RefreshSessionPayload } from './types';
+import type { AuthConfig, AuthUser, RefreshSessionPayload } from './types';
 import type * as RefreshSchemaModule from './refreshSchema';
 
 export const REFRESH_LEAD_TIME_MS = 60_000;
@@ -26,7 +26,7 @@ export const REFRESH_LEAD_TIME_MS = 60_000;
 /** Sàn giữa hai lượt gia hạn CHỦ ĐỘNG — lượt do lịch hẹn trước hạn. */
 export const REFRESH_MIN_INTERVAL_MS = 30_000;
 
-/** Quá ngần này mà máy chủ chưa trả lời thì coi như đường đứt, không phải phiên chết. */
+/** Quá ngần này mà máy chủ chưa trả lời thì coi như đường đứt, không phải phiên chết — thôi chờ, KHÔNG huỷ yêu cầu. */
 export const REFRESH_TIMEOUT_MS = 15_000;
 
 /**
@@ -336,18 +336,34 @@ const handleTransientFailure = (retryAfterHeader: string | null, serverError = f
   }, resolveRetryDelayMs(retryAfterHeader, transientAttempt));
 };
 
-/** Nối một tín hiệu huỷ có sẵn vào bộ huỷ của lượt gọi này. */
-const linkAbort = (target: AbortController, source: AbortSignal): (() => void) => {
-  if (source.aborted) {
-    target.abort(source.reason);
+/**
+ * POST refresh đã gửi mà chưa có trả lời — kể cả khi lượt chờ nó đã quá `REFRESH_TIMEOUT_MS`.
+ *
+ * Hết giờ KHÔNG huỷ yêu cầu (N2, L3a-T07): máy chủ chậm vẫn có thể đã xoay mã; huỷ thì trình duyệt
+ * bỏ `Set-Cookie` mã mới, lượt sau gửi lại mã cũ, quá ân hạn `REFRESH_GRACE_S` (30 s, AppBack
+ * `auth/sessions.py` `_judge`) là "dùng lại" → thu hồi cả phiên. Nên lượt thử lại CHỜ TIẾP chính
+ * yêu cầu này thay vì gửi mã cũ thêm lần nữa. Chỉ đăng xuất (tín hiệu huỷ chung) mới huỷ nó.
+ */
+let unansweredRefresh: Promise<Response> | null = null;
 
-    return () => undefined;
-  }
+const sendRefresh = (config: AuthConfig, signal: AbortSignal): Promise<Response> => {
+  const request = config.fetchImpl(resolveAuthUrl(config.baseUrl, config.refreshPath), {
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+    },
+    method: 'POST',
+    signal,
+  });
+  unansweredRefresh = request;
+  const settle = (): void => {
+    if (unansweredRefresh === request) {
+      unansweredRefresh = null;
+    }
+  };
+  request.then(settle, settle);
 
-  const onAbort = (): void => target.abort(source.reason);
-  source.addEventListener('abort', onAbort, { once: true });
-
-  return () => source.removeEventListener('abort', onAbort);
+  return request;
 };
 
 const runQuietly = async (task: () => void | Promise<void>): Promise<void> => {
@@ -433,27 +449,26 @@ export const refreshSingleFlight = async (
     lastRefreshAttemptAt = config.now();
     const previousStatus = getSessionState().status;
 
-    // Mỗi lượt một bộ huỷ RIÊNG: hết giờ chỉ giết lượt này, còn tín hiệu huỷ
-    // chung (người dùng đăng xuất) vẫn dừng được nó. Hai ca cùng ném
-    // `AbortError`, nên phân biệt bằng cờ cục bộ chứ không bằng `error.name`.
-    const attemptController = new AbortController();
-    const unlinkGlobalAbort = linkAbort(attemptController, getRequestAbortSignal());
+    // Hết giờ chỉ thôi CHỜ ở lượt này (báo "đường đứt", hẹn thử lại), không huỷ yêu cầu — xem
+    // `unansweredRefresh`. Lượt thử lại dùng lại yêu cầu còn treo; `bootstrap` (vừa đăng nhập,
+    // cookie mới) luôn gửi mới, vì câu trả lời cũ nói về cookie cũ.
+    const requestSignal = getRequestAbortSignal();
     let timedOut = false;
-    const timeoutId = setTimeout(() => {
-      timedOut = true;
-      attemptController.abort(new Error('Refresh timed out.'));
-    }, REFRESH_TIMEOUT_MS);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        reject(new Error('Refresh timed out.'));
+      }, REFRESH_TIMEOUT_MS);
+    });
 
     try {
       loadRefreshSchema().catch(() => undefined);
-      const response = await config.fetchImpl(resolveAuthUrl(config.baseUrl, config.refreshPath), {
-        credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-        },
-        method: 'POST',
-        signal: attemptController.signal,
-      });
+      const request =
+        options.reason !== 'bootstrap' && unansweredRefresh !== null
+          ? unansweredRefresh
+          : sendRefresh(config, requestSignal);
+      const response = await Promise.race([request, timeout]);
 
       if (!response.ok) {
         if (isTransientStatus(response.status)) {
@@ -515,7 +530,7 @@ export const refreshSingleFlight = async (
       }
 
       // Người dùng đã đăng xuất giữa chừng: không đổi trạng thái, không hẹn lượt sau.
-      if (attemptController.signal.aborted) {
+      if (requestSignal.aborted) {
         return false;
       }
 
@@ -523,7 +538,6 @@ export const refreshSingleFlight = async (
       return false;
     } finally {
       clearTimeout(timeoutId);
-      unlinkGlobalAbort();
     }
   });
 
@@ -541,4 +555,5 @@ export const resetRefreshState = (): void => {
   serverOffsetMs = 0;
   lastRefreshAttemptAt = null;
   transientAttempt = 0;
+  unansweredRefresh = null;
 };

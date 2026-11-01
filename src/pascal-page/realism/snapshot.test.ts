@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { averageFrames, jitterOffsets, snapshotFileName, withJitter } from './snapshot'
+import { averageFrames, jitterOffsets, quickShotFileName, snapshotFileName, withJitter } from './snapshot'
 
 describe('realism snapshot HQ (R3S)', () => {
   it('jitter offsets are distinct sub-pixel shifts', () => {
@@ -47,5 +47,12 @@ describe('snapshotFileName', () => {
     const d = new Date(2026, 9, 3, 7, 5)
     expect(snapshotFileName('Nhà A/B', 'image/png', d)).toBe('Nhà A-B-20261003-0705.png')
     expect(snapshotFileName(undefined, 'image/webp', d)).toBe('anh-chup-20261003-0705.webp')
+  })
+})
+
+describe('quickShotFileName (nút "Ảnh")', () => {
+  it('names the file <project>-3d.png', () => {
+    expect(quickShotFileName('Căn hộ 12A: tầng 3')).toBe('Căn hộ 12A- tầng 3-3d.png')
+    expect(quickShotFileName(null)).toBe('anh-chup-3d.png')
   })
 })

@@ -120,6 +120,12 @@ describe('unsavedPascalEdits (v3 V3 + W3e — phần sửa máy chủ chưa nh�
     expect(unsavedPascalEdits(SCENE, patched('slab', { slots: { surface: SAVEABLE } }))).toEqual([]);
     expect(unsavedPascalEdits(SCENE, patched('wall', { slots: { interior: SAVEABLE } }))).toEqual([]);
     expect(unsavedPascalEdits(SCENE, patched('item', { slots: { body: SAVEABLE } }))).toEqual([]);
+    // H4 — kiểu cửa trong từ vựng `swing` + hướng mở, màu trần ghi được: đã lưu.
+    expect(unsavedPascalEdits(SCENE, patched('door', { hingesSide: 'right' }))).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, patched('door', { doorType: 'folding', leafCount: 4 }))).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, patched('door', { swingDirection: 'outward' }))).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, patched('window', { windowType: 'casement', casementStyle: 'french' }))).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, patched('ceiling', { slots: { surface: SAVEABLE } }))).toEqual([]);
   });
 
   it.each([
@@ -128,7 +134,9 @@ describe('unsavedPascalEdits (v3 V3 + W3e — phần sửa máy chủ chưa nh�
     ['wall', { material: { preset: 'tu-pha' } }, 'màu tường'],
     ['item', { slots: { body: FOREIGN } }, 'màu đồ đạc'],
     ['item', { materialPreset: 'tu-pha' }, 'màu đồ đạc'],
-    ['door', { hingesSide: 'right' }, 'kiểu cửa'],
+    ['door', { doorType: 'garage-rollup' }, 'kiểu cửa'],
+    ['window', { windowType: 'awning' }, 'kiểu cửa'],
+    ['ceiling', { slots: { surface: FOREIGN } }, 'màu trần'],
     ['door', { slots: { frame: SAVEABLE } }, 'màu cửa'],
   ])('%s đổi %j → "%s"', (type, patch, label) => {
     expect(unsavedPascalEdits(SCENE, patched(type, patch))).toEqual([label]);
@@ -150,6 +158,16 @@ describe('unsavedPascalEdits (v3 V3 + W3e — phần sửa máy chủ chưa nh�
     expect(unsavedPascalEdits(added, swapped)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
     expect(unsavedPascalEdits(SCENE, swapped)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
     expect(unsavedPascalEdits(dressed, SCENE)).toEqual(['xoá đồ bày sẵn']);
+
+    // H4 — zone khai món ấy (`dressIds`): xoá lưu được (`Room.dressingOff`), không báo.
+    const zone = {
+      id: 'zone_R-1',
+      type: 'zone',
+      metadata: { appfront: { confidence: 1, source: 'human', reviewed: false, fields: { dressIds: ['DRESS-sofa-R-1'] } } },
+    } as unknown as PascalNode;
+    const declared: PascalScene = { nodes: { ...dressed.nodes, 'zone_R-1': zone }, rootNodeIds: SCENE.rootNodeIds };
+
+    expect(unsavedPascalEdits(declared, { nodes: { ...SCENE.nodes, 'zone_R-1': zone }, rootNodeIds: SCENE.rootNodeIds })).toEqual([]);
   });
 });
 

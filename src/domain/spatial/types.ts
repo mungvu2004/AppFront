@@ -173,7 +173,14 @@ export interface Opening extends ReviewMetadata {
   /** Sill height above the level floor; doors use 0. */
   sillHeightMm: Millimetres;
   swing: SwingDirection;
+  /** Door with `swing: 'sliding'` only: pocket (slides into the wall) or folding leaves; absent = plain sliding. */
+  doorStyle?: DoorStyle;
+  /** Doors: leaf opens the other way than the default (hinged: other wall face; sliding: slides right). */
+  reversed?: boolean;
 }
+
+/** Track-door variants refining `swing: 'sliding'`. */
+export type DoorStyle = 'pocket' | 'folding';
 
 /** Furniture grouped by purpose. */
 export type FurnitureKind =
@@ -282,6 +289,10 @@ export interface Room extends ReviewMetadata {
   finish?: RoomFinish;
   /** Floor material; absent = from `finish`. */
   floorMaterial?: MaterialRef;
+  /** Ids (`DRESS-…`) of auto-placed pieces the user deleted in 3D: never placed again; absent = none. */
+  dressingOff?: readonly string[];
+  /** Ceiling material; absent = the plaster default. */
+  ceilingMaterial?: MaterialRef;
 }
 
 /** Orientation of a setting-out axis. */

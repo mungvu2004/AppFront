@@ -56,6 +56,17 @@ describe('pascal-ui-patch', () => {
     expect(label).toContain("stroke={outlined ? '#334155' : undefined}");
   });
 
+  it('H1 C2: bấm ở chế độ Chọn hỏi hook ưu tiên đồ vật trước khi Pascal xử lý', () => {
+    const file = 'editor/src/components/editor/selection-manager.tsx';
+    const out = applyUiPatches(readFileSync(path.join(PACKAGES, file), 'utf8'), file, UI_PATCHES[file]);
+    const hook = out.indexOf('__appfrontPreferItemHit');
+    expect(hook).toBeGreaterThan(-1);
+    // Trước dispatchSceneAction / chọn nút, sau chặn kéo đầu tường.
+    expect(hook).toBeLessThan(out.indexOf('if (dispatchSceneAction(event.node, getEventObject(event)))'));
+    expect(hook).toBeGreaterThan(out.indexOf("activeScope.reshape === 'endpoint') return"));
+    expect(out).toContain('?.(event) ?? event');
+  });
+
   it('ném lỗi khi thiếu neo hoặc sai số lần', () => {
     expect(() => applyUiPatches('<b/>', 'x.tsx', [['bg-neutral-100', 'bg-background', 1]])).toThrow(/0 lần/);
     expect(() => applyUiPatches('bg-neutral-100 bg-neutral-100', 'x.tsx', [['bg-neutral-100', 'bg-background', 1]])).toThrow(/2 lần/);

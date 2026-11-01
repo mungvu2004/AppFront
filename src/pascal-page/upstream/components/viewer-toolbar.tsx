@@ -33,6 +33,7 @@ import {
 import {
   CLAY_PALETTE,
   type EdgeMode,
+  getLevelPresentationY,
   getSceneTheme,
   SCENE_THEMES,
   useViewer,
@@ -40,6 +41,7 @@ import {
 import {
   ArrowDownToDot,
   Box,
+  Camera,
   Check,
   ChevronsLeft,
   ChevronsRight,
@@ -60,6 +62,7 @@ import {
   RotateCw,
   Ruler,
   ScanLine,
+  Send,
   SlidersHorizontal,
   Sparkles,
   SquareUserRound,
@@ -75,7 +78,11 @@ import { cn } from '../lib/utils'
 import { roomsOf } from '../lib/fit-on-ready'
 import { fitModel, fitRoom, viewedFrame } from '../lib/view-frame'
 import { isSeparateUnits } from '../../bridge'
+import { QUICK_SHOT_REQUEST_ID } from '../../realism/snapshot'
+import { editor3dHref, ROUTES } from '@/routes/paths'
 import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
+import { pickWalkRoom, walkStartPose } from './walk-start'
+import { isSceneReady } from '../../tour/tourLogic'
 // AppFront edit (P40, G5-11; QA-2 L1; impeccable D1): text labels of the level/wall/display buttons
 // collapse to screen-reader text when the top bar itself is narrower than 1500px (container `appbar`,
 // declared in pascal.css; the sidebar width counts, not just the viewport). The 3D/2D/Chia đôi and
@@ -101,7 +108,7 @@ const LABEL_WIDE = 'sr-only @min-[1500px]/appbar:not-sr-only'
 const LABEL_MID = 'sr-only @min-[1200px]/appbar:not-sr-only'
 // Editor3D (01/11, K9): Hoàn tác/Làm lại and the camera group live in the bottom dock beside the tool bar
 // (the top bar overlapped at 1440). Camera labels show from 1280 px of window; below, icons + tooltips.
-const LABEL_CAMERA = 'sr-only xl:not-sr-only'
+const LABEL_CAMERA = 'dock-label sr-only xl:not-sr-only'
 
 // Menu Hiển thị: mọi mục bật/tắt cùng một kiểu chữ trạng thái (Impeccable A5).
 function OnOff({ on }: { on: boolean }) {
@@ -394,22 +401,37 @@ const SUBMENU_CONTENT_CLASS = 'min-w-56 rounded-xl border-[var(--pa-border)] bg-
  * Editor3D G2 (K2/K3): a labelled button on the bar (was "Đi tới phòng" inside "Hiển thị").
  * The list reads the scene once per menu open (content renders only while open), no subscription.
  */
-function RoomList() {
+/** Rooms of the viewed floor (solo) or every floor. */
+function viewedRooms() {
   const { levelMode, selection } = useViewer.getState()
-  const rooms = roomsOf(useScene.getState().nodes, levelMode === 'solo' ? selection.levelId : null)
+  return roomsOf(useScene.getState().nodes, levelMode === 'solo' ? selection.levelId : null)
+}
+
+/** Editor3D đợt 2: the room last picked in "Phòng ▾" or on a scene label — where "Đi bộ" starts. */
+let pickedRoomId: string | null = null
+
+function goToRoom(zoneId: string) {
+  pickedRoomId = zoneId
+  fitRoom(zoneId)
+}
+
+function RoomList() {
+  const rooms = viewedRooms()
   if (rooms.length === 0) {
     return <DropdownMenuItem disabled>Chưa có phòng nào</DropdownMenuItem>
   }
   return (
     <>
-      {rooms.map((room) => (
-        <DropdownMenuItem key={room.id} onSelect={() => fitRoom(room.id)}>
-          <span className="truncate">{room.name}</span>
-          <span className="ml-auto shrink-0 text-muted-foreground text-xs">
-            {room.areaM2.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} m²
-          </span>
-        </DropdownMenuItem>
-      ))}
+      {rooms.map((room) => {
+        const area = `${room.areaM2.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} m²`
+        return (
+          // Editor3D đợt 2 (N3): one readable name, "Phòng khách, 18 m²".
+          <DropdownMenuItem aria-label={`${room.name}, ${area}`} key={room.id} onSelect={() => goToRoom(room.id)}>
+            <span className="truncate">{room.name}</span>
+            <span className="ml-auto shrink-0 text-muted-foreground text-xs">{area}</span>
+          </DropdownMenuItem>
+        )
+      })}
     </>
   )
 }
@@ -423,7 +445,7 @@ function RoomJumpMenu() {
         <DropdownMenuTrigger asChild>
           <button aria-label="Phòng" className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1 px-2')} type="button">
             <Tag className="h-3.5 w-3.5 shrink-0" />
-            <span className="font-medium text-[13px]">Phòng</span>
+            <span className="dock-label font-medium text-[13px]">Phòng</span>
             <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
           </button>
         </DropdownMenuTrigger>
@@ -818,6 +840,33 @@ const CAMERA_BUTTONS = [
   { label: 'Xoay phải 90°', icon: RotateCw, onClick: () => emitter.emit('camera-controls:orbit-cw') },
 ] as const
 
+function enterWalkthrough() {
+  flushSync(() => useEditor.getState().setFirstPersonMode(true))
+  requestWalkthroughPointerLock()
+}
+
+/** Camera eye within this many metres of the asked pose counts as arrived. */
+const WALK_ARRIVED_M = 0.15
+/** Give up waiting for the camera to land and start the walk anyway (pointer lock still needs the click's activation). */
+const WALK_FLY_MAX_MS = 1500
+const WALK_FLY_RETRIES = 4
+
+/**
+ * Editor3D đợt 2: with no spawn point the vendor starts the walk under the camera, facing its heading
+ * (`deriveFirstPersonSpawn`) — from the orbit pose that was outside the home. Fly the camera to an eye
+ * point inside the picked room (else the largest one), then start the walk there.
+ */
+function walkStartPoseNow() {
+  const { nodes } = useScene.getState()
+  if (Object.values(nodes).some((node) => node?.type === 'spawn')) return null
+  const zoneId = pickWalkRoom(viewedRooms(), pickedRoomId)
+  const zone = zoneId ? (nodes as unknown as Record<string, { parentId?: unknown; polygon?: unknown } | undefined>)[zoneId] : undefined
+  if (!zone) return null
+  const levelId = typeof zone.parentId === 'string' ? zone.parentId : null
+  const baseY = levelId ? getLevelPresentationY(levelId, nodes, useViewer.getState().levelMode) : 0
+  return walkStartPose(zone.polygon, baseY)
+}
+
 /** Enter or leave the walkthrough (first-person) mode. */
 function toggleWalkthrough() {
   const { isFirstPersonMode, setFirstPersonMode } = useEditor.getState()
@@ -825,13 +874,60 @@ function toggleWalkthrough() {
     setFirstPersonMode(false)
     return
   }
-  flushSync(() => setFirstPersonMode(true))
-  requestWalkthroughPointerLock()
+  const pose = walkStartPoseNow()
+  if (!pose) {
+    enterWalkthrough()
+    return
+  }
+  const [x, y, z] = pose.position
+  let done = false
+  let unsubscribe = () => {}
+  let timer = 0
+  let tries = 0
+  const start = () => {
+    if (done) return
+    done = true
+    window.clearTimeout(timer)
+    unsubscribe()
+    enterWalkthrough()
+  }
+  // Thử tay đợt 2: bấm lúc cảnh còn đang dựng thì camera chưa nhận lệnh bay → người đứng ngoài nhà.
+  // Chưa tới nơi thì gửi lại lệnh bay (tối đa ~6 s) rồi mới vào đi bộ.
+  const fly = () => {
+    if (done) return
+    if (tries++ >= WALK_FLY_RETRIES) {
+      start()
+      return
+    }
+    emitter.emit('camera-controls:apply-pose', pose)
+    timer = window.setTimeout(fly, WALK_FLY_MAX_MS)
+  }
+  fly()
+  unsubscribe = subscribeCameraPose(({ position: [px, py, pz] }) => {
+    if (Math.hypot(px - x, py - y, pz - z) < WALK_ARRIVED_M) start()
+  })
+  // the current pose is reported synchronously: already there -> started before `unsubscribe` was set
+  if (done) unsubscribe()
+}
+
+/** True once the model is drawn (same probe as the first-use tour); stays true afterwards. */
+function useSceneDrawn(): boolean {
+  const [drawn, setDrawn] = useState(() => isSceneReady(document))
+  useEffect(() => {
+    if (drawn) return
+    const timer = window.setInterval(() => {
+      if (isSceneReady(document)) setDrawn(true)
+    }, 500)
+    return () => window.clearInterval(timer)
+  }, [drawn])
+  return drawn
 }
 
 /** Editor3D G2 (K2): "Nhìn từ trên" and "Đi bộ" are labelled buttons on the bar (were inside "…"). */
 function TopViewWalkButtons() {
   const is2dOnly = useEditor((state) => state.viewMode === '2d')
+  // Thử tay đợt 2: bấm khi cảnh còn đang dựng thì camera chưa bay được → người đứng ngoài nhà.
+  const walkReady = useSceneDrawn()
   const labelled = cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2')
   return (
     <>
@@ -843,8 +939,8 @@ function TopViewWalkButtons() {
           </button>
         </ToolbarTooltip>
       )}
-      <ToolbarTooltip label="Đi bộ trong nhà (Esc để thoát)">
-        <button aria-label="Đi bộ" className={labelled} onClick={toggleWalkthrough} type="button">
+      <ToolbarTooltip label={walkReady ? 'Đi bộ trong nhà (Esc để thoát)' : 'Chờ dựng xong mô hình để đi bộ'}>
+        <button aria-label="Đi bộ" className={labelled} disabled={!walkReady} onClick={toggleWalkthrough} type="button">
           <Footprints className="h-3.5 w-3.5 shrink-0" />
           <span className={`font-medium text-[13px] ${LABEL_CAMERA}`}>Đi bộ</span>
         </button>
@@ -986,11 +1082,115 @@ function useActionMenuEdges() {
 }
 
 /**
+ * Đợt 2 (thử tay 1280 px, bảng Dựng mở): the action menu sits right of centre, so the labelled dock ran
+ * past the screen edge. Labels collapse to icons (`data-compact`, pascal-chrome.css) whenever the
+ * labelled width — remembered while labels show — does not fit right of the action menu.
+ */
+function useDockCompact(edges: { left: number; right: number } | null): boolean {
+  const [compact, setCompact] = useState(false)
+  const fullWidth = useRef(0)
+  useEffect(() => {
+    const check = () => {
+      const dock = document.querySelector<HTMLElement>('[data-appfront-dock]')
+      if (!dock || !edges) return
+      if (!dock.hasAttribute('data-compact')) fullWidth.current = dock.getBoundingClientRect().width
+      const room = window.innerWidth - edges.right - DOCK_GAP * 2
+      setCompact(fullWidth.current > room)
+    }
+    check()
+    const timer = window.setInterval(check, 500)
+    return () => window.clearInterval(timer)
+  }, [edges])
+  return compact
+}
+
+/** Editor3D đợt 2: "Ảnh" — the vendor capture of the current view; page.tsx saves it as `<tên>-3d.png`. */
+function SnapshotButton({ projectId }: { projectId: string }) {
+  const shoot = () =>
+    emitter.emit('camera-controls:generate-thumbnail', {
+      projectId,
+      requestId: QUICK_SHOT_REQUEST_ID,
+      captureMode: 'viewport',
+    })
+  return (
+    <ToolbarTooltip label="Chụp khung đang nhìn, tải ảnh PNG về máy">
+      <button aria-label="Ảnh" className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2')} onClick={shoot} type="button">
+        <Camera className="h-3.5 w-3.5 shrink-0" />
+        <span className={`font-medium text-[13px] ${LABEL_CAMERA}`}>Ảnh</span>
+      </button>
+    </ToolbarTooltip>
+  )
+}
+
+const MENU_DETAIL = 'text-muted-foreground text-xs leading-4 whitespace-normal'
+
+/**
+ * Editor3D đợt 2 (C5): "Gửi người nhà". The project has no invite endpoint (members are read-only,
+ * `shareDialogGateway.ts`), but it has public view-only share links (`/share/:token`, made in the
+ * Xuất step's "Chia sẻ" dialog). So: copy this page's address (members only), or open that dialog's page.
+ */
+function SendFamilyMenu({ projectId }: { projectId: string }) {
+  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
+  const copy = (event: Event) => {
+    event.preventDefault()
+    const url = new URL(editor3dHref(projectId), window.location.origin).toString()
+    navigator.clipboard.writeText(url).then(
+      () => setCopied('ok'),
+      () => setCopied('failed'),
+    )
+  }
+  return (
+    <DropdownMenu onOpenChange={(open) => (open ? null : setCopied(null))}>
+      <ToolbarTooltip label="Gửi mô hình cho người nhà xem">
+        <DropdownMenuTrigger asChild>
+          <button aria-label="Gửi người nhà" className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2')} type="button">
+            <Send className="h-3.5 w-3.5 shrink-0" />
+            <span className={`font-medium text-[13px] ${LABEL_CAMERA}`}>Gửi người nhà</span>
+          </button>
+        </DropdownMenuTrigger>
+      </ToolbarTooltip>
+      <DropdownMenuContent align="end" className={cn(SUBMENU_CONTENT_CLASS, 'w-80')} side="top" sideOffset={8}>
+        <DropdownMenuItem onSelect={copy}>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-foreground" role="status">
+              {copied === 'ok' ? 'Đã chép liên kết trang 3D' : copied === 'failed' ? 'Chưa chép được, hãy thử lại' : 'Chép liên kết trang 3D'}
+            </span>
+            <span className={MENU_DETAIL}>Người nhận cần được mời vào dự án (quyền Xem) và đăng nhập mới mở được.</span>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => window.open(`${ROUTES.project.export(projectId)}?share=1`, '_blank', 'noopener')}>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-foreground">Tạo liên kết xem không cần tài khoản</span>
+            <span className={MENU_DETAIL}>Mở trang Xuất ở thẻ mới, tạo liên kết chỉ xem có hạn dùng.</span>
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/** N1: a room label on the scene (scripts/realism/u40-room-labels.mjs) asks to fly to its room. */
+function useFitRoomFromLabels() {
+  useEffect(() => {
+    const onFit = (event: Event) => {
+      const zoneId = (event as CustomEvent<unknown>).detail
+      if (typeof zoneId === 'string') goToRoom(zoneId)
+    }
+    window.addEventListener('appfront:fit-room', onFit)
+    return () => window.removeEventListener('appfront:fit-room', onFit)
+  }, [])
+}
+
+/**
  * Editor3D (01/11, T13 + K2): bottom dock — Hoàn tác / Làm lại left of the tool bar, the "go around the
  * home" group (Phòng ▾, Nhìn từ trên, Đi bộ, Xem toàn bộ, …) right of it. Hidden in Xem trước / Đi bộ.
+ * Editor3D đợt 2: + "Ảnh" and "Gửi người nhà"; it also hosts the room-label listener (always mounted).
  */
-export function BottomDock({ readOnly = false }: { readOnly?: boolean }) {
+export function BottomDock({ projectId, readOnly = false }: { projectId: string; readOnly?: boolean }) {
   const edges = useActionMenuEdges()
+  const compact = useDockCompact(edges)
+  useFitRoomFromLabels()
   const hidden = useEditor((state) => state.isPreviewMode || state.isFirstPersonMode)
   if (hidden) return null
   const leftStyle = edges ? { right: window.innerWidth - edges.left + DOCK_GAP } : { right: 'calc(50% + 72px)' }
@@ -1005,11 +1205,14 @@ export function BottomDock({ readOnly = false }: { readOnly?: boolean }) {
         </div>
       )}
       <div className="fixed bottom-7 z-50" style={rightStyle}>
-        <div className={TOOLBAR_CONTAINER} data-appfront-dock="">
+        <div className={TOOLBAR_CONTAINER} data-appfront-dock="" data-compact={compact ? '' : undefined}>
           <RoomJumpMenu />
           <TopViewWalkButtons />
           <FitViewButton />
           <MoreCameraMenu />
+          <div className="my-1.5 w-px bg-[var(--pa-border)]" />
+          <SnapshotButton projectId={projectId} />
+          <SendFamilyMenu projectId={projectId} />
         </div>
       </div>
     </>,
