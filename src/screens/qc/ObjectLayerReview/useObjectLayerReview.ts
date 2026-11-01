@@ -56,7 +56,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf, keepDisplayCodes, sortByDisplayCode } from '@/domain/spatial/ids';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
-import type { EntityId, FurnitureKind, Level, SwingDirection, WallId } from '@/domain/spatial/types';
+import type { EntityId, FurnitureKind, FurnitureVariant, Level, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import { millimetres } from '@/domain/units/types';
 import type { Wall as SolidWall } from '@/domain/walls/types';
@@ -925,7 +925,7 @@ export function useObjectLayerReview(
 
   /* Nội thất đổi loại bằng `furniture.changeKind` (K10): trước đó chỉ có giữ tên sai hoặc xoá hẳn. */
   const onChangeFurnitureKind = useCallback(
-    (objectId: string, kind: FurnitureKind) => {
+    (objectId: string, kind: FurnitureKind, variant?: FurnitureVariant | null) => {
       const object = objectById(objectId);
 
       if (object === null || object.layer !== 'furniture') {
@@ -939,7 +939,7 @@ export function useObjectLayerReview(
           return null;
         }
 
-        const built = buildChangeFurnitureKindCommand(before, kind, context.actorId, object.id);
+        const built = buildChangeFurnitureKindCommand(before, kind, context.actorId, object.id, variant);
 
         if (!built.ok) {
           refuse(built.error.reasons.join(' '));

@@ -24,6 +24,7 @@ import { BakeLightingCard } from './BakeLightingCard';
 import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { HomeownerCardMount } from './HomeownerCardMount';
+import { ItemTrustCard } from './ItemTrustCard';
 import { LightingCard } from './LightingCard';
 import { ModelCreditCard } from './ModelCreditCard';
 import { realismFlagsFrom, useRealism } from './realism/store';
@@ -186,6 +187,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
             {readOnly ? null : <BakeLightingCard exportGlb={exportSceneGlb} projectId={projectId} />}
             <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
             <ModelCreditCard stores={{ useScene, useViewer }} />
+            <ItemTrustCard stores={{ useScene, useViewer }} />
           </div>
         </>
       }

@@ -11,7 +11,7 @@ import { levelOfGraph, objectsOf, toObjectInspector } from './objectLayerReviewG
 afterEach(cleanup);
 
 /** Thanh tra của món nội thất mẫu đầu tiên, đổi sang `kind` đã cho. */
-const inspectorOf = (kind: 'washingMachine' | 'shower') => {
+const inspectorOf = (kind: 'washingMachine' | 'shower' | 'sanitaryFixture') => {
   const building = createSampleBuilding();
   const levelId = sampleLevelId(0);
   const id = sampleFurnitureId(0);
@@ -48,7 +48,8 @@ describe('ObjectLayerInspector ô "Đổi loại nội thất" (S-13)', () => {
 
     expect(screen.getByRole('option', { name: 'Máy giặt' })).toBeTruthy();
     fireEvent.click(screen.getByRole('option', { name: 'Buồng tắm đứng' }));
-    expect(onChangeFurnitureKind).toHaveBeenCalledWith(expect.any(String), 'shower');
+    /* Chọn một loại thật thì bỏ kiểu cũ (null), máy suy lại theo cỡ (D3). */
+    expect(onChangeFurnitureKind).toHaveBeenCalledWith(expect.any(String), 'shower', null);
   });
 });
 
@@ -75,5 +76,44 @@ describe('ObjectLayerInspector nút duyệt đứng yên (U12)', () => {
     const kind = screen.getByRole('combobox', { name: 'Đổi loại nội thất' });
 
     expect(approve.compareDocumentPosition(kind) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('ObjectLayerInspector Sofa + ô "Kiểu" (D3)', () => {
+  const renderWith = (kind: 'washingMachine' | 'sanitaryFixture', onChangeFurnitureKind = vi.fn()) => {
+    const noop = () => undefined;
+    render(
+      <ObjectLayerInspector
+        inspector={inspectorOf(kind)}
+        isViewerRole={false}
+        onApprove={noop}
+        onAttachToNearestWall={noop}
+        onChangeFurnitureKind={onChangeFurnitureKind}
+        onChangeSubtype={noop}
+        onChangeSwing={noop}
+        onDelete={noop}
+        onDragPosition={noop}
+        onSelectHostWall={noop}
+      />,
+    );
+    return onChangeFurnitureKind;
+  };
+
+  it('Sofa trong ô loại lưu thành ghế + kiểu sofa', () => {
+    const spy = renderWith('washingMachine');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Đổi loại nội thất' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Sofa' }));
+    expect(spy).toHaveBeenCalledWith(expect.any(String), 'chair', 'sofa');
+  });
+
+  it('ô "Kiểu" chỉ hiện ở loại có kiểu và ghi vào variant', () => {
+    renderWith('washingMachine');
+    expect(screen.queryByRole('combobox', { name: 'Đổi kiểu nội thất' })).toBeNull();
+    cleanup();
+
+    const spy = renderWith('sanitaryFixture');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Đổi kiểu nội thất' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Lavabo' }));
+    expect(spy).toHaveBeenCalledWith(expect.any(String), 'sanitaryFixture', 'basin');
   });
 });
