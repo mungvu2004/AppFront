@@ -175,14 +175,16 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
   }
 };
 
-/** Độ vừa của mô hình với hộp bao: min(tỉ lệ cạnh)/max(tỉ lệ cạnh), 1 = cùng dáng. */
-const fillOf = (f: Shaped, folder: string): number => {
+/**
+ * Chi phí cỡ của mô hình với hộp bao (C3): `|ln(L/Lm)| + |ln(S/Sm)|` theo cạnh dài/ngắn; 0 = đúng cỡ.
+ * Khác `fillOf` cũ (chỉ so dáng): mẫu cùng dáng nhưng to gấp đôi giờ cũng bị phạt.
+ */
+const sizeCostOf = (f: Shaped, folder: string): number => {
   const model = CATALOG_MODELS[folder];
-  if (model === undefined) return 0;
+  if (model === undefined) return Infinity;
   const [short, long] = footprintOf(f);
   const [mw, , md] = model.dimensions;
-  const ratios = [short / Math.min(mw, md), long / Math.max(mw, md)];
-  return Math.min(...ratios) / Math.max(...ratios);
+  return Math.abs(Math.log(long / Math.max(mw, md))) + Math.abs(Math.log(short / Math.min(mw, md)));
 };
 
 /** FNV-1a 32 bit. */
@@ -195,7 +197,8 @@ const fnv1a = (text: string): number => {
   return hash;
 };
 
-const MIN_FILL = 0.6;
+/** Phong cách chỉ phá hoà giữa các mẫu có chi phí cỡ trong 10 % của mẫu vừa nhất. */
+const STYLE_TIE = 1.1;
 
 /**
  * Thư mục mô hình của một món theo phong cách; `null` = không có mô hình (bên gọi dựng
@@ -209,7 +212,9 @@ export const modelFolderOf = (
 ): string | null => {
   const role = roleOf(f, usage);
   const catalogue = ROLE_MODELS[role];
-  const preferred = (style.prefer[role] ?? []).filter((folder) => catalogue.includes(folder) && fillOf(f, folder) >= MIN_FILL);
+  const best = Math.min(...catalogue.map((folder) => sizeCostOf(f, folder)));
+  const isNearBest = (folder: string): boolean => sizeCostOf(f, folder) <= best * STYLE_TIE + 1e-9;
+  const preferred = (style.prefer[role] ?? []).filter((folder) => catalogue.includes(folder) && isNearBest(folder));
   const key = PER_ITEM_ROLES.has(role) ? f.id : `${f.roomId ?? 'none'}|${role}`;
   const pickHashed = (folders: readonly string[]): string => folders[fnv1a(key) % folders.length] as string;
 
@@ -220,9 +225,9 @@ export const modelFolderOf = (
   if (catalogue.length === 0) return null;
   if (preferred.length > 0) return pickHashed(preferred);
 
-  // Không ưu tiên nào vừa: mô hình mặc định nếu nó vừa (giữ dáng cảnh hôm nay), không thì
-  // mô hình vừa nhất — hoà thì mô hình đứng trước.
+  // Không ưu tiên nào vừa: mô hình mặc định nếu nó gần vừa nhất (giữ dáng cảnh hôm nay), không thì
+  // mô hình chi phí cỡ nhỏ nhất — hoà thì mô hình đứng trước.
   const [fallback] = catalogue as readonly [string, ...string[]];
-  if (fillOf(f, fallback) >= MIN_FILL) return fallback;
-  return catalogue.reduce((best, folder) => (fillOf(f, folder) > fillOf(f, best) ? folder : best));
+  if (isNearBest(fallback)) return fallback;
+  return catalogue.reduce((a, folder) => (sizeCostOf(f, folder) < sizeCostOf(f, a) ? folder : a));
 };

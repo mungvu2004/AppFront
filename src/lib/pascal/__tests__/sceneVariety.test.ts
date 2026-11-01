@@ -100,14 +100,15 @@ describe('sceneVariety (J7)', () => {
     expect(modelFolderOf(item('S1', 'stair', 1000, 3000), AM_AP)).toBeNull();
   });
 
-  it('variant: phong cách chỉ đổi khi có mô hình cùng vai trò vừa hộp', () => {
-    // fill so dáng (tỉ lệ cạnh), không so cỡ: hộp 0,7 × 0,8 vừa cả cây nhỏ (0,4 × 0,38).
+  it('variant: phong cách chỉ đổi khi mô hình cùng vai trò có chi phí cỡ trong 10 % mẫu vừa nhất (C3)', () => {
+    // Chi phí |ln(L/Lm)| + |ln(S/Sm)| so cỡ, không chỉ dáng: hộp 0,7 × 0,8 không còn nhận cây nhỏ 0,4 × 0,38.
     const plant = item('P1', 'other', 700, 800, { variant: 'plant' });
     expect(modelFolderOf(plant, withPrefer({}))).toBe('indoor-plant');
-    expect(modelFolderOf(plant, withPrefer({ plant: ['small-indoor-plant'] }))).toBe('small-indoor-plant');
-    // Hộp dẹt 0,4 × 1,2: cây nhỏ fill ≈ 0,35 → giữ mô hình của variant.
-    const slim = item('P2', 'other', 400, 1200, { variant: 'plant' });
-    expect(modelFolderOf(slim, withPrefer({ plant: ['small-indoor-plant'] }))).toBe('indoor-plant');
+    expect(modelFolderOf(plant, withPrefer({ plant: ['small-indoor-plant'] }))).toBe('indoor-plant');
+    // Hộp 0,4 × 0,4: cây nhỏ vừa nhất → phong cách được chọn nó; không ưu tiên thì giữ mô hình của variant.
+    const small = item('P2', 'other', 400, 400, { variant: 'plant' });
+    expect(modelFolderOf(small, withPrefer({ plant: ['small-indoor-plant'] }))).toBe('small-indoor-plant');
+    expect(modelFolderOf(small, withPrefer({}))).toBe('indoor-plant');
   });
 
   // Kỳ vọng chép từ `furnitureModelOf` (toPascal.ts @31c7c66f, đang được U09 sửa nên không
