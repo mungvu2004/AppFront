@@ -428,6 +428,19 @@ describe('InputQualityGate — cổng xác nhận khi có chỉ số mức Kém'
     expect(onNavigate).toHaveBeenCalledWith('/projects/project-1/pipeline');
   });
 
+  it('ảnh quá nhỏ nêu cỡ ảnh thật và ba hướng dẫn; không thấy khung thì gợi ý cắt riêng mặt bằng', async () => {
+    await mountScreen(clock);
+    await selectMeasuredFloor(clock);
+
+    const panel = screen.getByRole('region', { name: /báo cáo chất lượng/iu });
+    const text = panel.textContent ?? '';
+
+    expect(text).toMatch(/Ảnh quá nhỏ \([\d.]+ × [\d.]+ px\): ký hiệu cửa, đồ đạc rất nhỏ, máy sẽ bỏ sót nhiều\./u);
+    expect(text).toContain('Tải bản PDF gốc nếu có.');
+    expect(text).toContain('Chụp/xuất lại lớn hơn, cạnh ngắn ≥ 2.000 px.');
+    expect(text).toContain('Cắt riêng vùng mặt bằng.');
+  });
+
   it('bản vẽ không có chỉ số mức Kém thì không hỏi xác nhận', () => {
     renderWithProviders(<InputQualityGateView {...scenarioFor('empty')} />);
 
