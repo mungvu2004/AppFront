@@ -307,3 +307,48 @@ export const IMAGE_QUALITY_FINDING_CODES = [
 export const ImageQualityFindingCodeSchema = z.enum(IMAGE_QUALITY_FINDING_CODES);
 
 export type ImageQualityFindingCode = z.infer<typeof ImageQualityFindingCodeSchema>;
+
+/* -------------------------------------------------------------------------- */
+/* Lô 2b — số kích thước và hình học máy dò cho màn Hiệu chỉnh tỷ lệ.          */
+/* Khác phần trên: toạ độ ở đây là PIXEL của trang `pages/0-<id>.png`          */
+/* (`pagePx`), màn tự quy về tỉ lệ 0..1. Không `.strict()` — máy chủ thêm      */
+/* trường mới không được làm vỡ màn.                                            */
+/* -------------------------------------------------------------------------- */
+
+const PageBoxPxSchema = z.object({
+  xMin: z.number(),
+  yMin: z.number(),
+  xMax: z.number(),
+  yMax: z.number(),
+});
+export type PageBoxPx = z.infer<typeof PageBoxPxSchema>;
+
+const PagePxSchema = z.tuple([z.number().positive(), z.number().positive()]);
+
+/** `GET /projects/{pid}/floors/{fid}/dimension-strings` — chuỗi toàn số, 300–30 000 mm. */
+export const DimensionStringsSchema = z.object({
+  runId: z.string().nullable().optional(),
+  pagePx: PagePxSchema,
+  items: z.array(
+    z.object({
+      id: z.string(),
+      text: z.string(),
+      valueMm: z.number(),
+      box: PageBoxPxSchema,
+      confidence: z.number(),
+      orientation: z.enum(['horizontal', 'vertical']),
+    }),
+  ),
+});
+export type DimensionStrings = z.infer<typeof DimensionStringsSchema>;
+
+/** `GET /projects/{pid}/floors/{fid}/detected-geometry`. */
+export const DetectedGeometrySchema = z.object({
+  pagePx: PagePxSchema,
+  wallThicknessPx: z.object({ median: z.number(), p90: z.number() }).nullable(),
+  snapPoints: z.array(z.object({ x: z.number(), y: z.number(), kind: z.enum(['wallEnd', 'junction']) })),
+  doors: z.array(z.object({ id: z.string(), box: PageBoxPxSchema, widthPx: z.number(), confidence: z.number() })),
+  largestRoom: z.object({ roomId: z.string(), boxPx: PageBoxPxSchema, label: z.string().nullable() }).nullable(),
+  outerBoxPx: PageBoxPxSchema.nullable(),
+});
+export type DetectedGeometry = z.infer<typeof DetectedGeometrySchema>;

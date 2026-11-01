@@ -89,7 +89,7 @@ import {
   type ScaleInference,
   type ScaleMeasurement,
 } from '@/domain/units/scale';
-import { snapAngle, snapToTargets, type SnapTarget } from '@/domain/units/snap';
+import { snapAngle, snapToTargets } from '@/domain/units/snap';
 import type { PointMm } from '@/domain/units/compare';
 import {
   degrees,
@@ -211,6 +211,8 @@ const COPY = {
   shortcutFitView: 'Vừa khung',
   crossCheckWallThickness: 'Độ dày tường điển hình',
   crossCheckDoorWidth: 'Bề rộng cửa đi điển hình',
+  doorWidthOdd: (width: string): string =>
+    `Cửa đi theo tỷ lệ này rộng ${width}, bất thường (thường 700–1 000). Kiểm lại số đã nhập.`,
   crossCheckLargestRoomArea: 'Diện tích phòng lớn nhất',
   recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
   scopeAllFloors: 'Mọi tầng',
@@ -493,6 +495,37 @@ interface PixelPoint {
 }
 
 /** Tỷ lệ `0..1` của khung → pixel ảnh. Chỉ có phép nhân. */
+/** D1: cửa đi chính (cửa rộng nhất máy dò) thường 700–1 000 mm; ngoài khoảng → tỷ lệ đáng ngờ. */
+const DOOR_WIDTH_TYPICAL_MM = { min: 700, max: 1000 } as const;
+
+export function isDoorWidthOdd(widthMm: number): boolean {
+  return widthMm < DOOR_WIDTH_TYPICAL_MM.min || widthMm > DOOR_WIDTH_TYPICAL_MM.max;
+}
+
+/** Bán kính bắt điểm, px màn hình (D1). */
+const SNAP_RADIUS_SCREEN_PX = 8;
+
+/** Điểm bắt gần nhất trong `radiusPx` (px ảnh); `null` khi không có. */
+export function nearestSnapTarget(
+  point: { readonly x: number; readonly y: number },
+  targets: readonly ScaleRawSnapTarget[],
+  radiusPx: number,
+): ScaleRawSnapTarget | null {
+  let best: ScaleRawSnapTarget | null = null;
+  let bestDistance = radiusPx;
+
+  for (const target of targets) {
+    const distance = Math.hypot(target.xPx - point.x, target.yPx - point.y);
+
+    if (distance <= bestDistance) {
+      best = target;
+      bestDistance = distance;
+    }
+  }
+
+  return best;
+}
+
 function toPixelPoint(frame: ImageFrame, point: ImageRatioPoint): PixelPoint {
   return {
     x: pixels(frame.edgeScale.millimetresToPixels(millimetres(point.x)) - frame.insetX),
@@ -1255,21 +1288,15 @@ export function useScaleCalibration(
   /* Bắt điểm (M-03).                                                        */
   /* ---------------------------------------------------------------------- */
 
-  const snapTargetsMm = useMemo<readonly SnapTarget[]>(() => {
-    const raw = record?.snapTargets ?? EMPTY_SNAP_TARGETS;
+  /** Điểm bắt máy dò (`detected-geometry`), px ảnh. */
+  const snapTargetsPx = record?.snapTargets ?? EMPTY_SNAP_TARGETS;
+  /** D1: bán kính bắt 8 px MÀN HÌNH, quy về px ảnh theo mức phóng hiện tại. */
+  const snapRadiusPx = useMemo<number>(() => {
+    const edge = frame === null ? 0 : Math.max(frame.widthPx, frame.heightPx);
+    const screenPerImage = edge > 0 ? (Math.min(canvasSize.width, canvasSize.height) * viewport.zoom) / edge : 0;
 
-    if (workingRatio === null || raw.length === 0) {
-      return [];
-    }
-
-    const scale = scaleFromRatio(workingRatio);
-
-    return raw.map((target) => ({
-      kind: target.kind,
-      id: target.id,
-      position: { x: scale.pixelsToMillimetres(target.xPx), y: scale.pixelsToMillimetres(target.yPx) },
-    }));
-  }, [record?.snapTargets, workingRatio]);
+    return screenPerImage > 0 ? SNAP_RADIUS_SCREEN_PX / screenPerImage : SNAP_RADIUS_SCREEN_PX;
+  }, [canvasSize.height, canvasSize.width, frame, viewport.zoom]);
 
   /**
    * Một đầu đoạn sau khi đã khoá trục và đã bắt điểm.
@@ -1283,6 +1310,7 @@ export function useScaleCalibration(
       anchor: PixelPoint,
       moving: PixelPoint,
       isAxisLocked: boolean,
+      isSnapDisabled = false,
     ): { readonly point: PixelPoint; readonly kind: ReferenceLineDraft['snappedKind'] } => {
       let point = moving;
 
@@ -1299,6 +1327,18 @@ export function useScaleCalibration(
         };
       }
 
+      // Giữ Alt: không bắt gì cả (D1).
+      if (isSnapDisabled) {
+        return { point, kind: null };
+      }
+
+      // Đầu tường / giao điểm máy dò trong 8 px màn hình thắng; chạy cả khi chưa có tỷ lệ.
+      const target = nearestSnapTarget(point, snapTargetsPx, snapRadiusPx);
+
+      if (target !== null) {
+        return { point: { x: target.xPx, y: target.yPx }, kind: target.kind };
+      }
+
       if (workingRatio === null) {
         return { point, kind: null };
       }
@@ -1308,7 +1348,7 @@ export function useScaleCalibration(
         x: scale.pixelsToMillimetres(point.x),
         y: scale.pixelsToMillimetres(point.y),
       };
-      const snapped = snapToTargets(asMm, snapTargetsMm);
+      const snapped = snapToTargets(asMm, []);
 
       return {
         point: {
@@ -1318,7 +1358,7 @@ export function useScaleCalibration(
         kind: snapped.snapped ? snapped.kind : null,
       };
     },
-    [snapTargetsMm, workingRatio],
+    [snapRadiusPx, snapTargetsPx, workingRatio],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1506,6 +1546,7 @@ export function useScaleCalibration(
           session[otherEndpoint(endpoint)],
           grabbed(moving, session.grabOffset),
           modifiers.isAxisLocked,
+          modifiers.isSnapDisabled === true,
         );
 
         return {
@@ -2397,7 +2438,10 @@ export function useScaleCalibration(
         // Sổ luật chỉ có mức tối thiểu cho cửa đi, nên khoảng chỉ có một đầu và
         // câu chữ nói đúng như vậy — không bịa một biên trên không tồn tại.
         expectedRangeLabel: expectedRangeFrom(formatLength(MIN_DOOR_WIDTH_MM, { unit: 'mm' })),
-        statusCode: doorWidth !== null && doorWidth < MIN_DOOR_WIDTH_MM ? 'attention' : 'neutral',
+        statusCode: doorWidth !== null && isDoorWidthOdd(doorWidth) ? 'attention' : 'neutral',
+        ...(doorWidth !== null && isDoorWidthOdd(doorWidth)
+          ? { warning: COPY.doorWidthOdd(formatLength(millimetres(Math.round(doorWidth)), { unit: 'mm' })) }
+          : {}),
       },
       {
         id: 'largestRoomArea',

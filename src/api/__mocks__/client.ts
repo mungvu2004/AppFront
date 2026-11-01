@@ -874,6 +874,13 @@ const mockUsersHttpError = (status: number, requestId: string): HttpError => ({
 });
 
 const failed = <T>(error: HttpError): Result<T, HttpError> => ({ error, ok: false });
+const endpointMissing = (resource: string): HttpError => ({
+  kind: 'http',
+  raw: { resource },
+  requestId: `req-${resource}-missing`,
+  retryable: false,
+  status: 404,
+});
 
 /** Id dự án không có (hoặc người dùng không phải thành viên): `projects.read` trả 404 `resource: 'project'` — B-V1-43. */
 export const MOCK_MISSING_PROJECT_ID = 'project-missing';
@@ -1975,6 +1982,9 @@ export const createMockApiClient = (): ApiClient => {
      */
     quality: {
       assess: async ({ floorId, projectId }) => ok(readAssessment(projectId, floorId)),
+      /* Bộ mẫu như máy chủ cũ: chưa có hai endpoint lô 2b — màn tự lùi về hành vi cũ. */
+      dimensionStrings: async () => failed(endpointMissing('dimension-strings')),
+      detectedGeometry: async () => failed(endpointMissing('detected-geometry')),
       setCorners: async ({ body, floorId, projectId }) => {
         const current = readQualityFloor(floorId);
 

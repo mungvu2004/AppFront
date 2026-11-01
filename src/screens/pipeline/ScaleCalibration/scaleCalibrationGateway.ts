@@ -50,7 +50,7 @@ import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { createAppApiClient } from '@/api/appClient';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import { ENDPOINTS } from '@/api/endpoints';
-import type { FloorImageQuality } from '@/api/schemas/quality';
+import type { DetectedGeometry, FloorImageQuality } from '@/api/schemas/quality';
 import { pixels, type Pixels } from '@/domain/units/scale';
 import { millimetres, type Millimetres, type MillimetresPerPixel } from '@/domain/units/types';
 import { readProjectConfidenceThreshold, type ReadConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
@@ -258,6 +258,9 @@ function toDrawingSnapshot(floor: FloorImageQuality): ScaleDrawingSnapshot {
   };
 }
 
+/** Toạ độ `detected-geometry` là px trang `pages/0-<id>.png` — cùng ảnh màn vẽ. */
+const GEOMETRY_REUSE_MS = 2000;
+
 /* -------------------------------------------------------------------------- */
 /* Factory.                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -272,15 +275,40 @@ export function createScaleCalibrationGateway(
   options: CreateScaleCalibrationGatewayOptions = {},
 ): ScaleCalibrationGateway {
   const now = options.now ?? ((): number => Date.now());
+  /*
+   * Bốn lượt đọc hình học cùng một tầng chạy song song (`Promise.all` của hook) → một lượt
+   * `detected-geometry`. ponytail: một ô nhớ theo tầng, sống 2 s; cần hơn thì đưa vào react-query.
+   */
+  let geometrySlot: { readonly key: string; readonly at: number; readonly promise: Promise<DetectedGeometry | null> } | null = null;
+  const geometryOf = ({ floorId, projectId }: ReadFloorGeometryInput): Promise<DetectedGeometry | null> => {
+    const key = `${projectId}/${floorId}`;
+    const read = client.quality.detectedGeometry;
+
+    if (read === undefined) {
+      return Promise.resolve(null);
+    }
+
+    if (geometrySlot === null || geometrySlot.key !== key || now() - geometrySlot.at > GEOMETRY_REUSE_MS) {
+      // Lỗi nào cũng lùi về hành vi cũ (404/501 của máy chủ cũ, lỗi mạng): màn không vỡ vì phần phụ.
+      const promise = read
+        .call(client.quality, { floorId, projectId })
+        .then((result) => (result.ok ? result.data : null))
+        .catch(() => null);
+      geometrySlot = { key, at: now(), promise };
+    }
+
+    return geometrySlot.promise;
+  };
 
   return {
-    // Năm việc `false` cho tới khi có endpoint — xem `SCALE_MISSING_ENDPOINTS`.
+    // Bốn việc hình học đi qua `detected-geometry` (lô 2b); máy chủ cũ 404/501 → `unsupported`.
+    // `dimensionStrings` vẫn `false`: endpoint lô 2b không trả độ dài px của chuỗi (span_px).
     supports: {
       dimensionStrings: false,
-      referenceWallWidth: false,
-      typicalDoorWidth: false,
-      largestRoomBox: false,
-      snapTargets: false,
+      referenceWallWidth: client.quality.detectedGeometry !== undefined,
+      typicalDoorWidth: client.quality.detectedGeometry !== undefined,
+      largestRoomBox: client.quality.detectedGeometry !== undefined,
+      snapTargets: client.quality.detectedGeometry !== undefined,
     },
 
     readFloorDrawing: async ({ floorId, projectId, signal }) => {
@@ -318,10 +346,40 @@ export function createScaleCalibrationGateway(
     },
 
     readDimensionStrings: async () => unsupported('dimensionStrings'),
-    readReferenceWallWidth: async () => unsupported('referenceWallWidth'),
-    readTypicalDoorWidth: async () => unsupported('typicalDoorWidth'),
-    readLargestRoomBox: async () => unsupported('largestRoomBox'),
-    readSnapTargets: async () => unsupported('snapTargets'),
+    readReferenceWallWidth: async (input) => {
+      const geometry = await geometryOf(input);
+      const median = geometry?.wallThicknessPx?.median;
+
+      return median === undefined || !(median > 0) ? unsupported('referenceWallWidth') : { supported: true, value: pixels(median) };
+    },
+    readTypicalDoorWidth: async (input) => {
+      const geometry = await geometryOf(input);
+      const widest = Math.max(0, ...(geometry?.doors ?? []).map((door) => door.widthPx));
+
+      return widest > 0 ? { supported: true, value: pixels(widest) } : unsupported('typicalDoorWidth');
+    },
+    readLargestRoomBox: async (input) => {
+      const box = (await geometryOf(input))?.largestRoom?.boxPx;
+
+      return box === undefined
+        ? unsupported('largestRoomBox')
+        : { supported: true, value: { widthPx: pixels(box.xMax - box.xMin), heightPx: pixels(box.yMax - box.yMin) } };
+    },
+    readSnapTargets: async (input) => {
+      const geometry = await geometryOf(input);
+
+      return geometry === null
+        ? unsupported('snapTargets')
+        : {
+            supported: true,
+            value: geometry.snapPoints.map((point, index) => ({
+              id: `snap-${index}`,
+              kind: point.kind === 'wallEnd' ? 'wallVertex' : 'intersection',
+              xPx: pixels(point.x),
+              yPx: pixels(point.y),
+            })),
+          };
+    },
 
     readLayer: async ({ floorId, projectId, signal }) => {
       const result = await client.spatial.readLayer({ floorId, projectId, ...(signal !== undefined ? { signal } : {}) });

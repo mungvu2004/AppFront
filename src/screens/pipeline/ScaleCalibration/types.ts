@@ -148,6 +148,8 @@ export interface ImageRatioBox {
 /** Cờ phím bổ trợ đang giữ lúc kéo. `Shift` khoá đoạn theo trục. */
 export interface ScalePointerModifiers {
   readonly isAxisLocked: boolean;
+  /** Giữ `Alt`: tắt bắt dính (D1). */
+  readonly isSnapDisabled?: boolean;
 }
 
 /** Hướng nhích một đầu đoạn bằng phím mũi tên. */
@@ -385,6 +387,8 @@ export interface ScaleCrossCheckRow {
    * **Không bao giờ `'verified'`** — đây là phép đo máy tính ra, không ai duyệt (A5).
    */
   readonly statusCode: ViewStatusCode;
+  /** Câu cảnh báo khi giá trị bất thường (D1: cửa đi ngoài 700–1 000 mm). */
+  readonly warning?: string;
 }
 
 /* -------------------------------------------------------------------------- */

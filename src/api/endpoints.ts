@@ -259,6 +259,12 @@ export const ENDPOINTS = {
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/quality/corners`,
     straighten: (projectId: string, floorId: string): string =>
       `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/quality/straighten`,
+    /** Lô 2b: số kích thước máy đọc được trên trang (màn Hiệu chỉnh tỷ lệ). */
+    dimensionStrings: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/dimension-strings`,
+    /** Lô 2b: bề dày tường, điểm bắt, cửa, phòng lớn nhất, hộp bao căn — px trang. */
+    detectedGeometry: (projectId: string, floorId: string): string =>
+      `${PROJECTS_ROOT}/${projectId}/floors/${floorId}/detected-geometry`,
   },
   /** N21 đọc, N22 thay trọn `overrides` (`PUT {baseVersion, body}`) — cấu hình bộ luật của dự án. */
   ruleConfig: {

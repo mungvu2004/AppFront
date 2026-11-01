@@ -133,6 +133,11 @@ export function ScaleCalibrationPanel({
                       {row.valueLabel}
                     </span>
                     <span className="text-[12px] text-text-muted">{row.expectedRangeLabel}</span>
+                    {row.warning !== undefined && (
+                      <span className="text-[12px] text-state-attention-text" role="status">
+                        {row.warning}
+                      </span>
+                    )}
                   </div>
                 </FieldRow>
               ))}
