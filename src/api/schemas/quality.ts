@@ -328,7 +328,7 @@ const PagePxSchema = z.tuple([z.number().positive(), z.number().positive()]);
 /** `GET /projects/{pid}/floors/{fid}/dimension-strings` — chuỗi toàn số, 300–30 000 mm. */
 export const DimensionStringsSchema = z.object({
   runId: z.string().nullable().optional(),
-  pagePx: PagePxSchema,
+  pagePx: PagePxSchema.nullable(),
   items: z.array(
     z.object({
       id: z.string(),
@@ -344,7 +344,7 @@ export type DimensionStrings = z.infer<typeof DimensionStringsSchema>;
 
 /** `GET /projects/{pid}/floors/{fid}/detected-geometry`. */
 export const DetectedGeometrySchema = z.object({
-  pagePx: PagePxSchema,
+  pagePx: PagePxSchema.nullable(),
   wallThicknessPx: z.object({ median: z.number(), p90: z.number() }).nullable(),
   snapPoints: z.array(z.object({ x: z.number(), y: z.number(), kind: z.enum(['wallEnd', 'junction']) })),
   doors: z.array(z.object({ id: z.string(), box: PageBoxPxSchema, widthPx: z.number(), confidence: z.number() })),

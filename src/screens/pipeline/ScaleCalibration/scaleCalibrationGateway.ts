@@ -360,7 +360,7 @@ export function createScaleCalibrationGateway(
       const read = client.quality.dimensionStrings;
       const result = read === undefined ? null : await read.call(client.quality, { floorId, projectId }).catch(() => null);
 
-      if (result === null || !result.ok) {
+      if (result === null || !result.ok || result.data.pagePx === null) {
         return [];
       }
 

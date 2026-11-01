@@ -112,4 +112,18 @@ describe('createScaleCalibrationGateway — dimension-strings (chip)', () => {
     ]);
     expect(await createScaleCalibrationGateway(base).readDimensionChips?.(INPUT)).toEqual([]);
   });
+
+  it('chưa có lượt (pagePx null) → không chip, bề dày/phòng lớn nhất unsupported', async () => {
+    const base = createMockApiClient();
+    const dimensionStrings = vi.fn(async () => ({ ok: true as const, data: { runId: null, pagePx: null, items: [] } }));
+    const empty: DetectedGeometry = { pagePx: null, wallThicknessPx: null, snapPoints: [], doors: [], largestRoom: null, outerBoxPx: null };
+    const gateway = createScaleCalibrationGateway({
+      ...base,
+      quality: { ...base.quality, dimensionStrings, detectedGeometry: vi.fn(async () => ({ ok: true as const, data: empty })) },
+    });
+
+    expect(await gateway.readDimensionChips?.(INPUT)).toEqual([]);
+    expect((await gateway.readReferenceWallWidth(INPUT)).supported).toBe(false);
+    expect((await gateway.readLargestRoomBox(INPUT)).supported).toBe(false);
+  });
 });
