@@ -1367,7 +1367,7 @@ export function useFloorUploadScreen(
     return cache.get(attachment.id) ?? null;
   }, []);
 
-  const pageThumbnails = usePdfPageThumbnails(gateway, projectId, attachments);
+  const pageThumbnails = usePdfPageThumbnails(gateway, projectId, attachments, floors.length >= 2 ? 1 : 2);
 
   /** Ảnh để khoanh vùng: blob của ảnh, ảnh nhỏ của trang PDF đang chọn; `null` khi chưa có. */
   const sheetPreviewOf = useCallback(

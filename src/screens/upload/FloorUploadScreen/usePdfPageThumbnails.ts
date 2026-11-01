@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { UploadBranch } from '@/lib/upload';
 
@@ -15,9 +15,14 @@ export interface PageThumbnailSource {
   readonly pageCount: number | null;
 }
 
-/** PDF nhiều trang, vừa trần thân: chỉ những tệp này mới có ô chọn trang cần ảnh. */
-export function wantsPageThumbnails(source: PageThumbnailSource): boolean {
-  return source.branch === 'pdf' && (source.pageCount ?? 0) > 1 && source.file.size <= PAGE_THUMBNAILS_MAX_BYTES;
+/**
+ * PDF vừa trần thân, có từ `minPages` trang: mặc định 2 (ô chọn trang cần ảnh); 1 khi dự án
+ * có từ hai tầng — tờ một trang là trường hợp chính của "một tờ nhiều tầng", cần ảnh để khoanh.
+ */
+export function wantsPageThumbnails(source: PageThumbnailSource, minPages = 2): boolean {
+  return (
+    source.branch === 'pdf' && (source.pageCount ?? 0) >= minPages && source.file.size <= PAGE_THUMBNAILS_MAX_BYTES
+  );
 }
 
 /**
@@ -31,9 +36,12 @@ export function usePdfPageThumbnails(
   gateway: FloorUploadGateway,
   projectId: string,
   sources: readonly PageThumbnailSource[],
+  minPages = 2,
 ): ReadonlyMap<string, readonly string[]> {
-  const [thumbnails, setThumbnails] = useState<ReadonlyMap<string, readonly string[]>>(() => new Map());
-  const requestedRef = useRef(new Set<string>());
+  // Theo đối tượng tệp, không theo mã: các bản gắn của cùng một tờ (mỗi tầng một bản) dùng
+  // chung một lượt hỏi máy chủ.
+  const [byFile, setByFile] = useState<ReadonlyMap<Blob, readonly string[]>>(() => new Map());
+  const requestedRef = useRef(new WeakSet<Blob>());
 
   useEffect(() => {
     const read = gateway.readPageThumbnails;
@@ -43,18 +51,27 @@ export function usePdfPageThumbnails(
     }
 
     for (const source of sources) {
-      if (!wantsPageThumbnails(source) || requestedRef.current.has(source.id)) {
+      if (!wantsPageThumbnails(source, minPages) || requestedRef.current.has(source.file)) {
         continue;
       }
 
-      requestedRef.current.add(source.id);
+      requestedRef.current.add(source.file);
       void read({ file: source.file, projectId }).then((pages) => {
         if (pages.length > 0) {
-          setThumbnails((previous) => new Map(previous).set(source.id, pages));
+          setByFile((previous) => new Map(previous).set(source.file, pages));
         }
       });
     }
-  }, [gateway, projectId, sources]);
+  }, [gateway, minPages, projectId, sources]);
 
-  return thumbnails;
+  return useMemo(() => {
+    const byId = new Map<string, readonly string[]>();
+
+    for (const source of sources) {
+      const pages = byFile.get(source.file);
+      if (pages !== undefined) byId.set(source.id, pages);
+    }
+
+    return byId;
+  }, [byFile, sources]);
 }
