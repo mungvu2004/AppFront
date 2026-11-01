@@ -8,6 +8,7 @@ import {
   approveConfidentLabelOf,
   approveUnsureLabelOf,
   buildChangeFurnitureKindCommand,
+  buildChangeObjectSwingCommand,
   confidentObjectsOf,
   confirmUnsureLabelOf,
   doorSizeWarningOf,
@@ -209,5 +210,26 @@ describe('objectLayerReviewGateway: narrow door hint (UX-48)', () => {
     expect(doorSizeWarningOf({ layer: 'door', widthMm: 900 })).toBeNull();
     expect(doorSizeWarningOf({ layer: 'window', widthMm: 392 })).toBeNull();
     expect(doorSizeWarningOf({ layer: 'furniture', widthMm: 392 })).toBeNull();
+  });
+});
+
+describe('objectLayerReviewGateway: doorStyle chỉ đi cùng cửa đi lùa (review EDITOR3D-DOT2 #1)', () => {
+  it('đổi cửa lùa âm tường sang mở trái thì bỏ doorStyle, để AppBack không trả 422 cả tầng', () => {
+    const door = Object.values(normalizeSpatial(createSampleBuilding()).byId).find(
+      (entity) => entity !== undefined && 'swing' in entity && entity.kind === 'door',
+    );
+    if (door === undefined || !('swing' in door)) throw new Error('sample door missing');
+
+    const result = buildChangeObjectSwingCommand({
+      before: { ...door, swing: 'sliding', doorStyle: 'pocket' },
+      displayId: 'D-001',
+      swing: 'left',
+      actorId: 'u-1',
+    });
+
+    if (!result.ok) throw new Error(result.error.reasons.join(' '));
+    const after = result.data.changes[0]?.after;
+    expect(after).toMatchObject({ swing: 'left' });
+    expect(after).not.toHaveProperty('doorStyle');
   });
 });

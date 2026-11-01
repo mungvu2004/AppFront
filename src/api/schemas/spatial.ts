@@ -282,6 +282,10 @@ export const OpeningSchema: z.ZodType<Opening, z.ZodTypeDef, unknown> = z
   })
   .strict()
   .refine(humanOnlyReview)
+  // Cùng luật với AppBack `Opening._door_style_on_sliding_door` (review EDITOR3D-DOT2 #1).
+  .refine((opening) => opening.doorStyle === undefined || (opening.kind === 'door' && opening.swing === 'sliding'), {
+    path: ['doorStyle'],
+  })
   .transform(({ doorStyle, reversed, ...wireOpening }) => ({
     ...wireOpening,
     ...(doorStyle !== undefined ? { doorStyle } : {}),
