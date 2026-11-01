@@ -339,11 +339,13 @@ describe('gợi ý của máy (B3)', () => {
       ...graph,
       furniture: graph.furniture.map((item) => ({ ...item, suggested: false, source: 'human', reviewed: true })),
     });
-    const sceneText = (scene: unknown) => JSON.stringify(scene);
+    // C6: gợi ý chưa nhận chỉ là viền mỏng `item_DRESS-suggested-…`, không có node đồ thật.
+    const realIds = (scene: { nodes: object }) => SUGGESTED_IDS.filter((id) => `item_${id}` in scene.nodes);
 
     expect(pending.skipped.filter((entry) => SUGGESTED_IDS.includes(entry.id as never))).toHaveLength(2);
     expect(accepted.skipped.some((entry) => SUGGESTED_IDS.includes(entry.id as never))).toBe(false);
-    expect(sceneText(accepted.scene).length).toBeGreaterThan(sceneText(pending.scene).length);
+    expect(realIds(pending.scene)).toEqual([]);
+    expect(realIds(accepted.scene)).toHaveLength(2);
   });
 
   it('dây: cờ suggested đọc được, vắng là vắng khoá', () => {

@@ -61,6 +61,7 @@ import type {
   Furniture,
   FurnitureId,
   FurnitureKind,
+  FurnitureVariant,
   Level,
   Opening as GraphOpening,
   OpeningId,
@@ -201,6 +202,7 @@ import {
   type ObjectSubtype,
   type OrphanReviewObject,
   type ReviewObject,
+  FURNITURE_VARIANT_OPTIONS,
 } from './objectLayerTypes';
 import { OBJECT_LAYER_FIXTURE_OBJECTS } from './objectLayerFixture';
 import {
@@ -941,23 +943,49 @@ export const SAME_SUBTYPE_REASON = 'Đối tượng đã ở đúng loại đó 
 /** Loại của lệnh đổi loại một món nội thất (K10) — `OPENING_COMMAND_TYPES` không có lệnh này. */
 export const OBJECT_CHANGE_FURNITURE_KIND_COMMAND_TYPE = 'furniture.changeKind';
 
-/** Đổi loại đồ đạc của đồ thị (tủ bếp → thiết bị vệ sinh…): chỉ đổi `kind`, hình giữ nguyên. */
+/** Loại của lệnh đổi kiểu (`variant`) một món nội thất cùng loại (D3): ghế ăn → sofa… */
+export const OBJECT_CHANGE_FURNITURE_VARIANT_COMMAND_TYPE = 'furniture.changeVariant';
+
+/** Câu từ chối khi kiểu đích trùng kiểu đang có. */
+export const SAME_VARIANT_REASON = 'Đồ đạc đã ở đúng kiểu đó nên không có gì thay đổi.';
+
+const variantLabelOf = (kind: FurnitureKind, variant: FurnitureVariant | undefined): string =>
+  variant === undefined
+    ? 'theo cỡ'
+    : (FURNITURE_VARIANT_OPTIONS[kind]?.find((option) => option.value === variant)?.label ?? variant);
+
+/**
+ * Đổi loại đồ đạc của đồ thị (tủ bếp → thiết bị vệ sinh…) và/hoặc kiểu của nó — MỘT lệnh, một lần
+ * `Ctrl+Z` (sofa = `chair` + `sofa`). `variant` vắng: cùng loại thì giữ kiểu, khác loại thì bỏ kiểu
+ * cũ (kiểu của ghế vô nghĩa ở tủ bếp); `null` = bỏ kiểu, máy suy lại theo cỡ. Hình giữ nguyên.
+ */
 export function buildChangeFurnitureKindCommand(
   before: Furniture,
   kind: FurnitureKind,
   actorId: string,
   displayId: string,
+  variant?: FurnitureVariant | null,
 ): CommandResult {
-  if (before.kind === kind) {
-    return refuse(OBJECT_CHANGE_FURNITURE_KIND_COMMAND_TYPE, [SAME_SUBTYPE_REASON]);
+  const sameKind = before.kind === kind;
+  const nextVariant = variant === undefined ? (sameKind ? before.variant : undefined) : (variant ?? undefined);
+  const type = sameKind ? OBJECT_CHANGE_FURNITURE_VARIANT_COMMAND_TYPE : OBJECT_CHANGE_FURNITURE_KIND_COMMAND_TYPE;
+
+  if (sameKind && before.variant === nextVariant) {
+    return refuse(type, [variant === undefined ? SAME_SUBTYPE_REASON : SAME_VARIANT_REASON]);
   }
+
+  const after: Furniture = { ...before, kind };
+  if (nextVariant === undefined) delete after.variant;
+  else after.variant = nextVariant;
 
   return accept(
     createCommand({
-      type: OBJECT_CHANGE_FURNITURE_KIND_COMMAND_TYPE,
+      type,
       actorId,
-      description: `Đổi loại ${displayId} thành ${FURNITURE_KIND_LABELS[kind]}.`,
-      changes: [changeForUpdate('furniture', before, { ...before, kind })],
+      description: sameKind
+        ? `Đổi kiểu ${displayId} thành ${variantLabelOf(kind, nextVariant)}.`
+        : `Đổi loại ${displayId} thành ${nextVariant === 'sofa' ? 'Sofa' : FURNITURE_KIND_LABELS[kind]}.`,
+      changes: [changeForUpdate('furniture', before, after)],
     }),
   );
 }
@@ -1282,6 +1310,24 @@ export const confidentObjectsOf = (
 
 /** Nhãn nút (và câu nhật ký hoàn tác) của lượt duyệt món máy chắc — như "Duyệt N đoạn máy chắc chắn". */
 export const approveConfidentLabelOf = (count: number): string => `Duyệt ${formatObjectCount(count)} mục máy chắc chắn`;
+
+/**
+ * Dòng gom món máy chắc chắn khi đang lọc chỗ máy chưa chắc: "8 mục máy chắc chắn — Duyệt cả 8".
+ * Câu nhật ký hoàn tác vẫn dùng {@link approveConfidentLabelOf}.
+ */
+export const confidentRowLabelOf = (count: number): string =>
+  `${formatObjectCount(count)} mục máy chắc chắn — Duyệt cả ${formatObjectCount(count)}`;
+
+/** "Xem từng gợi ý": dòng gợi ý kế sau dòng đang chọn (vòng lại đầu); `null` khi hết gợi ý. */
+export const nextSuggestionIdOf = (
+  rows: readonly { readonly id: string; readonly isSuggested?: boolean }[],
+  selectedId: string | null,
+): string | null => {
+  const ids = rows.filter((row) => row.isSuggested === true).map((row) => row.id);
+  const at = selectedId === null ? -1 : ids.indexOf(selectedId);
+
+  return ids[(at + 1) % ids.length] ?? null;
+};
 
 /** UX-06: món duyệt thẳng được nhưng máy chưa chắc (dưới ngưỡng) — nút riêng, phải hỏi lại. */
 export const unsureObjectsOf = (
@@ -1715,6 +1761,7 @@ export function objectsOf(
       tracedCentre: entity.centre,
       rotationDeg: entity.rotationDeg,
       furnitureKind: entity.kind,
+      ...(entity.variant === undefined ? {} : { furnitureVariant: entity.variant }),
       ...(entity.variant === 'sofa' ? { isSofa: true } : {}),
     };
 
@@ -1738,6 +1785,8 @@ export function objectsOf(
 type FreeFurnitureObject = OrphanReviewObject & {
   readonly rotationDeg: number;
   readonly furnitureKind: FurnitureKind;
+  /** Kiểu của đồ thị (`Furniture.variant`) — ô "Kiểu" của inspector (D3). */
+  readonly furnitureVariant?: FurnitureVariant;
   /** Máy chủ đổi nhãn theo cỡ thật: "ghế" dài hơn 1,4 m là sofa (`variant: 'sofa'`, U34). */
   readonly isSofa?: true;
 };
@@ -1819,8 +1868,7 @@ export const reviewCounterOf = (objects: readonly ReviewObject[]): ObjectReviewC
 export const lowConfidenceObjectsOf = (
   objects: readonly ReviewObject[],
   threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
-): readonly ReviewObject[] =>
-  objects.filter((object) => !object.reviewed && isLowConfidenceObject(object.confidence, threshold));
+): readonly ReviewObject[] => unsureObjectsOf(objects, threshold);
 
 /* -------------------------------------------------------------------------- */
 /* Viewmodel — một dòng danh sách, một thanh tra, một hình tường nền.           */
@@ -1882,6 +1930,7 @@ export function toObjectInspector(
     subtype: object.subtype,
     typeLabel: objectTypeLabelOf(object),
     furnitureKind: (object as Partial<FreeFurnitureObject>).furnitureKind ?? null,
+    furnitureVariant: (object as Partial<FreeFurnitureObject>).furnitureVariant ?? null,
     sizeLabel: formatObjectSize(object.widthMm, object.heightMm),
     sizeWarning: doorSizeWarningOf(object),
     confidenceLabel: isLowConfidenceObject(object.confidence, threshold) ? LOW_CONFIDENCE_LABEL : CONFIDENT_LABEL,

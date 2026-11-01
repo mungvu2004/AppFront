@@ -133,6 +133,11 @@ export function ScaleCalibrationPanel({
                       {row.valueLabel}
                     </span>
                     <span className="text-[12px] text-text-muted">{row.expectedRangeLabel}</span>
+                    {row.warning !== undefined && (
+                      <span className="text-[12px] text-state-attention-text" role="status">
+                        {row.warning}
+                      </span>
+                    )}
                   </div>
                 </FieldRow>
               ))}
@@ -182,6 +187,9 @@ export function ScaleCalibrationPanel({
           >
             {panel.isApplying ? APPLY_APPLYING : (panel.applyLabel ?? APPLY_PRIMARY)}
           </Button>
+          {panel.applyMissingHint !== undefined && (
+            <p className="text-[12px] text-text-secondary">{panel.applyMissingHint}</p>
+          )}
           {panel.applyBlockedNotice !== undefined && (
             <InlineAlert level="attention" message={panel.applyBlockedNotice} />
           )}

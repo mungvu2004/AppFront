@@ -148,6 +148,8 @@ export interface ImageRatioBox {
 /** Cờ phím bổ trợ đang giữ lúc kéo. `Shift` khoá đoạn theo trục. */
 export interface ScalePointerModifiers {
   readonly isAxisLocked: boolean;
+  /** Giữ `Alt`: tắt bắt dính (D1). */
+  readonly isSnapDisabled?: boolean;
 }
 
 /** Hướng nhích một đầu đoạn bằng phím mũi tên. */
@@ -272,6 +274,12 @@ export interface ScaleReferenceMethodViewModel {
    * nhập để người dùng thấy hậu quả trước khi rời tay.
    */
   readonly inlineWarning: ScaleWarningNotice | null;
+  /** D1: số máy đọc được (`dimension-strings`) làm chip; bấm một chip để đo theo số đó. */
+  readonly chips?: readonly { readonly id: string; readonly label: string; readonly isSelected: boolean }[];
+  /** D1: câu dưới khối chip — hướng dẫn kéo, hoặc "máy không đọc được số". */
+  readonly chipNotice?: string | null;
+  /** D1: "Đo được 322 px → 31,9 mm/px" ngay khi kéo. `null` khi chưa đủ hai vế. */
+  readonly liveMeasureLine?: string | null;
   /** `false` khi chưa có đoạn nào để đo lại. Phím `R`. */
   readonly canRemeasure: boolean;
   /** UX41 U04: chưa có đoạn và đã có ảnh — nút/phím `N` đặt sẵn một đoạn để chỉnh bằng bàn phím. */
@@ -385,6 +393,8 @@ export interface ScaleCrossCheckRow {
    * **Không bao giờ `'verified'`** — đây là phép đo máy tính ra, không ai duyệt (A5).
    */
   readonly statusCode: ViewStatusCode;
+  /** Câu cảnh báo khi giá trị bất thường (D1: cửa đi ngoài 700–1 000 mm). */
+  readonly warning?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -528,6 +538,10 @@ export interface ScalePanelViewModel {
   readonly ratioEntry?: ScaleRatioEntryViewModel;
   /** UX-R4 U11: ô "Theo diện tích căn (m²)". Có khi tầng đã có phòng hoặc tường để đo diện tích. */
   readonly areaEntry?: ScaleRatioEntryViewModel;
+  /** D1: ô "Căn rộng × dài (mm)". Có khi tầng đã có tường để đo hộp bao. */
+  readonly sizeEntry?: ScaleSizeEntryViewModel;
+  /** D1: nút xác nhận xám — một dòng nói còn thiếu gì. */
+  readonly applyMissingHint?: string;
   /** UX-R4 U06: ảnh chụp/JPG (không có DPI) — một câu nói vì sao ghi chú "TL 1/N" không dùng được. */
   readonly ratioPhotoNotice?: string;
 }
@@ -541,6 +555,21 @@ export interface ScaleRatioEntryViewModel {
   readonly error: string | null;
   /** Dòng phụ dưới ô, ví dụ cỡ căn suy ra "Căn rộng ≈ 8,7 × 8,2 m, 1 px ≈ 12 mm." */
   readonly hint?: string;
+}
+
+/** D1: chữ người dùng gõ ở ô rộng × dài + hai lựa chọn. */
+export interface FlatSizeEntryState {
+  readonly widthText: string;
+  readonly lengthText: string;
+  /** "Đổi chiều": rộng ứng bề cao ảnh. */
+  readonly isSwapped: boolean;
+  /** `true` = tính từ mép ngoài tường (mặc định), `false` = theo tim tường. */
+  readonly isOuter: boolean;
+}
+
+export interface ScaleSizeEntryViewModel extends FlatSizeEntryState {
+  /** Câu lệch hai cạnh > 3 %; `null` khi ổn hoặc chưa đủ số. */
+  readonly error: string | null;
 }
 
 /** Lời đề nghị "Máy ước lượng từ độ dày tường: 1 px ≈ X mm. [Dùng tỷ lệ này]". */
@@ -692,6 +721,8 @@ export interface ScaleCalibrationActions {
   readonly onChangeRealLength: (text: string) => void;
   /** Phím `Enter` trong ô "Chiều dài thật". */
   readonly onConfirmRealLength: () => void;
+  /** D1: bấm chip số — phóng tới số, bật đo, điền sẵn "Chiều dài thật". */
+  readonly onPickDimensionChip?: (chipId: string) => void;
   /** Phím `R` — xoá đoạn hiện tại và kéo lại từ đầu. */
   readonly onRemeasure: () => void;
   /** Phím `N` / nút "Đặt đoạn đo giữa bản vẽ": đoạn ngang giữa ảnh để chỉnh bằng bàn phím (UX41 U04). */
@@ -741,6 +772,8 @@ export interface ScaleCalibrationActions {
   readonly onChangeDrawingRatio?: (text: string) => void;
   /** UX-R4 U11: gõ diện tích căn (m²) để suy tỷ lệ; tuỳ chọn như `onChangeDrawingRatio`. */
   readonly onChangeFlatArea?: (text: string) => void;
+  /** D1: sửa ô rộng × dài căn. */
+  readonly onChangeFlatSize?: (patch: Partial<FlatSizeEntryState>) => void;
   /** UX-R4 U06: phóng khung nhìn tới số kích thước đang chọn (hoặc số đầu). */
   readonly onZoomToNumbers?: () => void;
   /** Đồng ý ở hộp thoại A9: gửi tỷ lệ cho từng tầng có bản vẽ, nối tiếp. */
@@ -813,6 +846,7 @@ export interface ScaleCalibrationPanelProps {
     | 'onGoToViewer3d'
     | 'onHoverDimensionRow'
     | 'onNudgeEndpoint'
+    | 'onPickDimensionChip'
     | 'onPlaceSegment'
     | 'onRemeasure'
     | 'onSelectDimensionRow'
@@ -820,6 +854,7 @@ export interface ScaleCalibrationPanelProps {
     | 'onUseSuggestedScale'
     | 'onChangeDrawingRatio'
     | 'onChangeFlatArea'
+    | 'onChangeFlatSize'
     | 'onZoomToNumbers'
   >;
 }
@@ -835,7 +870,12 @@ export interface ScaleCalibrationMethodReferenceProps {
   readonly reference: ScaleReferenceMethodViewModel;
   readonly actions: Pick<
     ScaleCalibrationActions,
-    'onChangeRealLength' | 'onConfirmRealLength' | 'onNudgeEndpoint' | 'onPlaceSegment' | 'onRemeasure'
+    | 'onChangeRealLength'
+    | 'onConfirmRealLength'
+    | 'onNudgeEndpoint'
+    | 'onPickDimensionChip'
+    | 'onPlaceSegment'
+    | 'onRemeasure'
   >;
 }
 

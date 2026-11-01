@@ -20,7 +20,7 @@ import { adoptableRoomOf, dismissableNodeIdsOf, toSpatialGraph } from '../toSpat
 import type { PascalItemNode, PascalNode, PascalScene } from '../types';
 
 const graph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF2().doc).graph;
-const scene = toPascalScene(graph).scene;
+const scene = toPascalScene(graph, { furnish: 'on' }).scene;
 const items = (of: PascalScene): PascalItemNode[] =>
   Object.values(of.nodes).filter((node): node is PascalItemNode => node.type === 'item');
 const target = items(scene).find((node) => adoptableRoomOf(node) !== null);
@@ -51,7 +51,7 @@ describe('H4 — dressingOff khứ hồi', () => {
       ...graph,
       rooms: graph.rooms.map((room) => (room.id === roomId ? { ...room, dressingOff: [dressId] } : room)),
     };
-    const reopened = toPascalScene(saved).scene;
+    const reopened = toPascalScene(saved, { furnish: 'on' }).scene;
 
     expect(reopened.nodes[target.id]).toBeUndefined();
     // Món đặt LÊN món đã xoá (gối trên giường tự bày) cũng không bày; phần còn lại của phòng vẫn có.

@@ -303,12 +303,20 @@ function describeFinding(finding: ImageQualityFinding, floor: FloorImageQuality)
           ? ' Ở mức này,'
           : ` Cạnh ngắn chỉ ${formatPixels(shortEdgeOf(measurement))} px, nên`;
 
+      const tooSmall =
+        measurement === undefined
+          ? ''
+          : `Ảnh quá nhỏ (${formatResolution(measurement.widthPx, measurement.heightPx)}): ký hiệu cửa, đồ đạc rất nhỏ, máy sẽ bỏ sót nhiều. `;
+
       return {
         title: 'Độ phân giải thấp',
         consequence:
+          tooSmall +
           `Độ phân giải thấp${size}.${shortEdge} tường ngăn mỏng nhất chỉ còn vài pixel bề dày ` +
           'và AI có thể bỏ sót nó. ' +
-          `Nên dùng ảnh có cạnh ngắn từ ${formatPixels(RESOLUTION_GOOD_SHORT_EDGE_PX)} px trở lên.`,
+          'Tải bản PDF gốc nếu có. ' +
+          `Chụp/xuất lại lớn hơn, cạnh ngắn ≥ ${formatPixels(RESOLUTION_GOOD_SHORT_EDGE_PX)} px. ` +
+          'Cắt riêng vùng mặt bằng.',
         actionKind: null,
       };
     }
@@ -331,7 +339,8 @@ function describeFinding(finding: ImageQualityFinding, floor: FloorImageQuality)
         consequence:
           'Không tìm thấy khung bản vẽ. Không có khung thì hệ thống không biết đâu là mép bản ' +
           'vẽ, nên tỷ lệ quy đổi ra kích thước thật lệch theo và mọi kích thước đọc được đều ' +
-          'sai. Bạn có thể tự chọn 4 góc.',
+          'sai. Bạn có thể tự chọn 4 góc. ' +
+          'Nếu ảnh có vẻ là tờ quảng cáo nhiều phần, hãy cắt riêng phần mặt bằng 2D.',
         actionKind: 'pickCorners',
       };
 

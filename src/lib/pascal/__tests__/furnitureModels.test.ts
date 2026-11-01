@@ -208,13 +208,20 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
   });
 
   /** Một món ở gốc, hộp `w × d` mm, với `variant` / `heightMm` cho trước. */
-  const oneItem = (variant: NonNullable<Furniture['variant']>, w: number, d: number, heightMm?: number): PascalItemNode =>
+  const oneItem = (
+    variant: NonNullable<Furniture['variant']>,
+    w: number,
+    d: number,
+    heightMm?: number,
+    rotationDeg = 0,
+  ): PascalItemNode =>
     itemsOf(
       withFurniture((base) => [
         {
           ...base,
           kind: 'other',
           variant,
+          rotationDeg: rotationDeg as Furniture['rotationDeg'],
           ...(heightMm === undefined ? {} : { heightMm: millimetres(heightMm) }),
           boundingBox: { min: { x: 0, y: 0 }, max: { x: w, y: d } } as Furniture['boundingBox'],
           centre: { x: w / 2, y: d / 2 } as Furniture['centre'],
@@ -247,22 +254,85 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(wardrobe.asset.dimensions[1]).toBeCloseTo(2.2, 3);
   });
 
-  it('C1 khớp theo nhóm: dãy bếp rất dài bị chặn lệch 1,8× và nằm giữa hộp', () => {
+  it('C3 khớp theo nhóm: dãy bếp rất dài kéo đủ chiều dài hộp (bỏ trần 1,8×), sâu ≤ 1,25 × mẫu và không vượt hộp', () => {
     const run = oneItem('baseRun', 5000, 600, 900);
-    const [sx, , sz] = run.asset.scale!;
-    expect(sx / sz).toBeCloseTo(1.8, 4);
-    const [w] = footprintOf(run);
-    expect(w).toBeLessThan(5);
-    expect(run.position[0]).toBeCloseTo(2.5); // tâm giữ đúng centre — mô hình ngắn hơn nằm giữa
+    const [w, d] = footprintOf(run);
+    expect(w).toBeCloseTo(5, 3);
+    // FE-H: biên dưới 0,8 không được đẩy mặt bằng ra ngoài hộp (mẫu sâu 0,77 m vào hộp 0,6 m ra đúng 0,6 m).
+    expect(d).toBeCloseTo(0.6, 3);
+    const depthScale = run.asset.scale![2] / (CATALOG_MODELS['kitchen-cabinet']!.scale ?? [1, 1, 1])[2];
+    expect(depthScale).toBeLessThanOrEqual(1.25 + 1e-9);
+    expect(run.position[0]).toBeCloseTo(2.5); // tâm giữ đúng centre
   });
 
-  it('C1 khớp theo nhóm: đồ thường (giường) vẫn một tỉ lệ chung như cũ', () => {
+  it('FE-H: mẫu khác dáng hộp không phình quá hộp ở trục bị chặn (tủ đầu giường 0,38 m, chậu, kệ nông)', () => {
+    for (const [variant, w, d] of [['nightstand', 380, 380], ['wardrobe', 2300, 360], ['basin', 450, 770], ['shelves', 390, 2070]] as const) {
+      const [fw, fd] = footprintOf(oneItem(variant, w, d));
+      expect(fw).toBeLessThanOrEqual(w / 1000 + 1e-6);
+      expect(fd).toBeLessThanOrEqual(d / 1000 + 1e-6);
+    }
+  });
+
+  it('C3 tủ áo 3,0 × 0,6 m không heightMm: ra dài 3,0 m, cao ≥ 2,0 m', () => {
+    const wardrobe = oneItem('wardrobe', 3000, 600);
+    expect(wardrobe.asset.src).toBe('/items/closet/model.glb');
+    const [w] = footprintOf(wardrobe);
+    expect(w).toBeCloseTo(3, 3);
+    expect(wardrobe.asset.dimensions[1]).toBeGreaterThanOrEqual(2);
+  });
+
+  it('C3 đồ cứng (giường): mỗi trục mặt bằng riêng, trong [0,8; 1,25] × trung bình nhân; cao theo heightMm', () => {
     const bed = oneItem('bed', 1800, 2100, 700);
     const [sx, sy, sz] = bed.asset.scale!;
     const [cw, ch, cd] = CATALOG_MODELS['double-bed']!.dimensions;
-    const s = Math.min(1.8 / cw, 2.1 / cd, 0.7 / ch);
-    expect([sx, sy, sz]).toEqual([s, s, s]);
+    expect(sx).toBeCloseTo(1.8 / cw, 6);
+    expect(sz).toBeCloseTo(2.1 / cd, 6);
+    expect(sy).toBeCloseTo(0.7 / ch, 6);
     expect(bed.asset.dimensions[1]).toBeCloseTo(0.7);
+  });
+
+  it('C3 bàn ăn hộp 1,37 × 0,78 m (cả hai hướng) không heightMm: cao thật của mẫu, không còn ~0,30 m', () => {
+    for (const [w, d] of [[1370, 780], [780, 1370]] as const) {
+      const table = oneItem('table', w, d);
+      expect(table.asset.src).toBe('/items/dining-table/model.glb');
+      const h = CATALOG_MODELS['dining-table']!.dimensions[1] * table.asset.scale![1];
+      expect(h, `${w}x${d}`).toBeGreaterThanOrEqual(0.6);
+      expect(table.asset.dimensions[1]).toBeCloseTo(h, 6);
+    }
+  });
+
+  it('C3 ghế ăn không heightMm giữ cao trong 0,8–1,0 m', () => {
+    for (const [w, d] of [[450, 500], [500, 550], [600, 600]] as const) {
+      const chair = oneItem('chair', w, d);
+      const folder = /^\/items\/([^/]+)\//.exec(chair.asset.src)![1]!;
+      const h = CATALOG_MODELS[folder]!.dimensions[1] * chair.asset.scale![1];
+      expect(h, `${w}x${d}`).toBeGreaterThanOrEqual(0.8);
+      expect(h, `${w}x${d}`).toBeLessThanOrEqual(1.0);
+    }
+  });
+
+  it('C3 hộp ngang × mẫu dọc và ngược lại ở 0/90/180/270: khớp theo trục riêng, không xoay hai lần', () => {
+    // Giường: mẫu dọc (sâu > rộng); tủ áo: mẫu ngang. Hộp là khung riêng (K1) nên scale không đổi theo góc.
+    for (const variant of ['bed', 'wardrobe'] as const) {
+      for (const [w, d] of [[2100, 1600], [1600, 2100]] as const) {
+        const at0 = oneItem(variant, w, d);
+        const folder = /^\/items\/([^/]+)\//.exec(at0.asset.src)![1]!;
+        for (const rot of [0, 90, 180, 270]) {
+          const item = oneItem(variant, w, d, undefined, rot);
+          const tag = `${variant} ${w}x${d} @${rot}`;
+          expect(item.asset.scale, tag).toEqual(at0.asset.scale);
+          expect(item.asset.rotation, tag).toEqual([...CATALOG_MODELS[folder]!.rotation]);
+          expect(Math.abs(Math.sin(item.rotation[1] + (rot * Math.PI) / 180)), tag).toBeLessThan(1e-9);
+          expect(Math.cos(item.rotation[1] + (rot * Math.PI) / 180), tag).toBeCloseTo(1, 9);
+          const [fw, fd] = footprintOf(item);
+          // Đồ cứng lệch dáng mẫu tối đa 1,25/0,8 quanh tỉ lệ chung; đồ dãy kéo đủ chiều dài.
+          for (const r of [fw / (w / 1000), fd / (d / 1000)]) {
+            expect(r, tag).toBeGreaterThanOrEqual(0.6);
+            expect(r, tag).toBeLessThanOrEqual(1.4);
+          }
+        }
+      }
+    }
   });
 
   it('C1 đèn: đèn cây/bàn/trần/tường có interactive phát sáng bật sẵn; đồ khác không', () => {
@@ -283,11 +353,13 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     const expected: Record<string, string> = {
       // Bàn 900×600 của F2 nằm ở phòng khách → bàn ăn (desk chỉ ở phòng ngủ/kho/khác).
       table: '/items/dining-table/model.glb',
+      // Ghế F2 hộp 900 × 600: FE-A bỏ office-chair khỏi vai ghế ăn (C2) nên giữ ghế ăn, chỉ co theo cỡ.
       chair: '/items/dining-chair/model.glb',
       bed: '/items/single-bed/model.glb',
       wardrobe: '/items/closet/model.glb',
       // FR1-F2: tủ bếp dưới có cửa + tay nắm, không còn khối hộp trơn kitchen-counter.
       kitchenCabinet: '/items/kitchen-cabinet/model.glb',
+      // C2: thiết bị dài/ngắn ≥ 1,5 và dài ≤ 1 m là bồn cầu, còn lại lavabo — kiểm riêng bên dưới.
       sanitaryFixture: '/items/bathroom-sink/model.glb',
       // Món `other` dò được không bao giờ là cây (open-plan-20261101): hộp tủ trung tính.
       other: '/items/dresser/model.glb',
@@ -296,6 +368,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     // 32 đồ đạc, 4 cái là thang → node `stair` thật (U13, stair.test.ts), không còn item giữ chỗ.
     expect(items).toHaveLength(28);
     for (const item of items) {
+      if (item.asset.category === 'sanitaryFixture' && item.asset.src === '/items/toilet/model.glb') continue;
       expect(item.asset.src, item.asset.category).toBe(expected[item.asset.category]);
     }
   });

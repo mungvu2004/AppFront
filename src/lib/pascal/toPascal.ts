@@ -27,6 +27,7 @@ import type {
   Axis,
   Building,
   Furniture,
+  FurnitureId,
   FurnitureKind,
   Level,
   Opening,
@@ -52,14 +53,18 @@ import {
   isGeneratedNodeId,
   itemSlotsOf,
   lampInteractiveOf,
+  GENERATED_DRESS_PREFIX,
+  LOGGIA_RAILING_MM,
+  RAILING_GLASS_REF,
   SCENE_MATERIALS,
+  UNCONFIRMED_MATERIAL_REF,
   wallDressingOf,
 } from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, sceneStyleOf, type SceneStyle } from './sceneStyles';
 import { dressingOf, hostTopMm } from './sceneDressingRules';
 import { furnishEmptyRooms } from './sceneFurnish';
 import { furnishingUsageOf, isPlausibleStair, lShapedRunArms, weldWallEnds } from './structureFixes';
-import { isThinHob, isThinSink, modelFolderOf, roleOf } from './sceneVariety';
+import { contextRolesOf, isThinHob, isThinSink, modelFolderOf, roleOf } from './sceneVariety';
 import type {
   AppFrontOrigin,
   PascalDoorNode,
@@ -248,6 +253,59 @@ const wallSidesOf = (wall: Wall, rooms: readonly Room[]): Pick<PascalWallNode, '
   const back = inside(-1);
   if (front === back) return {};
   return { frontSide: front ? 'interior' : 'exterior', backSide: back ? 'interior' : 'exterior' };
+};
+
+/**
+ * Lan can lô gia: tường bao thẳng, không ô mở, một phía là phòng `loggia`, phía kia ngoài căn (không
+ * phòng nào). Dò như `wallSidesOf`.
+ */
+export const isLoggiaRailing = (wall: Wall, rooms: readonly Room[], hasOpenings: boolean): boolean => {
+  if (wall.kind !== 'envelope' || hasOpenings || wall.curveOffsetMm) return false;
+  const { start, end } = wall.centreline;
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  if (!(length > 0)) return false;
+  const normal = { x: -(end.y - start.y) / length, y: (end.x - start.x) / length };
+  const reach = wall.thicknessMm / 2 + 80;
+  const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const roomsAt = (sign: number): Room[] => {
+    const p = { x: mid.x + normal.x * reach * sign, y: mid.y + normal.y * reach * sign };
+    return rooms.filter((r) => r.levelId === wall.levelId && insideOutline(p, r.outline));
+  };
+  const [front, back] = [roomsAt(1), roomsAt(-1)];
+  const loggia = (side: Room[]): boolean => side.some((r) => r.usage === 'loggia');
+  return (loggia(front) && back.length === 0) || (loggia(back) && front.length === 0);
+};
+
+/**
+ * Lan can kính 1,4 m thay chỗ tường bao lô gia, chỉ ở hiển thị: node tường thật giữ nguyên số đo
+ * (lượt về đọc `height` của tường) nhưng ẩn; lan can là đồ sinh ra `DRESS-` nên không bao giờ lưu.
+ */
+const railingNodeOf = (wall: Wall, levelNodeId: PascalNodeId, levelHeightMm: number, style: SceneStyle): PascalItemNode => {
+  const { start, end } = wall.centreline;
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  const half = { x: length / 2, y: wall.thicknessMm / 2 };
+  const node = itemNodeOf(
+    {
+      id: `${GENERATED_DRESS_PREFIX}railing-${wall.id}` as FurnitureId,
+      levelId: wall.levelId,
+      kind: 'other',
+      centre: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+      boundingBox: { min: { x: -half.x, y: -half.y }, max: { x: half.x, y: half.y } },
+      rotationDeg: degrees((Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI),
+      heightMm: millimetres(Math.min(LOGGIA_RAILING_MM, levelHeightMm)),
+      confidence: 1,
+      source: 'human',
+      reviewed: true,
+    } as Furniture,
+    levelNodeId,
+    levelHeightMm,
+    style,
+    undefined,
+    0,
+    'rectangular-carpet',
+  );
+  const slots = Object.fromEntries(Object.keys(node.slots ?? { a: '' }).map((key) => [key, RAILING_GLASS_REF]));
+  return { ...node, name: 'Lan can lô gia', slots, metadata: { ...node.metadata, generated: 'part' } };
 };
 
 /**
@@ -573,8 +631,8 @@ const RUG_FOLDERS: ReadonlySet<string> = new Set(['rectangular-carpet', 'round-c
 const RUG_SCALE_Y = 0.5;
 /**
  * Đồ kéo dài được theo từng trục (dãy tủ, kệ, chậu rửa liền tủ, bồn cây…): một tỉ lệ chung
- * thu cả dãy 3 m về một mô-đun. Mỗi trục ngang ≤ `MAX_STRETCH_RATIO` × trục ngang nhỏ hơn —
- * quá thì giữ mức kéo tối đa và đặt giữa hộp, để tủ không thành sợi mì.
+ * thu cả dãy 3 m về một mô-đun. Kéo hết theo trục dài của hộp (không trần — tủ áo 3 m ra 3 m),
+ * trục kia trong `[FIT_AXIS_MIN; FIT_AXIS_MAX]` × mẫu nhưng không quá hộp, cao giữ thật.
  */
 const STRETCH_FOLDERS: ReadonlySet<string> = new Set([
   'closet',
@@ -591,7 +649,13 @@ const STRETCH_FOLDERS: ReadonlySet<string> = new Set([
   // Bàn trà chữ nhật vào ô vuông 0,9 × 0,9 (F1): co đều thì chỉ còn sâu 0,5 m.
   'coffee-table',
 ]);
-const MAX_STRETCH_RATIO = 1.8;
+/** Biên co giãn một trục mặt bằng quanh tỉ lệ chung (C3, GIAI-PHAP 3.4): lệch hơn thì mẫu méo dáng. */
+const FIT_AXIS_MIN = 0.8;
+const FIT_AXIS_MAX = 1.25;
+/** Biên hệ số cao khi bản vẽ không cho `heightMm`: giữ cao thật của mẫu (bàn ăn không còn 0,30 m). */
+const FIT_HEIGHT_MIN = 0.9;
+const FIT_HEIGHT_MAX = 1.1;
+const clampTo = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
 /** `heightMm` là bề dày tấm trên bản vẽ (mặt bếp 20 mm), không phải cao mẫu: khớp theo mặt bằng, giữ cao thật. */
 const OWN_HEIGHT_FOLDERS: ReadonlySet<string> = new Set(['hob-sf']);
 
@@ -783,20 +847,31 @@ const itemNodeOf = (
     const maxH =
       fixedH ??
       Math.min(metresOf(levelHeightMm), TALL_PLANT_FOLDERS.has(model.folder) ? TALL_PLANT_MAX_M : ch * 1.25);
-    // Tỉ lệ từng trục [sx, sy, sz] theo nhóm: thảm phủ mặt bằng, đồ kéo dài co giãn từng trục
-    // (có chặn lệch), còn lại một tỉ lệ chung như cũ. Chỉ `asset.scale` lệch trục — lượt về
+    // Tỉ lệ từng trục [sx, sy, sz] theo nhóm: thảm phủ mặt bằng, đồ kéo dài kéo theo chiều dài,
+    // đồ cứng co giãn từng trục có chặn lệch. Chỉ `asset.scale` lệch trục — lượt về
     // chỉ đọc `node.scale` nên không đổi gì.
-    const [sx, sy, sz] = ((): PascalVec3 => {
-      if (RUG_FOLDERS.has(model.folder)) return [widthM / cw, fixedH === undefined ? RUG_SCALE_Y : fixedH / ch, depthM / cd];
+    // Hộp bao là khung riêng của món (K1: `orientDetected` đã đổi cạnh khi quay 90/270), node
+    // quay theo `rotationDeg` — nên `rx`/`rz` so trục riêng với trục mẫu, không đụng `asset.rotation`.
+    const rx = widthM / cw;
+    const rz = depthM / cd;
+    const heightOf = (ref: number): number =>
+      fixedH === undefined ? Math.min(clampTo(ref, FIT_HEIGHT_MIN, FIT_HEIGHT_MAX), maxH / ch) : fixedH / ch;
+    // Không trục mặt bằng nào vượt hộp bao (FE-H): biên [0,8; 1,25] chỉ chống co thiếu — mẫu khác dáng
+    // hộp (chậu, tủ đầu giường, kệ nông) từng phình gấp đôi hộp ở trục bị chặn.
+    const [ax, sy, az] = ((): PascalVec3 => {
+      if (RUG_FOLDERS.has(model.folder)) return [rx, fixedH === undefined ? RUG_SCALE_Y : fixedH / ch, rz];
       if (STRETCH_FOLDERS.has(model.folder)) {
-        const lo = Math.min(widthM / cw, depthM / cd);
-        const cap = lo * MAX_STRETCH_RATIO;
-        const y = fixedH === undefined ? Math.min(lo, maxH / ch) : fixedH / ch;
-        return [Math.min(widthM / cw, cap), y, Math.min(depthM / cd, cap)];
+        // Kéo hết theo trục dài của hộp (so với mẫu), trục kia giữ gần chiều sâu mẫu.
+        const alongX = rx >= rz;
+        const deep = clampTo(alongX ? rz : rx, FIT_AXIS_MIN, FIT_AXIS_MAX);
+        return alongX ? [rx, heightOf(deep), deep] : [deep, heightOf(deep), rz];
       }
-      const s = Math.min(widthM / cw, depthM / cd, maxH / ch);
-      return [s, s, s];
+      // Đồ cứng: mỗi trục co giãn riêng trong [0,8; 1,25] × trung bình nhân hai trục.
+      const g = Math.sqrt(rx * rz);
+      return [clampTo(rx, g * FIT_AXIS_MIN, g * FIT_AXIS_MAX), heightOf(g), clampTo(rz, g * FIT_AXIS_MIN, g * FIT_AXIS_MAX)];
     })();
+    const sx = Math.min(ax, rx);
+    const sz = Math.min(az, rz);
     // `asset.scale` nhân thẳng vào GLB gốc; catalog nào có scale riêng thì `dimensions`
     // là cỡ sau scale đó (cọ: GLB cao 11,9 m × 0,37) — phải nhân lại, không thì cao gấp đôi tường.
     const [kx, ky, kz] = catalog.scale ?? [1, 1, 1];
@@ -865,6 +940,46 @@ const itemNodeOf = (
         ...(furniture.liftMm === undefined ? {} : { liftMm: furniture.liftMm }),
       }),
     },
+  };
+};
+
+/** C6 — viền đồ chưa xác nhận: tấm phẳng 4 mm, vật liệu bán trong suốt. */
+const SUGGESTED_OUTLINE_MM = 4;
+export const SUGGESTED_OUTLINE_PREFIX = `${GENERATED_DRESS_PREFIX}suggested-`;
+
+/**
+ * C6 — đồ `suggested` không dựng khối 3D: thay bằng tấm phẳng mờ phủ mặt bằng hộp bao để người dùng
+ * thấy chỗ máy chưa nhận ra. Id `DRESS-` (lượt về bỏ qua), không `roomId` (không nhận nuôi được).
+ */
+const suggestedOutlineOf = (
+  furniture: Furniture,
+  levelNodeId: PascalNodeId | undefined,
+  levelHeightMm: number | undefined,
+  style: SceneStyle,
+): PascalItemNode | null => {
+  if (levelNodeId === undefined || levelHeightMm === undefined) return null;
+  const { centre, rotationDeg, boundingBox: b } = furniture;
+  if (!isUsable(centre.x, centre.y, rotationDeg, b.min.x, b.min.y, b.max.x, b.max.y)) return null;
+  const { levelId, kind, confidence, source, reviewed } = furniture;
+  const node = itemNodeOf(
+    {
+      ...{ levelId, kind, centre, rotationDeg, boundingBox: b, confidence, source, reviewed },
+      id: `${SUGGESTED_OUTLINE_PREFIX}${furniture.id}` as FurnitureId,
+      heightMm: millimetres(SUGGESTED_OUTLINE_MM),
+    },
+    levelNodeId,
+    levelHeightMm,
+    style,
+    undefined,
+    0,
+    'rectangular-carpet',
+  );
+  const slots = Object.fromEntries(Object.keys(node.slots ?? { a: '' }).map((key) => [key, UNCONFIRMED_MATERIAL_REF]));
+  return {
+    ...node,
+    name: `${node.name} (chưa xác nhận)`,
+    slots,
+    metadata: { ...node.metadata, generated: 'part', unconfirmed: true },
   };
 };
 
@@ -964,7 +1079,14 @@ const sitePolygonOf = (nodes: Record<PascalNodeId, PascalNode>): PascalSiteNode[
 
 export const toPascalScene = (
   graph: SpatialGraph,
-  { style = sceneStyleOf(undefined) }: { readonly style?: SceneStyle } = {},
+  {
+    style = sceneStyleOf(undefined),
+    furnish = 'off',
+  }: {
+    readonly style?: SceneStyle;
+    /** Đồ tự bày (bày phòng trống + bày biện) — mặc định tắt: cảnh chỉ có đồ của bản vẽ (C1). */
+    readonly furnish?: 'off' | 'on';
+  } = {},
 ): PascalSceneResult => {
   const nodes: Record<PascalNodeId, PascalNode> = {};
   const skipped: SkippedEntity[] = [];
@@ -1080,9 +1202,16 @@ export const toPascalScene = (
           };
 
     builtWalls.push(wall);
-    nodes[node.id] = node;
+    const railing = isLoggiaRailing(wall, graph.rooms, graph.openings.some((o) => o.wallId === wall.id));
+    nodes[node.id] = railing ? { ...node, visible: false } : node;
     wallNodeIdOf.set(wall.id, node.id);
     adopt(levelNodeId, node.id);
+    const levelHeightMm = levelHeightMmOf.get(wall.levelId);
+    if (railing && levelHeightMm !== undefined) {
+      const rail = railingNodeOf(welded ?? wall, levelNodeId, levelHeightMm, style);
+      nodes[rail.id] = rail;
+      adopt(levelNodeId, rail.id);
+    }
   }
 
   const builtWallOf = new Map(builtWalls.map((w) => [w.id, w]));
@@ -1151,10 +1280,24 @@ export const toPascalScene = (
      sát tường (`kitchenRuns`) — cả hai chỉ ở cảnh, không ghi về BE khi chưa sửa. */
   const furnitureToBuild = expandKitchenRuns(orientDetectedFurniture(graph.furniture, graph.walls), builtWalls);
 
+  /* Vai trò theo ngữ cảnh phòng (bồn cầu thừa → lavabo, bàn nhỏ xa giường → bàn phụ): chỉ đổi mẫu. */
+  const contextUsageOf = (f: Pick<Furniture, 'roomId'>) => (f.roomId === undefined ? undefined : roomUsageOf.get(f.roomId));
+  const contextRoles = contextRolesOf(
+    furnitureToBuild.filter((f) => f.suggested !== true),
+    contextUsageOf,
+  );
+
   for (const furniture of furnitureToBuild) {
-    /* Gợi ý của máy chưa được nhận thì chưa vào cảnh 3D (B3). */
+    /* Gợi ý của máy chưa được nhận thì chưa vào cảnh 3D (B3, C6): chỉ một viền mỏng trên sàn,
+       đồ sinh ra (`DRESS-`) nên không bao giờ lưu, không tính là đồ. */
     if (furniture.suggested === true) {
       skipped.push(skip(furniture.id, 'đồ đạc', 'Gợi ý của máy chưa được nhận.'));
+      const outlineLevel = levelNodeIdOf.get(furniture.levelId);
+      const outline = suggestedOutlineOf(furniture, outlineLevel, levelHeightMmOf.get(furniture.levelId), style);
+      if (outline !== null && outlineLevel !== undefined) {
+        nodes[outline.id] = outline;
+        adopt(outlineLevel, outline.id);
+      }
       continue;
     }
 
@@ -1204,7 +1347,10 @@ export const toPascalScene = (
       builtRooms.find((r) => r.levelId === furniture.levelId && insideOutline(furniture.centre, r.outline));
     const arms = lShapedRunArms(furniture, room, { ...graph, walls: builtWalls, openings: builtOpenings });
     const usageOf = (f: Furniture) => (f.roomId === undefined ? undefined : roomUsageOf.get(f.roomId));
-    const sinkFolder = sinkFolderOf(furniture, furnitureToBuild, usageOf);
+    const contextRole = contextRoles.get(furniture.id);
+    const sinkFolder =
+      sinkFolderOf(furniture, furnitureToBuild, usageOf) ??
+      (contextRole === undefined ? undefined : (modelFolderOf(furniture, style, usage, contextRole) ?? undefined));
     const node =
       arms === null
         ? itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage, counterTopMmOf(furniture, furnitureToBuild, style, usageOf), sinkFolder)
@@ -1234,7 +1380,7 @@ export const toPascalScene = (
   /*
    * Đồ sinh ra (J10): bày phòng trống rồi bày biện, cùng đường `itemNodeOf` với đồ thật, sau
    * đồ thật. Không bao giờ được lưu (`isGeneratedNodeId`), không tính vào `skipped`: món nào
-   * không dựng được thì bỏ im lặng.
+   * không dựng được thì bỏ im lặng. Chỉ chạy khi `furnish: 'on'` — mặc định cảnh không tự thêm đồ.
    */
   const usable = {
     ...graph,
@@ -1247,8 +1393,9 @@ export const toPascalScene = (
      để gối/đèn không bày lên một cái giường đã xoá. */
   const offIds = new Set(builtRooms.flatMap((room) => room.dressingOff ?? []));
   const notOff = (furniture: Furniture): boolean => !offIds.has(furniture.id);
-  const furnished = furnishEmptyRooms(usable, style).filter(notOff);
-  const dressed = dressingOf({ ...usable, furniture: [...builtFurniture, ...furnished] }, style).filter(notOff);
+  const furnished = furnish === 'on' ? furnishEmptyRooms(usable, style).filter(notOff) : [];
+  const dressed =
+    furnish === 'on' ? dressingOf({ ...usable, furniture: [...builtFurniture, ...furnished] }, style).filter(notOff) : [];
   const dressIdsOf = new Map<string, string[]>();
 
   for (const furniture of [...furnished, ...dressed]) {

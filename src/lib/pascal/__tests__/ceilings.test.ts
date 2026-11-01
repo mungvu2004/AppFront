@@ -11,6 +11,7 @@ import {
   interiorPointOf,
   isGeneratedLightId,
   LIGHT_DISTANCE_M,
+  LIGHT_MESH_SCALE,
   LIGHT_NODE_SCALE,
 } from '../sceneDressing';
 import { SCENE_STYLES, sceneStyleOf } from '../sceneStyles';
@@ -89,7 +90,8 @@ describe('trần + đèn (T16)', () => {
         src: '/items/recessed-light/model.glb',
         attachTo: 'ceiling',
         recessed: true,
-        scale: [1, 1, 1],
+        // C1: đèn là nguồn sáng, không phải món — lưới GLB co thêm để không hiện.
+        scale: LIGHT_MESH_SCALE,
       });
 
       const { controls, effects } = light.asset.interactive as {

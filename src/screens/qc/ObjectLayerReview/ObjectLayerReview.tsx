@@ -60,7 +60,7 @@ import { ObjectLayerStatusBar } from './ObjectLayerStatusBar';
 import { ObjectLayerBulkApproveBar } from './ObjectLayerBulkApproveBar';
 import { ObjectLayerSuggestionBar } from './ObjectLayerSuggestionBar';
 import { ObjectLayerToolRail } from './ObjectLayerToolRail';
-import { OBJECT_LAYER_TEXT } from './objectLayerReviewGateway';
+import { nextSuggestionIdOf, OBJECT_LAYER_TEXT } from './objectLayerReviewGateway';
 import type { ObjectLayerReviewModel } from './objectLayerTypes';
 
 /**
@@ -204,6 +204,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
       model.onRejectAllSuggestions === undefined ? null : (
         <ObjectLayerSuggestionBar
           label={model.suggestionLabel ?? ''}
+          onReviewEach={() => model.onSelect(nextSuggestionIdOf(model.rows, model.selectedObjectId))}
           onAcceptAll={model.onAcceptAllSuggestions}
           onRejectAll={model.onRejectAllSuggestions}
         />

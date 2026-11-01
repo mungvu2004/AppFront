@@ -74,6 +74,8 @@ function StepHeading({
   );
 }
 
+const CHIPS_TITLE = 'Hoặc chọn một số máy đọc được';
+
 function isStepActive(activeStep: ScaleReferenceStep, step: ScaleReferenceStep): boolean {
   return activeStep === step;
 }
@@ -81,12 +83,42 @@ function isStepActive(activeStep: ScaleReferenceStep, step: ScaleReferenceStep):
 export function ScaleCalibrationMethodReference({ actions, reference }: ScaleCalibrationMethodReferenceProps) {
   return (
     <div className="flex flex-col gap-5">
+      {reference.chips !== undefined && (
+        <section aria-label={CHIPS_TITLE} className="flex flex-col gap-2">
+          <h4 className="text-[13px] font-medium text-text-secondary">{CHIPS_TITLE}</h4>
+          {reference.chips.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {reference.chips.map((chip) => (
+                <button
+                  aria-pressed={chip.isSelected}
+                  className={clsx(
+                    'rounded-full border px-2.5 py-1 font-mono text-[13px] tabular-nums text-text-primary outline-hidden transition-colors duration-standard',
+                    'hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-accent',
+                    chip.isSelected ? 'border-accent bg-accent-wash' : 'border-border-default',
+                  )}
+                  key={chip.id}
+                  onClick={() => actions.onPickDimensionChip?.(chip.id)}
+                  type="button"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {reference.chipNotice != null && <p className="text-[13px] text-text-secondary">{reference.chipNotice}</p>}
+        </section>
+      )}
       <div className="flex flex-col gap-2">
         <StepHeading index={1} isActive={isStepActive(reference.activeStep, 'draw')} title={STEP_DRAW_TITLE} />
         <p className="text-[13px] text-text-secondary">{DRAW_HINT}</p>
         <p className="font-mono text-[16px] font-semibold tabular-nums text-text-primary">
           {reference.livePixelLengthLabel ?? MISSING_VALUE}
         </p>
+        {reference.liveMeasureLine != null && (
+          <p className="text-[13px] tabular-nums text-text-primary" role="status">
+            {reference.liveMeasureLine}
+          </p>
+        )}
         {reference.tooShortNotice !== null && <InlineAlert level="attention" message={reference.tooShortNotice} />}
         {/* Hàng phím trần không lời đã bỏ: danh sách "Phím tắt" có mô tả ngay dưới phương pháp (BUG-632). */}
         {reference.canPlaceSegment ? (

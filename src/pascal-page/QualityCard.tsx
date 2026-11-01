@@ -4,10 +4,18 @@
  * ("Tự động · Thấp"). Cùng kiểu thẻ với `LightingCard`.
  *
  * Dùng `aria-current` (không `aria-pressed`) để không lẫn với nút đang chọn của thẻ Ánh sáng.
+ *
+ * C7 — kèm số lỗi đặt đồ (`scenePlacementIssues`: chồng nhau, chắn cửa, lấn tường) và vài dòng đầu;
+ * chỉ báo, không tự dời đồ.
  */
 /* eslint-disable react-refresh/only-export-components -- bảng nhãn đi kèm thẻ để test dùng. */
 import { ChevronDown, Gauge } from 'lucide-react';
-import type { MouseEvent } from 'react';
+import { useMemo, type MouseEvent } from 'react';
+
+import { denormalizeSpatial } from '@/domain/spatial/normalize';
+import { scenePlacementIssues, type PlacementIssue } from '@/lib/pascal/placement';
+import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
+import { useStore } from '@/store';
 
 import { useRealism, type RealismTier } from './realism/store';
 import { setTierMode } from './realism/tiers';
@@ -28,10 +36,19 @@ export function qualityLabel(mode: TierMode, tier: RealismTier): string {
   return mode === 'auto' ? `${labelOf('auto')} · ${labelOf(tier)}` : labelOf(mode);
 }
 
+/** Số dòng lỗi đặt đồ hiện trong thẻ; phần còn lại gộp thành "và N lỗi khác". */
+const ISSUE_LINES = 5;
+
+export function placementSummary(issues: readonly PlacementIssue[]): string {
+  return issues.length === 0 ? 'Không thấy lỗi đặt đồ' : `${issues.length} lỗi đặt đồ`;
+}
+
 export function QualityCard() {
   const mode = useRealism((s) => s.tierMode);
   const tier = useRealism((s) => s.tier);
   const label = qualityLabel(mode, tier);
+  const spatial = useStore(selectViewerSpatial);
+  const issues = useMemo(() => (spatial === null ? [] : scenePlacementIssues(denormalizeSpatial(spatial))), [spatial]);
 
   const choose = (id: TierMode, event: MouseEvent<HTMLButtonElement>) => {
     setTierMode(id);
@@ -68,6 +85,20 @@ export function QualityCard() {
           </li>
         ))}
         <li className="px-2 pt-0.5 pb-1.5 text-[12px] text-[var(--pa-text-3)]">Chỉ lưu trên máy này</li>
+        {spatial === null ? null : (
+          <li className="border-t border-[var(--pa-border)] px-2 pt-1.5 pb-1.5 text-[12px] text-[var(--pa-text-2)]">
+            <p className="font-medium text-[var(--pa-text)]">{placementSummary(issues)}</p>
+            {issues.length === 0 ? null : (
+              <ul aria-label="Lỗi đặt đồ" className="mt-0.5 max-w-64 list-disc pl-4">
+                {issues.slice(0, ISSUE_LINES).map((issue) => (
+                  <li key={`${issue.kind}-${issue.furnitureIds.join('-')}`}>{issue.message}</li>
+                ))}
+                {issues.length > ISSUE_LINES ? <li>và {issues.length - ISSUE_LINES} lỗi khác</li> : null}
+              </ul>
+            )}
+            <p className="mt-0.5 text-[var(--pa-text-3)]">Kéo đồ để sửa; máy không tự dời.</p>
+          </li>
+        )}
       </ul>
     </details>
   );

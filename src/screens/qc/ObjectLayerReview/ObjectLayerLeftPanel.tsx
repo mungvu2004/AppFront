@@ -49,6 +49,9 @@ const CHIP_CLASS = cn(
   'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
 
+/** Lỗi quy chuẩn không chặn duyệt đồ: gấp sẵn, nói rõ là xem sau cũng được. */
+const ruleWarningTitleOf = (count: number): string => `Cảnh báo quy chuẩn (${count}) — xem sau cũng được`;
+
 export function ObjectLayerLeftPanel({
   availableSubtypes,
   counts,
@@ -64,7 +67,7 @@ export function ObjectLayerLeftPanel({
   return (
     <div className="flex flex-col gap-3 border-b border-border-default px-4 py-3">
       {/* Mở từ nút "Sửa" của Quy chuẩn: nói lỗi gì, cách sửa, trước bộ lọc (P03). */}
-      {ruleIssues === undefined ? null : <QcRuleIssues {...ruleIssues} />}
+      {ruleIssues === undefined ? null : <QcRuleIssues {...ruleIssues} titleOf={ruleWarningTitleOf} />}
 
       <div aria-label={FILTER_ROW_LABEL} className="flex flex-wrap gap-2" role="group">
         {OBJECT_LAYER_IDS.map((layer) => {

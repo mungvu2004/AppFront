@@ -12,6 +12,7 @@ import type { Furniture, RoomUsage } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 
 import { CATALOG_MODELS, VARIANT_MODEL } from './furnitureCatalog';
+import { rectOfFurniture, rectsOverlap } from './placement';
 import type { SceneStyle } from './sceneStyles';
 
 export type FurnitureRole =
@@ -21,6 +22,8 @@ export type FurnitureRole =
   | 'dresser'
   | 'bookshelf'
   | 'diningChair'
+  /** Ghế băng / ghế ăn dài: variant `bench`, hoặc ghế dài > 1,5 m mà cạnh ngắn < 0,6 m. */
+  | 'bench'
   | 'armchair'
   | 'sofa'
   | 'nightstand'
@@ -55,12 +58,14 @@ const ROLE_MODELS: Readonly<Record<FurnitureRole, readonly string[]>> = {
   closet: ['closet'],
   dresser: ['dresser'],
   bookshelf: ['bookshelf'],
-  diningChair: ['dining-chair', 'stool', 'office-chair'],
+  // C2 — phong cách chỉ đổi kiểu trong cùng loại: ghế đẩu, ghế xoay không phải ghế ăn.
+  diningChair: ['dining-chair'],
+  bench: ['ottoman'],
   armchair: ['livingroom-chair'],
   sofa: ['sofa'],
   nightstand: ['bedside-table'],
   coffeeTable: ['coffee-table'],
-  desk: ['office-table', 'dining-table'],
+  desk: ['office-table'],
   diningTable: ['dining-table'],
   fridge: ['fridge'],
   // Không dùng 'kitchen-counter' (hộp trơn): tủ có tay nắm trước, dãy dài có chậu rửa vừa hơn.
@@ -99,8 +104,7 @@ const roleOfFolder = (folder: string): FurnitureRole =>
   (Object.keys(ROLE_MODELS) as FurnitureRole[]).find((role) => ROLE_MODELS[role][0] === folder) ?? 'fixed';
 
 const COFFEE_TABLE_MAX_MM = 500;
-/** Thiết bị `other` trong bếp có hai cạnh từ chừng này (m) là tủ lạnh, nhỏ hơn là bếp nấu. */
-// ponytail: chỉ theo cỡ — bếp nấu 0,64 × 0,73 m cũng vào tủ lạnh; tách khi bản dò có lớp/chiều cao riêng.
+/** Thiết bị `other` trong bếp có hai cạnh từ chừng này (m) là hộp tủ (tủ lạnh chỉ từ variant), nhỏ hơn là bếp nấu. */
 const KITCHEN_FRIDGE_MIN_M = 0.55;
 /** Bếp `hob` thấp hơn chừng này là mặt bếp nằm trên mặt đá (F-KITCHEN-HOB 600 × 500 × 20), không phải bếp liền lò. */
 const THIN_HOB_MAX_MM = 300;
@@ -124,12 +128,23 @@ const variantModelOf = (f: Shaped) => {
   return VARIANT_MODEL[f.variant] ?? null;
 };
 
+/** Ghế dài hơn chừng này (m) là sofa hoặc ghế băng, theo cạnh ngắn (`SOFA_MIN_SHORT_M`). */
+const LONG_SEAT_M = 1.5;
+const SOFA_MIN_SHORT_M = 0.6;
+/** Thiết bị vệ sinh (C2, E6 x2): khu tắm từ diện tích này (m²), bồn tắm từ cạnh dài này (m). */
+const SHOWER_MIN_AREA_M2 = 1.0;
+const BATHTUB_MIN_LONG_M = 1.4;
+/** Bồn cầu: dài/ngắn ≥ 1,5 và cạnh dài ≤ 1,0 m; lavabo cùng cỡ nhưng vuông hơn. */
+const TOILET_MIN_RATIO = 1.5;
+const TOILET_MAX_LONG_M = 1.0;
+
 /** Bàn cỡ bàn làm việc chỉ là `desk` ở các phòng này (hoặc không rõ phòng); bếp, phòng khách… là bàn ăn. */
 const DESK_USAGES: ReadonlySet<RoomUsage | undefined> = new Set([undefined, 'bedroom', 'utility', 'other']);
 
 /**
- * Vai trò của một món: có mô hình variant thì theo mô hình đó, không thì theo hình hộp.
- * Sofa và bàn trà chỉ ở phòng khách (`usage`), như `furnitureModelOf` hôm nay.
+ * Vai trò của một món: có mô hình variant thì theo mô hình đó (không xét phòng), không thì
+ * theo hình hộp. C2 — chỉ đổi loại khi có bằng chứng: ghế dài là sofa/ghế băng ở mọi phòng,
+ * tủ lạnh chỉ từ variant, tủ áo nông vẫn là tủ; bàn trà vẫn chỉ ở phòng khách.
  */
 export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
   const byVariant = variantModelOf(f);
@@ -145,22 +160,24 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
     case 'bed':
       return short < 1.2 ? 'singleBed' : 'doubleBed';
     case 'wardrobe':
-      if (short <= 0.4) return 'bookshelf';
       return h !== undefined && h < 1 ? 'dresser' : 'closet';
     case 'chair':
-      if (living && long > 1.5) return 'sofa';
+      if (long > LONG_SEAT_M) return short >= SOFA_MIN_SHORT_M ? 'sofa' : 'bench';
       return short >= 0.65 && long <= 1.5 ? 'armchair' : 'diningChair';
     case 'table':
-      if (long < 0.6) return 'nightstand';
+      // Khoảng cách tới giường (≤ 0,3 m) xét ở `contextRolesOf` — roleOf chỉ thấy một món.
+      if (long < 0.6 && usage === 'bedroom') return 'nightstand';
       if (living && h !== undefined && h < 0.5) return 'coffeeTable';
       return short <= 0.8 && long <= 1.6 && DESK_USAGES.has(usage) ? 'desk' : 'diningTable';
     case 'kitchenCabinet':
-      return short >= 0.6 && long <= 0.8 ? 'fridge' : 'counter';
+      // Tủ lạnh chỉ khi variant nói (`fridge`), không đoán theo cỡ.
+      return 'counter';
     case 'sanitaryFixture':
       if (usage === 'kitchen') return 'kitchenSink';
-      if (short < 0.5 && long < 0.8) return 'toilet';
-      if (long > 1.5) return 'bathtub';
-      if (short >= 0.75 && long - short < 0.1) return 'shower';
+      // Bồn tắm trước khu tắm: bồn ≥ 1,4 m luôn có diện tích ≈ 1 m², xét diện tích trước thì luật bồn tắm chết.
+      if (long >= BATHTUB_MIN_LONG_M) return 'bathtub';
+      if (short * long >= SHOWER_MIN_AREA_M2) return 'shower';
+      if (long / short >= TOILET_MIN_RATIO && long <= TOILET_MAX_LONG_M) return 'toilet';
       return 'basin';
     case 'washingMachine':
       return 'washer';
@@ -170,19 +187,22 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
       if (h !== undefined && h < 0.05) return long - short < 0.15 * long ? 'roundRug' : 'rug';
       if (living && long > 1.5) return 'sofa';
       // Món dò được không bao giờ là cây: cây chỉ đến từ variant `plant`/`planter` của đồ bày biện.
-      if (usage === 'kitchen') return short >= KITCHEN_FRIDGE_MIN_M ? 'fridge' : 'cooktop';
+      // Tủ lạnh chỉ từ variant: món lớn không nhãn trong bếp là hộp tủ.
+      if (usage === 'kitchen') return short >= KITCHEN_FRIDGE_MIN_M ? 'cabinet' : 'cooktop';
       return 'cabinet';
   }
 };
 
-/** Độ vừa của mô hình với hộp bao: min(tỉ lệ cạnh)/max(tỉ lệ cạnh), 1 = cùng dáng. */
-const fillOf = (f: Shaped, folder: string): number => {
+/**
+ * Chi phí cỡ của mô hình với hộp bao (C3): `|ln(L/Lm)| + |ln(S/Sm)|` theo cạnh dài/ngắn; 0 = đúng cỡ.
+ * Khác `fillOf` cũ (chỉ so dáng): mẫu cùng dáng nhưng to gấp đôi giờ cũng bị phạt.
+ */
+const sizeCostOf = (f: Shaped, folder: string): number => {
   const model = CATALOG_MODELS[folder];
-  if (model === undefined) return 0;
+  if (model === undefined) return Infinity;
   const [short, long] = footprintOf(f);
   const [mw, , md] = model.dimensions;
-  const ratios = [short / Math.min(mw, md), long / Math.max(mw, md)];
-  return Math.min(...ratios) / Math.max(...ratios);
+  return Math.abs(Math.log(long / Math.max(mw, md))) + Math.abs(Math.log(short / Math.min(mw, md)));
 };
 
 /** FNV-1a 32 bit. */
@@ -195,7 +215,8 @@ const fnv1a = (text: string): number => {
   return hash;
 };
 
-const MIN_FILL = 0.6;
+/** Phong cách chỉ phá hoà giữa các mẫu có chi phí cỡ trong 10 % của mẫu vừa nhất. */
+const STYLE_TIE = 1.1;
 
 /**
  * Thư mục mô hình của một món theo phong cách; `null` = không có mô hình (bên gọi dựng
@@ -206,23 +227,65 @@ export const modelFolderOf = (
     Partial<Pick<Furniture, 'heightMm'>>,
   style: SceneStyle,
   usage?: RoomUsage,
+  /** Vai trò theo ngữ cảnh phòng (`contextRolesOf`): đè cả variant, chỉ đổi mẫu. */
+  roleOverride?: FurnitureRole,
 ): string | null => {
-  const role = roleOf(f, usage);
+  const role = roleOverride ?? roleOf(f, usage);
   const catalogue = ROLE_MODELS[role];
-  const preferred = (style.prefer[role] ?? []).filter((folder) => catalogue.includes(folder) && fillOf(f, folder) >= MIN_FILL);
+  const best = Math.min(...catalogue.map((folder) => sizeCostOf(f, folder)));
+  const isNearBest = (folder: string): boolean => sizeCostOf(f, folder) <= best * STYLE_TIE + 1e-9;
+  const preferred = (style.prefer[role] ?? []).filter((folder) => catalogue.includes(folder) && isNearBest(folder));
   const key = PER_ITEM_ROLES.has(role) ? f.id : `${f.roomId ?? 'none'}|${role}`;
   const pickHashed = (folders: readonly string[]): string => folders[fnv1a(key) % folders.length] as string;
 
-  const byVariant = variantModelOf(f);
+  const byVariant = roleOverride === undefined ? variantModelOf(f) : null;
   if (byVariant) {
     return preferred.some((folder) => folder !== byVariant.folder) ? pickHashed(preferred) : byVariant.folder;
   }
   if (catalogue.length === 0) return null;
   if (preferred.length > 0) return pickHashed(preferred);
 
-  // Không ưu tiên nào vừa: mô hình mặc định nếu nó vừa (giữ dáng cảnh hôm nay), không thì
-  // mô hình vừa nhất — hoà thì mô hình đứng trước.
+  // Không ưu tiên nào vừa: mô hình mặc định nếu nó gần vừa nhất (giữ dáng cảnh hôm nay), không thì
+  // mô hình chi phí cỡ nhỏ nhất — hoà thì mô hình đứng trước.
   const [fallback] = catalogue as readonly [string, ...string[]];
-  if (fillOf(f, fallback) >= MIN_FILL) return fallback;
-  return catalogue.reduce((best, folder) => (fillOf(f, folder) > fillOf(f, best) ? folder : best));
+  if (isNearBest(fallback)) return fallback;
+  return catalogue.reduce((a, folder) => (sizeCostOf(f, folder) < sizeCostOf(f, a) ? folder : a));
+};
+
+/** Một phòng có tối đa chừng này bồn cầu; món thừa (độ tin thấp nhất trước) dựng thành lavabo. */
+const MAX_TOILETS_PER_ROOM = 2;
+/** Bàn nhỏ phòng ngủ là tủ đầu giường chỉ khi cách giường gần nhất ≤ chừng này (mm). */
+const NIGHTSTAND_MAX_GAP_MM = 300;
+
+type Placed = Shaped & Pick<Furniture, 'id' | 'centre' | 'roomId' | 'confidence'>;
+
+/**
+ * Vai trò theo ngữ cảnh cả phòng, đè lên `roleOf` khi chọn mẫu (không ghi variant vào dữ liệu):
+ * phòng quá 2 bồn cầu thì món thừa thành lavabo; tủ đầu giường xa giường > 0,3 m thành bàn phụ.
+ */
+export const contextRolesOf = (
+  items: readonly Placed[],
+  usageOf: (f: Placed) => RoomUsage | undefined,
+): ReadonlyMap<string, FurnitureRole> => {
+  const roles = new Map<string, FurnitureRole>();
+  const toiletsOf = new Map<string, Placed[]>();
+  const beds = items.filter((f) => f.kind === 'bed');
+
+  for (const f of items) {
+    const role = roleOf(f, usageOf(f));
+    if (role === 'toilet' && f.roomId !== undefined) toiletsOf.set(f.roomId, [...(toiletsOf.get(f.roomId) ?? []), f]);
+    if (role === 'nightstand') {
+      const rect = rectOfFurniture(f);
+      const nearBed = beds.some((bed) => rectsOverlap(rect, rectOfFurniture(bed), NIGHTSTAND_MAX_GAP_MM + 1));
+      // Bàn phụ: mẫu bàn trà co về cỡ bàn nhỏ (catalog chưa có mẫu bàn phụ riêng).
+      if (!nearBed) roles.set(f.id, 'coffeeTable');
+    }
+  }
+  for (const toilets of toiletsOf.values()) {
+    [...toilets]
+      .sort((a, b) => b.confidence - a.confidence || a.id.localeCompare(b.id))
+      .slice(MAX_TOILETS_PER_ROOM)
+      .forEach((f) => roles.set(f.id, 'basin'));
+  }
+  return roles;
 };

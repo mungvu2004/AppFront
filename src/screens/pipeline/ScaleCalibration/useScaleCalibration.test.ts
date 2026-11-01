@@ -67,6 +67,7 @@ import {
   type ScaleCalibrationGateway,
   type ScaleDrawingSnapshot,
   type ScaleRawDimensionString,
+  type ScaleRawSnapTarget,
 } from './scaleCalibrationGateway';
 import { __resetScaleRatioMarks, useScaleCalibration, writeSavedSegment } from './useScaleCalibration';
 
@@ -265,6 +266,8 @@ interface HarnessOptions {
   readonly sourceFloorId?: string;
   readonly rows?: readonly ScaleRawDimensionString[];
   readonly referenceWallWidthPx?: Pixels;
+  readonly typicalDoorWidthPx?: Pixels;
+  readonly snapTargets?: readonly ScaleRawSnapTarget[];
   /** Thay khổ ảnh của bộ mẫu — ảnh không vuông có dải trống trong khung vuông. */
   readonly drawingSize?: { readonly widthPx: Pixels; readonly heightPx: Pixels };
 }
@@ -325,6 +328,12 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
       options.referenceWallWidthPx === undefined
         ? base.readReferenceWallWidth({ floorId: FLOOR_ID, projectId: PROJECT_ID })
         : { supported: true, value: options.referenceWallWidthPx },
+    ...(options.typicalDoorWidthPx === undefined
+      ? {}
+      : { readTypicalDoorWidth: async () => ({ supported: true as const, value: options.typicalDoorWidthPx ?? pixels(0) }) }),
+    ...(options.snapTargets === undefined
+      ? {}
+      : { readSnapTargets: async () => ({ supported: true as const, value: options.snapTargets ?? [] }) }),
   });
 
   return { gateway, writeLayer };
@@ -961,6 +970,47 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
 
     expect(mounted.result.current.model.panel.areaEntry?.error).toBeNull();
     expect(built).toBeGreaterThan(0);
+
+    await applyNow(mounted);
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo(built / 2, 6);
+  });
+
+  it('[D1] rộng × dài căn theo tim tường: tỷ lệ suy từ hộp bao tường → đi đường xác nhận như cũ', async () => {
+    useStore.getState().setSpatial(null, null);
+    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO, 'pipeline');
+    const harness = await makeHarness();
+    /* Hộp tim tường 10 × 20 m ở tỷ lệ đã dựng; căn thật 5 × 10 m → mm/px còn một nửa. */
+    const wall = (x1: number, y1: number, x2: number, y2: number) => ({
+      centreline: { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } },
+      thicknessMm: 200,
+    });
+    let built = 0;
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readLayer: async (input) => {
+        const document = await harness.gateway.readLayer(input);
+        built = document.level.scaleMillimetresPerPixel ?? 0;
+        const walls = [wall(0, 0, 10_000, 0), wall(10_000, 0, 10_000, 20_000)];
+        return { ...document, dimensions: [], layer: { ...document.layer, walls: walls as never } };
+      },
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.panel.sizeEntry?.isOuter).toBe(true);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeFlatSize?.({ widthText: '5000', lengthText: '11000', isOuter: false });
+    });
+    expect(mounted.result.current.model.panel.sizeEntry?.error).toMatch(/lệch/u);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeFlatSize?.({ lengthText: '10000' });
+    });
+    expect(mounted.result.current.model.panel.sizeEntry?.error).toBeNull();
+    expect(mounted.result.current.model.panel.applyMissingHint).toBeUndefined();
 
     await applyNow(mounted);
 
@@ -2029,5 +2079,118 @@ describe('[14-A-026] toast "Hoàn tác" sau khi áp tỉ lệ (A8) đi qua bus t
       toast?.undoTicket?.undo();
     });
     expect(storedRatio()).toBe(before);
+  });
+});
+
+describe('D1 — bắt dính vào điểm máy dò và cảnh báo cửa đi', () => {
+  const SIZE = { widthPx: pixels(1600), heightPx: pixels(1200) };
+  // Khung vuông cạnh 1600, dải trống 200 px trên/dưới: tỉ lệ = (px + inset) / 1600.
+  const TARGET: ScaleRawSnapTarget = { id: 's1', kind: 'wallVertex', xPx: pixels(1000), yPx: pixels(500) };
+  const near: ImageRatioPoint = { x: 1004 / 1600, y: (503 + 200) / 1600 };
+
+  async function dragTo(alt: boolean): Promise<ImageRatioPoint | undefined> {
+    const harness = await makeHarness({ drawingSize: SIZE, snapTargets: [TARGET] });
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    await act(async () => {
+      mounted.result.current.actions.onStartDrag({ x: 0.2, y: 0.5 });
+    });
+    await act(async () => {
+      mounted.result.current.actions.onMoveDrag(near, { isAxisLocked: false, isSnapDisabled: alt });
+    });
+
+    return mounted.result.current.model.canvas.referenceLine?.end;
+  }
+
+  it('đầu đoạn trong 8 px bắt vào đầu tường máy dò', async () => {
+    const end = await dragTo(false);
+
+    expect(end?.x).toBeCloseTo(1000 / 1600, 6);
+    expect(end?.y).toBeCloseTo(700 / 1600, 6);
+  });
+
+  it('giữ Alt → không bắt vào điểm máy dò', async () => {
+    const end = await dragTo(true);
+
+    expect(Math.abs((end?.x ?? 0) * 1600 - 1000)).toBeGreaterThan(1);
+  });
+
+  /** Tầng đang mở có sẵn tỷ lệ — cùng cách dựng kho của khối review-1 F3. */
+  beforeEach(() => {
+    const graph = createSampleBuilding();
+    const levels = graph.levels.map((level) =>
+      level.id === FLOOR_ID ? { ...level, scaleMillimetresPerPixel: PROVISIONAL_RATIO } : level,
+    );
+    const spatial = normalizeSpatial({ ...graph, levels });
+
+    useStore.getState().setSpatial(spatial, 'version-1', {
+      floorRevisions: Object.fromEntries(spatial.byKind.level.map((id) => [id, 0])),
+      projectId: PROJECT_ID,
+    });
+  });
+
+  it('cửa đi rộng nhất theo tỷ lệ đang xét ngoài 700–1 000 mm → câu cảnh báo', async () => {
+    const ratio: number = PROVISIONAL_RATIO;
+    const harness = await makeHarness({ typicalDoorWidthPx: pixels(1410 / ratio) });
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    const door = mounted.result.current.model.panel.crossChecks.find((row) => row.id === 'doorWidth');
+
+    expect(door?.statusCode).toBe('attention');
+    expect(door?.warning).toBe(
+      `Cửa đi theo tỷ lệ này rộng ${formatLength(millimetres(1410), { unit: 'mm' })}, bất thường (thường 700–1 000). Kiểm lại số đã nhập.`,
+    );
+  });
+
+  it('cửa đi 900 mm → không cảnh báo', async () => {
+    const ratio: number = PROVISIONAL_RATIO;
+    const harness = await makeHarness({ typicalDoorWidthPx: pixels(900 / ratio) });
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    const door = mounted.result.current.model.panel.crossChecks.find((row) => row.id === 'doorWidth');
+
+    expect(door?.warning).toBeUndefined();
+  });
+});
+
+describe('D1 — chip số máy đọc được', () => {
+  it('bấm chip → bật đo, điền sẵn chiều dài thật, hiện câu hướng dẫn kéo', async () => {
+    const base = await makeHarness();
+    const gateway = withScaleCapabilities(base.gateway, {
+      readDimensionChips: async () => [
+        { id: 'n1', text: '10275', valueMm: millimetres(10275), box: { min: { x: 0.1, y: 0.1 }, max: { x: 0.2, y: 0.12 } } },
+      ],
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.panel.reference.chips?.map((chip) => chip.label)).toEqual(['10275']);
+
+    await act(async () => {
+      mounted.result.current.actions.onPickDimensionChip?.('n1');
+    });
+
+    const reference = mounted.result.current.model.panel.reference;
+    expect(reference.realLengthText).toBe('10275');
+    expect(reference.chips?.[0]?.isSelected).toBe(true);
+    expect(reference.chipNotice).toBe(
+      'Kéo từ đầu đến cuối đường kích thước có số 10275. Đoạn sẽ tự bắt vào đầu tường hoặc giao điểm gần nhất.',
+    );
+    expect(mounted.result.current.model.canvas.focusBox).toEqual({ min: { x: 0.1, y: 0.1 }, max: { x: 0.2, y: 0.12 } });
+  });
+
+  it('không có số → câu "Máy không đọc được số kích thước…"', async () => {
+    const mounted = mountHook((await makeHarness()).gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.panel.reference.chipNotice).toMatch(/^Máy không đọc được số kích thước trên bản vẽ này\./u);
   });
 });

@@ -89,7 +89,7 @@ import {
   type ScaleInference,
   type ScaleMeasurement,
 } from '@/domain/units/scale';
-import { snapAngle, snapToTargets, type SnapTarget } from '@/domain/units/snap';
+import { snapAngle, snapToTargets } from '@/domain/units/snap';
 import type { PointMm } from '@/domain/units/compare';
 import {
   degrees,
@@ -140,6 +140,7 @@ import {
   type ScaleDrawingSnapshot,
   type ScaleFloorTarget,
   type ScaleRawDimensionString,
+  type ScaleDimensionChip,
   type ScaleRawSnapTarget,
   type ScaleRoomBoxPx,
 } from './scaleCalibrationGateway';
@@ -153,6 +154,9 @@ import {
   outlinesAreaM2,
   parseFlatAreaM2,
   planSizeText,
+  FLAT_SIZE_MISMATCH_PERCENT,
+  ratioFromFlatSize,
+  wallBoxPx,
   type PlanSizeMm,
 } from './scaleCheck';
 import type {
@@ -166,6 +170,7 @@ import type {
   ScaleApplyScopeOption,
   ScaleCalibrationActions,
   ScaleCalibrationMethod,
+  FlatSizeEntryState,
   ScaleCalibrationState,
   ScaleCalibrationViewModel,
   ScaleComputationViewModel,
@@ -207,6 +212,13 @@ const COPY = {
   shortcutFitView: 'Vừa khung',
   crossCheckWallThickness: 'Độ dày tường điển hình',
   crossCheckDoorWidth: 'Bề rộng cửa đi điển hình',
+  chipsNone:
+    'Máy không đọc được số kích thước trên bản vẽ này. Dùng ô Căn rộng × dài ở trên, hoặc kéo một đoạn rồi nhập chiều dài.',
+  chipDragHint: (text: string): string =>
+    `Kéo từ đầu đến cuối đường kích thước có số ${text}. Đoạn sẽ tự bắt vào đầu tường hoặc giao điểm gần nhất.`,
+  liveMeasure: (pixelText: string, densityText: string): string => `Đo được ${pixelText} → ${densityText}`,
+  doorWidthOdd: (width: string): string =>
+    `Cửa đi theo tỷ lệ này rộng ${width}, bất thường (thường 700–1 000). Kiểm lại số đã nhập.`,
   crossCheckLargestRoomArea: 'Diện tích phòng lớn nhất',
   recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
   scopeAllFloors: 'Mọi tầng',
@@ -261,6 +273,9 @@ const COPY = {
   ratioEntryNotice: (ratio: string, density: string): string =>
     `Tỷ lệ 1:${ratio} ứng với 1 px ≈ ${density} mm. Bấm Xác nhận tỷ lệ để lưu.`,
   // UX-R4 U11: brochure không ghi số kích thước nhưng in diện tích căn — suy tỷ lệ từ diện tích.
+  applyMissingHint: 'Thiếu: nhập rộng × dài của căn, hoặc kéo một đoạn rồi nhập chiều dài.',
+  sizeEntryMismatch: (percent: string): string =>
+    `Hai cạnh cho hai tỷ lệ khác nhau (lệch ${percent} %). Kiểm lại số đã nhập hoặc đo một đoạn.`,
   areaEntryLabel: 'Theo diện tích căn (m², số in trên brochure)',
   // UX-21: không gợi một con số — người dùng tưởng là số máy đo được.
   areaEntryPlaceholder: 'Số m² in trên brochure',
@@ -427,6 +442,7 @@ const ONE_IMAGE_FRAME = 1;
 const PIXEL_SUFFIX = ' px';
 
 const EMPTY_ROWS: readonly ScaleRawDimensionString[] = [];
+const EMPTY_CHIPS: readonly ScaleDimensionChip[] = [];
 const EMPTY_SNAP_TARGETS: readonly ScaleRawSnapTarget[] = [];
 
 /* -------------------------------------------------------------------------- */
@@ -486,6 +502,37 @@ interface PixelPoint {
 }
 
 /** Tỷ lệ `0..1` của khung → pixel ảnh. Chỉ có phép nhân. */
+/** D1: cửa đi chính (cửa rộng nhất máy dò) thường 700–1 000 mm; ngoài khoảng → tỷ lệ đáng ngờ. */
+const DOOR_WIDTH_TYPICAL_MM = { min: 700, max: 1000 } as const;
+
+export function isDoorWidthOdd(widthMm: number): boolean {
+  return widthMm < DOOR_WIDTH_TYPICAL_MM.min || widthMm > DOOR_WIDTH_TYPICAL_MM.max;
+}
+
+/** Bán kính bắt điểm, px màn hình (D1). */
+const SNAP_RADIUS_SCREEN_PX = 8;
+
+/** Điểm bắt gần nhất trong `radiusPx` (px ảnh); `null` khi không có. */
+export function nearestSnapTarget(
+  point: { readonly x: number; readonly y: number },
+  targets: readonly ScaleRawSnapTarget[],
+  radiusPx: number,
+): ScaleRawSnapTarget | null {
+  let best: ScaleRawSnapTarget | null = null;
+  let bestDistance = radiusPx;
+
+  for (const target of targets) {
+    const distance = Math.hypot(target.xPx - point.x, target.yPx - point.y);
+
+    if (distance <= bestDistance) {
+      best = target;
+      bestDistance = distance;
+    }
+  }
+
+  return best;
+}
+
 function toPixelPoint(frame: ImageFrame, point: ImageRatioPoint): PixelPoint {
   return {
     x: pixels(frame.edgeScale.millimetresToPixels(millimetres(point.x)) - frame.insetX),
@@ -595,6 +642,14 @@ function planSizeAt(document: FloorLayerDocument | undefined, ratio: number | nu
     heightMm: (Math.max(...ys) - Math.min(...ys)) * factor,
   };
 }
+
+/** D1: chữ trong ô rộng/dài (mm) → số; trống hoặc sai thì `NaN`. */
+function parseMm(text: string): number {
+  const value = Number(text.replace(/[.\s]/g, '').replace(',', '.'));
+  return text.trim() === '' ? Number.NaN : value;
+}
+
+const EMPTY_SIZE_ENTRY: FlatSizeEntryState = { widthText: '', lengthText: '', isSwapped: false, isOuter: true };
 
 /** Chiều dài một đoạn trên ảnh, tính bằng pixel. */
 function segmentPixelLength(start: PixelPoint, end: PixelPoint): Pixels {
@@ -754,6 +809,7 @@ interface ScaleCalibrationRecord {
   readonly typicalDoorWidthPx: Pixels | null;
   readonly largestRoomBoxPx: ScaleRoomBoxPx | null;
   readonly snapTargets: readonly ScaleRawSnapTarget[];
+  readonly dimensionChips: readonly ScaleDimensionChip[];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -883,12 +939,13 @@ export function useScaleCalibration(
         throw drawing.error;
       }
 
-      const [strings, wallWidth, doorWidth, roomBox, targets] = await Promise.all([
+      const [strings, wallWidth, doorWidth, roomBox, targets, chips] = await Promise.all([
         gateway.readDimensionStrings({ floorId, projectId }),
         gateway.readReferenceWallWidth({ floorId, projectId }),
         gateway.readTypicalDoorWidth({ floorId, projectId }),
         gateway.readLargestRoomBox({ floorId, projectId }),
         gateway.readSnapTargets({ floorId, projectId }),
+        gateway.readDimensionChips?.({ floorId, projectId }) ?? EMPTY_CHIPS,
       ]);
 
       return {
@@ -898,6 +955,7 @@ export function useScaleCalibration(
         typicalDoorWidthPx: doorWidth.supported ? doorWidth.value : null,
         largestRoomBoxPx: roomBox.supported ? roomBox.value : null,
         snapTargets: targets.supported ? targets.value : EMPTY_SNAP_TARGETS,
+        dimensionChips: chips,
       };
     },
   });
@@ -967,6 +1025,8 @@ export function useScaleCalibration(
   const [ratioEntry, setRatioEntry] = useState<{ readonly floorId: string; readonly text: string } | null>(null);
   /** UX-R4 U11: diện tích căn (m²) người dùng gõ, gắn theo tầng như `ratioEntry`. */
   const [areaEntry, setAreaEntry] = useState<{ readonly floorId: string; readonly text: string } | null>(null);
+  /** D1: ô "Căn rộng × dài (mm)" của tầng đang mở. */
+  const [sizeEntry, setSizeEntry] = useState<(FlatSizeEntryState & { readonly floorId: string }) | null>(null);
   const [applyScope, setApplyScope] = useState<ScaleApplyScope>('thisFloor');
   const [isCollapsedByUser, setIsCollapsedByUser] = useState(false);
   const [canvasSize, setCanvasSize] = useState<{ readonly width: number; readonly height: number }>({
@@ -1156,8 +1216,30 @@ export function useScaleCalibration(
   }, [areaM2, builtAreaM2, layerDocument?.level.scaleMillimetresPerPixel]);
   /** Cỡ căn ở tỷ lệ suy từ diện tích — để người dùng soi trước khi xác nhận (ví dụ ≈ 8,7 × 8,2 m). */
   const areaPlanSize = useMemo(() => planSizeAt(layerDocument, areaEntryRatio), [areaEntryRatio, layerDocument]);
-  /** Tỷ lệ người dùng gõ thẳng (1:N hoặc diện tích căn); hai ô loại trừ nhau. */
-  const typedRatio = ratioEntryRatio ?? areaEntryRatio;
+  const sizeState: FlatSizeEntryState = sizeEntry?.floorId === floorId ? sizeEntry : EMPTY_SIZE_ENTRY;
+  /** D1: tỷ lệ từ rộng × dài căn, đo trên hộp bao tường (mép ngoài hoặc tim tường). */
+  const sizeEntryResult = useMemo(() => {
+    const built = layerDocument?.level.scaleMillimetresPerPixel;
+    if (layerDocument === undefined || built === undefined || built <= 0) {
+      return null;
+    }
+    const box = wallBoxPx(
+      layerDocument.layer.walls.map((wall) => ({
+        x1: wall.centreline.start.x / built,
+        y1: wall.centreline.start.y / built,
+        x2: wall.centreline.end.x / built,
+        y2: wall.centreline.end.y / built,
+        thicknessPx: wall.thicknessMm / built,
+      })),
+      sizeState.isOuter,
+    );
+    return box === null
+      ? null
+      : ratioFromFlatSize(parseMm(sizeState.widthText), parseMm(sizeState.lengthText), box, sizeState.isSwapped);
+  }, [layerDocument, sizeState]);
+  const sizeEntryRatio = sizeEntryResult === null ? null : millimetresPerPixel(sizeEntryResult.mmPerPx);
+  /** Tỷ lệ người dùng gõ thẳng (1:N, diện tích hoặc rộng × dài căn); các ô loại trừ nhau. */
+  const typedRatio = ratioEntryRatio ?? areaEntryRatio ?? sizeEntryRatio;
   const isAutoSuggestion =
     floorLayer.scaleSource === 'pipeline' &&
     pipelineRatio !== null &&
@@ -1216,21 +1298,15 @@ export function useScaleCalibration(
   /* Bắt điểm (M-03).                                                        */
   /* ---------------------------------------------------------------------- */
 
-  const snapTargetsMm = useMemo<readonly SnapTarget[]>(() => {
-    const raw = record?.snapTargets ?? EMPTY_SNAP_TARGETS;
+  /** Điểm bắt máy dò (`detected-geometry`), px ảnh. */
+  const snapTargetsPx = record?.snapTargets ?? EMPTY_SNAP_TARGETS;
+  /** D1: bán kính bắt 8 px MÀN HÌNH, quy về px ảnh theo mức phóng hiện tại. */
+  const snapRadiusPx = useMemo<number>(() => {
+    const edge = frame === null ? 0 : Math.max(frame.widthPx, frame.heightPx);
+    const screenPerImage = edge > 0 ? (Math.min(canvasSize.width, canvasSize.height) * viewport.zoom) / edge : 0;
 
-    if (workingRatio === null || raw.length === 0) {
-      return [];
-    }
-
-    const scale = scaleFromRatio(workingRatio);
-
-    return raw.map((target) => ({
-      kind: target.kind,
-      id: target.id,
-      position: { x: scale.pixelsToMillimetres(target.xPx), y: scale.pixelsToMillimetres(target.yPx) },
-    }));
-  }, [record?.snapTargets, workingRatio]);
+    return screenPerImage > 0 ? SNAP_RADIUS_SCREEN_PX / screenPerImage : SNAP_RADIUS_SCREEN_PX;
+  }, [canvasSize.height, canvasSize.width, frame, viewport.zoom]);
 
   /**
    * Một đầu đoạn sau khi đã khoá trục và đã bắt điểm.
@@ -1244,6 +1320,7 @@ export function useScaleCalibration(
       anchor: PixelPoint,
       moving: PixelPoint,
       isAxisLocked: boolean,
+      isSnapDisabled = false,
     ): { readonly point: PixelPoint; readonly kind: ReferenceLineDraft['snappedKind'] } => {
       let point = moving;
 
@@ -1260,6 +1337,18 @@ export function useScaleCalibration(
         };
       }
 
+      // Giữ Alt: không bắt gì cả (D1).
+      if (isSnapDisabled) {
+        return { point, kind: null };
+      }
+
+      // Đầu tường / giao điểm máy dò trong 8 px màn hình thắng; chạy cả khi chưa có tỷ lệ.
+      const target = nearestSnapTarget(point, snapTargetsPx, snapRadiusPx);
+
+      if (target !== null) {
+        return { point: { x: target.xPx, y: target.yPx }, kind: target.kind };
+      }
+
       if (workingRatio === null) {
         return { point, kind: null };
       }
@@ -1269,7 +1358,7 @@ export function useScaleCalibration(
         x: scale.pixelsToMillimetres(point.x),
         y: scale.pixelsToMillimetres(point.y),
       };
-      const snapped = snapToTargets(asMm, snapTargetsMm);
+      const snapped = snapToTargets(asMm, []);
 
       return {
         point: {
@@ -1279,7 +1368,7 @@ export function useScaleCalibration(
         kind: snapped.snapped ? snapped.kind : null,
       };
     },
-    [snapTargetsMm, workingRatio],
+    [snapRadiusPx, snapTargetsPx, workingRatio],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1467,6 +1556,7 @@ export function useScaleCalibration(
           session[otherEndpoint(endpoint)],
           grabbed(moving, session.grabOffset),
           modifiers.isAxisLocked,
+          modifiers.isSnapDisabled === true,
         );
 
         return {
@@ -1611,6 +1701,36 @@ export function useScaleCalibration(
     [],
   );
 
+  /** D1: chip đang chọn, gắn theo tầng. */
+  const [pickedChip, setPickedChip] = useState<{ readonly floorId: string; readonly id: string } | null>(null);
+  const dimensionChips = record?.dimensionChips ?? EMPTY_CHIPS;
+  const chip =
+    pickedChip?.floorId === floorId ? (dimensionChips.find((entry) => entry.id === pickedChip.id) ?? null) : null;
+
+  const onPickDimensionChip = useCallback(
+    (chipId: string) => {
+      const target = dimensionChips.find((entry) => entry.id === chipId);
+      const currentFrame = frameRef.current;
+      const size = canvasSizeRef.current;
+
+      if (target === undefined) {
+        return;
+      }
+
+      setPickedChip({ floorId, id: chipId });
+      setMethod('referenceLine');
+      setRealLengthText(String(target.valueMm));
+
+      if (currentFrame !== null && size.width > 0 && size.height > 0) {
+        const min = toPixelPoint(currentFrame, target.box.min);
+        const max = toPixelPoint(currentFrame, target.box.max);
+
+        flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, size.width, size.height);
+      }
+    },
+    [dimensionChips, floorId, flyToBounds],
+  );
+
   const onChangeRealLength = useCallback((text: string) => {
     setRealLengthText(text);
   }, []);
@@ -1734,6 +1854,7 @@ export function useScaleCalibration(
     (text: string) => {
       setRatioEntry({ floorId, text });
       setAreaEntry(null);
+      setSizeEntry(null);
       setApplyOutcome(null);
     },
     [floorId],
@@ -1744,6 +1865,23 @@ export function useScaleCalibration(
     (text: string) => {
       setAreaEntry({ floorId, text });
       setRatioEntry(null);
+      setSizeEntry(null);
+      setSuggestionFloorId(null);
+      setApplyOutcome(null);
+    },
+    [floorId],
+  );
+
+  /** D1: sửa một phần ô rộng × dài; các ô tỷ lệ khác bị xoá để chỉ một nguồn. */
+  const onChangeFlatSize = useCallback(
+    (patch: Partial<FlatSizeEntryState>) => {
+      setSizeEntry((current) => ({
+        ...(current?.floorId === floorId ? current : EMPTY_SIZE_ENTRY),
+        ...patch,
+        floorId,
+      }));
+      setRatioEntry(null);
+      setAreaEntry(null);
       setSuggestionFloorId(null);
       setApplyOutcome(null);
     },
@@ -2340,7 +2478,10 @@ export function useScaleCalibration(
         // Sổ luật chỉ có mức tối thiểu cho cửa đi, nên khoảng chỉ có một đầu và
         // câu chữ nói đúng như vậy — không bịa một biên trên không tồn tại.
         expectedRangeLabel: expectedRangeFrom(formatLength(MIN_DOOR_WIDTH_MM, { unit: 'mm' })),
-        statusCode: doorWidth !== null && doorWidth < MIN_DOOR_WIDTH_MM ? 'attention' : 'neutral',
+        statusCode: doorWidth !== null && isDoorWidthOdd(doorWidth) ? 'attention' : 'neutral',
+        ...(doorWidth !== null && isDoorWidthOdd(doorWidth)
+          ? { warning: COPY.doorWidthOdd(formatLength(millimetres(Math.round(doorWidth)), { unit: 'mm' })) }
+          : {}),
       },
       {
         id: 'largestRoomArea',
@@ -2630,7 +2771,7 @@ export function useScaleCalibration(
         dimensionRows: rows,
         highlightedRowId,
         selectedRowId,
-        focusBox: rows.find((row) => row.id === selectedRowId)?.boundingBox ?? null,
+        focusBox: chip?.box ?? rows.find((row) => row.id === selectedRowId)?.boundingBox ?? null,
         referenceLine: draftForView,
         liveLengthLabel:
           draftForView === null || !draftForView.isDragging
@@ -2691,6 +2832,13 @@ export function useScaleCalibration(
           // Cùng một cảnh báo với khối dưới, đặt cạnh ô nhập: nó hiện NGAY KHI
           // GÕ vì `realLengthText` là thứ nuôi `proposedRatio`, không đợi rời ô.
           inlineWarning: warnings[0] ?? null,
+          chips: dimensionChips.map((entry) => ({ id: entry.id, label: entry.text, isSelected: entry.id === chip?.id })),
+          chipNotice:
+            dimensionChips.length === 0 ? COPY.chipsNone : chip === null ? null : COPY.chipDragHint(chip.text),
+          liveMeasureLine:
+            draftForView === null || draftForView.pixelLength <= 0 || proposedRatio === null
+              ? null
+              : COPY.liveMeasure(pixelLabel(draftForView.pixelLength), formatScaleDensity(proposedRatio)),
           canRemeasure: draftForView !== null,
           canPlaceSegment: draftForView === null && frame !== null,
           tooShortNotice:
@@ -2704,6 +2852,7 @@ export function useScaleCalibration(
         applyScope: effectiveApplyScope,
         applyScopeOptions,
         canApply,
+        ...(canApply ? {} : { applyMissingHint: COPY.applyMissingHint }),
         ...(isMachineProposal ? { applyLabel: COPY.machineApplyLabel } : {}),
         ...(applyNotice !== null ? { applyBlockedNotice: applyNotice } : {}),
         canOpenViewer3d: applyOutcome === 'success',
@@ -2731,7 +2880,26 @@ export function useScaleCalibration(
           // Kích thước đã biết để kiểm chéo: một chuỗi OCR KHÁC chuỗi đang dùng để đo, không tự kiểm chính nó.
           knownDimension: rows.find((row) => row.id !== selectedRowId) ?? null,
           planSizeMm: planSizeAt(layerDocument, proposedRatio ?? storedRatio ?? provisionalRatio),
+          dimensionCount: layerDocument?.dimensions.length ?? 0,
+          isGuess: storedRatio === null && typedRatio === null && proposedScale === null && drag === null && selectedRow === null,
         }),
+        ...(layerDocument !== undefined &&
+        layerDocument.layer.walls.length > 0 &&
+        (layerDocument.level.scaleMillimetresPerPixel ?? 0) > 0 &&
+        canEdit
+          ? {
+              sizeEntry: {
+                widthText: sizeState.widthText,
+                lengthText: sizeState.lengthText,
+                isSwapped: sizeState.isSwapped,
+                isOuter: sizeState.isOuter,
+                error:
+                  sizeEntryResult !== null && sizeEntryResult.mismatchPercent > FLAT_SIZE_MISMATCH_PERCENT
+                    ? COPY.sizeEntryMismatch(formatNumber(sizeEntryResult.mismatchPercent, { fractionDigits: 1 }))
+                    : null,
+              },
+            }
+          : {}),
         shortcutHints: isNoDrawing ? [] : shortcutHints,
         ...(sourceDpi !== null && canEdit
           ? {
@@ -2825,6 +2993,8 @@ export function useScaleCalibration(
     };
   }, [
     activeStep,
+    chip,
+    dimensionChips,
     allFloors,
     applyNotice,
     applyOutcome,
@@ -2843,6 +3013,11 @@ export function useScaleCalibration(
     ratioEntryRatio,
     ratioText,
     areaEntryRatio,
+    sizeState,
+    sizeEntryResult,
+    typedRatio,
+    proposedScale,
+    drag,
     areaM2,
     areaPlanSize,
     areaText,
@@ -2904,6 +3079,7 @@ export function useScaleCalibration(
       onNudgeEndpoint,
       onChangeRealLength,
       onConfirmRealLength,
+      onPickDimensionChip,
       onRemeasure,
       onPlaceSegment,
       onPan,
@@ -2918,6 +3094,7 @@ export function useScaleCalibration(
       onUseSuggestedScale,
       onChangeDrawingRatio,
       onChangeFlatArea,
+      onChangeFlatSize,
       onZoomToNumbers,
       onChangeApplyScope,
       onConfirmAllFloors,
@@ -2929,10 +3106,12 @@ export function useScaleCalibration(
       onGoToViewer3d,
     }),
     [
+      onPickDimensionChip,
       onApply,
       onCancelAllFloors,
       onChangeDrawingRatio,
       onChangeFlatArea,
+      onChangeFlatSize,
       onZoomToNumbers,
       onConfirmAllFloors,
       onCancelDrag,

@@ -65,9 +65,23 @@ export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
       },
     },
   },
+  // C6 — viền đồ chưa xác nhận: cam nhạt, đục 0,35 để vẫn thấy sàn bên dưới.
+  {
+    id: 'mat_appfront_unconfirmed',
+    name: 'Đồ chưa xác nhận',
+    material: {
+      preset: 'custom',
+      properties: { color: SCENE_PALETTE.unconfirmed, roughness: 0.8, metalness: 0, opacity: 0.35, transparent: true, side: 'front' },
+    },
+  },
 ];
 
+/** Khe của tấm viền đồ chưa xác nhận (C6, `toPascal.suggestedOutlineOf`). */
+export const UNCONFIRMED_MATERIAL_REF = 'scene:mat_appfront_unconfirmed';
+
 const GLASS = 'library:preset-glass';
+/** Kính lan can lô gia (cùng kính tường thấp). */
+export const RAILING_GLASS_REF = GLASS;
 const PLASTER = 'scene:mat_appfront_plaster';
 /** Mặt trần mặc định; `Room.ceilingMaterial` khác cái này thì mới ghi (H4, `toSpatial`). */
 export const CEILING_DEFAULT = PLASTER;
@@ -97,6 +111,8 @@ export const floorMaterialOf = (
 
 /** Tường thấp hơn mức này là lan can/vách kính, không phải tường phòng. */
 const LOW_WALL_MAX_MM = 1200;
+/** Lan can lô gia (QCVN 04:2021/BXD, nhà cao tầng): cao 1,4 m, kính như tường thấp (`toPascal.railingNodeOf`). */
+export const LOGGIA_RAILING_MM = 1400;
 
 /**
  * Khe mặt tường + len chân + phào. Mọi trường viết đủ: `setScene` không áp mặc định
@@ -212,6 +228,13 @@ export const LIGHT_DISTANCE_M = 6;
  * sáng/tầm đặt trên đèn của bể chung, không phải con của vật.
  */
 export const LIGHT_NODE_SCALE: PascalVec3 = [0.01, 0.01, 0.01];
+
+/**
+ * C1 — đèn âm trần là nguồn sáng, không phải món đồ: co thêm riêng mô hình GLB (`asset.scale`,
+ * không đụng vị trí/ánh sáng) để lưới không hiện cả khi người dùng phóng tỉ lệ node lên 100%.
+ * Không dùng 0: ma trận suy biến. Đèn đã nằm ngoài dữ liệu đồ đạc (`isGeneratedLightId`).
+ */
+export const LIGHT_MESH_SCALE: PascalVec3 = [0.001, 0.001, 0.001];
 
 /** Bật sẵn đèn: khối `interactive` chép sâu, công tắc `default: true`, ánh sáng theo phong cách. */
 const lightInteractiveOf = (interactive: unknown, style: SceneStyle): unknown => {
@@ -352,7 +375,7 @@ export const ceilingNodesOf = (
         dimensions: model.dimensions,
         offset: model.offset,
         rotation: model.rotation,
-        scale: [1, 1, 1],
+        scale: LIGHT_MESH_SCALE,
         attachTo: 'ceiling',
         recessed: true,
         interactive: lightInteractiveOf(model.interactive, style),

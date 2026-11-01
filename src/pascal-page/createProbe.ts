@@ -41,6 +41,9 @@ export interface ProbeItem {
   position: Vec3 | undefined;
   rotation: Vec3 | undefined;
   src: string | undefined;
+  /** Cỡ thật = mẫu × `assetScale` (đo sai cỡ C3); `dimensions` là hộp bao node. */
+  assetScale: Vec3 | undefined;
+  dimensions: Vec3 | undefined;
 }
 
 export interface ProbeWall {
@@ -63,7 +66,7 @@ interface LooseNode {
   readonly height?: number;
   readonly position?: Vec3;
   readonly rotation?: Vec3;
-  readonly asset?: { readonly src?: string };
+  readonly asset?: { readonly src?: string; readonly scale?: Vec3; readonly dimensions?: Vec3 };
 }
 
 interface ProbeObject {
@@ -138,7 +141,14 @@ export const createPascalProbe = ({ useScene, useViewer, sceneRegistry, emitter,
         height: n.height,
       })),
     items: () =>
-      entriesOf('item').map(([id, n]) => ({ id, position: n.position, rotation: n.rotation, src: n.asset?.src })),
+      entriesOf('item').map(([id, n]) => ({
+        id,
+        position: n.position,
+        rotation: n.rotation,
+        src: n.asset?.src,
+        assetScale: n.asset?.scale,
+        dimensions: n.asset?.dimensions,
+      })),
     editNode: (id, patch) => useScene.getState().updateNode(id, patch),
     setLights: (on) => {
       const { lampItems, setControlValue } = useInteractive.getState();

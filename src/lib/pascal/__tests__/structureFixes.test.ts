@@ -98,7 +98,7 @@ describe('V2 — phòng `other` đoán công năng theo tên (chỉ để bày �
     const named: Room = { ...room, name: 'OH/RP', usage: 'other' };
     graph.rooms = graph.rooms.map((r, i) => (i === index ? named : r));
 
-    const { scene } = toPascalScene(graph);
+    const { scene } = toPascalScene(graph, { furnish: 'on' });
     const sofa = Object.values(scene.nodes).find(
       (n) => n.type === 'item' && n.id.startsWith('item_DRESS-sofa') && fieldsOf(n)['roomId'] === room.id,
     );
@@ -255,6 +255,31 @@ describe('V1 — dãy tủ bếp chữ L cho bằng một hộp bao', () => {
     expect(leg.asset.dimensions[2]).toBeCloseTo(0.6, 6);
     expect(leg.metadata?.['generated']).toBe('dressing');
     expect(fieldsOf(leg)['roomId']).toBeUndefined();
+  });
+
+  it('máy chủ quay dãy 90°/180°/270° (hộp khung riêng hoán cạnh): tách theo hộp thế giới như góc 0', () => {
+    const { graph, run } = sampleWithLRun();
+    const flat = toPascalScene(graph).scene;
+    const legAt0 = flat.nodes[`item_DRESS-runLeg-${run.id}`] as PascalItemNode;
+    for (const deg of [90, 180, 270]) {
+      const { min, max } = run.boundingBox;
+      const { x, y } = run.centre;
+      const [hw, hd] = [(max.x - min.x) / 2, (max.y - min.y) / 2];
+      const [lw, ld] = deg === 180 ? [hw, hd] : [hd, hw];
+      const turned: Furniture = {
+        ...run,
+        rotationDeg: deg,
+        boundingBox: { min: { x: x - lw, y: y - ld }, max: { x: x + lw, y: y + ld } },
+      } as Furniture;
+      const { scene } = toPascalScene({ ...graph, furniture: [turned, ...graph.furniture.slice(1)] });
+      const node = scene.nodes[`item_${run.id}`] as PascalItemNode;
+      const leg = scene.nodes[`item_DRESS-runLeg-${run.id}`] as PascalItemNode | undefined;
+      expect(leg?.position).toEqual(legAt0.position);
+      expect(leg?.asset.dimensions).toEqual(legAt0.asset.dimensions);
+      // Nhánh dài 0,6 × 2,6 m trên bản vẽ, ghi trong khung riêng của món: 90°/270° hoán cạnh.
+      const [dw, , dd] = node.asset.dimensions;
+      expect(deg === 180 ? [dw, dd] : [dd, dw]).toEqual([expect.closeTo(0.6, 6), expect.closeTo(2.6, 6)]);
+    }
   });
 
   it('lượt về: món đồ y nguyên, nhánh phụ không thành đồ đạc; dãy thẳng không bị tách', () => {

@@ -395,18 +395,26 @@ describe('[NGHIEM-3] tổng số đối tượng', () => {
     mounted.unmount();
   });
 
-  it('[G4a-37] mở màn với lọc tắt; bật "chỉ dưới ngưỡng" thì còn năm mục', async () => {
+  it('[GIAI-PHAP 3.12] mở màn với lọc "chỉ chỗ máy chưa chắc" BẬT; tắt thì đủ 21 mục', async () => {
     const mounted = await mountSettled();
 
     expect(mounted.result.current.state).toBe('partial');
-    expect(mounted.result.current.isLowConfidenceOnly).toBe(false);
-    expect(mounted.result.current.partialNotice).toBe('5 mục máy chưa chắc');
-    expect(mounted.result.current.rows).toHaveLength(21);
+    expect(mounted.result.current.isLowConfidenceOnly).toBe(true);
+    /*
+     * Cùng luật đếm với dòng "N cần xem = … + N máy chưa chắc + …" (unsureObjectsOf): cửa mồ côi dưới
+     * ngưỡng đếm ở nhóm "chưa gắn tường", không đếm hai lần — nên 4 chứ không 5.
+     */
+    expect(mounted.result.current.partialNotice).toBe(`${OBJECT_LAYER_FIXTURE_LOW_CONFIDENCE - 1} mục máy chưa chắc`);
+    /* Lọc bật: chỉ còn món chưa chắc / chưa gắn tường / gợi ý — món máy chắc chắn gom vào dòng "Duyệt cả N". */
+    expect(mounted.result.current.rows.length).toBeGreaterThanOrEqual(OBJECT_LAYER_FIXTURE_LOW_CONFIDENCE);
+    expect(
+      mounted.result.current.rows.every((row) => row.isLowConfidence || row.isOrphan || row.isSuggested === true),
+    ).toBe(true);
+    expect(mounted.result.current.counts.total).toBe(21);
 
     await run(() => mounted.result.current.onToggleLowConfidenceOnly());
 
-    expect(mounted.result.current.rows).toHaveLength(OBJECT_LAYER_FIXTURE_LOW_CONFIDENCE);
-    expect(mounted.result.current.counts.total).toBe(21);
+    expect(mounted.result.current.rows).toHaveLength(21);
 
     mounted.unmount();
   });
@@ -1306,7 +1314,9 @@ describe('danh sách dựng từ đồ thị (B-V6-13)', () => {
     expect(id).toMatch(/^F-\d{3}$/u);
     expect(mounted.result.current.counts.total).toBe(OBJECT_LAYER_FIXTURE_OBJECTS.length + 1);
 
-    /* Lọc dưới ngưỡng mở màn đã TẮT (G4a-37): không cần bấm tắt. */
+    /* Lọc "chỉ chỗ máy chưa chắc" mở màn BẬT (bộ mẫu còn món chưa chắc): tắt đi để thấy bàn máy chắc chắn. */
+    expect(mounted.result.current.isLowConfidenceOnly).toBe(true);
+    await run(() => mounted.result.current.onToggleLowConfidenceOnly());
     const row = mounted.result.current.rows.find((candidate) => candidate.id === id);
 
     expect(row?.statusCode).not.toBe('attention');

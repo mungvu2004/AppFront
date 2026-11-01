@@ -215,7 +215,7 @@ export function ScaleCalibrationCanvas({
       const point = ratioAt(event.clientX, event.clientY);
 
       if (point !== null) {
-        onMoveDrag(point, { isAxisLocked: event.shiftKey });
+        onMoveDrag(point, { isAxisLocked: event.shiftKey, isSnapDisabled: event.altKey });
       }
     },
     [canvas.isInteractive, canvas.referenceLine, isPanning, onCancelDrag, onMoveCursor, onMoveDrag, onPan, ratioAt],

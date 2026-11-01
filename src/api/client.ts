@@ -27,6 +27,12 @@ import {
 } from './contracts';
 import { ENDPOINTS } from './endpoints';
 import {
+  DetectedGeometrySchema,
+  DimensionStringsSchema,
+  type DetectedGeometry,
+  type DimensionStrings,
+} from './schemas/quality';
+import {
   InvitationPreviewSchema,
   type AcceptInvitation,
   type InvitationPreview,
@@ -605,6 +611,9 @@ export interface QualityApi {
   assess(input: ReadImageQualityInput): Promise<ApiResult<ImageQualityAssessment>>;
   setCorners(input: SetDrawingCornersInput): Promise<ApiResult<ImageQualityAssessment>>;
   straighten(input: StraightenDrawingInput): Promise<ApiResult<ImageQualityAssessment>>;
+  /** Lô 2b — tuỳ chọn (client giả cũ không có); máy chủ cũ trả 404/501, nơi gọi tự lùi về hành vi cũ. */
+  dimensionStrings?(input: ReadImageQualityInput): Promise<ApiResult<DimensionStrings>>;
+  detectedGeometry?(input: ReadImageQualityInput): Promise<ApiResult<DetectedGeometry>>;
 }
 
 export interface SpatialApi {
@@ -1477,6 +1486,18 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         await callGet<unknown>(http, ENDPOINTS.quality.assess(projectId, floorId), signal),
         ImageQualityAssessmentSchema,
         'quality.assess',
+      ),
+    dimensionStrings: async ({ floorId, projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.quality.dimensionStrings(projectId, floorId), signal),
+        DimensionStringsSchema,
+        'quality.dimensionStrings',
+      ),
+    detectedGeometry: async ({ floorId, projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.quality.detectedGeometry(projectId, floorId), signal),
+        DetectedGeometrySchema,
+        'quality.detectedGeometry',
       ),
     setCorners: async (input) => {
       const { body, floorId, projectId } = input;

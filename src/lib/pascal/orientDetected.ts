@@ -11,8 +11,8 @@
  * sceneFurnish dùng. Hộp AI là hộp THẾ GIỚI, nên khi quay 90°/270° thì đổi chỗ hai cạnh để
  * khung riêng xoay xong vẫn phủ đúng chỗ trên bản vẽ.
  *
- * `kitchenCabinet` không được xoay: `lShapedRunArms` (structureFixes.ts) chỉ tách dãy chữ L khi
- * góc là 0, và mặt bếp/chậu tìm tủ chủ theo hộp thế giới.
+ * `kitchenCabinet` FE không tự xoay (máy chủ có thể ghi góc): dãy chữ L, dãy tủ và tủ chủ của
+ * mặt bếp/chậu đọc hộp thế giới qua `worldBoxOf`.
  */
 
 import type { BoundingBox, Furniture, Point, Wall } from '@/domain/spatial/types';
@@ -38,6 +38,23 @@ const gapBetween = (a: BoundingBox, b: BoundingBox): number => {
 
 const midOf = (b: BoundingBox): Point => ({ x: (b.min.x + b.max.x) / 2, y: (b.min.y + b.max.y) / 2 });
 
+/**
+ * Hộp khung riêng ↔ hộp thế giới (thẳng trục) của món quay `rotationDeg`: quay 90°/270° thì hoán hai
+ * cạnh quanh tâm hộp, 0°/180° giữ nguyên. Phép này tự nghịch đảo nên dùng được cả hai chiều.
+ */
+// ponytail: chỉ góc bội 90° (BE chỉ ghi các góc này); góc xiên lấy hộp bao của hình đã xoay nếu cần.
+export const worldBoxOf = (box: BoundingBox, rotationDeg: number): BoundingBox => {
+  const quarter = Math.round((((rotationDeg % 360) + 360) % 360) / 90) % 2;
+  if (quarter === 0) return box;
+  const m = midOf(box);
+  const hw = (box.max.x - box.min.x) / 2;
+  const hd = (box.max.y - box.min.y) / 2;
+  return {
+    min: { x: (m.x - hd) as BoundingBox['min']['x'], y: (m.y - hw) as BoundingBox['min']['y'] },
+    max: { x: (m.x + hd) as BoundingBox['max']['x'], y: (m.y + hw) as BoundingBox['max']['y'] },
+  };
+};
+
 /** Hướng (đơn vị, theo trục) từ ghế nhìn vào bàn: chọn cạnh bàn mà ghế đứng ngoài xa hơn. */
 const towardTable = (seat: BoundingBox, table: BoundingBox): Point => {
   const s = midOf(seat);
@@ -54,7 +71,7 @@ const nearestTarget = (seat: Furniture, targets: readonly Furniture[]): Furnitur
   let bestGap = SEAT_TO_TABLE_MM;
   for (const t of targets) {
     if (t.levelId !== seat.levelId) continue;
-    const gap = gapBetween(seat.boundingBox, t.boundingBox);
+    const gap = gapBetween(seat.boundingBox, worldBoxOf(t.boundingBox, t.rotationDeg));
     if (gap <= bestGap) {
       best = t;
       bestGap = gap;
@@ -124,7 +141,7 @@ export const orientDetectedFurniture = (
     if (item.source !== 'ai' || item.reviewed || item.rotationDeg !== 0) return item;
     if (item.kind === 'chair') {
       const target = nearestTarget(item, tables) ?? nearestTarget(item, bars);
-      const facing = target === undefined ? intoRoomFromWall(item, walls) : towardTable(item.boundingBox, target.boundingBox);
+      const facing = target === undefined ? intoRoomFromWall(item, walls) : towardTable(item.boundingBox, worldBoxOf(target.boundingBox, target.rotationDeg));
       return facing === null ? item : turned(item, facing);
     }
     if (WALL_HUGGING_KINDS.has(item.kind) || (item.variant !== undefined && WALL_HUGGING_VARIANTS.has(item.variant))) {

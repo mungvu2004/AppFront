@@ -191,7 +191,7 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
   }, [onCanvasSizeChange]);
 
   // Tầng ĐÃ có tỷ lệ (chip "Đã xác nhận"): "máy chưa đọc được số" không còn là lỗi, đừng dựng khung vàng.
-  const hasStoredScale = model.panel.scaleCheck?.status.label.startsWith('Đã xác nhận') === true;
+  const hasStoredScale = model.panel.scaleCheck?.status.source === 'stored';
   const noticeMessage = model.state === 'empty' && hasStoredScale ? null : messageFor(model);
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';
