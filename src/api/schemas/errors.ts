@@ -88,6 +88,7 @@ const ERROR_RESOURCES = [
   'notification',
   'user',
   'shareLink',
+  'lightingBake',
 ] as const;
 
 /* -------------------------------------------------------------------------- */
