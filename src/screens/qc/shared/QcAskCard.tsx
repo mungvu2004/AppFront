@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 
 import { Kbd } from '@/components/ui/Kbd';
@@ -71,6 +71,8 @@ export interface QcAskCardProps {
   readonly code?: string | undefined;
   readonly onPrev?: (() => void) | undefined;
   readonly onNext?: (() => void) | undefined;
+  /** Đóng thẻ = bỏ chọn mục (như Esc). */
+  readonly onClose?: (() => void) | undefined;
   /** Nội dung thẻ: thanh tra của màn. Khung thẻ của nó được bỏ để chỉ còn một thẻ. */
   readonly children: ReactNode;
 }
@@ -78,6 +80,7 @@ export interface QcAskCardProps {
 const PREV_LABEL = 'Mục trước';
 const NEXT_LABEL = 'Mục kế tiếp';
 const CARD_LABEL = 'Thẻ hỏi của mục đang chọn';
+const CLOSE_LABEL = 'Đóng thẻ';
 
 function NavButton({ label, kbd, onClick, children }: { readonly label: string; readonly kbd: string; readonly onClick: (() => void) | undefined; readonly children: ReactNode }) {
   return (
@@ -95,7 +98,7 @@ function NavButton({ label, kbd, onClick, children }: { readonly label: string; 
   );
 }
 
-export function QcAskCard({ eyebrow, reason, code, onPrev, onNext, children }: QcAskCardProps) {
+export function QcAskCard({ eyebrow, reason, code, onPrev, onNext, onClose, children }: QcAskCardProps) {
   return (
     <section
       aria-label={CARD_LABEL}
@@ -117,6 +120,11 @@ export function QcAskCard({ eyebrow, reason, code, onPrev, onNext, children }: Q
         <NavButton kbd="J" label={NEXT_LABEL} onClick={onNext}>
           <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
         </NavButton>
+        {onClose === undefined ? null : (
+          <NavButton kbd="Esc" label={CLOSE_LABEL} onClick={onClose}>
+            <X aria-hidden="true" className="h-3.5 w-3.5" />
+          </NavButton>
+        )}
       </div>
       {/* U12: dòng lý do luôn giữ một khe cao cố định (có hay không có lý do), nút duyệt không nhảy. */}
       {reason == null ? (
@@ -136,7 +144,8 @@ export interface QcQueueAskCardProps<Id extends string> {
   readonly selectedId: Id | null;
   /** Đơn vị trong đầu thẻ: "Đoạn", "Mục", "Phòng". */
   readonly unit: string;
-  readonly onSelect: (id: Id) => void;
+  /** `null` = bỏ chọn (nút đóng thẻ). */
+  readonly onSelect: (id: Id | null) => void;
   readonly reason?: string | null | undefined;
   readonly children: ReactNode;
 }
@@ -158,6 +167,7 @@ export function QcQueueAskCard<Id extends string>({ items, selectedId, unit, onS
     <QcAskCard
       eyebrow={eyebrow}
       reason={reason}
+      onClose={() => onSelect(null)}
       onNext={nextId === null ? undefined : () => onSelect(nextId)}
       onPrev={prevId === null ? undefined : () => onSelect(prevId)}
     >
