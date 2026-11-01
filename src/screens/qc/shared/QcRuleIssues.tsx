@@ -20,6 +20,8 @@ export interface QcRuleIssuesProps {
   readonly focusResolved: boolean;
   readonly onFocus: (key: string) => void;
   readonly onClearFocus: () => void;
+  /** Nhãn dải gấp; `n` là số lỗi. Vắng = "Lỗi quy chuẩn ở lớp này (n)". */
+  readonly titleOf?: (count: number) => string;
 }
 
 const SEVERITY_DOT: Readonly<Record<LayerRuleIssue['severity'], string>> = {
@@ -28,7 +30,7 @@ const SEVERITY_DOT: Readonly<Record<LayerRuleIssue['severity'], string>> = {
   suggestion: 'bg-text-muted',
 };
 
-export function QcRuleIssues({ issues, focused, focusResolved, onFocus, onClearFocus }: QcRuleIssuesProps) {
+export function QcRuleIssues({ issues, focused, focusResolved, onFocus, onClearFocus, titleOf }: QcRuleIssuesProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -62,7 +64,7 @@ export function QcRuleIssues({ issues, focused, focusResolved, onFocus, onClearF
             type="button"
           >
             {open ? <ChevronDown aria-hidden className="size-4" /> : <ChevronRight aria-hidden className="size-4" />}
-            Lỗi quy chuẩn ở lớp này ({issues.length})
+            {titleOf === undefined ? `Lỗi quy chuẩn ở lớp này (${issues.length})` : titleOf(issues.length)}
           </button>
           {open ? (
             <ul className="max-h-64 overflow-y-auto border-t border-border-default py-1">

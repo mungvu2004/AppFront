@@ -116,6 +116,7 @@ import {
   pendingSuggestionsLabel,
   approvableObjectsOf,
   approveConfidentLabelOf,
+  confidentRowLabelOf,
   approveUnsureLabelOf,
   confirmUnsureLabelOf,
   reviewBreakdownLabelOf,
@@ -332,7 +333,15 @@ export function applyObjectFilters(
       return false;
     }
 
-    return !(filters.lowConfidenceOnly && (object.reviewed || !isLowConfidenceObject(object.confidence, threshold)));
+    /* Lọc bật: ẩn món đã duyệt và món máy chắc chắn (đã gom vào dòng "Duyệt cả N"); gợi ý và
+       lỗ mở chưa gắn tường vẫn hiện vì phải xem tay. Đếm "máy chưa chắc" cùng luật {@link unsureObjectsOf}. */
+    return !(
+      filters.lowConfidenceOnly &&
+      (object.reviewed ||
+        (object.suggested !== true &&
+          !isUnattachedOpening(object) &&
+          !isLowConfidenceObject(object.confidence, threshold)))
+    );
   });
 }
 
@@ -560,8 +569,22 @@ export function useObjectLayerReview(
     () => lowConfidenceObjectsOf(objects, confidenceThreshold),
     [confidenceThreshold, objects],
   );
-  /* Mở màn với lọc TẮT: số trên nhóm khớp số trong danh sách (G4a-37); dòng "N mục dưới ngưỡng" vẫn mời bật. */
-  const lowConfidenceOnly = lowConfidenceChoice ?? false;
+  /*
+   * Mở màn với lọc BẬT khi còn chỗ phải xem tay (giảm tải duyệt, GIAI-PHAP 3.12): món máy chắc chắn
+   * gom vào một dòng "Duyệt cả N". Không còn chỗ nào thì lọc tắt — bật lên chỉ ra danh sách rỗng.
+   */
+  const hasManualReview = useMemo(
+    () =>
+      objects.some(
+        (object) =>
+          !object.reviewed &&
+          (object.suggested === true ||
+            isUnattachedOpening(object) ||
+            isLowConfidenceObject(object.confidence, confidenceThreshold)),
+      ),
+    [confidenceThreshold, objects],
+  );
+  const lowConfidenceOnly = lowConfidenceChoice ?? hasManualReview;
 
   const solidWalls = useMemo(() => solidWallsOf(graph, level), [graph, level]);
   const graphWalls = useMemo(() => graphWallsOf(graph, level), [graph, level]);
@@ -1620,8 +1643,8 @@ export function useObjectLayerReview(
   }, []);
 
   const onToggleLowConfidenceOnly = useCallback(() => {
-    setLowConfidenceChoice((previous) => !(previous ?? false));
-  }, []);
+    setLowConfidenceChoice((previous) => !(previous ?? hasManualReview));
+  }, [hasManualReview]);
 
   /* ---------------------------------------------------------------------- */
   /* Nhóm loại đang chọn — `C`/`S`/`N` và ba ô 1/2/3.                         */
@@ -2350,7 +2373,7 @@ export function useObjectLayerReview(
     suggestionLabel: pendingSuggestionsLabel(suggestions.length),
     onAcceptAllSuggestions,
     onRejectAllSuggestions,
-    approveConfidentLabel: canApproveConfident ? approveConfidentLabelOf(confidentObjects.length) : null,
+    approveConfidentLabel: canApproveConfident ? confidentRowLabelOf(confidentObjects.length) : null,
     ...(canApproveConfident ? { onApproveConfident } : {}),
     approveRemainingLabel: canApproveRemaining ? approveUnsureLabelOf(unsureObjects.length) : null,
     approveRemainingConfirm: canApproveRemaining ? confirmUnsureLabelOf(unsureObjects.length) : null,
