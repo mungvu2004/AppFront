@@ -796,6 +796,8 @@ export interface ObjectPlacementViewModel {
   readonly centrePx: PixelPoint;
   /** Hướng chạy của tường chủ, độ, trong `[0, 360)`. `0` khi chưa gắn tường nào. */
   readonly angleDeg: number;
+  /** Cửa bản lề mở về mặt +y cục bộ (mặt `inward` của cảnh 3D): ký hiệu lật theo trục tường. Vắng = mặt −y. */
+  readonly swingsInward?: true;
   /** Bề rộng đối tượng DỌC theo tường. */
   readonly widthPx: number;
   /**

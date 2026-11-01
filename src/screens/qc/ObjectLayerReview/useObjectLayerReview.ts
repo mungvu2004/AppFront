@@ -55,6 +55,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf, keepDisplayCodes, sortByDisplayCode } from '@/domain/spatial/ids';
+import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, FurnitureKind, Level, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import { millimetres } from '@/domain/units/types';
@@ -132,6 +133,7 @@ import {
   filteredCountLabel,
   lowConfidenceNotice,
   lowConfidenceObjectsOf,
+  inwardSwingIdsOf,
   millimetresPerPixelOf,
   objectPlacementsOf,
   objectsOf,
@@ -2014,10 +2016,12 @@ export function useObjectLayerReview(
     [confidenceLegend, confidenceMode, paintSubjects],
   );
 
+  /* Cung cửa 2D mở cùng phía với cảnh 3D (`swingDirectionOf` + "Đổi hướng mở"). */
+  const inwardSwingIds = useMemo(() => inwardSwingIdsOf(graph === null ? null : denormalizeSpatial(graph)), [graph]);
   /* Bản vẽ vẽ mọi đối tượng; ẩn/hiện lớp do `layerVisibility` của canvas, bộ lọc danh sách không chạm tới (Codex P2). */
   const placements = useMemo(
-    () => objectPlacementsOf(objects, solidWalls, level),
-    [level, objects, solidWalls],
+    () => objectPlacementsOf(objects, solidWalls, level, inwardSwingIds),
+    [inwardSwingIds, level, objects, solidWalls],
   );
 
   /* N3-08: `?select=<mã>` từ Quy chuẩn — chọn đối tượng đó và phóng tới nó, đúng một lần. */

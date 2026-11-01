@@ -33,6 +33,12 @@ export type FurnitureRole =
   | 'bathtub'
   | 'shower'
   | 'basin'
+  /** Chậu rửa (`sanitaryFixture`) trong bếp: dãy tủ có chậu, không phải lavabo phòng tắm. */
+  | 'kitchenSink'
+  /** Thiết bị bếp `other` nhỏ hơn tủ lạnh (bếp nấu trong dãy tủ). */
+  | 'cooktop'
+  /** Món `other` dò được ngoài bếp, không rõ là gì: hộp tủ trung tính — không bao giờ là cây. */
+  | 'cabinet'
   | 'washer'
   | 'plant'
   | 'smallPlant'
@@ -63,6 +69,9 @@ const ROLE_MODELS: Readonly<Record<FurnitureRole, readonly string[]>> = {
   bathtub: ['bathtub'],
   shower: ['shower-square'],
   basin: ['bathroom-sink'],
+  kitchenSink: ['kitchen'],
+  cooktop: ['stove'],
+  cabinet: ['dresser'],
   washer: ['washing-machine'],
   plant: ['indoor-plant', 'small-indoor-plant'],
   smallPlant: ['small-indoor-plant', 'indoor-plant'],
@@ -90,6 +99,9 @@ const roleOfFolder = (folder: string): FurnitureRole =>
   (Object.keys(ROLE_MODELS) as FurnitureRole[]).find((role) => ROLE_MODELS[role][0] === folder) ?? 'fixed';
 
 const COFFEE_TABLE_MAX_MM = 500;
+/** Thiết bị `other` trong bếp có hai cạnh từ chừng này (m) là tủ lạnh, nhỏ hơn là bếp nấu. */
+// ponytail: chỉ theo cỡ — bếp nấu 0,64 × 0,73 m cũng vào tủ lạnh; tách khi bản dò có lớp/chiều cao riêng.
+const KITCHEN_FRIDGE_MIN_M = 0.55;
 /** Bếp `hob` thấp hơn chừng này là mặt bếp nằm trên mặt đá (F-KITCHEN-HOB 600 × 500 × 20), không phải bếp liền lò. */
 const THIN_HOB_MAX_MM = 300;
 
@@ -145,6 +157,7 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
     case 'kitchenCabinet':
       return short >= 0.6 && long <= 0.8 ? 'fridge' : 'counter';
     case 'sanitaryFixture':
+      if (usage === 'kitchen') return 'kitchenSink';
       if (short < 0.5 && long < 0.8) return 'toilet';
       if (long > 1.5) return 'bathtub';
       if (short >= 0.75 && long - short < 0.1) return 'shower';
@@ -156,7 +169,9 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
     case 'other':
       if (h !== undefined && h < 0.05) return long - short < 0.15 * long ? 'roundRug' : 'rug';
       if (living && long > 1.5) return 'sofa';
-      return short * long < 0.25 ? 'smallPlant' : 'plant';
+      // Món dò được không bao giờ là cây: cây chỉ đến từ variant `plant`/`planter` của đồ bày biện.
+      if (usage === 'kitchen') return short >= KITCHEN_FRIDGE_MIN_M ? 'fridge' : 'cooktop';
+      return 'cabinet';
   }
 };
 
