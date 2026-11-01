@@ -26,7 +26,15 @@
  * đó, không gõ tay số 21 ở hai chỗ.
  */
 
-import type { Confidence, FurnitureKind, Point, ReviewMetadata, SwingDirection, WallId } from '@/domain/spatial/types';
+import type {
+  Confidence,
+  FurnitureKind,
+  FurnitureVariant,
+  Point,
+  ReviewMetadata,
+  SwingDirection,
+  WallId,
+} from '@/domain/spatial/types';
 import type { Millimetres, MillimetresPerPixel } from '@/domain/units/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
@@ -446,6 +454,8 @@ export interface ObjectInspectorViewModel {
   readonly typeLabel: string;
   /** Loại đồ đạc của đồ thị — ô đổi loại của nội thất. `null` ở lỗ mở hoặc nội thất không đọc được loại. */
   readonly furnitureKind: FurnitureKind | null;
+  /** Kiểu của món nội thất (`Furniture.variant`); `null`/vắng = máy suy theo cỡ, hoặc lỗ mở. */
+  readonly furnitureVariant?: FurnitureVariant | null;
   /** "406 × 277 mm" — Rộng × Sâu của nội thất trên mặt bằng. */
   readonly sizeLabel: string;
   /** "Cửa hẹp bất thường (392 mm), kiểm lại" — chỉ ở cửa đi rộng dưới 600 mm (UX-48). */
@@ -478,14 +488,57 @@ export interface ObjectInspectorViewModel {
 }
 
 /**
+ * Sofa không phải một `FurnitureKind`: nó là `kind: 'chair'` + `variant: 'sofa'` (hợp đồng lô 1,
+ * ngữ nghĩa 1). Ô đổi loại vẫn liệt kê nó để người duyệt khỏi phải chọn hai lần.
+ */
+export const SOFA_CHOICE = 'sofa';
+export type FurnitureKindChoice = FurnitureKind | typeof SOFA_CHOICE;
+
+/** Giá trị của ô "Kiểu" khi món đồ chưa có `variant` — máy suy theo cỡ. */
+export const AUTO_VARIANT_CHOICE = 'auto';
+export type FurnitureVariantChoice = FurnitureVariant | typeof AUTO_VARIANT_CHOICE;
+
+/**
+ * Ô "Kiểu" theo loại (D3): chỉ những `FurnitureVariant` có thật. Loại không có dòng ở đây (giường,
+ * bàn…) không hiện ô — chưa có variant cho giường đơn/đôi hay bồn tắm.
+ */
+export const FURNITURE_VARIANT_OPTIONS: Partial<Record<FurnitureKind, { label: string; value: FurnitureVariant }[]>> = {
+  chair: [
+    { label: 'Ghế ăn', value: 'chair' },
+    { label: 'Ghế bành', value: 'armchair' },
+    { label: 'Sofa', value: 'sofa' },
+    { label: 'Ghế băng', value: 'bench' },
+  ],
+  sanitaryFixture: [
+    { label: 'Bồn cầu', value: 'wc' },
+    { label: 'Lavabo', value: 'basin' },
+    { label: 'Khu tắm đứng', value: 'shower' },
+  ],
+  kitchenCabinet: [
+    { label: 'Tủ dưới', value: 'baseRun' },
+    { label: 'Tủ trên', value: 'upperRun' },
+    { label: 'Bếp nấu', value: 'hob' },
+    { label: 'Chậu rửa', value: 'sink' },
+    { label: 'Tủ lạnh', value: 'fridge' },
+  ],
+};
+
+/** Ô "Kiểu" của một loại, kèm dòng "Theo cỡ" cho món chưa có kiểu; `[]` = loại không có kiểu. */
+export function furnitureVariantChoicesOf(kind: FurnitureKind): { label: string; value: FurnitureVariantChoice }[] {
+  const options = FURNITURE_VARIANT_OPTIONS[kind];
+  return options === undefined ? [] : [{ label: 'Theo cỡ (máy tự chọn)', value: AUTO_VARIANT_CHOICE }, ...options];
+}
+
+/**
  * Mười loại đồ đạc của đồ thị — ô đổi loại của nội thất (K10). Tên viết hoa chữ đầu, cùng chữ
  * `objectTypeLabelOf` in ở dòng danh sách (`other` là "Nội thất khác"). Chép ở đây vì
  * `FURNITURE_KIND_LABELS` nằm ở `@/lib/commands` mà view không được nhập (R-60). Mảng thường
  * (không `readonly`) vì `Select.options` nhận `SelectOption[]`.
  */
-export const FURNITURE_KIND_OPTIONS: { label: string; value: FurnitureKind }[] = [
+export const FURNITURE_KIND_OPTIONS: { label: string; value: FurnitureKindChoice }[] = [
   { label: 'Bàn', value: 'table' },
   { label: 'Ghế', value: 'chair' },
+  { label: 'Sofa', value: SOFA_CHOICE },
   { label: 'Giường', value: 'bed' },
   { label: 'Tủ áo', value: 'wardrobe' },
   { label: 'Tủ bếp', value: 'kitchenCabinet' },
@@ -503,8 +556,11 @@ export interface ObjectLayerInspectorProps {
   readonly isViewerRole: boolean;
   readonly onChangeSubtype: (objectId: string, subtype: ObjectSubtype) => void;
   readonly onChangeSwing: (objectId: string, swing: SwingDirection) => void;
-  /** Đổi loại một món nội thất (K10) — lệnh `furniture.changeKind`. */
-  readonly onChangeFurnitureKind: (objectId: string, kind: FurnitureKind) => void;
+  /**
+   * Đổi loại một món nội thất (K10) — lệnh `furniture.changeKind`; cùng loại, khác kiểu thì lệnh
+   * `furniture.changeVariant` (D3). `variant` vắng = giữ kiểu nếu cùng loại; `null` = bỏ kiểu.
+   */
+  readonly onChangeFurnitureKind: (objectId: string, kind: FurnitureKind, variant?: FurnitureVariant | null) => void;
   /** Kéo Slider vị trí — hook gộp thao tác kéo liên tục thành một lệnh (D-06, 400ms). */
   readonly onDragPosition: (objectId: string, relativePosition: RelativePosition) => void;
   /** Xoá dùng vé hoàn tác (A8); toast Hoàn tác do hook dựng. */
@@ -612,7 +668,7 @@ export interface ObjectLayerReviewModel {
   /* -- Hành động trên một đối tượng ------------------------------------------ */
   readonly onChangeSubtype: (objectId: string, subtype: ObjectSubtype) => void;
   readonly onChangeSwing: (objectId: string, swing: SwingDirection) => void;
-  readonly onChangeFurnitureKind: (objectId: string, kind: FurnitureKind) => void;
+  readonly onChangeFurnitureKind: (objectId: string, kind: FurnitureKind, variant?: FurnitureVariant | null) => void;
   readonly onDragPosition: (objectId: string, relativePosition: RelativePosition) => void;
   readonly onDelete: (objectId: string) => void;
   readonly onApprove: (objectId: string) => void;

@@ -56,6 +56,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { Select } from '@/components/ui/Select';
+import type { FurnitureKind, FurnitureVariant } from '@/domain/spatial/types';
 
 import { ObjectLayerApproveBlock } from './ObjectLayerApproveBlock';
 import { ObjectLayerFootprintField } from './ObjectLayerFootprintField';
@@ -63,7 +64,10 @@ import { ObjectLayerPositionField } from './ObjectLayerPositionField';
 import { ObjectLayerSwingField } from './ObjectLayerSwingField';
 import { ObjectSubtypeIcon } from './objectLayerSubtypeIcons';
 import {
+  AUTO_VARIANT_CHOICE,
   FURNITURE_KIND_OPTIONS,
+  furnitureVariantChoicesOf,
+  SOFA_CHOICE,
   OBJECT_SUBTYPES,
   OBJECT_SUBTYPE_LABELS,
   OBJECT_SUBTYPE_LAYER,
@@ -82,6 +86,8 @@ const TYPE_OPTIONS = OPENING_SUBTYPES.map((subtype) => ({
 const PANEL_TITLE = 'Đối tượng';
 const TYPE_SELECT_LABEL = 'Loại đối tượng';
 const FURNITURE_KIND_SELECT_LABEL = 'Đổi loại nội thất';
+const VARIANT_LABEL = 'Kiểu';
+const VARIANT_SELECT_LABEL = 'Đổi kiểu nội thất';
 const WIDTH_LABEL = 'Chiều rộng';
 const HEIGHT_LABEL = 'Chiều cao';
 /* Nội thất nằm trên mặt bằng: cạnh thứ hai là chiều sâu, không phải chiều cao (K10). */
@@ -205,7 +211,8 @@ function ObjectInspectorBody({
   onResize,
   onRotate,
 }: ObjectInspectorBodyProps) {
-  const { footprintMm, hostWallId, hostWallLabel } = inspector;
+  const { footprintMm, furnitureKind, hostWallId, hostWallLabel } = inspector;
+  const variantChoices = furnitureKind === null ? [] : furnitureVariantChoicesOf(furnitureKind);
   const isSuggested = inspector.isSuggested === true;
   const isFurniture = OBJECT_SUBTYPE_LAYER[inspector.subtype] === 'furniture'; // loại, hướng mở chỉ đọc (BUG-590)
 
@@ -233,9 +240,13 @@ function ObjectInspectorBody({
         {isFurniture && !isViewerRole && inspector.furnitureKind !== null ? (
           <Select.Root
             className="flex-1"
-            onChange={(value) => onChangeFurnitureKind(inspector.id, value as (typeof FURNITURE_KIND_OPTIONS)[number]['value'])}
+            onChange={(value) => {
+              /* Sofa = ghế + kiểu sofa (hợp đồng lô 1); chọn loại khác thì bỏ kiểu cũ, máy suy lại theo cỡ. */
+              if (value === SOFA_CHOICE) onChangeFurnitureKind(inspector.id, 'chair', 'sofa');
+              else onChangeFurnitureKind(inspector.id, value as FurnitureKind, null);
+            }}
             options={FURNITURE_KIND_OPTIONS}
-            value={inspector.furnitureKind}
+            value={inspector.furnitureKind === 'chair' && inspector.furnitureVariant === 'sofa' ? SOFA_CHOICE : inspector.furnitureKind}
           >
             <Select.Trigger aria-label={FURNITURE_KIND_SELECT_LABEL} options={FURNITURE_KIND_OPTIONS} ref={kindTriggerRef} />
             <Select.Content>
@@ -275,6 +286,27 @@ function ObjectInspectorBody({
       </div>
 
       <div className="flex flex-col px-5">
+        {isFurniture && !isViewerRole && variantChoices.length > 0 && furnitureKind !== null ? (
+          <FieldRow label={VARIANT_LABEL}>
+            <Select.Root
+              className="flex-1"
+              onChange={(value) =>
+                onChangeFurnitureKind(inspector.id, furnitureKind, value === AUTO_VARIANT_CHOICE ? null : (value as FurnitureVariant))
+              }
+              options={variantChoices}
+              value={inspector.furnitureVariant ?? AUTO_VARIANT_CHOICE}
+            >
+              <Select.Trigger aria-label={VARIANT_SELECT_LABEL} options={variantChoices} />
+              <Select.Content>
+                {variantChoices.map((option, index) => (
+                  <Select.Item index={index} key={option.value} value={option.value}>
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </FieldRow>
+        ) : null}
         {isFurniture && !isViewerRole && footprintMm !== undefined && onResize !== undefined && onRotate !== undefined ? (
           <ObjectLayerFootprintField
             depthMm={footprintMm.depthMm}
