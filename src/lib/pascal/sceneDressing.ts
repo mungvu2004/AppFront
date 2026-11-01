@@ -213,6 +213,13 @@ export const LIGHT_DISTANCE_M = 6;
  */
 export const LIGHT_NODE_SCALE: PascalVec3 = [0.01, 0.01, 0.01];
 
+/**
+ * C1 — đèn âm trần là nguồn sáng, không phải món đồ: co thêm riêng mô hình GLB (`asset.scale`,
+ * không đụng vị trí/ánh sáng) để lưới không hiện cả khi người dùng phóng tỉ lệ node lên 100%.
+ * Không dùng 0: ma trận suy biến. Đèn đã nằm ngoài dữ liệu đồ đạc (`isGeneratedLightId`).
+ */
+export const LIGHT_MESH_SCALE: PascalVec3 = [0.001, 0.001, 0.001];
+
 /** Bật sẵn đèn: khối `interactive` chép sâu, công tắc `default: true`, ánh sáng theo phong cách. */
 const lightInteractiveOf = (interactive: unknown, style: SceneStyle): unknown => {
   const copy = structuredClone(interactive) as {
@@ -352,7 +359,7 @@ export const ceilingNodesOf = (
         dimensions: model.dimensions,
         offset: model.offset,
         rotation: model.rotation,
-        scale: [1, 1, 1],
+        scale: LIGHT_MESH_SCALE,
         attachTo: 'ceiling',
         recessed: true,
         interactive: lightInteractiveOf(model.interactive, style),

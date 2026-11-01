@@ -21,6 +21,8 @@ export type FurnitureRole =
   | 'dresser'
   | 'bookshelf'
   | 'diningChair'
+  /** Ghế băng / ghế ăn dài: variant `bench`, hoặc ghế dài > 1,5 m mà cạnh ngắn < 0,6 m. */
+  | 'bench'
   | 'armchair'
   | 'sofa'
   | 'nightstand'
@@ -55,12 +57,14 @@ const ROLE_MODELS: Readonly<Record<FurnitureRole, readonly string[]>> = {
   closet: ['closet'],
   dresser: ['dresser'],
   bookshelf: ['bookshelf'],
-  diningChair: ['dining-chair', 'stool', 'office-chair'],
+  // C2 — phong cách chỉ đổi kiểu trong cùng loại: ghế đẩu, ghế xoay không phải ghế ăn.
+  diningChair: ['dining-chair'],
+  bench: ['ottoman'],
   armchair: ['livingroom-chair'],
   sofa: ['sofa'],
   nightstand: ['bedside-table'],
   coffeeTable: ['coffee-table'],
-  desk: ['office-table', 'dining-table'],
+  desk: ['office-table'],
   diningTable: ['dining-table'],
   fridge: ['fridge'],
   // Không dùng 'kitchen-counter' (hộp trơn): tủ có tay nắm trước, dãy dài có chậu rửa vừa hơn.
@@ -99,8 +103,7 @@ const roleOfFolder = (folder: string): FurnitureRole =>
   (Object.keys(ROLE_MODELS) as FurnitureRole[]).find((role) => ROLE_MODELS[role][0] === folder) ?? 'fixed';
 
 const COFFEE_TABLE_MAX_MM = 500;
-/** Thiết bị `other` trong bếp có hai cạnh từ chừng này (m) là tủ lạnh, nhỏ hơn là bếp nấu. */
-// ponytail: chỉ theo cỡ — bếp nấu 0,64 × 0,73 m cũng vào tủ lạnh; tách khi bản dò có lớp/chiều cao riêng.
+/** Thiết bị `other` trong bếp có hai cạnh từ chừng này (m) là hộp tủ (tủ lạnh chỉ từ variant), nhỏ hơn là bếp nấu. */
 const KITCHEN_FRIDGE_MIN_M = 0.55;
 /** Bếp `hob` thấp hơn chừng này là mặt bếp nằm trên mặt đá (F-KITCHEN-HOB 600 × 500 × 20), không phải bếp liền lò. */
 const THIN_HOB_MAX_MM = 300;
@@ -124,12 +127,23 @@ const variantModelOf = (f: Shaped) => {
   return VARIANT_MODEL[f.variant] ?? null;
 };
 
+/** Ghế dài hơn chừng này (m) là sofa hoặc ghế băng, theo cạnh ngắn (`SOFA_MIN_SHORT_M`). */
+const LONG_SEAT_M = 1.5;
+const SOFA_MIN_SHORT_M = 0.6;
+/** Thiết bị vệ sinh (C2, E6 x2): khu tắm từ diện tích này (m²), bồn tắm từ cạnh dài này (m). */
+const SHOWER_MIN_AREA_M2 = 1.0;
+const BATHTUB_MIN_LONG_M = 1.4;
+/** Bồn cầu: dài/ngắn ≥ 1,5 và cạnh dài ≤ 1,0 m; lavabo cùng cỡ nhưng vuông hơn. */
+const TOILET_MIN_RATIO = 1.5;
+const TOILET_MAX_LONG_M = 1.0;
+
 /** Bàn cỡ bàn làm việc chỉ là `desk` ở các phòng này (hoặc không rõ phòng); bếp, phòng khách… là bàn ăn. */
 const DESK_USAGES: ReadonlySet<RoomUsage | undefined> = new Set([undefined, 'bedroom', 'utility', 'other']);
 
 /**
- * Vai trò của một món: có mô hình variant thì theo mô hình đó, không thì theo hình hộp.
- * Sofa và bàn trà chỉ ở phòng khách (`usage`), như `furnitureModelOf` hôm nay.
+ * Vai trò của một món: có mô hình variant thì theo mô hình đó (không xét phòng), không thì
+ * theo hình hộp. C2 — chỉ đổi loại khi có bằng chứng: ghế dài là sofa/ghế băng ở mọi phòng,
+ * tủ lạnh chỉ từ variant, tủ áo nông vẫn là tủ; bàn trà vẫn chỉ ở phòng khách.
  */
 export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
   const byVariant = variantModelOf(f);
@@ -145,22 +159,24 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
     case 'bed':
       return short < 1.2 ? 'singleBed' : 'doubleBed';
     case 'wardrobe':
-      if (short <= 0.4) return 'bookshelf';
       return h !== undefined && h < 1 ? 'dresser' : 'closet';
     case 'chair':
-      if (living && long > 1.5) return 'sofa';
+      if (long > LONG_SEAT_M) return short >= SOFA_MIN_SHORT_M ? 'sofa' : 'bench';
       return short >= 0.65 && long <= 1.5 ? 'armchair' : 'diningChair';
     case 'table':
-      if (long < 0.6) return 'nightstand';
+      // ponytail: chưa xét khoảng cách tới giường (≤ 0,3 m) — roleOf không thấy giường; thêm ngữ cảnh khi cần.
+      if (long < 0.6 && usage === 'bedroom') return 'nightstand';
       if (living && h !== undefined && h < 0.5) return 'coffeeTable';
       return short <= 0.8 && long <= 1.6 && DESK_USAGES.has(usage) ? 'desk' : 'diningTable';
     case 'kitchenCabinet':
-      return short >= 0.6 && long <= 0.8 ? 'fridge' : 'counter';
+      // Tủ lạnh chỉ khi variant nói (`fridge`), không đoán theo cỡ.
+      return 'counter';
     case 'sanitaryFixture':
       if (usage === 'kitchen') return 'kitchenSink';
-      if (short < 0.5 && long < 0.8) return 'toilet';
-      if (long > 1.5) return 'bathtub';
-      if (short >= 0.75 && long - short < 0.1) return 'shower';
+      // Bồn tắm trước khu tắm: bồn ≥ 1,4 m luôn có diện tích ≈ 1 m², xét diện tích trước thì luật bồn tắm chết.
+      if (long >= BATHTUB_MIN_LONG_M) return 'bathtub';
+      if (short * long >= SHOWER_MIN_AREA_M2) return 'shower';
+      if (long / short >= TOILET_MIN_RATIO && long <= TOILET_MAX_LONG_M) return 'toilet';
       return 'basin';
     case 'washingMachine':
       return 'washer';
@@ -170,7 +186,8 @@ export const roleOf = (f: Shaped, usage?: RoomUsage): FurnitureRole => {
       if (h !== undefined && h < 0.05) return long - short < 0.15 * long ? 'roundRug' : 'rug';
       if (living && long > 1.5) return 'sofa';
       // Món dò được không bao giờ là cây: cây chỉ đến từ variant `plant`/`planter` của đồ bày biện.
-      if (usage === 'kitchen') return short >= KITCHEN_FRIDGE_MIN_M ? 'fridge' : 'cooktop';
+      // Tủ lạnh chỉ từ variant: món lớn không nhãn trong bếp là hộp tủ.
+      if (usage === 'kitchen') return short >= KITCHEN_FRIDGE_MIN_M ? 'cabinet' : 'cooktop';
       return 'cabinet';
   }
 };

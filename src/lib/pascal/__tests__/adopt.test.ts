@@ -20,7 +20,7 @@ const ACTOR = 'U-1';
 /* F1-ext gốc không còn đồ tự bày (FE3D-FIX-004 C2: bàn ăn phòng khách chặn bộ bàn ăn trong bếp, đúng
    như nhà thật). F2 vẫn có giường + tủ đầu giường tự bày trong một phòng và đồ thật — đủ cho ca "nhận nuôi". */
 const graph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF2().doc).graph;
-const scene = toPascalScene(graph).scene;
+const scene = toPascalScene(graph, { furnish: 'on' }).scene;
 const items = (of: PascalScene): PascalItemNode[] =>
   Object.values(of.nodes).filter((node): node is PascalItemNode => node.type === 'item');
 const dressOf = (of: PascalScene, roomId: string): PascalItemNode[] =>
@@ -101,7 +101,7 @@ describe('nhận nuôi đồ bày biện sinh ra', () => {
     if (!result.ok) throw new Error('phải nhận được');
 
     const adopted = result.data.changes.map((change) => change.after as Furniture);
-    const reloaded = toPascalScene({ ...graph, furniture: [...graph.furniture, ...adopted] }).scene;
+    const reloaded = toPascalScene({ ...graph, furniture: [...graph.furniture, ...adopted] }, { furnish: 'on' }).scene;
     const spots = (of: PascalItemNode[]): string[] =>
       of.map((node) => `${node.position[0].toFixed(3)},${node.position[2].toFixed(3)}`).sort();
     const inRoom = (of: PascalScene): PascalItemNode[] =>

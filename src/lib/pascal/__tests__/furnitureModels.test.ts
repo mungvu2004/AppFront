@@ -288,6 +288,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
       wardrobe: '/items/closet/model.glb',
       // FR1-F2: tủ bếp dưới có cửa + tay nắm, không còn khối hộp trơn kitchen-counter.
       kitchenCabinet: '/items/kitchen-cabinet/model.glb',
+      // C2: thiết bị dài/ngắn ≥ 1,5 và dài ≤ 1 m là bồn cầu, còn lại lavabo — kiểm riêng bên dưới.
       sanitaryFixture: '/items/bathroom-sink/model.glb',
       // Món `other` dò được không bao giờ là cây (open-plan-20261101): hộp tủ trung tính.
       other: '/items/dresser/model.glb',
@@ -296,6 +297,7 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     // 32 đồ đạc, 4 cái là thang → node `stair` thật (U13, stair.test.ts), không còn item giữ chỗ.
     expect(items).toHaveLength(28);
     for (const item of items) {
+      if (item.asset.category === 'sanitaryFixture' && item.asset.src === '/items/toilet/model.glb') continue;
       expect(item.asset.src, item.asset.category).toBe(expected[item.asset.category]);
     }
   });
