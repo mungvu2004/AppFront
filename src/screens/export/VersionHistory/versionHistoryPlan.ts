@@ -7,12 +7,20 @@
  */
 
 import type { VersionDiff } from '@/lib/versioning/diff';
+import { arcPoints, pointAtArcLength } from '@/domain/spatial/arc';
 import type { Point } from '@/domain/spatial/types';
 import type { DiffTone, PlanDiffModel, PlanTone } from './types';
 import type { VersionSnapshotSource } from './versionSnapshotAdapter';
 
 /** Lề quanh khung bao, mm. */
 const PLAN_MARGIN_MM = 500;
+
+/** Số dây vẽ một ô mở trên tường cong. */
+const OPENING_ARC_CHORDS = 8;
+
+/** Chuỗi `points` của `<polyline>`. */
+const svgPointsOf = (points: readonly { readonly x: number; readonly y: number }[]): string =>
+  points.map((point) => `${String(point.x)},${String(point.y)}`).join(' ');
 
 const VERTEX_ID = /^V-(.+)-(?:start|end)$/;
 
@@ -84,10 +92,19 @@ export function buildPlanDiffModel({ diff, floorLabel, focusId, left, right }: B
   const wallSources = [...right.layer.walls, ...left.layer.walls];
   const walls = pick(left.layer.walls, right.layer.walls, tones).map((wall) => {
     const { end, start } = wall.centreline;
+    const arc = wall.curveOffsetMm ? arcPoints(start, end, wall.curveOffsetMm) : null;
 
-    points.push(start, end);
+    points.push(...(arc ?? [start, end]));
 
-    return { ...shape(wall.id, wall.id), thickness: wall.thicknessMm, x1: start.x, x2: end.x, y1: start.y, y2: end.y };
+    return {
+      ...shape(wall.id, wall.id),
+      thickness: wall.thicknessMm,
+      x1: start.x,
+      x2: end.x,
+      y1: start.y,
+      y2: end.y,
+      ...(arc === null ? {} : { points: svgPointsOf(arc) }),
+    };
   });
 
   const rooms = pick(left.layer.rooms, right.layer.rooms, tones).map((room) => {
@@ -106,6 +123,31 @@ export function buildPlanDiffModel({ diff, floorLabel, focusId, left, right }: B
     }
 
     const { end, start } = wall.centreline;
+
+    if (wall.curveOffsetMm) {
+      // Tường cong: ô mở đo dọc cung (AppBack `arc.py`), vẽ bằng các đỉnh trên cung.
+      const curve = wall.curveOffsetMm;
+      const at = (distance: number) => pointAtArcLength(start, end, curve, distance).point;
+      const arcStations = Array.from({ length: OPENING_ARC_CHORDS + 1 }, (_, index) =>
+        at(opening.offsetMm + (opening.widthMm * index) / OPENING_ARC_CHORDS),
+      );
+      const first = arcStations[0] ?? start;
+      const last = arcStations[OPENING_ARC_CHORDS] ?? end;
+      const wallTone = tones.get(wall.id);
+      const tone = tones.get(opening.id) ?? (wallTone === 'removed' || wallTone === 'added' ? wallTone : 'same');
+
+      return [
+        {
+          ...shape(opening.id, opening.id, tone),
+          x1: first.x,
+          x2: last.x,
+          y1: first.y,
+          y2: last.y,
+          points: svgPointsOf(arcStations),
+        },
+      ];
+    }
+
     const length = Math.hypot(end.x - start.x, end.y - start.y) || 1;
     const ux = (end.x - start.x) / length;
     const uy = (end.y - start.y) / length;

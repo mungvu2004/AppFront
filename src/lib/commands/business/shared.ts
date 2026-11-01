@@ -338,19 +338,30 @@ export const toSolidWall = (wall: GraphWall, level: Level): SolidWall => ({
     start: toPointMm(wall.centreline.start),
     end: toPointMm(wall.centreline.end),
   },
+  ...(wall.curveOffsetMm ? { curveOffsetMm: millimetres(wall.curveOffsetMm) } : {}),
   thicknessMm: millimetres(wall.thicknessMm),
   baseElevationMm: millimetres(level.elevationMm),
   topElevationMm: millimetres(level.elevationMm + wall.heightMm),
 });
 
 /** The same wall with a centreline the geometry produced. */
-export const withCentrelineOf = (wall: GraphWall, geometry: SolidWall): GraphWall => ({
-  ...wall,
-  centreline: {
-    start: toPoint(geometry.centreline.start),
-    end: toPoint(geometry.centreline.end),
-  },
-});
+export const withCentrelineOf = (wall: GraphWall, geometry: SolidWall): GraphWall => {
+  const next: GraphWall = {
+    ...wall,
+    centreline: {
+      start: toPoint(geometry.centreline.start),
+      end: toPoint(geometry.centreline.end),
+    },
+  };
+  // Độ cong đi theo hình học (tách tường cong ra sagitta của từng khúc); dây API là mm nguyên.
+  const curveOffsetMm = Math.round(geometry.curveOffsetMm ?? 0);
+  if (curveOffsetMm) {
+    next.curveOffsetMm = millimetres(curveOffsetMm);
+  } else {
+    delete next.curveOffsetMm;
+  }
+  return next;
+};
 
 /**
  * Where the centre of a graph opening sits along its host, as a fraction.

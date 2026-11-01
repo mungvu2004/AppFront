@@ -155,6 +155,7 @@ interface FieldDescriptor {
  */
 const FIELD_DESCRIPTORS: Readonly<Record<string, FieldDescriptor>> = {
   area_m2: { phrase: 'diện tích', quantity: 'areaM2' },
+  curve_offset_mm: { phrase: 'độ cong', quantity: 'lengthMm' },
   elevation_m: { phrase: 'cao độ', quantity: 'elevationM' },
   height_mm: { phrase: 'cao', quantity: 'lengthMm' },
   lift_mm: { phrase: 'nâng khỏi sàn', quantity: 'lengthMm' },

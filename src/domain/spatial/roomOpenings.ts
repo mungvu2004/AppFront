@@ -33,6 +33,7 @@
  */
 
 import { compareNearly, isNearlyZero } from '../units/compare';
+import { chordWalls, pointAtArcLength } from './arc';
 import type { Opening, Point, Room, Wall } from './types';
 
 /* -------------------------------------------------------------------------- */
@@ -116,6 +117,11 @@ function distanceToOutline(point: Point, outline: readonly Point[]): number {
 
 /** Where the middle of an opening sits on the plan. */
 function openingCentre(wall: Wall, opening: Opening): Point {
+  // Tường cong: `offsetMm` đo dọc cung (AppBack `arc.py`).
+  if (wall.curveOffsetMm) {
+    const { start, end } = wall.centreline;
+    return pointAtArcLength(start, end, wall.curveOffsetMm, opening.offsetMm + opening.widthMm / 2).point;
+  }
   return pointAlong(wall.centreline, opening.offsetMm + opening.widthMm / 2);
 }
 
@@ -307,7 +313,8 @@ function rayHitsWall(
  */
 export function openGapsOfRoom(room: Room, walls: readonly Wall[]): OpenGap[] {
   const outline = room.outline;
-  const levelWalls = walls.filter((wall) => wall.levelId === room.levelId);
+  // Tường cong phủ cạnh phòng (đã lấy mẫu theo cung) bằng từng dây cung.
+  const levelWalls = chordWalls(walls.filter((wall) => wall.levelId === room.levelId));
   const gaps: OpenGap[] = [];
 
   // A room with no wall attached is not a room with a gap; it is not drawn yet.

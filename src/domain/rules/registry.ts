@@ -37,6 +37,7 @@ import {
 } from '../spatial/normalize';
 import type { LevelId, RoomUsage, Wall } from '../spatial/types';
 import { openingsOfRoom } from '../spatial/roomOpenings';
+import { wallLength } from '../spatial/arc';
 import { MAX_WALL_THICKNESS_MM } from './limits';
 import type { EntityKind } from '../spatial/ids';
 import { MILLIMETRES_PER_METRE } from '../units/types';
@@ -524,7 +525,10 @@ const openingInWallRule: Rule = {
         return [];
       }
 
-      const wallLengthMm = segmentLengthMm(wall.centreline.start, wall.centreline.end);
+      // Tường cong: ô mở đo dọc cung (AppBack `arc.py`), nên trần là độ dài cung chứ không phải dây.
+      const wallLengthMm = wall.curveOffsetMm
+        ? wallLength(wall.centreline.start, wall.centreline.end, wall.curveOffsetMm)
+        : segmentLengthMm(wall.centreline.start, wall.centreline.end);
       const endMm = opening.offsetMm + opening.widthMm;
 
       if (opening.offsetMm >= 0 && endMm <= wallLengthMm) {

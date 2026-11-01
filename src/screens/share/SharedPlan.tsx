@@ -21,6 +21,8 @@ import {
   panCamera,
   roomDisplayName,
   roomLabelAnchor,
+  svgPoints,
+  wallPoints,
   zoomCamera,
   type PlanCamera,
   type ViewBox,
@@ -71,14 +73,14 @@ function OpeningFigure({ wall, opening }: { wall: Wall; opening: Opening }) {
   if (segment === null) {
     return null;
   }
-  const line = { x1: segment.start.x, y1: segment.start.y, x2: segment.end.x, y2: segment.end.y };
+  const line = { points: svgPoints(segment), fill: 'none' };
 
   return (
     <g>
       {/* Khoét tường bằng màu nền, rồi cửa sổ vẽ một nét mảnh màu nhấn; cửa đi để trống. */}
-      <line {...line} stroke="var(--canvas-2d)" strokeWidth={wall.thicknessMm * 1.1} />
+      <polyline {...line} stroke="var(--canvas-2d)" strokeWidth={wall.thicknessMm * 1.1} />
       {opening.kind === 'window' ? (
-        <line {...line} stroke="var(--accent)" strokeWidth={wall.thicknessMm * 0.35} />
+        <polyline {...line} stroke="var(--accent)" strokeWidth={wall.thicknessMm * 0.35} />
       ) : null}
     </g>
   );
@@ -161,12 +163,10 @@ export function SharedPlan({ walls, rooms, openings, provisionalArea = false }: 
           <RoomFigure key={room.id} room={room} fontSize={fontSize} provisionalArea={provisionalArea} />
         ))}
         {walls.map((wall) => (
-          <line
+          <polyline
             key={wall.id}
-            x1={wall.centreline.start.x}
-            y1={wall.centreline.start.y}
-            x2={wall.centreline.end.x}
-            y2={wall.centreline.end.y}
+            points={svgPoints(wallPoints(wall))}
+            fill="none"
             stroke="var(--text-primary)"
             strokeWidth={wall.thicknessMm}
             strokeLinecap="square"

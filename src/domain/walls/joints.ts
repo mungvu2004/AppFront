@@ -45,9 +45,11 @@ import {
   type Degrees,
   type Millimetres,
 } from '../units/types';
+import { arcPoints, pointAtArcLength } from '../spatial/arc';
 import type { WallId } from '../spatial/types';
 import {
   assertUsableWall,
+  centrelineLength,
   endPoint,
   isThicknessInRange,
   MAX_WALL_THICKNESS_MM,
@@ -257,8 +259,27 @@ function offsetPoint(origin: PointMm, direction: Vector, distanceMm: number): Po
   };
 }
 
-function otherEnd(end: WallEnd): WallEnd {
-  return end === 'start' ? 'end' : 'start';
+/**
+ * Hướng rời nút của một đầu tường: theo dây khi thẳng, theo tiếp tuyến cung khi cong — mặt tường
+ * cong ở sát nút là đường thẳng tiếp xúc ấy, nên góc nối cắt đúng chỗ.
+ */
+function leavingDirection(wall: Wall, end: WallEnd): Vector {
+  const { start, end: finish } = wall.centreline;
+  if (!wall.curveOffsetMm) {
+    return end === 'start' ? unitDirection(start, finish) : unitDirection(finish, start);
+  }
+  const at = end === 'start' ? 0 : centrelineLength(wall);
+  const { tangent } = pointAtArcLength(start, finish, wall.curveOffsetMm, at);
+  return end === 'start' ? tangent : { x: -tangent.x, y: -tangent.y };
+}
+
+/** Đỉnh trong (bỏ hai đầu) của một mặt tường cong, lệch `leftOffsetMm` sang trái hướng đi; thẳng → rỗng. */
+function curvedFace(wall: Wall, leftOffsetMm: number): readonly PointMm[] {
+  if (!wall.curveOffsetMm) return [];
+  const { start, end } = wall.centreline;
+  return arcPoints(start, end, wall.curveOffsetMm, undefined, leftOffsetMm)
+    .slice(1, -1)
+    .map((point) => ({ x: millimetres(point.x), y: millimetres(point.y) }));
 }
 
 function endKey(wallId: WallId, end: WallEnd): string {
@@ -295,7 +316,7 @@ function collectEnds(walls: readonly Wall[]): EndSample[] {
   for (const wall of walls) {
     for (const end of WALL_ENDS) {
       const position = endPoint(wall, end);
-      const direction = unitDirection(position, endPoint(wall, otherEnd(end)));
+      const direction = leavingDirection(wall, end);
       samples.push({
         wall,
         end,
@@ -727,8 +748,11 @@ function simplifyOutline(points: readonly PointMm[]): readonly PointMm[] {
 function buildOutline(
   startCap: readonly PointMm[],
   endCap: readonly PointMm[],
+  leftFace: readonly PointMm[] = [],
+  rightFace: readonly PointMm[] = [],
 ): readonly PointMm[] {
-  return simplifyOutline([...endCap, ...startCap]);
+  // Mặt trái đi từ đầu cuối về đầu, mặt phải từ đầu ra cuối; tường thẳng không có đỉnh trong nào.
+  return simplifyOutline([...endCap, ...[...leftFace].reverse(), ...startCap, ...rightFace]);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -787,8 +811,8 @@ export function resolveWallShapes(
 
   const shapes = walls.map((wall): WallShape => {
     const halfThicknessMm = millimetres(wall.thicknessMm / 2);
-    const forward = unitDirection(wall.centreline.start, wall.centreline.end);
-    const backward = { x: -forward.x, y: -forward.y };
+    const forward = leavingDirection(wall, 'start');
+    const backward = leavingDirection(wall, 'end');
 
     const atStart = geometryByEnd.get(endKey(wall.id, 'start'));
     const atEnd = geometryByEnd.get(endKey(wall.id, 'end'));
@@ -807,7 +831,12 @@ export function resolveWallShapes(
 
     return {
       wallId: wall.id,
-      outline: buildOutline(startCap, endCap),
+      outline: buildOutline(
+        startCap,
+        endCap,
+        curvedFace(wall, halfThicknessMm),
+        curvedFace(wall, -halfThicknessMm),
+      ),
       startJointId: atStart?.geometry.joint.id ?? null,
       endJointId: atEnd?.geometry.joint.id ?? null,
     };

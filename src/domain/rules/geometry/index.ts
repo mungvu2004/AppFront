@@ -43,6 +43,7 @@
  */
 
 import { compareNearly, isNearlyZero } from '../../units/compare';
+import { arcPoints, nearestOnWall, pointAtArcLength, wallLength } from '../../spatial/arc';
 import { displayCodeIn } from '../../spatial/normalize';
 import { OPEN_PASSAGE_MIN_MM, openGapsOfRoom } from '../../spatial/roomOpenings';
 import type { Furniture, Level, Point, Wall } from '../../spatial/types';
@@ -426,6 +427,34 @@ function liesAlongAnotherRoom(
   );
 }
 
+/** Chồng dọc (dài bao nhiêu) hay cắt ngang (ở đâu) giữa hai tường. */
+type WallClash = { readonly overlapMm: number } | { readonly at: Point };
+
+/** Tim tường thành các đoạn thẳng: chính tim khi thẳng, các dây cung (≤ 10°) khi cong. */
+function runsOf(wall: Wall): readonly Line[] {
+  if (!wall.curveOffsetMm) {
+    return [wall.centreline];
+  }
+  const points: Point[] = arcPoints(wall.centreline.start, wall.centreline.end, wall.curveOffsetMm).map(
+    (point) => ({ x: point.x, y: point.y }),
+  );
+  return points.slice(1).map((end, index) => ({ start: itemAt(points, index), end }));
+}
+
+/** Khoảng cách từ một điểm tới tim tường: tới đoạn khi thẳng, tới điểm gần nhất trên cung khi cong. */
+function distanceToWall(point: Point, wall: Wall): number {
+  return wall.curveOffsetMm
+    ? nearestOnWall(wall.centreline.start, wall.centreline.end, wall.curveOffsetMm, point).distance
+    : distanceToLine(point, wall.centreline);
+}
+
+/** Khoảng cách gần nhất giữa một đoạn và tim tường (từng dây cung khi cong). */
+function distanceLineToWall(line: Line, wall: Wall): number {
+  return wall.curveOffsetMm
+    ? Math.min(...runsOf(wall).map((run) => distanceBetweenLines(line, run)))
+    : distanceBetweenLines(line, wall.centreline);
+}
+
 function usableWalls(walls: readonly Wall[]): Wall[] {
   return walls.filter((wall) => !isNearlyZero(lengthOf(wall.centreline)));
 }
@@ -482,55 +511,50 @@ export const checkWallOverlap: GeometryCheck = (context) => {
   const walls = usableWalls(entitiesInScope(context, 'wall'));
   const findings: GeometryFinding[] = [];
 
+  /** Chồng dọc hay cắt ngang giữa một đoạn của mỗi tường; `null` khi sạch. */
+  const clashOf = (run: Line, secondRun: Line, bodiesMm: number): WallClash | null => {
+    if (compareNearly(angleBetween(run, secondRun), parallelAngleDeg) <= 0) {
+      if (compareNearly(distanceBetweenLines(run, secondRun), bodiesMm) > 0) {
+        return null;
+      }
+
+      const overlapMm = overlapAlong(run, secondRun);
+
+      return compareNearly(overlapMm, minOverlapMm) <= 0 ? null : { overlapMm };
+    }
+
+    const at = properCrossingOf(run, secondRun, jointToleranceMm);
+
+    return at === null ? null : { at };
+  };
+
   for (let index = 0; index < walls.length; index += 1) {
     const wall = itemAt(walls, index);
 
     for (let other = index + 1; other < walls.length; other += 1) {
       const secondWall = itemAt(walls, other);
+      const bodiesMm = (wall.thicknessMm + secondWall.thicknessMm) / 2;
+      // Tường cong so từng dây cung; một cặp tường chỉ báo một lần, ở cặp đoạn đầu tiên dính lỗi.
+      let clash: WallClash | null = null;
 
-      if (compareNearly(angleBetween(wall.centreline, secondWall.centreline), parallelAngleDeg) <= 0) {
-        const bodiesMm = (wall.thicknessMm + secondWall.thicknessMm) / 2;
-
-        if (
-          compareNearly(distanceBetweenLines(wall.centreline, secondWall.centreline), bodiesMm) > 0
-        ) {
-          continue;
+      for (const run of runsOf(wall)) {
+        for (const secondRun of runsOf(secondWall)) {
+          clash ??= clashOf(run, secondRun, bodiesMm);
         }
+      }
 
-        const overlapMm = overlapAlong(wall.centreline, secondWall.centreline);
-
-        if (compareNearly(overlapMm, minOverlapMm) <= 0) {
-          continue;
-        }
-
-        findings.push(
-          finding(
-            wallOverlapAlongText({
-              wallId: displayCodeIn(context.graph, wall.id),
-              otherWallId: displayCodeIn(context.graph, secondWall.id),
-              overlapMm,
-            }),
-            wall.id,
-            [wall.id, secondWall.id],
-          ),
-        );
-
+      if (clash === null) {
         continue;
       }
 
-      const at = properCrossingOf(wall.centreline, secondWall.centreline, jointToleranceMm);
-
-      if (at === null) {
-        continue;
-      }
+      const wallId = displayCodeIn(context.graph, wall.id);
+      const otherWallId = displayCodeIn(context.graph, secondWall.id);
 
       findings.push(
         finding(
-          wallCrossingText({
-            wallId: displayCodeIn(context.graph, wall.id),
-            otherWallId: displayCodeIn(context.graph, secondWall.id),
-            at,
-          }),
+          'overlapMm' in clash
+            ? wallOverlapAlongText({ wallId, otherWallId, overlapMm: clash.overlapMm })
+            : wallCrossingText({ wallId, otherWallId, at: clash.at }),
           wall.id,
           [wall.id, secondWall.id],
         ),
@@ -578,7 +602,7 @@ export const checkDanglingWallEnds: GeometryCheck = (context) => {
 
         const faceGapMm = Math.max(
           0,
-          distanceToLine(at, other.centreline) - other.thicknessMm / 2,
+          distanceToWall(at, other) - other.thicknessMm / 2,
         );
 
         if (compareNearly(faceGapMm, jointToleranceMm) <= 0) {
@@ -679,26 +703,29 @@ export const checkRoomClosure: GeometryCheck = (context) => {
 
       const covered: Interval[] = [];
 
+      // Tường cong phủ cạnh phòng bằng từng dây cung.
       for (const wall of walls) {
-        if (compareNearly(angleBetween(edge, wall.centreline), parallelAngleDeg) > 0) {
-          continue;
-        }
+        for (const run of runsOf(wall)) {
+          if (compareNearly(angleBetween(edge, run), parallelAngleDeg) > 0) {
+            continue;
+          }
 
-        const reachMm = wall.thicknessMm / 2 + lateralToleranceMm;
-        const startOff = Math.abs(lateralOf(edge, wall.centreline.start));
-        const endOff = Math.abs(lateralOf(edge, wall.centreline.end));
+          const reachMm = wall.thicknessMm / 2 + lateralToleranceMm;
+          const startOff = Math.abs(lateralOf(edge, run.start));
+          const endOff = Math.abs(lateralOf(edge, run.end));
 
-        if (compareNearly(startOff, reachMm) > 0 || compareNearly(endOff, reachMm) > 0) {
-          continue;
-        }
+          if (compareNearly(startOff, reachMm) > 0 || compareNearly(endOff, reachMm) > 0) {
+            continue;
+          }
 
-        const span = spanOn(edge, wall.centreline);
-        const low = Math.max(0, span.low);
-        const high = Math.min(edgeLengthMm, span.high);
+          const span = spanOn(edge, run);
+          const low = Math.max(0, span.low);
+          const high = Math.min(edgeLengthMm, span.high);
 
-        if (compareNearly(high, low) > 0) {
-          covered.push({ low, high });
-          guiltyWallIds.add(wall.id);
+          if (compareNearly(high, low) > 0) {
+            covered.push({ low, high });
+            guiltyWallIds.add(wall.id);
+          }
         }
       }
 
@@ -824,7 +851,8 @@ export const checkDoorSwing: GeometryCheck = (context) => {
       continue;
     }
 
-    const hostLengthMm = lengthOf(host.centreline);
+    // Tường cong: ô mở và bản lề đo dọc cung, lá cửa vuông góc với tiếp tuyến tại bản lề.
+    const hostLengthMm = wallLength(host.centreline.start, host.centreline.end, host.curveOffsetMm);
 
     if (
       compareNearly(opening.offsetMm, 0) < 0 ||
@@ -839,13 +867,20 @@ export const checkDoorSwing: GeometryCheck = (context) => {
       continue;
     }
 
-    const normal = { x: -direction.y, y: direction.x };
     const blocking = new Set<string>();
     let bestClearanceMm = 0;
     let anyFaceClear = false;
 
     for (const hingeMm of hingePositionsMm(opening.offsetMm, opening.widthMm, opening.swing)) {
-      const hinge = pointAlong(host.centreline, hingeMm);
+      const station = host.curveOffsetMm
+        ? pointAtArcLength(host.centreline.start, host.centreline.end, host.curveOffsetMm, hingeMm)
+        : null;
+      const hinge: Point =
+        station === null
+          ? pointAlong(host.centreline, hingeMm)
+          : { x: station.point.x, y: station.point.y };
+      const tangent = station?.tangent ?? direction;
+      const normal = { x: -tangent.y, y: tangent.x };
 
       for (const side of [1, -1]) {
         const leaf: Line = {
@@ -864,7 +899,7 @@ export const checkDoorSwing: GeometryCheck = (context) => {
             continue;
           }
 
-          if (compareNearly(distanceBetweenLines(leaf, wall.centreline), wall.thicknessMm / 2) > 0) {
+          if (compareNearly(distanceLineToWall(leaf, wall), wall.thicknessMm / 2) > 0) {
             continue;
           }
 
@@ -872,7 +907,7 @@ export const checkDoorSwing: GeometryCheck = (context) => {
           blocking.add(wall.id);
           clearanceMm = Math.min(
             clearanceMm,
-            Math.max(0, distanceToLine(hinge, wall.centreline) - wall.thicknessMm / 2),
+            Math.max(0, distanceToWall(hinge, wall) - wall.thicknessMm / 2),
           );
         }
 

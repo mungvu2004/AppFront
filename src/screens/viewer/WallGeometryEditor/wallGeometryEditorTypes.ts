@@ -383,6 +383,8 @@ export interface WallGeometryEdgeHighlight {
   readonly edgeId: string;
   readonly fromPx: WallGeometryPointPx;
   readonly toPx: WallGeometryPointPx;
+  /** Tường cong: các đỉnh trên cung đã chiếu; vắng = đoạn `fromPx → toPx`. */
+  readonly pathPx?: readonly WallGeometryPointPx[];
   readonly tone: WallGeometryTone;
   /** Tiếng Việt, cho trình đọc màn hình — cạnh tô sáng không được chỉ nói bằng màu (A2). */
   readonly ariaLabel: string;

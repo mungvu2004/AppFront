@@ -36,6 +36,7 @@
  */
 
 import { outlineContains } from '../../rooms/area';
+import { nearestOnWall } from '../../spatial/arc';
 import { displayCodeIn } from '../../spatial/normalize';
 import type { Furniture, FurnitureKind, Point, Room, RoomUsage } from '../../spatial/types';
 import { compareNearly, isNearlyZero, type PointMm } from '../../units/compare';
@@ -190,7 +191,13 @@ function distancePointToSegment(point: Point, start: Point, end: Point): number 
  * a wall and not its middle. A basin inside the wall body reads as zero rather
  * than as a negative gap: it is against the wall, which is all this asks.
  */
-function gapToWallFace(item: Furniture, start: Point, end: Point, thicknessMm: number): number {
+function gapToWallFace(
+  item: Furniture,
+  start: Point,
+  end: Point,
+  thicknessMm: number,
+  curveOffsetMm?: number,
+): number {
   const box = item.boundingBox;
   // Midpoint of the stored box, not `item.centre`: the two can differ on an imported
   // drawing, and an unturned piece must read exactly as it did before rotation counted.
@@ -200,7 +207,14 @@ function gapToWallFace(item: Furniture, start: Point, end: Point, thicknessMm: n
   ];
 
   const nearest = corners.reduce(
-    (closest, corner) => Math.min(closest, distancePointToSegment(corner, start, end)),
+    (closest, corner) =>
+      Math.min(
+        closest,
+        // Tường cong: tới điểm gần nhất trên cung, kẹp trong nhịp cung (AppBack `rules_ai`).
+        curveOffsetMm
+          ? nearestOnWall(start, end, curveOffsetMm, corner).distance
+          : distancePointToSegment(corner, start, end),
+      ),
     Number.POSITIVE_INFINITY,
   );
 
@@ -303,7 +317,7 @@ export const checkFixtureOffWall: FitoutCheck = (context) => {
         continue;
       }
 
-      const gapMm = gapToWallFace(item, start, end, wall.thicknessMm);
+      const gapMm = gapToWallFace(item, start, end, wall.thicknessMm, wall.curveOffsetMm);
 
       if (gapMm < nearestGapMm) {
         nearestGapMm = gapMm;

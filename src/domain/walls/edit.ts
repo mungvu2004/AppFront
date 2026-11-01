@@ -28,6 +28,7 @@ import {
   type Degrees,
   type Millimetres,
 } from '../units/types';
+import { nearestOnWall, pointAtArcLength, subArcSagitta } from '../spatial/arc';
 import type { WallId } from '../spatial/types';
 import { assertUsableWall, centrelineLength, type Wall } from './types';
 
@@ -52,7 +53,8 @@ export type MergeRefusal =
   | 'thicknessMismatch'
   | 'elevationMismatch'
   | 'angleTooWide'
-  | 'tooFarApart';
+  | 'tooFarApart'
+  | 'curvedWall';
 
 /** Outcome of welding two walls into one. */
 export type MergeWallsResult =
@@ -153,6 +155,11 @@ export function splitWall(
   assertUsableWall(wall);
 
   const minPieceLengthMm = options.minPieceLengthMm ?? MIN_WALL_LENGTH_MM;
+
+  if (wall.curveOffsetMm) {
+    return splitCurvedWall(wall, at, secondId, minPieceLengthMm);
+  }
+
   const cut = perpendicularFoot(at, wall.centreline);
 
   if (cut === null) {
@@ -171,6 +178,49 @@ export function splitWall(
     walls: [
       { ...wall, centreline: { start: wall.centreline.start, end: cut } },
       { ...wall, id: secondId, centreline: { start: cut, end: wall.centreline.end } },
+    ],
+  };
+}
+
+/**
+ * Tách tường cong tại điểm gần `at` nhất trên cung: mỗi mảnh là một khúc của cùng đường tròn, nên
+ * mang sagitta của khúc ấy (`subArcSagitta`), không mang sagitta của cả bức.
+ */
+function splitCurvedWall(
+  wall: Wall,
+  at: PointMm,
+  secondId: WallId,
+  minPieceLengthMm: Millimetres,
+): SplitWallResult {
+  const { start, end } = wall.centreline;
+  const sagitta = wall.curveOffsetMm;
+  const lengthMm = centrelineLength(wall);
+  const { along } = nearestOnWall(start, end, sagitta, at);
+
+  if (
+    compareNearly(along, minPieceLengthMm) < 0 ||
+    compareNearly(lengthMm - along, minPieceLengthMm) < 0
+  ) {
+    return { ok: false, reason: 'pieceTooShort' };
+  }
+
+  const { point } = pointAtArcLength(start, end, sagitta, along);
+  const cut: PointMm = { x: millimetres(point.x), y: millimetres(point.y) };
+
+  return {
+    ok: true,
+    walls: [
+      {
+        ...wall,
+        centreline: { start, end: cut },
+        curveOffsetMm: millimetres(subArcSagitta(start, end, sagitta, along)),
+      },
+      {
+        ...wall,
+        id: secondId,
+        centreline: { start: cut, end },
+        curveOffsetMm: millimetres(subArcSagitta(start, end, sagitta, lengthMm - along)),
+      },
     ],
   };
 }
@@ -211,6 +261,10 @@ export function mergeWalls(
 
   if (first.id === second.id) {
     return { ok: false, reason: 'sameWall' };
+  }
+  // Gộp ra một tường thẳng sẽ duỗi mất cung; tường cong không gộp với gì cả.
+  if (first.curveOffsetMm || second.curveOffsetMm) {
+    return { ok: false, reason: 'curvedWall' };
   }
   if (first.kind !== second.kind) {
     return { ok: false, reason: 'kindMismatch' };

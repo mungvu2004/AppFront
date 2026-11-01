@@ -22,6 +22,7 @@
  */
 
 import { describeUsage } from '@/domain/rooms/classify';
+import { arcApex } from '@/domain/spatial/arc';
 import type {
   Axis,
   Building,
@@ -234,7 +235,8 @@ const wallSidesOf = (wall: Wall, rooms: readonly Room[]): Pick<PascalWallNode, '
   if (!(length > 0)) return {};
   const normal = { x: -(end.y - start.y) / length, y: (end.x - start.x) / length };
   const reach = wall.thicknessMm / 2 + 80;
-  const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  // Tường cong dò ở đỉnh cung (trung điểm dây − s·n), không ở trung điểm dây nằm ngoài thân tường.
+  const mid = arcApex(start, end, wall.curveOffsetMm);
   const inside = (sign: number): boolean => {
     const p = { x: mid.x + normal.x * reach * sign, y: mid.y + normal.y * reach * sign };
     return rooms.some((r) => r.levelId === wall.levelId && r.finish !== 'decking' && insideOutline(p, r.outline));

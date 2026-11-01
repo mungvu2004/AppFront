@@ -38,6 +38,7 @@ import {
   openGapsOfRoom,
   openingsOfRoom as openingsOfRoomOfAnyKind,
 } from '../../spatial/roomOpenings';
+import { chordWalls, pointAtArcLength } from '../../spatial/arc';
 import { displayCodeIn } from '../../spatial/normalize';
 import type {
   BoundingBox,
@@ -492,6 +493,11 @@ function distanceToOutline(point: Point, outline: readonly Point[]): number {
 
 /** Where the middle of an opening sits on the plan. */
 function openingCentre(wall: Wall, opening: Opening): Point {
+  // Tường cong: `offsetMm` đo dọc cung (AppBack `arc.py`).
+  if (wall.curveOffsetMm) {
+    const { start, end } = wall.centreline;
+    return pointAtArcLength(start, end, wall.curveOffsetMm, opening.offsetMm + opening.widthMm / 2).point;
+  }
   return pointAlong(wall.centreline, opening.offsetMm + opening.widthMm / 2);
 }
 
@@ -803,7 +809,7 @@ function openPassages(
   rooms: readonly Room[],
   toleranceMm: number,
 ): DoorLink[] {
-  const walls = entitiesInScope(context, 'wall');
+  const walls = chordWalls(entitiesInScope(context, 'wall'));
   const walled = (at: Point): boolean =>
     walls.some(
       (wall) =>
@@ -1171,7 +1177,8 @@ export const checkFurnitureClash: FunctionCheck = (context) => {
   const minClashMm = context.thresholds?.['furniture.minClashMm'] ?? MIN_CLASH_MM;
   const items = entitiesInScope(context, 'furniture');
   const boxes = items.map((item) => boxAround(furnitureCorners(item)));
-  const walls = entitiesInScope(context, 'wall');
+  // Tường cong đo từng dây cung; một tường chỉ ghi một lần dù nhiều dây chạm.
+  const walls = chordWalls(entitiesInScope(context, 'wall'));
   const findings: FunctionFinding[] = [];
 
   for (let index = 0; index < items.length; index += 1) {
@@ -1192,7 +1199,9 @@ export const checkFurnitureClash: FunctionCheck = (context) => {
         continue;
       }
 
-      wallIds.push(wall.id);
+      if (!wallIds.includes(wall.id)) {
+        wallIds.push(wall.id);
+      }
       worstMm = Math.max(worstMm, overlapMm);
     }
 

@@ -46,6 +46,7 @@ import {
   type Degrees,
   type Millimetres,
 } from '../units/types';
+import { arcPoints, arcRadius } from '../spatial/arc';
 import type { WallId } from '../spatial/types';
 import { assertUsableWall, endPoint, WALL_ENDS, type Wall, type WallEnd } from '../walls/types';
 
@@ -191,21 +192,38 @@ function writeEndpoint(segments: readonly WorkingSegment[], ref: EndpointRef, po
 function collectSegments(walls: readonly Wall[]): WorkingSegment[] {
   const seen = new Set<WallId>();
 
-  return walls.map((wall) => {
+  return walls.flatMap((wall) => {
     assertUsableWall(wall);
     if (seen.has(wall.id)) {
       throw new Error(`Wall id ${wall.id} appears more than once.`);
     }
     seen.add(wall.id);
 
-    return {
-      wallId: wall.id,
-      thicknessMm: wall.thicknessMm,
-      start: endPoint(wall, 'start'),
-      end: endPoint(wall, 'end'),
-      cuts: [],
-    };
+    return centrelineRun(wall).flatMap((start, index, run) => {
+      const end = run[index + 1];
+      return end === undefined ? [] : [{ wallId: wall.id, thicknessMm: wall.thicknessMm, start, end, cuts: [] }];
+    });
   });
+}
+
+/** Dây ngắn nhất khi chia một tường cong: dài hơn hẳn khe hàn, để các đỉnh cung không bị hàn dồn vào nhau. */
+const MIN_ARC_CHORD_MM = 3 * DEFAULT_WELD_GAP_MM;
+
+/**
+ * Tim tường thành dãy đỉnh: hai đầu khi thẳng; cung chia ≤ 10° khi cong (mỗi dây một đoạn cùng mã
+ * tường, nên phòng cạnh tường cong ôm theo cung), dây không ngắn hơn `MIN_ARC_CHORD_MM`.
+ */
+function centrelineRun(wall: Wall): readonly PointMm[] {
+  const start = endPoint(wall, 'start');
+  const end = endPoint(wall, 'end');
+  if (!wall.curveOffsetMm) {
+    return [start, end];
+  }
+  const radius = arcRadius(start, end, wall.curveOffsetMm);
+  const minStepDeg = radius > MIN_ARC_CHORD_MM / 2 ? (2 * Math.asin(MIN_ARC_CHORD_MM / (2 * radius)) * 180) / Math.PI : 180;
+  return arcPoints(start, end, wall.curveOffsetMm, Math.max(10, minStepDeg)).map((point) =>
+    pointAt(point.x, point.y),
+  );
 }
 
 function collectEndpoints(segments: readonly WorkingSegment[]): EndpointRef[] {

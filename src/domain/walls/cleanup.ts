@@ -423,6 +423,10 @@ function straightenWalls(
 
   for (let index = 0; index < current.length; index += 1) {
     const wall = atIndex(current, index);
+    // Tường cong không có phương để nắn theo trục.
+    if (wall.curveOffsetMm) {
+      continue;
+    }
     const endIsFree = !clustered.has(endKey(wall.id, 'end'));
     const startIsFree = !clustered.has(endKey(wall.id, 'start'));
 

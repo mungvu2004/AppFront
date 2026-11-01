@@ -53,6 +53,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
+import { arcPoints } from '@/domain/spatial/arc';
 import { idsOnLevel, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId, Point } from '@/domain/spatial/types';
 import { createScale, pixels, type Scale } from '@/domain/units/scale';
@@ -682,7 +683,8 @@ export function useOverlayComparison(
         return [
           {
             id: entity.id as string,
-            points: [entity.centreline.start, entity.centreline.end],
+            // Tường cong vẽ theo cung (chia ≤ 10°), thẳng → hai đầu như cũ.
+            points: arcPoints(entity.centreline.start, entity.centreline.end, entity.curveOffsetMm),
             isClosed: false,
           },
         ];
