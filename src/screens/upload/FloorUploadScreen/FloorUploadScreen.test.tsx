@@ -172,6 +172,18 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByRole('button', { name: 'Chọn tệp khác' })).toBeInTheDocument();
   });
 
+  it('thẻ có tệp mời "Tờ này có nhiều tầng" và nút tới được hành động của màn (MULTI-FLOOR)', () => {
+    const base = trayScenario();
+    const index = base.floors.findIndex((row) => row.file !== null && row.error === null);
+    const floors = base.floors.map((row, i) => (i === index ? { ...row, canSplitSheet: true } : row));
+    const onOpenSheetRegions = vi.fn();
+    renderWithProviders(<FloorUploadScreenView {...base} floors={floors} onOpenSheetRegions={onOpenSheetRegions} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tờ này có nhiều tầng' }));
+
+    expect(onOpenSheetRegions).toHaveBeenCalledWith(floors[index]?.file?.id);
+  });
+
   it('dự án chưa có tầng: trạng thái rỗng có chữ riêng, tiêu đề vùng thả chỉ hiện một lần (BUG-100)', () => {
     const props = scenarioFor('empty');
     renderWithProviders(<FloorUploadScreenView {...props} floors={[]} />);

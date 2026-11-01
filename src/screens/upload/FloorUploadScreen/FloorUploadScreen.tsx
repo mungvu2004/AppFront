@@ -112,6 +112,7 @@ function actionsOf(props: FloorUploadScreenViewProps): FloorUploadActions {
     onFilesDropped: props.onFilesDropped,
     ...(props.onFilesForFloor === undefined ? {} : { onFilesForFloor: props.onFilesForFloor }),
     ...(props.onConfirmMatch === undefined ? {} : { onConfirmMatch: props.onConfirmMatch }),
+    ...(props.onOpenSheetRegions === undefined ? {} : { onOpenSheetRegions: props.onOpenSheetRegions }),
     onPickPdfPage: props.onPickPdfPage,
     onReassign: props.onReassign,
     onRemoveFile: props.onRemoveFile,
