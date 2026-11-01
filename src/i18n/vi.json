@@ -654,6 +654,18 @@
     "forbiddenNote": "Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ."
   },
   "floorUpload": {
+    "sheetRegions": {
+      "open": "Tờ này có nhiều tầng",
+      "title": "Chia tờ theo tầng",
+      "hint": "Chọn một tầng rồi kéo trên ảnh để khoanh vùng của tầng đó. Tầng không khoanh sẽ không được tải.",
+      "close": "Đóng",
+      "noRegion": "Chưa khoanh",
+      "tooSmall": "Vùng quá nhỏ",
+      "confirm": "Tải lên {{count}} tầng",
+      "floorGroup": "Tầng cần khoanh",
+      "frame": "Khoanh vùng của {{floor}}",
+      "frameIdle": "Ảnh tờ bản vẽ"
+    },
     "breadcrumb": {
       "projects": "Dự án",
       "upload": "Tải lên bản vẽ"

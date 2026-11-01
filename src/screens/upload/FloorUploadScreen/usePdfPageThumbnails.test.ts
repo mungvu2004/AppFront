@@ -28,6 +28,11 @@ describe('wantsPageThumbnails', () => {
     expect(wantsPageThumbnails({ ...pdf('a', 3), branch: 'raster' })).toBe(false);
     expect(wantsPageThumbnails(pdf('a', 3, PAGE_THUMBNAILS_MAX_BYTES + 1))).toBe(false);
   });
+
+  it('minPages 1 (dự án nhiều tầng) nhận cả PDF một trang', () => {
+    expect(wantsPageThumbnails(pdf('a', 1), 1)).toBe(true);
+    expect(wantsPageThumbnails(pdf('a', null), 1)).toBe(false);
+  });
 });
 
 describe('usePdfPageThumbnails', () => {
@@ -45,6 +50,22 @@ describe('usePdfPageThumbnails', () => {
     expect(readPageThumbnails).toHaveBeenCalledTimes(1);
     expect(readPageThumbnails).toHaveBeenCalledWith({ file: sources[0]?.file, projectId: 'prj' });
     expect(result.current.has('one')).toBe(false);
+  });
+
+  it('các bản gắn cùng một tệp dùng chung một lượt hỏi', async () => {
+    const readPageThumbnails = vi.fn(async () => [PNG]);
+    const gateway = { readPageThumbnails } as unknown as FloorUploadGateway;
+    const sheet = pdf('src', 1);
+    const { result, rerender } = renderHook(({ list }) => usePdfPageThumbnails(gateway, 'prj', list, 1), {
+      initialProps: { list: [sheet] },
+    });
+
+    await waitFor(() => expect(result.current.get('src')).toEqual([PNG]));
+    rerender({ list: [{ ...sheet, id: 'L1' }, { ...sheet, id: 'L2' }] });
+
+    expect(result.current.get('L1')).toEqual([PNG]);
+    expect(result.current.get('L2')).toEqual([PNG]);
+    expect(readPageThumbnails).toHaveBeenCalledTimes(1);
   });
 
   it('không có ảnh thì không có mục: ô chọn trang giữ danh sách chữ', async () => {

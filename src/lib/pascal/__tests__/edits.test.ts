@@ -19,10 +19,14 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { setDetailsEnabled } from '@/pascal-page/realism/details';
 import type { SpatialGraph } from '@/domain/spatial/types';
 
+import type { FloorTransform } from '@/domain/axes/alignFloors';
+import { millimetres } from '@/domain/units/types';
+
 import { fixtureF1 } from '../__fixtures__';
+import { applyFloorTransforms } from '../floorAlignment';
 import { diffScenes, isEmptyDiff } from '../diff';
 import { createPascalEditCommand, PASCAL_COMMAND_TYPE, reviewLostNotices } from '../fromPascal';
-import { appFrontIdOf, BUILDING_NODE_ID } from '../ids';
+import { appFrontIdOf, BUILDING_NODE_ID, toPascalId } from '../ids';
 import { isGeneratedLightId, isGeneratedNodeId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { CEILING_FIXTURE_REASON, type PascalIdBook, toSpatialGraph } from '../toSpatial';
@@ -70,6 +74,20 @@ describe('createPascalEditCommand', () => {
 
     expect(result.ok).toBe(false);
     expect(result.ok ? null : result.error.code).toBe('PASCAL_NO_CHANGE');
+  });
+
+  it('tầng bị dời khi hiển thị (căn tầng) vẫn đọc ngược ra 0 lệnh — đồ bày biện không thành đồ người thêm', () => {
+    const nodes: Record<string, PascalNode> = { ...baseScene.nodes };
+    const moved: FloorTransform = { rotationDeg: 90, translationMm: { x: millimetres(700), y: millimetres(-400) }, scale: 1 };
+    applyFloorTransforms(nodes, new Map([[sampleLevelId(1), moved]]), (levelId) => toPascalId('level', levelId));
+    const result = createPascalEditCommand({
+      graph,
+      scene: { ...baseScene, nodes },
+      commit: { origin: 'load', changedNodeIds: everyNodeId },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok ? result.data.changes.slice(0, 2) : result.error.code).toBe('PASCAL_NO_CHANGE');
   });
 
   it('dự án rỗng: 0 lệnh', () => {

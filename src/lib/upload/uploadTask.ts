@@ -44,7 +44,7 @@
  * and emits `cancelled` once. No progress emission follows it.
  */
 
-import type { ApiResult, DrawingsApi, Progress } from '@/api/client';
+import type { ApiResult, DrawingCrop, DrawingsApi, Progress } from '@/api/client';
 import type { AppError, AppErrorKind } from '@/lib/errors';
 import { toAppError } from '@/lib/errors';
 import { createUuid, RETRY_DELAYS_MS } from '@/lib/http';
@@ -149,6 +149,8 @@ export interface CreateUploadTaskOptions {
   readonly floorId: string;
   /** Zero-based PDF page to trace (0…19). Absent for images and one-page PDFs. */
   readonly pageIndex?: number;
+  /** Vùng của một tầng trên tờ nhiều tầng; vắng = cả trang. */
+  readonly crop?: DrawingCrop;
   readonly projectId: string;
   /** Called with every state change, throttled to {@link PROGRESS_EMITS_PER_SECOND}. */
   readonly onProgress?: (state: UploadTaskState) => void;
@@ -437,6 +439,7 @@ export function createUploadTask(options: CreateUploadTaskOptions): UploadTask {
           floorId: options.floorId,
           mimeType: options.file.type,
           ...(options.pageIndex === undefined ? {} : { pageIndex: options.pageIndex }),
+          ...(options.crop === undefined ? {} : { crop: options.crop }),
           projectId: options.projectId,
           sizeBytes: options.file.size,
         },

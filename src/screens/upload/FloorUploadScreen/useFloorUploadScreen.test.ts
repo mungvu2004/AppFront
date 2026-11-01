@@ -1779,6 +1779,54 @@ const bodyOf = (call: unknown[] | undefined): { pageIndex?: number } =>
 
 const pdfFile = (name: string): File => makeFile(name, 16, 'application/pdf');
 
+describe('useFloorUploadScreen — một tờ nhiều tầng', () => {
+  it('PDF một trang: có ảnh để khoanh, xác nhận 2 khung tải cùng tệp 2 lần, mỗi lần một crop', async () => {
+    const readPageThumbnails = vi.fn(async () => ['data:image/png;base64,AAAA']);
+    const harness = createHarness({ validateFile: pdfValidation(1), readPageThumbnails });
+    const createUpload = vi.spyOn(harness.gateway, 'createUpload');
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+    const sheet = pdfFile('mat-bang-tang-2.pdf');
+
+    act(() => {
+      result.current.onFilesDropped([sheet]);
+    });
+    await waitFor(() => {
+      expect(result.current.floors[2]?.canSplitSheet).toBe(true);
+    });
+
+    const [, lower, , upper] = result.current.floors.map((floor) => floor.floorId);
+    const left = { xRatio: 0, yRatio: 0, widthRatio: 0.5, heightRatio: 1 };
+    const right = { xRatio: 0.5, yRatio: 0, widthRatio: 0.5, heightRatio: 1 };
+    createUpload.mockClear();
+
+    act(() => {
+      result.current.onOpenSheetRegions?.(result.current.floors[2]?.file?.id ?? '');
+    });
+    expect(result.current.sheetRegions?.previewUrl).toBe('data:image/png;base64,AAAA');
+    act(() => {
+      result.current.onSetSheetRegion?.(lower ?? '', left);
+      result.current.onSetSheetRegion?.(upper ?? '', right);
+    });
+    act(() => {
+      result.current.onConfirmSheetRegions?.();
+    });
+
+    expect(createUpload).toHaveBeenCalledTimes(2);
+    expect(createUpload.mock.calls.map(([input]) => [input.file, input.floorId, input.crop])).toEqual([
+      [sheet, lower, left],
+      [sheet, upper, right],
+    ]);
+    await waitFor(() => {
+      expect(result.current.floors[1]?.file).not.toBeNull();
+    });
+    expect(readPageThumbnails).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('useFloorUploadScreen — trang PDF', () => {
   const setup = async (overrides: Partial<FloorUploadGateway> = {}, online = true) => {
     const harness = createHarness(overrides, online);

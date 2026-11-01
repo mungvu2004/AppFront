@@ -155,7 +155,8 @@ const millimetresOf = (valueM: number): number =>
 const planDegreesOf = (yaw: number): number => {
   const raw = radiansToDegrees(radians(-yaw));
 
-  return normaliseDegrees(asDegrees(Math.round(raw * ANGLE_PRECISION) / ANGLE_PRECISION));
+  // `+ 0` gộp -0 về 0: yaw đi vòng qua phép xoay tầng (báo cáo 2.8.2) không được thành một lần sửa.
+  return normaliseDegrees(asDegrees(Math.round(raw * ANGLE_PRECISION) / ANGLE_PRECISION)) + 0;
 };
 
 /** Cấp id AppFront cho một node Pascal, nhớ lại nếu phiên này đã cấp rồi. */

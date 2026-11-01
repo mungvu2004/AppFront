@@ -219,8 +219,22 @@ export interface DeleteFloorInput extends WriteRequestOptions {
   floorId: string;
 }
 
+/**
+ * Vùng cắt của một tầng trên tờ nhiều tầng: tỉ lệ của CẢ trang (ảnh như trình
+ * duyệt hiển thị; PDF là trang đã chọn), gốc trên-trái. Mỗi số trong [0,1],
+ * `xRatio + widthRatio ≤ 1`, `yRatio + heightRatio ≤ 1`, diện tích ≥ 0,01.
+ */
+export interface DrawingCrop {
+  readonly xRatio: number;
+  readonly yRatio: number;
+  readonly widthRatio: number;
+  readonly heightRatio: number;
+}
+
 export interface InitDrawingUploadInput extends WriteRequestOptions {
   body: {
+    /** Vắng = dựng cả trang. */
+    crop?: DrawingCrop;
     fileName: string;
     floorId: string;
     mimeType: string;

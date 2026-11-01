@@ -63,6 +63,7 @@ import { sameValue } from './diff';
 import type { PascalCommit } from './guard';
 import { appFrontIdOf, bodyOfPascalId } from './ids';
 import { roofIdOfSegment, roofNodeIdOf } from './roofs';
+import { undoFloorTransforms } from './floorAlignment';
 import { isGeneratedNodeId } from './sceneDressing';
 import {
   adoptableRoomOf,
@@ -435,16 +436,19 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
   // vừa vẽ được cấp id **trong** lượt đổi dưới đây, và không có sổ thì lượt
   // này không tìm lại được id vừa cấp — đối tượng mới sẽ lặng lẽ không vào lệnh.
   const idBook: PascalIdBook = input.idBook ?? new Map();
+  /* Tầng căn (báo cáo 2.8.2) chỉ dời khi hiển thị: gỡ một lần ở đây để mọi so sánh với
+     siêu dữ liệu đã lưu (đồ bày biện "đã dời chưa", toSpatialGraph) dùng toạ độ đã lưu. */
+  const scene = undoFloorTransforms(input.scene);
   /* V4 — sửa (dời/xoay/kéo) một món bày biện sinh ra còn trong cảnh thì cả bộ
      của phòng ấy thành đồ thật trong cùng lệnh: nhận nửa bộ thì nửa kia biến
      mất ở lượt mở sau (`furnishEmptyRooms` chỉ lo phòng trống). Xoá thì ghi `Room.dressingOff` (H4). */
   const adoptRoomIds = new Set(
     input.commit.changedNodeIds
-      .map((nodeId) => input.scene.nodes[nodeId])
+      .map((nodeId) => scene.nodes[nodeId])
       .map((node) => (isEditedGenerated(node) ? adoptableRoomOf(node) : null))
       .filter((roomId): roomId is string => roomId !== null),
   );
-  const { graph: after, skipped } = toSpatialGraph(input.scene, idBook, adoptRoomIds);
+  const { graph: after, skipped } = toSpatialGraph(scene, idBook, adoptRoomIds);
   const afterById = new Map<string, SpatialEntity>();
 
   for (const entity of [
@@ -464,8 +468,8 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
   const seen = new Set<string>();
 
   for (const changedId of input.commit.changedNodeIds) {
-    const nodeId = roofOwnerOf(changedId, input.scene, input.graph);
-    const kind = kindOfNode(nodeId, input.scene, idBook);
+    const nodeId = roofOwnerOf(changedId, scene, input.graph);
+    const kind = kindOfNode(nodeId, scene, idBook);
 
     if (kind === null) {
       unknown.push(nodeId);
@@ -489,7 +493,7 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
 
     /* N1 — node còn trong cảnh mà không thành đối tượng: không bao giờ là một lần xoá. Từ chối
        kèm lý do (dòng bỏ qua của nó, nếu có) thay vì ghi xoá thứ người dùng vẫn đang thấy. */
-    if (now === undefined && before !== undefined && input.scene.nodes[nodeId] !== undefined) {
+    if (now === undefined && before !== undefined && scene.nodes[nodeId] !== undefined) {
       const reason = skipped.find((entry) => entry.id === nodeId)?.reason;
 
       return err({
@@ -512,7 +516,7 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
     }
   }
 
-  for (const node of Object.values(input.scene.nodes)) {
+  for (const node of Object.values(scene.nodes)) {
     const minted = adoptRoomIds.has(adoptableRoomOf(node) ?? '') ? idBook.get(node.id) : undefined;
     const change =
       minted === undefined || seen.has(minted)
@@ -547,7 +551,7 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
   /* R3-F2, N2 — node vừa đổi mà rơi vào danh sách bỏ qua (đồ gắn trần, tường hỏng số đo, sàn
      tự vẽ…) không thành đối tượng được; lặng lẽ bỏ là mất thứ người dùng vừa làm. Từ chối kèm lý do. */
   const changed = new Set(
-    input.commit.changedNodeIds.flatMap((nodeId) => [nodeId, roofOwnerOf(nodeId, input.scene, input.graph)]),
+    input.commit.changedNodeIds.flatMap((nodeId) => [nodeId, roofOwnerOf(nodeId, scene, input.graph)]),
   );
   const dropped = skipped.find((entry) => changed.has(entry.id));
 

@@ -2,6 +2,7 @@ import {
   ALIGNMENT_WARNING_THRESHOLD_MM,
   MIN_MATCHED_AXES,
   alignFloors,
+  wallBoundsOf,
   type FloorTransform,
 } from '@/domain/axes/alignFloors';
 import { detectAxes } from '@/domain/axes/detect';
@@ -10,7 +11,8 @@ import { millimetres } from '@/domain/units/types';
 
 /**
  * Phép biến đổi hiển thị mỗi tầng (báo cáo 2.8.2): chỉ tầng căn được — đủ trục
- * khớp và sai lệch trong ngưỡng — mới có mục; tầng gốc, tầng đã khớp sẵn hay
+ * khớp và sai lệch trong ngưỡng, hoặc thiếu trục nhưng dời theo tâm khung bao tường
+ * (`method: 'bbox'`) — mới có mục; tầng gốc, tầng đã khớp sẵn hay
  * tầng không căn được thì vắng mặt, nghĩa là giữ nguyên toạ độ đã lưu.
  * Không đụng dữ liệu: kết quả chỉ để dựng cảnh 3D.
  */
@@ -18,19 +20,14 @@ export const floorDisplayTransformsOf = (graph: SpatialGraph): ReadonlyMap<strin
   const finite = (...values: number[]): boolean => values.every(Number.isFinite);
   const levels = graph.levels.filter((level) => finite(level.elevationMm, level.heightMm));
   const report = alignFloors(
-    levels.map((level) => ({
-      levelId: level.id,
-      name: level.name,
-      floorElevationMm: millimetres(level.elevationMm),
-      clearHeightMm: millimetres(level.heightMm),
-      axes: detectAxes(
-        graph.walls
-          .filter(
-            (wall) =>
-              wall.levelId === level.id &&
-              finite(wall.centreline.start.x, wall.centreline.start.y, wall.centreline.end.x, wall.centreline.end.y, wall.thicknessMm, wall.heightMm),
-          )
-          .map((wall) => ({
+    levels.map((level) => {
+      const walls = graph.walls
+        .filter(
+          (wall) =>
+            wall.levelId === level.id &&
+            finite(wall.centreline.start.x, wall.centreline.start.y, wall.centreline.end.x, wall.centreline.end.y, wall.thicknessMm, wall.heightMm),
+        )
+        .map((wall) => ({
             id: wall.id,
             kind: 'loadBearing' as const, // detectAxes không đọc kind
             centreline: {
@@ -40,9 +37,16 @@ export const floorDisplayTransformsOf = (graph: SpatialGraph): ReadonlyMap<strin
             thicknessMm: millimetres(wall.thicknessMm),
             baseElevationMm: millimetres(level.elevationMm),
             topElevationMm: millimetres(level.elevationMm + wall.heightMm),
-          })),
-      ),
-    })),
+          }));
+      return {
+        levelId: level.id,
+        name: level.name,
+        floorElevationMm: millimetres(level.elevationMm),
+        clearHeightMm: millimetres(level.heightMm),
+        axes: detectAxes(walls),
+        wallBoundsMm: wallBoundsOf(walls.map((wall) => wall.centreline)),
+      };
+    }),
   );
   const transforms = new Map<string, FloorTransform>();
 
@@ -53,8 +57,8 @@ export const floorDisplayTransformsOf = (graph: SpatialGraph): ReadonlyMap<strin
     if (
       !floor.isBase &&
       !isIdentity &&
-      floor.matchedAxisCount >= MIN_MATCHED_AXES &&
-      floor.maxResidualMm <= ALIGNMENT_WARNING_THRESHOLD_MM
+      (floor.method === 'bbox' ||
+        (floor.matchedAxisCount >= MIN_MATCHED_AXES && floor.maxResidualMm <= ALIGNMENT_WARNING_THRESHOLD_MM))
     ) {
       transforms.set(floor.levelId, floor.transform);
     }
@@ -116,6 +120,8 @@ const moveNode = (node: AnyNode, t: Rigid, inverse: boolean): AnyNode => {
     const [x, z] = point([node.position[0], node.position[2]]);
     out.position = [x, node.position[1], z];
   }
+  // Chỉ dời (khung bao): giữ nguyên góc, kể cả dấu của -0, để lượt về khớp từng bit.
+  if (t.rotationDeg === 0) return out as AnyNode;
   if (typeof node.rotation === 'number') out.rotation = node.rotation + dYaw;
   else if (isVec3(node.rotation)) out.rotation = [node.rotation[0], node.rotation[1] + dYaw, node.rotation[2]];
 
@@ -174,6 +180,13 @@ export const undoFloorTransforms = <S extends { readonly nodes: Record<string, u
   );
   if (levels.length === 0) return scene;
   const nodes = { ...scene.nodes };
-  for (const level of levels) moveChildren(nodes, level, readRigid(level)!, true);
+  for (const level of levels) {
+    moveChildren(nodes, level, readRigid(level)!, true);
+    // Bỏ khoá sau khi gỡ để gọi lại không gỡ lần hai (fromPascal gỡ trước rồi toSpatialGraph gỡ tiếp).
+    const metadata = level.metadata as { appfront: Record<string, unknown> };
+    const appfront = { ...metadata.appfront };
+    delete appfront[FLOOR_TRANSFORM_KEY];
+    nodes[level.id] = { ...level, metadata: { ...metadata, appfront } };
+  }
   return { ...scene, nodes };
 };

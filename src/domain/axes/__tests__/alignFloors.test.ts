@@ -18,11 +18,13 @@ import {
   ALIGNMENT_WARNING_THRESHOLD_MM,
   applyFloorTransform,
   ceilingElevationMm,
+  IDENTITY_TRANSFORM,
   MAX_CLEAR_HEIGHT_MM,
   MIN_CLEAR_HEIGHT_MM,
   pickBaseFloor,
   transformAxis,
   type FloorPlan,
+  wallBoundsOf,
 } from '../alignFloors';
 import { copyFloor, floorEntityIds, type FloorContents, type IdFactory } from '../copyFloor';
 import { detectAxes, type DetectedAxis } from '../detect';
@@ -421,6 +423,73 @@ describe('a floor with nothing to align by', () => {
     ];
 
     expect(alignFloors(oneAxis).issues[0]?.kind).toBe('unalignable');
+  });
+});
+
+describe('a floor whose axes do not match falls back to the wall box', () => {
+  /** A rectangle of walls from (x0, y0) to (x1, y1). */
+  const box = (x0: number, y0: number, x1: number, y1: number) => {
+    const p = (x: number, y: number) => ({ x: millimetres(x), y: millimetres(y) });
+    return wallBoundsOf([
+      { start: p(x0, y0), end: p(x1, y0) },
+      { start: p(x1, y0), end: p(x1, y1) },
+      { start: p(x1, y1), end: p(x0, y1) },
+      { start: p(x0, y1), end: p(x0, y0) },
+    ]);
+  };
+  const BASE: FloorPlan = { ...(SAMPLE_FLOORS[0] as FloorPlan), wallBoundsMm: box(0, 0, 8400, 7000) };
+
+  it('moves the box centre onto the base box centre, translation only', () => {
+    const upper: FloorPlan = {
+      ...floor('L-000002AAAA', 'Tầng 2', 3300, 3000, [axis('vertical', 40)]),
+      wallBoundsMm: box(5000, -3000, 13400, 4000),
+    };
+    const report = alignFloors([BASE, upper]);
+    const second = report.floors[1];
+
+    expect(second?.method).toBe('bbox');
+    expect(second?.transform).toEqual({ rotationDeg: 0, translationMm: { x: -5000, y: 3000 }, scale: 1 });
+    expect(applyFloorTransform({ x: millimetres(9200), y: millimetres(500) }, second!.transform)).toEqual({
+      x: 4200,
+      y: 3500,
+    });
+    expect(report.issues[0]?.kind).toBe('unalignable');
+    expect(report.issues[0]?.message).toContain('khung bao tường');
+  });
+
+  it('matches centres, so a smaller upper footprint lands over the middle', () => {
+    const upper: FloorPlan = { ...floor('L-000002AAAA', 'Tầng 2', 3300, 3000, []), wallBoundsMm: box(20000, 0, 24000, 4000) };
+
+    expect(alignFloors([BASE, upper]).floors[1]?.transform.translationMm).toEqual({ x: -17800, y: 1500 });
+  });
+
+  it('leaves a set-back floor that already overlaps the base box where it is', () => {
+    // 2 400 × 4 000 of a 4 000 × 4 000 box lies over the base: 0,6 ≥ 0,5.
+    const upper: FloorPlan = { ...floor('L-000002AAAA', 'Tầng 2', 3300, 3000, []), wallBoundsMm: box(6000, 0, 10000, 4000) };
+    const second = alignFloors([BASE, upper]).floors[1];
+
+    expect(second?.method).toBe('bbox');
+    expect(second?.transform).toEqual(IDENTITY_TRANSFORM);
+  });
+
+  it('keeps the axis fit when the axes match', () => {
+    const upper: FloorPlan = { ...(SAMPLE_FLOORS[1] as FloorPlan), wallBoundsMm: box(5000, -3000, 13400, 4000) };
+    const second = alignFloors([BASE, upper]).floors[1];
+
+    expect(second?.method).toBe('axes');
+    expect(second?.transform).toEqual(alignFloors(SAMPLE_FLOORS).floors[1]?.transform);
+  });
+
+  it('leaves a floor without walls, or a base without walls, where it is', () => {
+    const empty: FloorPlan = { ...floor('L-000002AAAA', 'Tầng 2', 3300, 3000, []), wallBoundsMm: null };
+    const walled: FloorPlan = { ...empty, wallBoundsMm: box(5000, -3000, 13400, 4000) };
+
+    for (const floors of [[BASE, empty], [SAMPLE_FLOORS[0] as FloorPlan, walled]]) {
+      const second = alignFloors(floors).floors[1];
+      expect(second?.method).toBe('axes');
+      expect(second?.transform.translationMm).toEqual({ x: 0, y: 0 });
+    }
+    expect(wallBoundsOf([])).toBeNull();
   });
 });
 

@@ -128,6 +128,8 @@ export interface FloorUploadRowModel {
   readonly error: FloorUploadInlineError | null;
   /** Các tầng gán lại được, kể cả tầng hiện tại. Rỗng khi màn chỉ đọc. */
   readonly reassignOptions: readonly SelectOption[];
+  /** Tệp ảnh/PDF của phiên này, dự án ≥ 2 tầng: thẻ hiện "Tờ này có nhiều tầng". */
+  readonly canSplitSheet?: boolean;
   readonly canCancelUpload: boolean;
   readonly canRetryUpload: boolean;
   readonly canRemoveFile: boolean;
@@ -329,6 +331,36 @@ export interface FloorUploadModel {
   readonly splitPrompt?: FloorUploadSplitPromptModel | null;
   /** Các dự án vừa tạo, mỗi căn một dự án (K19). Vắng/`null` khi chưa tạo. */
   readonly apartments?: FloorUploadApartmentsModel | null;
+  /** Bảng "một tờ nhiều tầng": khoanh vùng từng tầng trên một tờ. Vắng/`null` khi đóng. */
+  readonly sheetRegions?: FloorUploadSheetRegionsModel | null;
+}
+
+/** Vùng của một tầng trên tờ, theo tỉ lệ trang, gốc trên-trái. */
+export interface FloorUploadSheetRect {
+  readonly xRatio: number;
+  readonly yRatio: number;
+  readonly widthRatio: number;
+  readonly heightRatio: number;
+}
+
+export interface FloorUploadSheetFloorModel {
+  readonly floorId: string;
+  readonly name: string;
+  readonly rect: FloorUploadSheetRect | null;
+  /** "Chưa khoanh" / "Vùng quá nhỏ"; `null` khi khung hợp lệ. */
+  readonly note: string | null;
+}
+
+export interface FloorUploadSheetRegionsModel {
+  readonly title: string;
+  readonly hint: string;
+  readonly closeLabel: string;
+  readonly previewUrl: string;
+  readonly selectedFloorId: string | null;
+  readonly floors: readonly FloorUploadSheetFloorModel[];
+  /** "Tải lên 2 tầng". */
+  readonly confirmLabel: string;
+  readonly canConfirm: boolean;
 }
 
 /** Một câu hỏi, hai lựa chọn. Mọi chữ đã viết xong. */
@@ -414,6 +446,13 @@ export interface FloorUploadActions {
   readonly onOpenApartment?: ((rowId: string) => void) | undefined;
   /** Ẩn danh sách dự án vừa tạo. */
   readonly onDismissApartments?: (() => void) | undefined;
+  /** Mở bảng "một tờ nhiều tầng" cho tệp này. */
+  readonly onOpenSheetRegions?: ((fileId: string) => void) | undefined;
+  readonly onSelectSheetFloor?: ((floorId: string) => void) | undefined;
+  /** Đặt (vẽ hoặc dời) khung của một tầng. */
+  readonly onSetSheetRegion?: ((floorId: string, rect: FloorUploadSheetRect) => void) | undefined;
+  readonly onConfirmSheetRegions?: (() => void) | undefined;
+  readonly onCloseSheetRegions?: (() => void) | undefined;
 }
 
 /** Mọi prop view nhận — mô hình cộng hành động, đã gộp sẵn (mục D). */

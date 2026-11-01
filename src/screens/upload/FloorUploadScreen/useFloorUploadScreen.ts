@@ -51,7 +51,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { Floor } from '@/api/client';
+import type { DrawingCrop, Floor } from '@/api/client';
 import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import type { SelectOption } from '@/components/ui/Select';
 import { alignFloors, ceilingElevationMm } from '@/domain/axes/alignFloors';
@@ -79,6 +79,7 @@ import type { ProjectRole } from '@/types/project';
 
 import { CAD_NOT_SUPPORTED_SENTENCE, type FloorUploadGateway } from './floorUploadGateway';
 import { useApartmentSplit } from './useApartmentSplit';
+import { type SheetUpload, useSheetRegions } from './useSheetRegions';
 import { usePdfPageThumbnails } from './usePdfPageThumbnails';
 import type {
   FloorUploadActions,
@@ -274,6 +275,8 @@ interface Attachment {
    * So bằng tham chiếu: lượt tải sau dựng `problem` mới, nên lỗi mới lại hiện ra.
    */
   readonly dismissedProblem?: FloorUploadInlineError | null;
+  /** Vùng của tầng này trên tờ nhiều tầng; vắng = cả trang. */
+  readonly crop?: DrawingCrop;
 }
 
 /** Lỗi còn hiện trên thẻ/khay: mọi lỗi trừ đúng lỗi người dùng đã đóng. */
@@ -740,6 +743,7 @@ export function useFloorUploadScreen(
       projectId,
       id: attachment.id,
       ...(pageIndex !== undefined ? { pageIndex } : {}),
+      ...(attachment.crop !== undefined ? { crop: attachment.crop } : {}),
       onProgress: (taskState) => {
         applyTaskState(attachment.id, floorId, taskState);
       },
@@ -1024,6 +1028,48 @@ export function useFloorUploadScreen(
 
     if (floorId !== null) {
       startUpload({ ...attachment, floorId, isAutoMatched: false }, floorId);
+    }
+  };
+
+  // Một tờ nhiều tầng: cùng tệp gắn vào từng tầng có khung, mỗi bản một `crop`. Tệp gốc
+  // nhường chỗ; tệp khác đang ở tầng đích về khay như `reassign` (NO-393).
+  // ponytail: bản gốc đã tải xong cả trang vẫn nằm trên máy chủ nếu tầng của nó không được khoanh.
+  const uploadSheetRegions = (fileId: string, uploads: readonly SheetUpload[]): void => {
+    const source = findAttachment(fileId);
+
+    if (!canEdit || source === null || source.branch === null || uploads.length === 0) {
+      return;
+    }
+
+    cancelTask(fileId);
+    const targets = new Set(uploads.map((upload) => upload.floorId));
+
+    for (const other of attachments) {
+      if (other.id !== fileId && other.floorId !== null && targets.has(other.floorId)) {
+        cancelTask(other.id);
+        patchAttachment(other.id, toTray());
+        getAppAnnouncer().announce(displacedSentence(other.file.name));
+      }
+    }
+
+    const created = uploads.map<Attachment>((upload) => ({
+      ...source,
+      id: gateway.createFileId(),
+      floorId: upload.floorId,
+      crop: upload.crop,
+      isAutoMatched: false,
+      status: 'waiting',
+      percent: 0,
+      problem: null,
+      awaitingNetwork: false,
+      wasCancelled: false,
+      dismissedProblem: null,
+    }));
+
+    setAttachments((previous) => [...previous.filter((attachment) => attachment.id !== fileId), ...created]);
+
+    for (const attachment of created) {
+      startUpload(attachment, attachment.floorId ?? '');
     }
   };
 
@@ -1321,7 +1367,28 @@ export function useFloorUploadScreen(
     return cache.get(attachment.id) ?? null;
   }, []);
 
-  const pageThumbnails = usePdfPageThumbnails(gateway, projectId, attachments);
+  const pageThumbnails = usePdfPageThumbnails(gateway, projectId, attachments, floors.length >= 2 ? 1 : 2);
+
+  /** Ảnh để khoanh vùng: blob của ảnh, ảnh nhỏ của trang PDF đang chọn; `null` khi chưa có. */
+  const sheetPreviewOf = useCallback(
+    (attachment: Attachment): string | null => {
+      if (attachment.branch === 'raster') return previewUrlFor(attachment);
+      if (attachment.branch !== 'pdf') return null;
+
+      return pageThumbnails.get(attachment.id)?.[pageIndexOf(attachment) ?? 0] ?? null;
+    },
+    [pageThumbnails, previewUrlFor],
+  );
+
+  const sheet = useSheetRegions({
+    floors,
+    previewUrlFor: (fileId) => {
+      const attachment = findAttachment(fileId);
+
+      return attachment === null ? null : sheetPreviewOf(attachment);
+    },
+    onConfirm: uploadSheetRegions,
+  });
 
   const fileModelFor = useCallback((attachment: Attachment): FloorUploadFileModel => {
     const pageCountLabel =
@@ -1417,6 +1484,13 @@ export function useFloorUploadScreen(
           // Chỉ tệp của phiên này gán lại được; bản vẽ đã nằm trên máy chủ thì không có lượt
           // chuyển nào để gửi, nên không có ô chọn (BUG-531).
           reassignOptions: canEdit && attachment !== null ? reassignOptions : [],
+          canSplitSheet:
+            canEdit &&
+            floors.length >= 2 &&
+            attachment !== null &&
+            attachment.crop === undefined &&
+            attachment.status !== 'error' &&
+            sheetPreviewOf(attachment) !== null,
           canCancelUpload: canEdit && status === 'uploading',
           canRetryUpload:
             canEdit &&
@@ -1430,7 +1504,7 @@ export function useFloorUploadScreen(
           revealDurationMs: durationMs('standard', { reducedMotion }),
         };
       }),
-    [attachmentByFloor, canEdit, fileModelFor, floors, reassignOptions, reducedMotion, stack],
+    [attachmentByFloor, canEdit, fileModelFor, floors, reassignOptions, reducedMotion, sheetPreviewOf, stack],
   );
 
   const trayItems = useMemo<readonly FloorUploadTrayItemModel[]>(
@@ -1563,6 +1637,7 @@ export function useFloorUploadScreen(
     processedNotice: isReprocess ? processedNoticeOf(floors, attachments.length) : null,
     splitPrompt: split.splitPrompt,
     apartments: split.apartments,
+    sheetRegions: sheet.model,
   };
 
   const actions: FloorUploadActions = {
@@ -1613,6 +1688,13 @@ export function useFloorUploadScreen(
     },
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.
     ...split.actions,
+    onOpenSheetRegions: (fileId) => {
+      if (canEdit) sheet.open(fileId);
+    },
+    onSelectSheetFloor: sheet.selectFloor,
+    onSetSheetRegion: sheet.setRegion,
+    onConfirmSheetRegions: sheet.confirm,
+    onCloseSheetRegions: sheet.close,
     onDismissError: (fileId) =>
       // Đọc lỗi ngay trong lượt cập nhật, không từ bản vẽ cũ của closure: lượt kiểm tệp có thể vừa
       // đặt lỗi mà màn chưa vẽ lại. Tệp bị từ chối ngay lúc kiểm (`branch === null`) không bao giờ

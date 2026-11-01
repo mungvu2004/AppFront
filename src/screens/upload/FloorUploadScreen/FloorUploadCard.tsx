@@ -312,6 +312,7 @@ export function FloorUploadCard({
       {(row.autoMatchHint !== null ||
         (file !== null && file.isCadBranch) ||
         row.reassignOptions.length > 0 ||
+        row.canSplitSheet === true ||
         canPickPage) && (
         <div className={clsx('flex w-full max-w-[400px] flex-col gap-2', !isCollapsed && 'pl-32')}>
           {file !== null && file.isCadBranch && <CadPill />}
@@ -329,6 +330,18 @@ export function FloorUploadCard({
               }}
               size="sm"
             />
+          )}
+
+          {file !== null && row.canSplitSheet === true && actions.onOpenSheetRegions !== undefined && (
+            <Button
+              className="self-start"
+              onClick={() => actions.onOpenSheetRegions?.(file.id)}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Tờ này có nhiều tầng
+            </Button>
           )}
 
           {file !== null && row.reassignOptions.length > 0 && (
