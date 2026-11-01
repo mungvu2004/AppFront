@@ -85,6 +85,33 @@ export interface FloorPlan {
   readonly floorElevationMm: Millimetres;
   readonly clearHeightMm: Millimetres;
   readonly axes: readonly DetectedAxis[];
+  /**
+   * Outer footprint of the floor's walls, for the fallback when the axes do
+   * not match: `null`/absent when the floor has no walls.
+   */
+  readonly wallBoundsMm?: WallBounds | null;
+}
+
+/** Axis-aligned box around a floor's wall centrelines. */
+export interface WallBounds {
+  readonly min: PointMm;
+  readonly max: PointMm;
+}
+
+/** Box around every end of every segment; `null` when there are none. */
+export function wallBoundsOf(
+  segments: readonly { readonly start: PointMm; readonly end: PointMm }[],
+): WallBounds | null {
+  const points = segments.flatMap((segment) => [segment.start, segment.end]);
+  if (points.length === 0) {
+    return null;
+  }
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return {
+    min: { x: millimetres(Math.min(...xs)), y: millimetres(Math.min(...ys)) },
+    max: { x: millimetres(Math.max(...xs)), y: millimetres(Math.max(...ys)) },
+  };
 }
 
 /**
@@ -137,6 +164,12 @@ export interface FloorAlignment {
   readonly levelId: LevelId;
   readonly name: string;
   readonly isBase: boolean;
+  /**
+   * `'axes'`: matched on the structural grid (the base floor too). `'bbox'`:
+   * too few axes matched, so the centre of the wall footprint was moved onto
+   * the base floor's — translation only, and `maxResidualMm` is not measured.
+   */
+  readonly method: 'axes' | 'bbox';
   readonly transform: FloorTransform;
   /** Worst distance left between a matched axis and its partner. */
   readonly maxResidualMm: Millimetres;
@@ -403,6 +436,30 @@ function isBetterRotation(candidate: RotationFit, incumbent: RotationFit): boole
   return compareNearly(candidate.totalResidualMm, incumbent.totalResidualMm) < 0;
 }
 
+/**
+ * Fallback when the axes do not match: move the centre of the floor's wall box
+ * onto the centre of the base floor's. Centres rather than corners, so an upper
+ * floor with a smaller footprint or a balcony still lands over the middle.
+ * `null` when either floor has no walls.
+ */
+function bboxTransform(
+  floorBounds: WallBounds | null | undefined,
+  baseBounds: WallBounds | null | undefined,
+): FloorTransform | null {
+  if (floorBounds === undefined || floorBounds === null || baseBounds === undefined || baseBounds === null) {
+    return null;
+  }
+  const centre = (bounds: WallBounds, key: 'x' | 'y'): number => (bounds.min[key] + bounds.max[key]) / 2;
+  return {
+    rotationDeg: 0,
+    translationMm: {
+      x: coordinate(centre(baseBounds, 'x') - centre(floorBounds, 'x')),
+      y: coordinate(centre(baseBounds, 'y') - centre(floorBounds, 'y')),
+    },
+    scale: 1,
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Choosing the base floor.                                                    */
 /* -------------------------------------------------------------------------- */
@@ -579,6 +636,7 @@ export function alignFloors(
         levelId: floor.levelId,
         name: floor.name,
         isBase: true,
+        method: 'axes',
         transform: IDENTITY_TRANSFORM,
         maxResidualMm: millimetres(0),
         matchedAxisCount: floor.axes.length,
@@ -599,18 +657,23 @@ export function alignFloors(
       }
     }
 
+    const unalignable = best.matched < MIN_MATCHED_AXES;
+    const bbox = unalignable ? bboxTransform(floor.wallBoundsMm, base.wallBoundsMm) : null;
+    const transform = bbox ?? best.transform;
+
     alignments.push({
       levelId: floor.levelId,
       name: floor.name,
       isBase: false,
-      transform: best.transform,
-      maxResidualMm: millimetres(best.maxResidualMm),
+      method: bbox === null ? 'axes' : 'bbox',
+      transform,
+      maxResidualMm: millimetres(bbox === null ? best.maxResidualMm : 0),
       matchedAxisCount: best.matched,
       axisCount: floor.axes.length,
-      alignedAxes: floor.axes.map((axis) => transformAxis(axis, best.transform)),
+      alignedAxes: floor.axes.map((axis) => transformAxis(axis, transform)),
     });
 
-    if (best.matched < MIN_MATCHED_AXES) {
+    if (unalignable) {
       alignmentIssues.push({
         kind: 'unalignable',
         levelId: floor.levelId,
@@ -619,7 +682,10 @@ export function alignFloors(
         amountMm: millimetres(0),
         message:
           `${floorLabel(floor.name)} chỉ khớp được ${String(best.matched)} trục với tầng chuẩn ` +
-          `${base.name}, chưa đủ căn cứ để chồng tầng.`,
+          `${base.name}, ` +
+          (bbox === null
+            ? 'chưa đủ căn cứ để chồng tầng.'
+            : 'đã tạm chồng tầng theo khung bao tường — cần kiểm tra lại.'),
       });
       continue;
     }
