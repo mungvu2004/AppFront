@@ -980,7 +980,8 @@ export interface ChangeObjectKindInput {
  */
 function withSlidingStyleChecked(opening: GraphOpening): GraphOpening {
   if (opening.doorStyle === undefined || (opening.kind === 'door' && opening.swing === 'sliding')) return opening;
-  const { doorStyle: _dropped, ...rest } = opening;
+  const rest = { ...opening };
+  delete rest.doorStyle;
   return rest;
 }
 
