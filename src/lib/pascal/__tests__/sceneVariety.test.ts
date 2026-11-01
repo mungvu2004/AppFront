@@ -149,8 +149,9 @@ describe('sceneVariety (J7)', () => {
     const plants = new Set(['indoor-plant', 'small-indoor-plant', 'bush']);
     // open-plan-20261101: tủ lạnh 559 × 692 và 585 × 829, bếp nấu 733 × 636 (cùng cỡ tủ lạnh), món nhỏ 400 × 400.
     for (const style of styles) {
-      expect(modelFolderOf(item('K1', 'other', 559, 692, { roomId: 'R-k' }), style, 'kitchen')).toBe('fridge');
-      expect(modelFolderOf(item('K2', 'other', 585, 829, { roomId: 'R-k' }), style, 'kitchen')).toBe('fridge');
+      // C2: tủ lạnh chỉ khi variant nói — món `other` lớn không nhãn là hộp tủ.
+      expect(modelFolderOf(item('K1', 'other', 559, 692, { roomId: 'R-k' }), style, 'kitchen')).toBe('dresser');
+      expect(modelFolderOf(item('K2', 'other', 585, 829, { roomId: 'R-k', variant: 'fridge' }), style, 'kitchen')).toBe('fridge');
       expect(modelFolderOf(item('K3', 'other', 400, 400, { roomId: 'R-k' }), style, 'kitchen')).toBe('stove');
       expect(modelFolderOf(item('S1', 'sanitaryFixture', 820, 535, { roomId: 'R-k' }), style, 'kitchen')).toBe('kitchen');
       for (const usage of [undefined, 'bedroom', 'livingRoom', 'bathroom'] as const) {
@@ -178,7 +179,7 @@ describe('sceneVariety (J7)', () => {
     expect(modelFolderOf(item('V6', 'chair', 900, 2100, { variant: 'bench' }), AM_AP, 'livingRoom')).toBe('ottoman');
   });
 
-  it('sofa và bàn trà chỉ ở phòng khách', () => {
+  it('bàn trà và món `other` dài chỉ thành sofa ở phòng khách; ghế dài là sofa ở mọi phòng (C2)', () => {
     const long = item('L1', 'chair', 900, 2100, { roomId: 'R-1' });
     const low = item('L2', 'table', 1200, 600, { roomId: 'R-1', heightMm: 400 });
     const longOther = item('L3', 'other', 900, 2100, { roomId: 'R-1' });
@@ -186,8 +187,8 @@ describe('sceneVariety (J7)', () => {
     expect(modelFolderOf(low, AM_AP, 'livingRoom')).toBe('coffee-table');
     expect(modelFolderOf(longOther, AM_AP, 'livingRoom')).toBe('sofa');
     for (const usage of ['bedroom', 'kitchen', undefined] as const) {
+      expect(roleOf(long, usage)).toBe('sofa');
       for (const style of Object.values(SCENE_STYLES)) {
-        expect(modelFolderOf(long, style, usage)).not.toBe('sofa');
         expect(modelFolderOf(longOther, style, usage)).not.toBe('sofa');
         expect(modelFolderOf(low, style, usage)).not.toBe('coffee-table');
       }
@@ -205,5 +206,46 @@ describe('sceneVariety (J7)', () => {
     }
     expect(modelFolderOf(item('K3', 'other', 600, 600, { variant: 'sink' }), AM_AP, 'kitchen')).toBe('kitchen');
     expect(modelFolderOf(item('K4', 'other', 600, 1200, { variant: 'baseRun' }), AM_AP, 'kitchen')).toBe('kitchen-cabinet');
+  });
+  it('C2(a) — variant quyết vai trò, không xét phòng', () => {
+    for (const usage of ['livingRoom', 'bedroom', 'kitchen', undefined] as const) {
+      expect(roleOf(item('V1', 'chair', 500, 500, { variant: 'sofa' }), usage)).toBe('sofa');
+      expect(roleOf(item('V2', 'chair', 900, 2100, { variant: 'bench' }), usage)).toBe('bench');
+      expect(roleOf(item('V3', 'chair', 900, 2100, { variant: 'armchair' }), usage)).toBe('armchair');
+    }
+  });
+
+  it('C2(a) — ghế dài > 1,5 m không variant: cạnh ngắn ≥ 0,6 m là sofa, < 0,6 m là ghế băng, ở mọi phòng', () => {
+    for (const usage of ['livingRoom', 'bedroom', 'kitchen', 'other', undefined] as const) {
+      expect(roleOf(item('C1', 'chair', 600, 1600), usage)).toBe('sofa');
+      expect(roleOf(item('C2', 'chair', 590, 1600), usage)).toBe('bench');
+      expect(roleOf(item('C3', 'chair', 450, 450), usage)).toBe('diningChair');
+    }
+  });
+
+  it('C2(b) — phong cách chỉ đổi kiểu trong cùng loại: ghế ăn không thành ghế đẩu/ghế xoay, bàn làm việc không thành bàn ăn', () => {
+    const chair = item('D1', 'chair', 450, 450, { roomId: 'R-1' });
+    const desk = item('D2', 'table', 600, 1200, { roomId: 'R-1' });
+    for (const style of Object.values(SCENE_STYLES)) {
+      expect(['stool', 'office-chair']).not.toContain(modelFolderOf(chair, style, 'kitchen'));
+      expect(modelFolderOf(desk, style, 'bedroom')).not.toBe('dining-table');
+    }
+  });
+
+  it('C2(c) — thiết bị vệ sinh theo cỡ: khu tắm, bồn tắm, bồn cầu, còn lại lavabo', () => {
+    expect(roleOf(item('W1', 'shower', 800, 800), 'bathroom')).toBe('shower');
+    expect(roleOf(item('W2', 'sanitaryFixture', 1000, 1000), 'bathroom')).toBe('shower');
+    expect(roleOf(item('W3', 'sanitaryFixture', 700, 1400), 'bathroom')).toBe('bathtub');
+    expect(roleOf(item('W4', 'sanitaryFixture', 460, 760), 'bathroom')).toBe('toilet');
+    expect(roleOf(item('W5', 'sanitaryFixture', 510, 700), 'bathroom')).toBe('basin');
+    expect(roleOf(item('W6', 'sanitaryFixture', 600, 1100), 'bathroom')).toBe('basin');
+  });
+
+  it('C2(d) — tủ lạnh chỉ từ variant, tủ đầu giường chỉ ở phòng ngủ, tủ áo nông vẫn là tủ', () => {
+    expect(roleOf(item('F1', 'kitchenCabinet', 650, 700), 'kitchen')).toBe('counter');
+    expect(roleOf(item('F2', 'kitchenCabinet', 650, 700, { variant: 'fridge' }), 'kitchen')).toBe('fridge');
+    expect(roleOf(item('N1', 'table', 450, 450), 'bedroom')).toBe('nightstand');
+    expect(roleOf(item('N2', 'table', 450, 450), 'livingRoom')).not.toBe('nightstand');
+    expect(roleOf(item('B1', 'wardrobe', 350, 1200), 'bedroom')).not.toBe('bookshelf');
   });
 });

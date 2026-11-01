@@ -964,7 +964,14 @@ const sitePolygonOf = (nodes: Record<PascalNodeId, PascalNode>): PascalSiteNode[
 
 export const toPascalScene = (
   graph: SpatialGraph,
-  { style = sceneStyleOf(undefined) }: { readonly style?: SceneStyle } = {},
+  {
+    style = sceneStyleOf(undefined),
+    furnish = 'off',
+  }: {
+    readonly style?: SceneStyle;
+    /** Đồ tự bày (bày phòng trống + bày biện) — mặc định tắt: cảnh chỉ có đồ của bản vẽ (C1). */
+    readonly furnish?: 'off' | 'on';
+  } = {},
 ): PascalSceneResult => {
   const nodes: Record<PascalNodeId, PascalNode> = {};
   const skipped: SkippedEntity[] = [];
@@ -1234,7 +1241,7 @@ export const toPascalScene = (
   /*
    * Đồ sinh ra (J10): bày phòng trống rồi bày biện, cùng đường `itemNodeOf` với đồ thật, sau
    * đồ thật. Không bao giờ được lưu (`isGeneratedNodeId`), không tính vào `skipped`: món nào
-   * không dựng được thì bỏ im lặng.
+   * không dựng được thì bỏ im lặng. Chỉ chạy khi `furnish: 'on'` — mặc định cảnh không tự thêm đồ.
    */
   const usable = {
     ...graph,
@@ -1247,8 +1254,9 @@ export const toPascalScene = (
      để gối/đèn không bày lên một cái giường đã xoá. */
   const offIds = new Set(builtRooms.flatMap((room) => room.dressingOff ?? []));
   const notOff = (furniture: Furniture): boolean => !offIds.has(furniture.id);
-  const furnished = furnishEmptyRooms(usable, style).filter(notOff);
-  const dressed = dressingOf({ ...usable, furniture: [...builtFurniture, ...furnished] }, style).filter(notOff);
+  const furnished = furnish === 'on' ? furnishEmptyRooms(usable, style).filter(notOff) : [];
+  const dressed =
+    furnish === 'on' ? dressingOf({ ...usable, furniture: [...builtFurniture, ...furnished] }, style).filter(notOff) : [];
   const dressIdsOf = new Map<string, string[]>();
 
   for (const furniture of [...furnished, ...dressed]) {

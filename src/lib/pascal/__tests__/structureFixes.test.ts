@@ -98,7 +98,7 @@ describe('V2 — phòng `other` đoán công năng theo tên (chỉ để bày �
     const named: Room = { ...room, name: 'OH/RP', usage: 'other' };
     graph.rooms = graph.rooms.map((r, i) => (i === index ? named : r));
 
-    const { scene } = toPascalScene(graph);
+    const { scene } = toPascalScene(graph, { furnish: 'on' });
     const sofa = Object.values(scene.nodes).find(
       (n) => n.type === 'item' && n.id.startsWith('item_DRESS-sofa') && fieldsOf(n)['roomId'] === room.id,
     );

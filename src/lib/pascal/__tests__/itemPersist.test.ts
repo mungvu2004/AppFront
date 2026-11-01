@@ -19,7 +19,7 @@ import type { PascalItemNode, PascalNode, PascalScene } from '../types';
 /* F1-ext gốc không còn đồ tự bày (FE3D-FIX-004 C2: bàn ăn phòng khách chặn bộ bàn ăn trong bếp, đúng
    như nhà thật). F2 vẫn có giường + tủ đầu giường tự bày trong một phòng và đồ thật — đủ cho ca "nhận nuôi". */
 const graph: SpatialGraph = SpatialGraphDocumentSchema.parse(fixtureF2().doc).graph;
-const sceneOf = (of: SpatialGraph): PascalScene => toPascalScene(of).scene;
+const sceneOf = (of: SpatialGraph): PascalScene => toPascalScene(of, { furnish: 'on' }).scene;
 const items = (of: PascalScene): PascalItemNode[] =>
   Object.values(of.nodes).filter((node): node is PascalItemNode => node.type === 'item');
 
