@@ -49,6 +49,12 @@ export interface PascalBridge {
   /** Đường về AppFront, vd `/projects/<id>/floors`. */
   readonly backHref: string;
   readonly onLoad: () => Promise<PascalSceneGraph>;
+  /**
+   * Mốc "trước" của lượt sửa đầu = cảnh Pascal đang giữ ngay sau `onLoad`. `setScene` điền mặc định
+   * lược đồ (`visible`, `frontSide: 'unknown'`, hàng chục trường cửa…); so với cảnh chưa điền thì lượt
+   * sửa đầu kéo theo mọi node, và tường/cửa đã duyệt mất dấu dù không ai đụng tới.
+   */
+  readonly rebaseLoaded: (scene: PascalSceneGraph) => void;
   readonly onSave: (scene: unknown) => Promise<void>;
   /** Vắng khi chỉ đọc (không có gì để lưu). */
   readonly save?: PascalSaveStatus;

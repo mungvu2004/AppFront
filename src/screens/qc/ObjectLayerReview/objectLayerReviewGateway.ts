@@ -67,6 +67,7 @@ import type {
   LevelId,
   Point,
   ReviewMetadata,
+  SpatialGraph,
   SwingDirection,
   Wall as GraphWall,
   WallId,
@@ -164,6 +165,7 @@ import { generateLegend, type Legend } from '@/lib/coloring/legend';
 import { createColoringMode, type ColoringMode, type PaintSubject } from '@/lib/coloring/modes';
 import { createLookupScale, type ColorTokenName } from '@/lib/coloring/scales';
 import { wallBearing } from '@/domain/walls/edit';
+import { swingDirectionOf } from '@/lib/pascal/swingDirection';
 import type { MeasurementState } from '@/hooks/useMeasurementLabel';
 import { readProjectConfidenceThreshold, type ReadConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { boxAround } from '@/lib/input/dragDrop';
@@ -2593,6 +2595,7 @@ export function toObjectPlacement(
   object: ReviewObject,
   wall: SolidWall | null,
   scale: Scale,
+  swingsInward = false,
 ): ObjectPlacementViewModel {
   const attached = isOrphanObject(object) ? null : object;
   const centreMm =
@@ -2608,6 +2611,7 @@ export function toObjectPlacement(
     swing: object.swing,
     centrePx: toPixelPoint(centreMm, scale),
     angleDeg: wall === null ? ownRotationDegOf(object) : wallBearing(wall),
+    ...(swingsInward && wall !== null ? { swingsInward: true } : {}),
     widthPx: scale.millimetresToPixels(millimetres(object.widthMm)),
     depthPx: scale.millimetresToPixels(millimetres(depthMm)),
     boundsPx: boundsPxOf(centreMm, object.widthMm, depthMm, scale),
@@ -2619,11 +2623,28 @@ export function toObjectPlacement(
   };
 }
 
+/**
+ * Mã các cửa bản lề mở về mặt `inward` (+y cục bộ của ký hiệu): cùng luật với cảnh 3D
+ * (`swingDirectionOf`) và cờ "Đổi hướng mở", để cung cửa 2D không vẽ ngược mô hình 3D.
+ */
+export function inwardSwingIdsOf(graph: Pick<SpatialGraph, 'walls' | 'rooms' | 'openings'> | null): ReadonlySet<string> {
+  if (graph === null) return new Set();
+  const wallById = new Map(graph.walls.map((wall) => [wall.id, wall] as const));
+  const ids = new Set<string>();
+  for (const opening of graph.openings) {
+    if (opening.kind !== 'door') continue;
+    const inward = swingDirectionOf(opening, wallById.get(opening.wallId), graph.rooms) === 'inward';
+    if (inward !== (opening.reversed === true)) ids.add(opening.id);
+  }
+  return ids;
+}
+
 /** Toạ độ vẽ của mọi đối tượng đang thấy. */
 export function objectPlacementsOf(
   objects: readonly ReviewObject[],
   walls: readonly SolidWall[],
   level: Level | null,
+  inwardSwingIds: ReadonlySet<string> = new Set(),
 ): readonly ObjectPlacementViewModel[] {
   const scale = scaleOfLevel(level);
   const wallById = new Map(walls.map((wall) => [wall.id, wall] as const));
@@ -2633,6 +2654,7 @@ export function objectPlacementsOf(
       object,
       isOrphanObject(object) ? null : (wallById.get(object.hostWallId) ?? null),
       scale,
+      inwardSwingIds.has(object.id),
     ),
   );
 }

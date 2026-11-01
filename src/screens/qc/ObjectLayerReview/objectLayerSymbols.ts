@@ -217,6 +217,8 @@ export interface ObjectPlacementViewModel {
   readonly swing: SwingDirection;
   readonly centrePx: ObjectPointPx;
   readonly angleDeg: number;
+  /** Cửa bản lề mở về mặt +y cục bộ (mặt `inward` của cảnh 3D): lật ký hiệu theo trục tường. */
+  readonly swingsInward?: true;
   readonly widthPx: number;
   readonly depthPx: number;
   readonly boundsPx: ObjectRectPx;

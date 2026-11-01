@@ -115,7 +115,7 @@ export function ObjectSymbolFigure({
       }}
     >
       {/* Đặt chỗ bằng THUỘC TÍNH `transform` của SVG: lớp `scale-…` bên trong ghi vào `transform` CSS, chung chỗ thì nuốt nhau. */}
-      <g transform={`translate(${placement.centrePx.x} ${placement.centrePx.y}) rotate(${placement.angleDeg})`}>
+      <g transform={`translate(${placement.centrePx.x} ${placement.centrePx.y}) rotate(${placement.angleDeg})${placement.swingsInward === true ? ' scale(1 -1)' : ''}`}>
         <g
           className={cn(
             'origin-center transition-[opacity,transform] duration-260 motion-reduce:transition-none',

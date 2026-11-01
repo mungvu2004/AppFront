@@ -32,7 +32,7 @@ import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 
 import { QcAskAnchor } from '../shared/QcAskCard';
 import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
-import { useQcAskSlot } from '../shared/qcAsk';
+import { pointInFrame, rectInFrame, useQcAskSlot } from '../shared/qcAsk';
 import { QcViewLayer } from '../shared/QcViewLayer';
 import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
 
@@ -109,6 +109,8 @@ export function ObjectLayerCanvas({
     [setPanEl],
   );
 
+  /* Khổ khung: hook cần cho "vừa khung", thẻ hỏi cần để đổi toạ độ lớp phóng ra toạ độ khung. */
+  const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null);
   /* Khổ hộp đệm lên hook — "vừa khung" (BUG-403) cần biết khung rộng bao nhiêu. */
   useEffect(() => {
     const frame = frameRef.current;
@@ -117,14 +119,20 @@ export function ObjectLayerCanvas({
       return undefined;
     }
 
+    setFrameSize({ width: frame.clientWidth, height: frame.clientHeight });
     const observer = new ResizeObserver(() => {
-      onFrameResize({ width: frame.clientWidth, height: frame.clientHeight });
+      const size = { width: frame.clientWidth, height: frame.clientHeight };
+      setFrameSize(size);
+      onFrameResize(size);
     });
 
     observer.observe(frame);
 
     return () => observer.disconnect();
   }, [onFrameResize]);
+
+  const frameView = frameSize === null ? null : { scale, offset: pan.offset, ...frameSize };
+  const focusRectPx = selectedObjectId === null || haloRectPx === null || frameView === null ? null : rectInFrame(haloRectPx, frameView);
 
   const halo = useSelectionHalo();
   const ask = useQcAskSlot();
@@ -339,8 +347,6 @@ export function ObjectLayerCanvas({
           )}
         </svg>
 
-        <QcAskAnchor rect={selectedObjectId === null ? null : haloRectPx}>{ask}</QcAskAnchor>
-        <QcViewLayer focus={selectedObjectId === null ? null : haloRectPx} onPick={onSelect} pins={viewPins} selectedId={selectedObjectId} />
 
         {haloRectPx === null ? null : (
           <>
@@ -385,6 +391,10 @@ export function ObjectLayerCanvas({
           </>
         )}
       </div>
+
+      {/* Thẻ hỏi và lớp làm tối đứng NGOÀI lớp phóng: chữ thẻ không to theo mức phóng, mặt nạ phủ đủ khung. */}
+      <QcAskAnchor rect={focusRectPx}>{ask}</QcAskAnchor>
+      <QcViewLayer focus={focusRectPx} onPick={onSelect} pins={frameView === null ? [] : viewPins.map((pin) => pointInFrame(pin, frameView))} selectedId={selectedObjectId} />
 
       {placements.length === 0 && !isLoading ? (
         <p className="absolute inset-x-0 top-1/2 text-center text-[13px] text-text-muted">

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { QcAskAnchor, QcAskCard } from './QcAskCard';
-import { ASK_CARD_WIDTH, ASK_CARD_WIDTH_NARROW, askCardPlacement, askCardWidthFor, askNavOf, stableAskPlacement } from './qcAsk';
+import { ASK_CARD_WIDTH, ASK_CARD_WIDTH_NARROW, askCardPlacement, askCardWidthFor, askNavOf, rectInFrame, stableAskPlacement } from './qcAsk';
 
 const FRAME = { width: 1400, height: 900 };
 
@@ -84,6 +84,22 @@ describe('QcAskCard', () => {
       </QcAskCard>,
     );
     expect(screen.getByTestId('qc-ask-reason-slot')).toHaveClass('h-9');
+  });
+});
+
+describe('rectInFrame (thẻ đứng ngoài lớp phóng)', () => {
+  it('đổi hộp ở lớp `translate(offset) scale(s)` quanh tâm khung ra toạ độ khung', () => {
+    const view = { scale: 2, offset: { x: 10, y: -20 }, width: 1000, height: 600 };
+    expect(rectInFrame({ x: 600, y: 300, width: 40, height: 20 }, view)).toEqual({ x: 710, y: 280, width: 80, height: 40 });
+  });
+});
+
+describe('QcAskCard: nút đóng', () => {
+  it('có `onClose` thì hiện nút "Đóng thẻ" và bấm gọi đúng hàm', () => {
+    const onClose = vi.fn();
+    render(<QcAskCard eyebrow="Mục 1 trong 2 cần xem" onClose={onClose}>thân</QcAskCard>);
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng thẻ' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

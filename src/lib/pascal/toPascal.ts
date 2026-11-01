@@ -30,7 +30,6 @@ import type {
   FurnitureKind,
   Level,
   Opening,
-  Point,
   Room,
   RoomUsage,
   SpatialGraph,
@@ -43,10 +42,14 @@ import { EXTERIOR_SKIRTING, isDetailsEnabled } from '@/pascal-page/realism/detai
 import { applyFloorTransforms, floorDisplayTransformsOf } from './floorAlignment';
 import { CATALOG_MODELS, VARIANT_MODEL, isServerModel, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
+import { expandKitchenRuns, isKitchenRunHost } from './kitchenRuns';
+import { orientDetectedFurniture } from './orientDetected';
 import { roofNodesOf } from './roofs';
+import { insideOutline, swingDirectionOf } from './swingDirection';
 import {
   ceilingNodesOf,
   floorMaterialOf,
+  isGeneratedNodeId,
   itemSlotsOf,
   lampInteractiveOf,
   SCENE_MATERIALS,
@@ -380,50 +383,6 @@ const windowStyleOf = (
   }
 };
 
-/** Điểm nằm trong đa giác (tia ngang, chẵn-lẻ). */
-const insideOutline = (p: Point, outline: readonly Point[]): boolean => {
-  let inside = false;
-  for (let i = 0, j = outline.length - 1; i < outline.length; j = i++) {
-    const a = outline[i]!;
-    const b = outline[j]!;
-    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
-  }
-  return inside;
-};
-
-/** Khoảng dò hai bên mặt tường để tìm phòng, mm. */
-const SWING_PROBE_MM = 300;
-
-/**
- * Cánh cửa mở về phía nào của tường, theo luật (V5 D7):
- * - cửa trên tường bao (một bên là phòng, bên kia là ngoài nhà) mở VÀO nhà;
- * - cửa trong mở vào phòng nó phục vụ: phòng không phải hành lang; nếu cả hai
- *   (hoặc không bên nào) là hành lang → phòng nhỏ hơn.
- * Pascal: `inward` = cánh quét sang +z cục bộ của tường (`door-system.tsx:2372,2650`),
- * tường quay −atan2(cuối − đầu) nên +z cục bộ là pháp tuyến TRÁI của trục
- * (−dy, dx) trên mặt bằng. Không phòng nào cả hai bên → giữ `inward`.
- */
-export const swingDirectionOf = (opening: Opening, wall: Wall | undefined, rooms: readonly Room[]): 'inward' | 'outward' => {
-  if (wall === undefined) return 'inward';
-  const { start, end } = wall.centreline;
-  const length = Math.hypot(end.x - start.x, end.y - start.y);
-  if (!(length > 0)) return 'inward';
-  const dir = { x: (end.x - start.x) / length, y: (end.y - start.y) / length };
-  const along = opening.offsetMm + opening.widthMm / 2;
-  const reach = wall.thicknessMm / 2 + SWING_PROBE_MM;
-  const roomAt = (sign: number): Room | undefined => {
-    const p = { x: start.x + dir.x * along - dir.y * reach * sign, y: start.y + dir.y * along + dir.x * reach * sign };
-    // Sàn decking = sân/hiên ngoài trời → coi như ngoài nhà, cửa mở vào phòng trong.
-    return rooms.find((r) => r.levelId === wall.levelId && r.finish !== 'decking' && insideOutline(p, r.outline));
-  };
-  const left = roomAt(1);
-  const right = roomAt(-1);
-  if (left === undefined || right === undefined) return right !== undefined ? 'outward' : 'inward';
-  const corridor = (r: Room): boolean => r.usage === 'corridor';
-  if (corridor(left) !== corridor(right)) return corridor(left) ? 'outward' : 'inward';
-  return right.areaM2 < left.areaM2 ? 'outward' : 'inward';
-};
-
 /**
  * Khung sáng + kính sáng (`mat_appfront_glass`, `sceneDressing.ts`) để cửa sổ đọc ra là kính, không
  * phải tấm màu (V5 D5). Không dùng `preset-glass`: xanh trời 0,3 nên Pascal phủ fresnel phản chiếu
@@ -572,6 +531,7 @@ export const furnitureModelOf = (
     case 'kitchenCabinet':
       return pick(short >= 0.6 && long <= 0.8 ? 'fridge' : 'kitchen-counter');
     case 'sanitaryFixture':
+      if (usage === 'kitchen') return pick('kitchen');
       if (short < 0.5 && long < 0.8) return pick('toilet');
       if (long > 1.5) return pick('bathtub');
       if (short >= 0.75 && long - short < 0.1) return pick('shower-square');
@@ -583,7 +543,9 @@ export const furnitureModelOf = (
     case 'other':
       if (usage === 'livingRoom' && long > 1.5) return pick('sofa');
       if (h !== undefined && h < 0.05) return pick('rectangular-carpet');
-      return pick(w * d < 0.25 ? 'small-indoor-plant' : 'indoor-plant');
+      // Như `roleOf` (sceneVariety.ts): món dò được không bao giờ thành cây.
+      if (usage === 'kitchen') return pick(short >= 0.55 ? 'fridge' : 'stove');
+      return pick('dresser');
   }
 };
 
@@ -1185,7 +1147,11 @@ export const toPascalScene = (
     }
   }
 
-  for (const furniture of graph.furniture) {
+  /* Đồ AI chưa duyệt còn góc 0 quay theo bàn/tường (`orientDetected`); quầy bếp cỡ khối đặc tách thành dãy tủ
+     sát tường (`kitchenRuns`) — cả hai chỉ ở cảnh, không ghi về BE khi chưa sửa. */
+  const furnitureToBuild = expandKitchenRuns(orientDetectedFurniture(graph.furniture, graph.walls), builtWalls);
+
+  for (const furniture of furnitureToBuild) {
     /* Gợi ý của máy chưa được nhận thì chưa vào cảnh 3D (B3). */
     if (furniture.suggested === true) {
       skipped.push(skip(furniture.id, 'đồ đạc', 'Gợi ý của máy chưa được nhận.'));
@@ -1238,17 +1204,22 @@ export const toPascalScene = (
       builtRooms.find((r) => r.levelId === furniture.levelId && insideOutline(furniture.centre, r.outline));
     const arms = lShapedRunArms(furniture, room, { ...graph, walls: builtWalls, openings: builtOpenings });
     const usageOf = (f: Furniture) => (f.roomId === undefined ? undefined : roomUsageOf.get(f.roomId));
-    const sinkFolder = sinkFolderOf(furniture, graph.furniture, usageOf);
+    const sinkFolder = sinkFolderOf(furniture, furnitureToBuild, usageOf);
     const node =
       arms === null
-        ? itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage, counterTopMmOf(furniture, graph.furniture, style, usageOf), sinkFolder)
+        ? itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage, counterTopMmOf(furniture, furnitureToBuild, style, usageOf), sinkFolder)
         : longArmNodeOf(
             furniture,
             arms.long,
             itemNodeOf({ ...furniture, ...arms.long }, levelNodeId, levelHeightMm, style, usage, 0, sinkFolder),
           );
 
-    nodes[node.id] = node;
+    /* Hộp quầy gốc vẫn phải có node (thiếu = lượt lưu đọc thành xoá) nhưng ẩn; dãy tủ thay nó là đồ sinh ra. */
+    nodes[node.id] = isKitchenRunHost(furniture)
+      ? { ...node, visible: false }
+      : isGeneratedNodeId(node.id)
+        ? { ...node, metadata: { ...node.metadata, generated: 'dressing' } }
+        : node;
     adopt(levelNodeId, node.id);
 
     /* V1 — nhánh thứ hai của dãy tủ chữ L: đồ sinh ra, không bao giờ lưu (`isGeneratedNodeId`). */
