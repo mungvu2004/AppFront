@@ -11,7 +11,8 @@ import { millimetres } from '@/domain/units/types';
 
 /**
  * Phép biến đổi hiển thị mỗi tầng (báo cáo 2.8.2): chỉ tầng căn được — đủ trục
- * khớp và sai lệch trong ngưỡng — mới có mục; tầng gốc, tầng đã khớp sẵn hay
+ * khớp và sai lệch trong ngưỡng, hoặc thiếu trục nhưng dời theo tâm khung bao tường
+ * (`method: 'bbox'`) — mới có mục; tầng gốc, tầng đã khớp sẵn hay
  * tầng không căn được thì vắng mặt, nghĩa là giữ nguyên toạ độ đã lưu.
  * Không đụng dữ liệu: kết quả chỉ để dựng cảnh 3D.
  */
@@ -56,10 +57,8 @@ export const floorDisplayTransformsOf = (graph: SpatialGraph): ReadonlyMap<strin
     if (
       !floor.isBase &&
       !isIdentity &&
-      // ponytail: tầng `method: 'bbox'` chưa áp — dời tầng làm đồ tự sinh bị đọc về thành đồ người thêm
-      // (edits.test "0 lệnh" đỏ). Sửa vòng sceneDressing/toSpatial rồi thêm `floor.method === 'bbox' ||`.
-      floor.matchedAxisCount >= MIN_MATCHED_AXES &&
-      floor.maxResidualMm <= ALIGNMENT_WARNING_THRESHOLD_MM
+      (floor.method === 'bbox' ||
+        (floor.matchedAxisCount >= MIN_MATCHED_AXES && floor.maxResidualMm <= ALIGNMENT_WARNING_THRESHOLD_MM))
     ) {
       transforms.set(floor.levelId, floor.transform);
     }
@@ -181,6 +180,13 @@ export const undoFloorTransforms = <S extends { readonly nodes: Record<string, u
   );
   if (levels.length === 0) return scene;
   const nodes = { ...scene.nodes };
-  for (const level of levels) moveChildren(nodes, level, readRigid(level)!, true);
+  for (const level of levels) {
+    moveChildren(nodes, level, readRigid(level)!, true);
+    // Bỏ khoá sau khi gỡ để gọi lại không gỡ lần hai (fromPascal gỡ trước rồi toSpatialGraph gỡ tiếp).
+    const metadata = level.metadata as { appfront: Record<string, unknown> };
+    const appfront = { ...metadata.appfront };
+    delete appfront[FLOOR_TRANSFORM_KEY];
+    nodes[level.id] = { ...level, metadata: { ...metadata, appfront } };
+  }
   return { ...scene, nodes };
 };

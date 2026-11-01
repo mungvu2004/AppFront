@@ -66,6 +66,14 @@ export const AXIS_MATCH_CAPTURE_MM: Millimetres = millimetres(500);
 /** Fewest matched axes that make an alignment mean anything. */
 export const MIN_MATCHED_AXES = 2;
 
+/**
+ * Share of the smaller wall box that must already lie inside the other for the
+ * wall-box fallback to leave a floor where it is: a set-back penthouse drawn in
+ * the same frame as the floor below overlaps it, a floor from another sheet
+ * usually does not.
+ */
+export const BBOX_IN_PLACE_OVERLAP = 0.5;
+
 /** Lowest clear height a storey can be built to. */
 export const MIN_CLEAR_HEIGHT_MM: Millimetres = millimetres(2400);
 
@@ -440,7 +448,9 @@ function isBetterRotation(candidate: RotationFit, incumbent: RotationFit): boole
  * Fallback when the axes do not match: move the centre of the floor's wall box
  * onto the centre of the base floor's. Centres rather than corners, so an upper
  * floor with a smaller footprint or a balcony still lands over the middle.
- * `null` when either floor has no walls.
+ * Identity when the boxes already overlap by `BBOX_IN_PLACE_OVERLAP` of the
+ * smaller one (the floor is taken to be in place). `null` when either floor has
+ * no walls.
  */
 function bboxTransform(
   floorBounds: WallBounds | null | undefined,
@@ -450,6 +460,21 @@ function bboxTransform(
     return null;
   }
   const centre = (bounds: WallBounds, key: 'x' | 'y'): number => (bounds.min[key] + bounds.max[key]) / 2;
+  const span = (bounds: WallBounds, key: 'x' | 'y'): number => bounds.max[key] - bounds.min[key];
+  const shared = (key: 'x' | 'y'): number =>
+    Math.max(0, Math.min(floorBounds.max[key], baseBounds.max[key]) - Math.max(floorBounds.min[key], baseBounds.min[key]));
+  const smallerArea = Math.min(span(floorBounds, 'x') * span(floorBounds, 'y'), span(baseBounds, 'x') * span(baseBounds, 'y'));
+  // A box flat in one direction (walls on one line) has no area: compare it along each direction instead.
+  const sharedShare = (key: 'x' | 'y'): number => {
+    const shorter = Math.min(span(floorBounds, key), span(baseBounds, key));
+    const touches = Math.min(floorBounds.max[key], baseBounds.max[key]) >= Math.max(floorBounds.min[key], baseBounds.min[key]);
+    return shorter > 0 ? shared(key) / shorter : touches ? 1 : 0;
+  };
+  const overlap =
+    smallerArea > 0 ? (shared('x') * shared('y')) / smallerArea : sharedShare('x') * sharedShare('y');
+  if (overlap >= BBOX_IN_PLACE_OVERLAP) {
+    return IDENTITY_TRANSFORM;
+  }
   return {
     rotationDeg: 0,
     translationMm: {

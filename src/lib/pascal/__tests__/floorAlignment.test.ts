@@ -65,6 +65,34 @@ describe('floorDisplayTransformsOf', () => {
 
     expect(floorDisplayTransformsOf(graph).size).toBe(0);
   });
+
+  /** Bốn bức tường đơn lẻ (mỗi trục chỉ một tường nên không thành trục) quanh hộp (x0, y0)–(x1, y1). */
+  const boxWalls = (levelId: string, x0: number, y0: number, x1: number, y1: number) => {
+    const corners: P[] = [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+    return corners.map((start, i) => ({
+      ...gridWalls(levelId, (p) => p)[0]!,
+      id: `${levelId}-B${String(i)}`,
+      centreline: { start, end: corners[(i + 1) % 4]! },
+    }));
+  };
+
+  it('tầng có tường nhưng không có trục, nằm lệch hẳn, thì dời theo tâm khung bao tường', () => {
+    const graph = {
+      levels: [level('L1', 0), level('L2', 1)],
+      walls: [...gridWalls('L1', (p) => p), ...boxWalls('L2', 5000, -3000, 9000, 1000)],
+    } as unknown as SpatialGraph;
+
+    expect(floorDisplayTransformsOf(graph).get('L2')).toMatchObject({ rotationDeg: 0, translationMm: { x: -2500, y: 4500 } });
+  });
+
+  it('tầng lùi (penthouse) đã nằm trong khung tầng gốc thì giữ nguyên', () => {
+    const graph = {
+      levels: [level('L1', 0), level('L2', 1)],
+      walls: [...gridWalls('L1', (p) => p), ...boxWalls('L2', 1000, 1000, 5000, 5000)],
+    } as unknown as SpatialGraph;
+
+    expect(floorDisplayTransformsOf(graph).has('L2')).toBe(false);
+  });
 });
 
 describe('toPascalScene + toSpatialGraph với tầng căn', () => {

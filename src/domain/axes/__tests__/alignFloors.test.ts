@@ -18,6 +18,7 @@ import {
   ALIGNMENT_WARNING_THRESHOLD_MM,
   applyFloorTransform,
   ceilingElevationMm,
+  IDENTITY_TRANSFORM,
   MAX_CLEAR_HEIGHT_MM,
   MIN_CLEAR_HEIGHT_MM,
   pickBaseFloor,
@@ -457,9 +458,18 @@ describe('a floor whose axes do not match falls back to the wall box', () => {
   });
 
   it('matches centres, so a smaller upper footprint lands over the middle', () => {
-    const upper: FloorPlan = { ...floor('L-000002AAAA', 'Tầng 2', 3300, 3000, []), wallBoundsMm: box(6000, 0, 10000, 4000) };
+    const upper: FloorPlan = { ...floor('L-000002AAAA', 'Tầng 2', 3300, 3000, []), wallBoundsMm: box(20000, 0, 24000, 4000) };
 
-    expect(alignFloors([BASE, upper]).floors[1]?.transform.translationMm).toEqual({ x: -3800, y: 1500 });
+    expect(alignFloors([BASE, upper]).floors[1]?.transform.translationMm).toEqual({ x: -17800, y: 1500 });
+  });
+
+  it('leaves a set-back floor that already overlaps the base box where it is', () => {
+    // 2 400 × 4 000 of a 4 000 × 4 000 box lies over the base: 0,6 ≥ 0,5.
+    const upper: FloorPlan = { ...floor('L-000002AAAA', 'Tầng 2', 3300, 3000, []), wallBoundsMm: box(6000, 0, 10000, 4000) };
+    const second = alignFloors([BASE, upper]).floors[1];
+
+    expect(second?.method).toBe('bbox');
+    expect(second?.transform).toEqual(IDENTITY_TRANSFORM);
   });
 
   it('keeps the axis fit when the axes match', () => {
