@@ -968,6 +968,47 @@ describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved
     expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo(built / 2, 6);
   });
 
+  it('[D1] rộng × dài căn theo tim tường: tỷ lệ suy từ hộp bao tường → đi đường xác nhận như cũ', async () => {
+    useStore.getState().setSpatial(null, null);
+    simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO, 'pipeline');
+    const harness = await makeHarness();
+    /* Hộp tim tường 10 × 20 m ở tỷ lệ đã dựng; căn thật 5 × 10 m → mm/px còn một nửa. */
+    const wall = (x1: number, y1: number, x2: number, y2: number) => ({
+      centreline: { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } },
+      thicknessMm: 200,
+    });
+    let built = 0;
+    const gateway = withScaleCapabilities(harness.gateway, {
+      readLayer: async (input) => {
+        const document = await harness.gateway.readLayer(input);
+        built = document.level.scaleMillimetresPerPixel ?? 0;
+        const walls = [wall(0, 0, 10_000, 0), wall(10_000, 0, 10_000, 20_000)];
+        return { ...document, dimensions: [], layer: { ...document.layer, walls: walls as never } };
+      },
+    });
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+    await settleAsync();
+
+    expect(mounted.result.current.model.panel.sizeEntry?.isOuter).toBe(true);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeFlatSize?.({ widthText: '5000', lengthText: '11000', isOuter: false });
+    });
+    expect(mounted.result.current.model.panel.sizeEntry?.error).toMatch(/lệch/u);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeFlatSize?.({ lengthText: '10000' });
+    });
+    expect(mounted.result.current.model.panel.sizeEntry?.error).toBeNull();
+    expect(mounted.result.current.model.panel.applyMissingHint).toBeUndefined();
+
+    await applyNow(mounted);
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(harness.writeLayer.mock.calls[0]?.[0].body.scaleMillimetresPerPixel).toBeCloseTo(built / 2, 6);
+  });
+
   it('storedRatio null: nhãn "Chưa có", dải tỷ lệ tạm; áp đúng tỷ lệ tạm → một PUT, dải mất', async () => {
     const { harness, mounted } = await mountProvisional();
 

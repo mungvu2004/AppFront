@@ -528,6 +528,10 @@ export interface ScalePanelViewModel {
   readonly ratioEntry?: ScaleRatioEntryViewModel;
   /** UX-R4 U11: ô "Theo diện tích căn (m²)". Có khi tầng đã có phòng hoặc tường để đo diện tích. */
   readonly areaEntry?: ScaleRatioEntryViewModel;
+  /** D1: ô "Căn rộng × dài (mm)". Có khi tầng đã có tường để đo hộp bao. */
+  readonly sizeEntry?: ScaleSizeEntryViewModel;
+  /** D1: nút xác nhận xám — một dòng nói còn thiếu gì. */
+  readonly applyMissingHint?: string;
   /** UX-R4 U06: ảnh chụp/JPG (không có DPI) — một câu nói vì sao ghi chú "TL 1/N" không dùng được. */
   readonly ratioPhotoNotice?: string;
 }
@@ -541,6 +545,21 @@ export interface ScaleRatioEntryViewModel {
   readonly error: string | null;
   /** Dòng phụ dưới ô, ví dụ cỡ căn suy ra "Căn rộng ≈ 8,7 × 8,2 m, 1 px ≈ 12 mm." */
   readonly hint?: string;
+}
+
+/** D1: chữ người dùng gõ ở ô rộng × dài + hai lựa chọn. */
+export interface FlatSizeEntryState {
+  readonly widthText: string;
+  readonly lengthText: string;
+  /** "Đổi chiều": rộng ứng bề cao ảnh. */
+  readonly isSwapped: boolean;
+  /** `true` = tính từ mép ngoài tường (mặc định), `false` = theo tim tường. */
+  readonly isOuter: boolean;
+}
+
+export interface ScaleSizeEntryViewModel extends FlatSizeEntryState {
+  /** Câu lệch hai cạnh > 3 %; `null` khi ổn hoặc chưa đủ số. */
+  readonly error: string | null;
 }
 
 /** Lời đề nghị "Máy ước lượng từ độ dày tường: 1 px ≈ X mm. [Dùng tỷ lệ này]". */
@@ -741,6 +760,8 @@ export interface ScaleCalibrationActions {
   readonly onChangeDrawingRatio?: (text: string) => void;
   /** UX-R4 U11: gõ diện tích căn (m²) để suy tỷ lệ; tuỳ chọn như `onChangeDrawingRatio`. */
   readonly onChangeFlatArea?: (text: string) => void;
+  /** D1: sửa ô rộng × dài căn. */
+  readonly onChangeFlatSize?: (patch: Partial<FlatSizeEntryState>) => void;
   /** UX-R4 U06: phóng khung nhìn tới số kích thước đang chọn (hoặc số đầu). */
   readonly onZoomToNumbers?: () => void;
   /** Đồng ý ở hộp thoại A9: gửi tỷ lệ cho từng tầng có bản vẽ, nối tiếp. */
@@ -820,6 +841,7 @@ export interface ScaleCalibrationPanelProps {
     | 'onUseSuggestedScale'
     | 'onChangeDrawingRatio'
     | 'onChangeFlatArea'
+    | 'onChangeFlatSize'
     | 'onZoomToNumbers'
   >;
 }

@@ -19,6 +19,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 
 import { ScaleCalibrationMethodDimension } from './ScaleCalibrationMethodDimension';
 import { ScaleCalibrationMethodReference } from './ScaleCalibrationMethodReference';
+import { ScaleCalibrationSizeEntry } from './ScaleCalibrationSizeEntry';
 import type { ScaleCalibrationPanelProps } from './types';
 
 const SIDEBAR_ARIA_LABEL = 'Cách đặt tỷ lệ';
@@ -27,6 +28,7 @@ const METHOD_TITLE = 'Cách đặt';
 const METHOD_ARIA_LABEL = 'Chọn cách xác định tỷ lệ';
 const SHORTCUTS_ARIA_LABEL = 'Phím tắt';
 const SUGGESTION_ARIA_LABEL = 'Tỷ lệ máy ước lượng';
+const OTHER_TITLE = 'Cách khác';
 
 type SidebarProps = Pick<ScaleCalibrationPanelProps, 'actions' | 'panel' | 'state'>;
 
@@ -69,50 +71,14 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
         </section>
       )}
 
-      {/* UX41 U01: máy chủ biết DPI của ảnh — nhập thẳng tỷ lệ ghi trên bản vẽ, khỏi kéo đo. */}
-      {panel.ratioEntry !== undefined && !isLoading && !isForbidden && (
-        <section className="flex flex-col gap-2 border-b border-border-default px-4 py-3">
-          <Input
-            className="font-mono text-[13px] leading-5"
-            error={panel.ratioEntry.error ?? undefined}
-            label={panel.ratioEntry.label}
-            onChange={(event) => {
-              actions.onChangeDrawingRatio?.(event.target.value);
-            }}
-            placeholder={panel.ratioEntry.placeholder}
-            value={panel.ratioEntry.text}
-          />
-        </section>
-      )}
-
-      {/* UX-R4 U11: brochure không ghi số kích thước nhưng in diện tích căn — gõ diện tích, máy suy tỷ lệ. */}
-      {panel.areaEntry !== undefined && !isLoading && !isForbidden && (
-        <section className="flex flex-col gap-2 border-b border-border-default px-4 py-3">
-          <Input
-            className="font-mono text-[13px] leading-5"
-            error={panel.areaEntry.error ?? undefined}
-            hint={panel.areaEntry.hint}
-            inputMode="decimal"
-            label={panel.areaEntry.label}
-            onChange={(event) => {
-              actions.onChangeFlatArea?.(event.target.value);
-            }}
-            placeholder={panel.areaEntry.placeholder}
-            value={panel.areaEntry.text}
-          />
-        </section>
-      )}
-
-      {/* UX-R4 U06: ảnh chụp/JPG — nói một câu vì sao ghi chú "TL 1/N" không dùng được. */}
-      {panel.ratioEntry === undefined && panel.ratioPhotoNotice !== undefined && !isLoading && !isForbidden && (
-        <p className="border-b border-border-default px-4 py-3 text-[13px] text-text-secondary">
-          {panel.ratioPhotoNotice}
-        </p>
+      {/* D1: cách nhanh nhất khi biết cỡ căn — đặt trước cách kéo đo. */}
+      {panel.sizeEntry !== undefined && actions.onChangeFlatSize !== undefined && !isLoading && !isForbidden && (
+        <ScaleCalibrationSizeEntry entry={panel.sizeEntry} onChange={actions.onChangeFlatSize} />
       )}
 
       {/* UX41 U46: người xem không sửa được — không bày ô nhập/nút đo mờ; dải trên bản vẽ đã nói nhờ ai. */}
       {!isForbidden && (
-      <div className="flex flex-col gap-3 px-4 py-4">
+      <div className="flex flex-col gap-2 px-4 py-3">
         <h3 className="text-[13px] font-medium text-text-secondary">{METHOD_TITLE}</h3>
         {!hasLockedMethod && (
           <SegmentedControl
@@ -172,6 +138,53 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
           <p className="text-[13px] text-text-secondary">{panel.methodNotice}</p>
         )}
       </div>
+      )}
+      {/* D1: cách ít dùng (1:N, m² brochure) gập lại để ô rộng × dài và nút xác nhận vừa một màn. */}
+      {(panel.ratioEntry !== undefined || panel.areaEntry !== undefined || panel.ratioPhotoNotice !== undefined) && !isLoading && !isForbidden && (
+        <details className="border-t border-border-default">
+          <summary className="cursor-pointer px-4 py-3 text-[13px] font-medium text-text-secondary">{OTHER_TITLE}</summary>
+      {/* UX41 U01: máy chủ biết DPI của ảnh — nhập thẳng tỷ lệ ghi trên bản vẽ, khỏi kéo đo. */}
+      {panel.ratioEntry !== undefined && !isLoading && !isForbidden && (
+        <section className="flex flex-col gap-2 px-4 py-3">
+          <Input
+            className="font-mono text-[13px] leading-5"
+            error={panel.ratioEntry.error ?? undefined}
+            label={panel.ratioEntry.label}
+            onChange={(event) => {
+              actions.onChangeDrawingRatio?.(event.target.value);
+            }}
+            placeholder={panel.ratioEntry.placeholder}
+            value={panel.ratioEntry.text}
+          />
+        </section>
+      )}
+
+      {/* UX-R4 U11: brochure không ghi số kích thước nhưng in diện tích căn — gõ diện tích, máy suy tỷ lệ. */}
+      {panel.areaEntry !== undefined && !isLoading && !isForbidden && (
+        <section className="flex flex-col gap-2 px-4 py-3">
+          <Input
+            className="font-mono text-[13px] leading-5"
+            error={panel.areaEntry.error ?? undefined}
+            hint={panel.areaEntry.hint}
+            inputMode="decimal"
+            label={panel.areaEntry.label}
+            onChange={(event) => {
+              actions.onChangeFlatArea?.(event.target.value);
+            }}
+            placeholder={panel.areaEntry.placeholder}
+            value={panel.areaEntry.text}
+          />
+        </section>
+      )}
+
+      {/* UX-R4 U06: ảnh chụp/JPG — nói một câu vì sao ghi chú "TL 1/N" không dùng được. */}
+      {panel.ratioEntry === undefined && panel.ratioPhotoNotice !== undefined && !isLoading && !isForbidden && (
+        <p className="px-4 py-3 text-[13px] text-text-secondary">
+          {panel.ratioPhotoNotice}
+        </p>
+      )}
+
+        </details>
       )}
     </section>
   );

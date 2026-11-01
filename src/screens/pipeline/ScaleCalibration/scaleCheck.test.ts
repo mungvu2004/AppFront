@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildScaleCheck,
+  FLAT_SIZE_MISMATCH_PERCENT,
+  ratioFromFlatSize,
+  wallBoxPx,
   inferredDpi,
   isFlatAreaImplausible,
   isPlanSizeImplausible,
@@ -99,7 +102,8 @@ describe('scaleCheck', () => {
     expect(check.detailLine).toBe('24,878 mm/px');
     expect(check.title).toBe('Cỡ căn theo tỷ lệ máy đo');
     expect(check.status.label).toBe('Tỷ lệ cần kiểm');
-    expect(check.status.sentence).toBe('Đang tạm dùng tỷ lệ cho căn ≈ 9,1 × 7,4 m.');
+    expect(check.status.sentence).toBe('Máy ước tỷ lệ cho căn ≈ 9,1 × 7,4 m, chưa ai xác nhận.');
+    expect(check.status.source).toBe('provisional');
   });
 
   it('[UX-R2 K27/K50] tầng máy không đo được: nhãn đỏ "Chưa có tỷ lệ", cỡ căn ghi "chắc chắn sai"', () => {
@@ -134,5 +138,61 @@ describe('scaleCheck', () => {
     expect(isPlanSizeImplausible({ widthMm: 91_000, heightMm: 85_900 }, 3000, 40_000)).toBe(true);
     expect(isPlanSizeImplausible({ widthMm: 700, heightMm: 600 }, 3000, 40_000)).toBe(true);
     expect(isPlanSizeImplausible({ widthMm: 10_100, heightMm: 9_400 }, 3000, 40_000)).toBe(false);
+  });
+});
+
+describe('D1 rộng × dài căn', () => {
+  const walls = [
+    { x1: 0, y1: 0, x2: 100, y2: 0, thicknessPx: 10 },
+    { x1: 100, y1: 0, x2: 100, y2: 200, thicknessPx: 10 },
+  ];
+
+  it('hộp mép ngoài cộng nửa bề dày mỗi phía, tim tường thì không', () => {
+    expect(wallBoxPx(walls, true)).toEqual({ widthPx: 110, heightPx: 210 });
+    expect(wallBoxPx(walls, false)).toEqual({ widthPx: 100, heightPx: 200 });
+    expect(wallBoxPx([], true)).toBeNull();
+  });
+
+  it('tỷ lệ = trung bình hai cạnh; đổi chiều hoán rộng/dài', () => {
+    const box = { widthPx: 100, heightPx: 200 };
+    expect(ratioFromFlatSize(1000, 2000, box, false)).toEqual({ mmPerPx: 10, mismatchPercent: 0 });
+    expect(ratioFromFlatSize(2000, 1000, box, true)).toEqual({ mmPerPx: 10, mismatchPercent: 0 });
+    expect(ratioFromFlatSize(0, 1000, box, false)).toBeNull();
+    expect(ratioFromFlatSize(Number.NaN, 1000, box, false)).toBeNull();
+  });
+
+  it('hai cạnh lệch: báo phần trăm lệch so với trung bình', () => {
+    const result = ratioFromFlatSize(1000, 2200, { widthPx: 100, heightPx: 200 }, false);
+    expect(result?.mmPerPx).toBeCloseTo(10.5);
+    expect(result?.mismatchPercent).toBeGreaterThan(FLAT_SIZE_MISMATCH_PERCENT);
+  });
+
+  it('mép ngoài vs tim cho tỷ lệ khác nhau', () => {
+    const outer = wallBoxPx(walls, true);
+    const centre = wallBoxPx(walls, false);
+    expect(outer && ratioFromFlatSize(1100, 2100, outer, false)?.mmPerPx).toBeCloseTo(10);
+    expect(centre && ratioFromFlatSize(1100, 2100, centre, false)?.mmPerPx).toBeCloseTo(10.75);
+  });
+});
+
+describe('D1 câu trạng thái khi máy đoán', () => {
+  const base = { mmPerPx: 24.878, shortEdgePx: 837, knownDimension: null, planSizeMm: { widthMm: 9100, heightMm: 7410 } };
+
+  it('không có số kích thước: nói thẳng ĐOÁN ±40 %', () => {
+    const check = buildScaleCheck({ ...base, source: 'provisional', isGuess: true, dimensionCount: 0 });
+    expect(check.status.sentence).toBe(
+      'Máy đang ĐOÁN tỷ lệ (không đọc được số kích thước). Sai có thể tới ±40 %. Cỡ căn theo đoán: ≈ 9,1 × 7,4 m.',
+    );
+  });
+
+  it('có số kích thước: nói máy đọc từ số trên bản vẽ', () => {
+    const check = buildScaleCheck({ ...base, source: 'proposed', isGuess: true, dimensionCount: 3 });
+    expect(check.status.sentence).toBe('Máy đọc từ 3 số kích thước trên bản vẽ, cỡ căn ≈ 9,1 × 7,4 m.');
+  });
+
+  it('đã xác nhận: không bao giờ nói đoán', () => {
+    const check = buildScaleCheck({ ...base, source: 'stored', isGuess: true, dimensionCount: 0 });
+    expect(check.status.source).toBe('stored');
+    expect(check.status.sentence).toBe('Đang dùng tỷ lệ cho căn ≈ 9,1 × 7,4 m.');
   });
 });

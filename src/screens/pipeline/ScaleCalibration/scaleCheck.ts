@@ -46,10 +46,20 @@ export interface ScaleCheckInput {
   readonly knownDimension: KnownDimension | null;
   /** K17: có thì số to là cỡ căn thật để soi bằng mắt; mm/px và 1:N lùi xuống dòng chi tiết. */
   readonly planSizeMm?: PlanSizeMm | null;
+  /** D1: số kích thước máy đọc được trên tầng; `0` + `isGuess` thì câu trạng thái nói thẳng là đoán. */
+  readonly dimensionCount?: number;
+  /** D1: tỷ lệ đang hiện chỉ là máy đoán (chưa ai xác nhận, chưa ai gõ/đo). */
+  readonly isGuess?: boolean;
 }
 
 export interface ScaleCheckViewModel {
-  readonly status: { readonly tone: ScaleCheckTone; readonly label: string; readonly sentence: string };
+  readonly status: {
+    readonly tone: ScaleCheckTone;
+    readonly label: string;
+    readonly sentence: string;
+    /** Nguồn có cấu trúc — view rẽ nhánh theo trường này, không đoán từ chữ của `label`. */
+    readonly source: ScaleSource | null;
+  };
   readonly title: string;
   /** "24,878" — đơn vị "mm/px" do view đặt cạnh, số to. `null` khi chưa có tỷ lệ. */
   readonly densityValue: string | null;
@@ -164,32 +174,100 @@ export function isPlanSizeImplausible(size: PlanSizeMm, minMm: number, maxMm: nu
   return longest > maxMm || longest < minMm;
 }
 
+type ScaleStatus = Omit<ScaleCheckViewModel['status'], 'source'>;
+
+/** D1: câu khi máy chỉ đoán — nói thẳng biên sai để người dùng biết phải nhập số. */
+function guessSentence(input: ScaleCheckInput, sizeText: string | null): string | null {
+  if (input.isGuess !== true || (input.source !== 'proposed' && input.source !== 'provisional')) {
+    return null;
+  }
+  const count = input.dimensionCount ?? 0;
+  if (count > 0) {
+    return `Máy đọc từ ${formatNumber(count)} số kích thước trên bản vẽ${sizeText === null ? '' : `, cỡ căn ${sizeText}`}.`;
+  }
+  return `Máy đang ĐOÁN tỷ lệ (không đọc được số kích thước). Sai có thể tới ±40 %.${sizeText === null ? '' : ` Cỡ căn theo đoán: ${sizeText}.`}`;
+}
+
 function statusOf(
   input: ScaleCheckInput,
   densityLabel: string,
   ratio: string | null,
   knownTone: 'verified' | 'attention' | null,
   sizeText: string | null,
-): ScaleCheckViewModel['status'] {
+): ScaleStatus {
   // K17: người dùng soi được cỡ căn thật, không soi được 1:N suy từ khổ A3.
   const withRatio = sizeText === null ? `tỷ lệ ${ratio ?? `${densityLabel} mm/px`}` : `tỷ lệ cho căn ${sizeText}`;
+  const guess = guessSentence(input, sizeText);
 
   switch (input.source) {
     // UX-R2 K05/K50: câu trạng thái chỉ nói tình hình; lời dẫn duy nhất nằm ở dải trên bản vẽ.
     case 'proposed':
-      return { tone: 'neutral', label: 'Chưa xác nhận', sentence: `Đo được ${withRatio}.` };
+      return { tone: 'neutral', label: 'Chưa xác nhận', sentence: guess ?? `Đo được ${withRatio}.` };
     case 'stored':
       return knownTone === 'attention'
         ? { tone: 'attention', label: 'Đã xác nhận, lệch kích thước', sentence: `Đang dùng ${withRatio}. Kiểm lại kích thước đã biết bên phải.` }
         : { tone: 'verified', label: 'Đã xác nhận', sentence: `Đang dùng ${withRatio}.` };
     case 'provisional':
       // Tên + màu trạng thái dùng chung mọi màn (`SCALE_STATE_VIEWS`).
-      return { tone: CHECK.statusCode, label: CHECK.name, sentence: `Đang tạm dùng ${withRatio}.` };
+      return { tone: CHECK.statusCode, label: CHECK.name, sentence: guess ?? `Máy ước ${withRatio}, chưa ai xác nhận.` };
     case 'missing':
       return { tone: MISSING.statusCode, label: MISSING.name, sentence: 'Máy không đo được tỷ lệ, cỡ căn hiện tại chắc chắn sai.' };
     default:
       return { tone: MISSING.statusCode, label: MISSING.name, sentence: 'Tầng này chưa có tỷ lệ.' };
   }
+}
+
+/** Một bức tường tính bằng pixel ảnh: hai đầu tim tường + bề dày. */
+export interface WallPx {
+  readonly x1: number;
+  readonly y1: number;
+  readonly x2: number;
+  readonly y2: number;
+  readonly thicknessPx: number;
+}
+
+/**
+ * D1: hộp bao tường (px). `outer` cộng nửa bề dày mỗi phía (tính từ mép ngoài tường), không thì
+ * hộp tim tường. Vắng tường thì `null`.
+ */
+export function wallBoxPx(walls: readonly WallPx[], outer: boolean): { readonly widthPx: number; readonly heightPx: number } | null {
+  if (walls.length === 0) {
+    return null;
+  }
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const wall of walls) {
+    const pad = outer ? wall.thicknessPx / 2 : 0;
+    minX = Math.min(minX, wall.x1 - pad, wall.x2 - pad);
+    maxX = Math.max(maxX, wall.x1 + pad, wall.x2 + pad);
+    minY = Math.min(minY, wall.y1 - pad, wall.y2 - pad);
+    maxY = Math.max(maxY, wall.y1 + pad, wall.y2 + pad);
+  }
+  return { widthPx: maxX - minX, heightPx: maxY - minY };
+}
+
+/** Lệch quá 3 % giữa tỷ lệ hai cạnh thì nhắc người dùng kiểm lại. */
+export const FLAT_SIZE_MISMATCH_PERCENT = 3;
+
+/**
+ * D1: tỷ lệ từ "Căn rộng × dài (mm)": trung bình (rộng / bề rộng hộp, dài / bề cao hộp). `swapped`
+ * đổi chiều (rộng ứng bề cao). `mismatchPercent` = độ lệch hai tỷ lệ so với trung bình.
+ */
+export function ratioFromFlatSize(
+  widthMm: number,
+  lengthMm: number,
+  box: { readonly widthPx: number; readonly heightPx: number },
+  swapped: boolean,
+): { readonly mmPerPx: number; readonly mismatchPercent: number } | null {
+  if (!(widthMm > 0) || !(lengthMm > 0) || !(box.widthPx > 0) || !(box.heightPx > 0)) {
+    return null;
+  }
+  const alongX = (swapped ? lengthMm : widthMm) / box.widthPx;
+  const alongY = (swapped ? widthMm : lengthMm) / box.heightPx;
+  const mmPerPx = (alongX + alongY) / 2;
+  return { mmPerPx, mismatchPercent: (Math.abs(alongX - alongY) / mmPerPx) * 100 };
 }
 
 export function buildScaleCheck(input: ScaleCheckInput): ScaleCheckViewModel {
@@ -237,7 +315,7 @@ export function buildScaleCheck(input: ScaleCheckInput): ScaleCheckViewModel {
     sizeText !== null && input.source === 'missing' ? `${sizeText}${MISSING_SIZE_SUFFIX}` : (sizeText ?? ratioLine);
 
   return {
-    status: statusOf(input, densityValue ?? '', hasScale ? ratioLine : null, knownCheck?.tone ?? null, sizeText),
+    status: { ...statusOf(input, densityValue ?? '', hasScale ? ratioLine : null, knownCheck?.tone ?? null, sizeText), source: input.source },
     title: input.source === null ? 'Tỷ lệ' : sizeText === null ? TITLES[input.source] : `Cỡ căn theo ${TITLES[input.source].toLowerCase()}`,
     densityValue,
     ratioLine,
