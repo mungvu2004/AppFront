@@ -34,6 +34,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { Toast, useToast } from '@/components/feedback/Toast';
+import { useDetectFurniture } from '@/hooks/useDetectFurniture';
 import { useSession } from '@/hooks/useSession';
 import type { ProjectRole } from '@/types/project';
 
@@ -94,8 +95,9 @@ function WiredFloorUpload(props: FloorUploadScreenContainerProps) {
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
     ...(props.now !== undefined ? { now: props.now } : {}),
   });
+  const furniture = useDetectFurniture(props.projectId);
 
-  return <FloorUploadScreenView {...model} />;
+  return <FloorUploadScreenView {...model} detectFurniture={furniture} />;
 }
 
 /** `<FloorUploadScreenContainer projectId={...} />` — màn tải bản vẽ thật, đã nối. */

@@ -360,6 +360,27 @@ describe('FloorUploadScreen — không tự viết giới hạn dung lượng', 
 /* (d) Nút chặn nêu tên tầng thiếu và cuộn tới đó.                             */
 /* -------------------------------------------------------------------------- */
 
+describe('FloorUploadScreenView — công tắc nhận diện đồ đạc (QT-FURN-TOGGLE)', () => {
+  it('vẽ công tắc theo cờ dự án và gọi lưu khi bấm; chỉ đọc thì khoá', () => {
+    const setDetectFurniture = vi.fn();
+    const furniture = { detectFurniture: false, isSaving: false, saveError: null, setDetectFurniture };
+    const { unmount } = renderWithProviders(<FloorUploadScreenView {...scenarioFor('success')} detectFurniture={furniture} />);
+    const toggle = screen.getByRole('switch', { name: /Nhận diện đồ đạc/u });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(toggle);
+    expect(setDetectFurniture).toHaveBeenCalledWith(true);
+    unmount();
+
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('success')} canEdit={false} detectFurniture={furniture} />);
+    expect(screen.getByRole('switch', { name: /Nhận diện đồ đạc/u })).toBeDisabled();
+  });
+
+  it('không có cờ thì không vẽ công tắc', () => {
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('success')} />);
+    expect(screen.queryByRole('switch', { name: /Nhận diện đồ đạc/u })).toBeNull();
+  });
+});
+
 describe('FloorUploadScreenView — tầng hay căn hộ riêng (K19)', () => {
   it('hỏi một câu, hai nút gọi đúng hành động', () => {
     const onSplitAsFloors = vi.fn();

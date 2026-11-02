@@ -191,6 +191,12 @@ describe('ProjectSettingsSchema', () => {
     expect(ProjectSettingsSchema.parse({ ...fullSettings, sceneStyle: null })).toStrictEqual(fullSettings);
   });
 
+  it('QT-FURN-TOGGLE — giữ detectFurniture, vắng thì vẫn vắng, khác boolean thì từ chối', () => {
+    expect(ProjectSettingsSchema.parse({ ...fullSettings, detectFurniture: true })).toStrictEqual({ ...fullSettings, detectFurniture: true });
+    expect(ProjectSettingsSchema.parse(fullSettings)).not.toHaveProperty('detectFurniture');
+    expect(issuePaths(ProjectSettingsBodySchema, { ...fullBody, detectFurniture: 1 })).toStrictEqual([['detectFurniture']]);
+  });
+
   it('K34 — giữ separateUnits, vắng thì vẫn vắng, khác boolean thì từ chối', () => {
     expect(ProjectSettingsSchema.parse({ ...fullSettings, separateUnits: true })).toStrictEqual({ ...fullSettings, separateUnits: true });
     expect(ProjectSettingsSchema.parse(fullSettings)).not.toHaveProperty('separateUnits');
