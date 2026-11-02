@@ -203,7 +203,7 @@ const reviewMetadataShape = {
 } as const;
 
 /** J-v3: vật liệu từ thư viện hoặc từ cảnh, ví dụ `library:oak`. */
-const materialRefSchema = z.custom<MaterialRef>(
+export const materialRefSchema = z.custom<MaterialRef>(
   (value) => typeof value === 'string' && /^(library|scene):[a-z0-9_-]{1,64}$/.test(value),
 );
 

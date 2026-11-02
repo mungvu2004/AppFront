@@ -17,7 +17,9 @@ import { useSession } from '@/hooks/useSession';
 import { can } from '@/lib/auth/permissions';
 import { getSessionSnapshot } from '@/lib/auth/state';
 import { readWireError } from '@/lib/errors/wireError';
-import { readSceneStyle, type SceneStyle, type SceneStyleId } from '@/lib/pascal/sceneStyles';
+import type { DesignAddition, DesignConcept, DesignConceptState, DesignStyleId } from '@/api/schemas/designConcept';
+import { sceneStyleFromConcept } from '@/lib/pascal/designStyles';
+import { readSceneStyle, SCENE_STYLES, type SceneStyle, type SceneStyleId } from '@/lib/pascal/sceneStyles';
 import { toPascalId } from '@/lib/pascal/ids';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalNode, PascalNodeId, PascalScene } from '@/lib/pascal/types';
@@ -129,7 +131,21 @@ export interface ProjectSceneStyle {
   readonly id: SceneStyleId;
   /** Ghi phong cách vào dự án (PUT N6, ném khi hỏng); vắng khi không có quyền sửa cài đặt hoặc chưa đọc được cài đặt. */
   readonly saveToProject?: (id: SceneStyleId) => Promise<void>;
+  /** AID-01 — có khi N47 báo bật và người dùng sửa được cài đặt (quyền của N48); vắng = thẻ năm kiểu cũ. */
+  readonly designConcept?: ProjectDesignConcept;
 }
+
+/** Concept AI của dự án lúc mở trang + hai lối gọi (ném khi hỏng). */
+export interface ProjectDesignConcept {
+  readonly state: DesignConceptState;
+  /** N48; `undefined` = quay về đề xuất AI. */
+  readonly select: (styleId: DesignStyleId | undefined) => Promise<DesignConcept>;
+  /** N47. */
+  readonly read: () => Promise<DesignConceptState>;
+}
+
+/** Đọc N47 lúc mở trang: lỗi hoặc quá 3 s → `null`, trang mở với phong cách cũ (AID-01). */
+const DESIGN_CONCEPT_TIMEOUT_MS = 3000;
 
 let projectSceneStyle: ProjectSceneStyle | null = null;
 
@@ -191,7 +207,11 @@ const messageOf = (error: unknown): string => {
   return BRIDGE_LOAD_ERROR;
 };
 
-async function loadProject(projectId: string): Promise<{ readonly projectName: string; readonly style: SceneStyle }> {
+async function loadProject(projectId: string): Promise<{
+  readonly projectName: string;
+  readonly style: SceneStyle;
+  readonly additions: readonly DesignAddition[];
+}> {
   if (!(await startAppSession())) throw new BridgeLoadError(BRIDGE_SESSION_ERROR);
 
   const [{ createAppApiClient }, { readProjectDetail, readProjectGraph, toProjectSpatial }, { loadProjectGraph }] =
@@ -202,6 +222,16 @@ async function loadProject(projectId: string): Promise<{ readonly projectName: s
     const result = await client.projectSettings.read({ projectId });
     return result.ok ? result.data : null;
   })().catch(() => null);
+  let conceptTimer: ReturnType<typeof setTimeout> | undefined;
+  const conceptRead = Promise.race([
+    (async () => {
+      const result = await client.designConcept.read({ projectId });
+      return result.ok ? result.data : null;
+    })().catch(() => null),
+    new Promise<null>((resolve) => {
+      conceptTimer = setTimeout(() => resolve(null), DESIGN_CONCEPT_TIMEOUT_MS);
+    }),
+  ]).finally(() => clearTimeout(conceptTimer));
   const floorsRead = (async () => {
     const result = await client.floors.list({ projectId });
     return result.ok ? result.data : [];
@@ -227,7 +257,13 @@ async function loadProject(projectId: string): Promise<{ readonly projectName: s
 
   const settings = await settingsRead;
   separateUnits = settings?.separateUnits === true;
-  const style = readSceneStyle(() => localStorage, { id: projectId, style: settings?.sceneStyle });
+  const conceptState = await conceptRead;
+  // Concept đã xong thắng mọi phong cách khác (kể cả bản xem thử trên máy); chưa xong/hỏng → phong cách cũ.
+  const concept = conceptState?.active?.status === 'done' ? conceptState.active.result : undefined;
+  const style =
+    concept === undefined
+      ? readSceneStyle(() => localStorage, { id: projectId, style: settings?.sceneStyle })
+      : sceneStyleFromConcept(concept, SCENE_STYLES[concept.baseStyle]);
   // Cùng cổng vai như hook: vai theo dự án vừa nạp trước, phiên dự phòng.
   const storeRoles = useStore.getState().userRoles;
   const canEditSettings = can('edit', 'project.settings', { roles: storeRoles.length > 0 ? storeRoles : session.roles });
@@ -249,9 +285,26 @@ async function loadProject(projectId: string): Promise<{ readonly projectName: s
           },
         }
       : {}),
+    ...(conceptState?.enabled === true && canEditSettings
+      ? {
+          designConcept: {
+            state: conceptState,
+            select: async (styleId: DesignStyleId | undefined) => {
+              const result = await client.designConcept.select({ projectId, ...(styleId === undefined ? {} : { styleId }) });
+              if (!result.ok) throw result.error;
+              return result.data;
+            },
+            read: async () => {
+              const result = await client.designConcept.read({ projectId });
+              if (!result.ok) throw result.error;
+              return result.data;
+            },
+          },
+        }
+      : {}),
   };
 
-  return { projectName: project.name, style };
+  return { projectName: project.name, style, additions: concept?.additions ?? [] };
 }
 
 interface NoticeState {
@@ -271,6 +324,7 @@ interface LoadState {
   readonly error?: string;
   readonly projectName?: string;
   readonly style?: SceneStyle;
+  readonly additions?: readonly DesignAddition[];
 }
 
 /**
@@ -279,7 +333,7 @@ interface LoadState {
  */
 export function usePascalProjectBridge(projectId: string, applyScene?: (scene: PascalSceneGraph) => void): PascalBridge {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
-  const { style } = load;
+  const { style, additions } = load;
   // Đọc một lần lúc mở trang: màn vừa rời (N1-01, N5-13, N3-09), không có thì Quản lý tầng.
   const [backHref] = useState(() => resolveBackHref(projectId));
   const session = useSession();
@@ -295,7 +349,7 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
 
     setLoad({ status: 'loading' });
     loadProject(projectId).then(
-      ({ projectName, style }) => !cancelled && setLoad({ status: 'ready', projectName, style }),
+      ({ projectName, style, additions }) => !cancelled && setLoad({ status: 'ready', projectName, style, additions }),
       (error: unknown) => !cancelled && setLoad({ status: 'error', error: messageOf(error) }),
     );
 
@@ -377,10 +431,14 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
     if (current === null) return null;
 
     const graph = withoutFloorContents(denormalizeSpatial(current), missingFloors.current);
-    const scene = toPascalScene(graph, { style: style ?? readSceneStyle(() => localStorage) }).scene;
+    // Đồ AI bổ sung (AID-01) đi cùng phong cách: mọi lượt dựng của trang dùng chung, không thì "sửa ma".
+    const scene = toPascalScene(graph, {
+      style: style ?? readSceneStyle(() => localStorage),
+      ...(additions === undefined || additions.length === 0 ? {} : { additions }),
+    }).scene;
 
     return markNotBuilt(scene, missingFloors.current);
-  }, [style]);
+  }, [style, additions]);
 
   /* Tải lại tầng bị khối (409/422/403): bỏ bản chưa lưu được, nạp lại tầng từ máy chủ vào kho rồi
      dựng lại cảnh từ kho. Không có `applyScene` thì nạp lại cả trang như trước. */

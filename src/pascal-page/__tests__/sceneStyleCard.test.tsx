@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SCENE_STYLE_STORAGE_KEY, SCENE_STYLES, sceneStylePreviewKey } from '@/lib/pascal/sceneStyles';
 
-import { SceneStyleCard } from '../SceneStyleCard';
+import type { ProjectDesignConcept } from '../bridge';
+import { CONCEPT_FAILED, CONCEPT_POLL_MS, CONCEPT_WORKING, SceneStyleCard } from '../SceneStyleCard';
 
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8');
 
@@ -113,5 +114,80 @@ describe('SceneStyleCard', () => {
     container.querySelector('details')!.open = true;
     expect(document.querySelector(selector)).toBe(chip);
     fireEvent.click(screen.getByRole('button', { name: SCENE_STYLES['am-ap'].label }));
+  });
+
+  describe('AID-01 — AI phong cách', () => {
+    const createdAt = '2026-11-02T01:00:00.000Z';
+    const conceptOf = (over: Partial<ProjectDesignConcept> = {}): ProjectDesignConcept => ({
+      state: { enabled: true, suggestedStyleId: 'japandi' },
+      select: vi.fn(),
+      read: vi.fn(),
+      ...over,
+    });
+
+    it('bật: "AI đề xuất" đứng đầu rồi 12 kiểu, không còn 5 kiểu cũ', () => {
+      render(
+        <SceneStyleCard
+          flushAutosaves={vi.fn()}
+          reload={vi.fn()}
+          saveNow={vi.fn()}
+          source={{ projectId: 'p1', id: 'am-ap', designConcept: conceptOf() }}
+        />,
+      );
+      const labels = [...screen.getByRole('list', { name: 'Danh sách phong cách' }).querySelectorAll('button')].map(
+        (b) => b.textContent,
+      );
+      expect(labels[0]).toBe('AI đề xuất cho căn này: Japandi');
+      expect(labels).toHaveLength(13);
+      expect(labels).toContain('Hiện đại tối giản');
+      expect(labels).not.toContain(SCENE_STYLES['am-ap'].label);
+    });
+
+    it('chọn kiểu đang chạy → dòng chờ, thăm dò N47 tới khi xong → lưu → xả → nạp lại', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const calls: string[] = [];
+      const running = { id: 'dcn_1', styleId: 'rustic', suggested: false, status: 'running', createdAt, startedAt: createdAt } as const;
+      const read = vi
+        .fn()
+        .mockResolvedValueOnce({ enabled: true, active: running })
+        .mockResolvedValueOnce({
+          enabled: true,
+          active: { ...running, status: 'done', endedAt: createdAt, result: {} },
+        });
+      const select = vi.fn((styleId: string | undefined) => (calls.push(`select:${String(styleId)}`), Promise.resolve(running)));
+      render(
+        <SceneStyleCard
+          flushAutosaves={() => (calls.push('flush'), Promise.resolve())}
+          reload={() => calls.push('reload')}
+          saveNow={() => (calls.push('save'), Promise.resolve())}
+          source={{ projectId: 'p1', id: 'am-ap', designConcept: conceptOf({ read, select }) as ProjectDesignConcept }}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Rustic' }));
+      expect(await screen.findByText(CONCEPT_WORKING)).toBeTruthy();
+      await vi.advanceTimersByTimeAsync(CONCEPT_POLL_MS * 2);
+      await waitFor(() => expect(calls).toEqual(['select:rustic', 'save', 'flush', 'reload']));
+      expect(read).toHaveBeenCalledTimes(2);
+      vi.useRealTimers();
+    });
+
+    it('"AI đề xuất" gửi không kiểu; N48 hỏng → câu nhẹ, không nạp lại', async () => {
+      const reload = vi.fn();
+      const select = vi.fn(() => Promise.reject(new Error('503')));
+      render(
+        <SceneStyleCard
+          flushAutosaves={vi.fn()}
+          reload={reload}
+          saveNow={vi.fn()}
+          source={{ projectId: 'p1', id: 'am-ap', designConcept: conceptOf({ select }) }}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'AI đề xuất cho căn này: Japandi' }));
+      expect(await screen.findByText(CONCEPT_FAILED)).toBeTruthy();
+      expect(select).toHaveBeenCalledWith(undefined);
+      expect(reload).not.toHaveBeenCalled();
+    });
   });
 });

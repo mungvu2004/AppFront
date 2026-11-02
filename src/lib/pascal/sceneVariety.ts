@@ -11,7 +11,7 @@
 import type { Furniture, RoomUsage } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 
-import { CATALOG_MODELS, VARIANT_MODEL } from './furnitureCatalog';
+import { CATALOG_MODELS, isServerModel, VARIANT_MODEL } from './furnitureCatalog';
 import { rectOfFurniture, rectsOverlap } from './placement';
 import type { SceneStyle } from './sceneStyles';
 
@@ -234,7 +234,11 @@ export const modelFolderOf = (
   const catalogue = ROLE_MODELS[role];
   const best = Math.min(...catalogue.map((folder) => sizeCostOf(f, folder)));
   const isNearBest = (folder: string): boolean => sizeCostOf(f, folder) <= best * STYLE_TIE + 1e-9;
-  const preferred = (style.prefer[role] ?? []).filter((folder) => catalogue.includes(folder) && isNearBest(folder));
+  /* AID-01: mẫu thư viện máy chủ mà AI chọn cho vai trò (`sceneStyleFromConcept`) không nằm trong
+     `ROLE_MODELS` — máy chủ đã lọc theo loại, cỡ khớp bằng `asset.scale`, nên không qua ngưỡng cỡ. */
+  const preferred = (style.prefer[role] ?? []).filter((folder) =>
+    catalogue.includes(folder) ? isNearBest(folder) : isServerModel(folder),
+  );
   const key = PER_ITEM_ROLES.has(role) ? f.id : `${f.roomId ?? 'none'}|${role}`;
   const pickHashed = (folders: readonly string[]): string => folders[fnv1a(key) % folders.length] as string;
 

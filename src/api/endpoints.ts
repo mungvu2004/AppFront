@@ -140,6 +140,8 @@ export const ENDPOINTS = {
     detail: (libraryItemId: string): string => `${LIBRARY_ROOT}/${libraryItemId}`,
     list: LIBRARY_ROOT,
   },
+  /** N47, N48 — AI chọn phong cách nội thất: đọc trạng thái (GET), chọn kiểu / quay về đề xuất (POST). */
+  designConcept: (projectId: string): string => `${PROJECTS_ROOT}/${projectId}/design-concept`,
   /** N42–N44 — nướng ánh sáng: gửi GLB, đọc lượt mới nhất, tải một trong ba tệp kết quả. */
   lightingBakes: {
     file: (projectId: string, bakeId: string, fileName: string): string =>

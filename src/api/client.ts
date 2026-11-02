@@ -40,6 +40,13 @@ import {
   type PasswordResetConfirm,
   type PasswordResetRequest,
 } from './schemas/auth';
+import {
+  DesignConceptSchema,
+  DesignConceptStateSchema,
+  type DesignConcept,
+  type DesignConceptState,
+  type DesignStyleId,
+} from './schemas/designConcept';
 import { LightingBakeSchema, type LightingBake, type LightingBakeFileName } from './schemas/lightingBake';
 import { PipelineRunSchema, type PipelineRun } from './schemas/pipelineRuns';
 import { UserSchema, type SignInInput, type User as ApiUser } from './schemas';
@@ -875,6 +882,7 @@ export interface MeApi {
 
 export interface ApiClient {
   auth: AuthApi;
+  designConcept: DesignConceptApi;
   drawings: DrawingsApi;
   featureFlags: FeatureFlagsApi;
   floors: FloorsApi;
@@ -901,6 +909,12 @@ export const SharedModelSchema = z.object({
   graph: SpatialGraphDocumentSchema,
 });
 export type SharedModel = z.infer<typeof SharedModelSchema>;
+
+/** N47 đọc trạng thái AI phong cách của dự án; N48 chọn kiểu (`styleId` vắng = quay về đề xuất AI, gửi `{}`). */
+export interface DesignConceptApi {
+  read(input: { projectId: string } & RequestOptions): Promise<ApiResult<DesignConceptState>>;
+  select(input: { projectId: string; styleId?: DesignStyleId } & WriteRequestOptions): Promise<ApiResult<DesignConcept>>;
+}
 
 /**
  * N42–N44 — nướng ánh sáng. `readLatest` trả `null` khi dự án chưa có lượt nào (404), vì
@@ -1251,6 +1265,21 @@ export const createApiClient = (http: HttpClient, options: { authHttp?: HttpClie
         await callGet<unknown>(http, ENDPOINTS.library.detail(libraryItemId), signal),
         LibraryItemSchema,
         'library.read',
+      ),
+  },
+  designConcept: {
+    read: async ({ projectId, signal }) =>
+      decodeSingle(
+        await callGet<unknown>(http, ENDPOINTS.designConcept(projectId), signal),
+        DesignConceptStateSchema,
+        'designConcept.read',
+      ),
+    // N48 luôn trả 202 (kể cả khi dùng lại lượt cùng đầu vào); `asApiResult` nhận mọi 2xx.
+    select: async ({ projectId, styleId, ...options }) =>
+      decodeSingle(
+        await callPost(http, ENDPOINTS.designConcept(projectId), styleId === undefined ? {} : { styleId }, options),
+        DesignConceptSchema,
+        'designConcept.select',
       ),
   },
   lightingBakes: {

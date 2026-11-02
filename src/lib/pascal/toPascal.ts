@@ -21,6 +21,7 @@
  *    viết tay trong file này.
  */
 
+import type { DesignAddition } from '@/api/schemas/designConcept';
 import { describeUsage } from '@/domain/rooms/classify';
 import { arcApex } from '@/domain/spatial/arc';
 import type {
@@ -40,6 +41,7 @@ import { degrees, degreesToRadians, millimetres, millimetresToMetres } from '@/d
 import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 import { EXTERIOR_SKIRTING, isDetailsEnabled } from '@/pascal-page/realism/details';
 
+import { designAdditionsOf } from './designStyles';
 import { applyFloorTransforms, floorDisplayTransformsOf } from './floorAlignment';
 import { CATALOG_MODELS, VARIANT_MODEL, isServerModel, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
@@ -1083,10 +1085,13 @@ export const toPascalScene = (
   {
     style = sceneStyleOf(undefined),
     furnish = 'off',
+    additions = [],
   }: {
     readonly style?: SceneStyle;
     /** Đồ tự bày (bày phòng trống + bày biện) — mặc định tắt: cảnh chỉ có đồ của bản vẽ (C1). */
     readonly furnish?: 'off' | 'on';
+    /** AID-01 — đồ AI bổ sung của concept đang dùng: đồ sinh ra như đồ tự bày, chạy cả khi `furnish: 'off'`. */
+    readonly additions?: readonly DesignAddition[];
   } = {},
 ): PascalSceneResult => {
   const nodes: Record<PascalNodeId, PascalNode> = {};
@@ -1397,9 +1402,14 @@ export const toPascalScene = (
   const furnished = furnish === 'on' ? furnishEmptyRooms(usable, style).filter(notOff) : [];
   const dressed =
     furnish === 'on' ? dressingOf({ ...usable, furniture: [...builtFurniture, ...furnished] }, style).filter(notOff) : [];
+  const builtRoomIds = new Set(builtRooms.map((room) => room.id));
+  const aiAdded = designAdditionsOf(
+    additions.filter((addition) => builtRoomIds.has(addition.roomId as Room['id'])),
+    [...builtFurniture, ...furnished],
+  ).filter(notOff);
   const dressIdsOf = new Map<string, string[]>();
 
-  for (const furniture of [...furnished, ...dressed]) {
+  for (const furniture of [...furnished, ...dressed, ...aiAdded]) {
     const levelNodeId = levelNodeIdOf.get(furniture.levelId);
     const levelHeightMm = levelHeightMmOf.get(furniture.levelId);
 

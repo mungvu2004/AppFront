@@ -1780,6 +1780,11 @@ export const createMockApiClient = (): ApiClient => {
           ),
         ),
     },
+    // AID-01: mock không có AI phong cách — thẻ giữ năm kiểu cũ.
+    designConcept: {
+      read: async () => ok({ enabled: false }),
+      select: async () => failed(mockWireError(503, 'DESIGN_DIRECTOR_DISABLED', 'req-design-concept')),
+    },
     lightingBakes: mockLightingBakes,
     /** N11–N14 có trạng thái trong mock: sửa xong đọc lại thấy ngay; `''` ở `jobTitle`/`phone` là xoá. */
     me: {
