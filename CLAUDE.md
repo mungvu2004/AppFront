@@ -30,10 +30,12 @@ tiếng Anh — xem mục B và E.11.
 Các lệnh còn lại (`dev`, `typecheck`, `build`, `size`, `e2e`, `e2e:visual`, `storybook`,
 `draco`) là lệnh chuẩn — xem `scripts` trong `package.json`.
 
-CI (`.github/workflows/ci.yml`) chạy năm job **song song và độc lập** — `lint` ·
-`typecheck` · `unit` · `build` · `visual` — trên cả `main` và `master`. Không job
-nào `needs:` job nào: một lượt chạy phải cho năm phán quyết, không phải một. Lý do
-đầy đủ nằm trong khối chú thích ngay trên `jobs:` của file đó.
+CI (`.github/workflows/ci.yml`) chạy bốn cổng **song song và độc lập** — `lint` ·
+`typecheck` · `unit` · `build` — trên cả `main` và `master`, đúng các bước của
+`pnpm verify`. Không cổng nào `needs:` cổng nào: một lượt chạy phải cho bốn phán quyết,
+không phải một. Lý do đầy đủ nằm trong khối chú thích ngay trên `jobs:` của file đó.
+`unit` chia bốn mảnh `unit-shard` rồi job `unit` gộp độ phủ và đối chiếu ngưỡng. Bộ e2e
+không chạy trên CI (bỏ 02/11/2026) — chạy tại máy bằng `pnpm e2e`.
 
 ---
 
@@ -175,10 +177,9 @@ component, và D không cản đường ở đó.
    giây, đổi lấy ~9,6 KiB gzip trên tổng JS. Đừng gỡ để "dựng nhanh hơn" — cổng kích
    thước gói đo bản dựng này.
 
-5. **Cổng "visual" của CI: đã cho so sánh thật, nhưng CHƯA có ảnh chuẩn `linux`.** CI nay
-   gọi `pnpm e2e` (so sánh) chứ không `pnpm e2e:visual` (ghi đè). Ảnh chuẩn hiện có vẫn chỉ
-   có bản `win32` còn CI chạy `ubuntu-latest`, nên lượt chạy đầu sẽ ĐỎ và đẩy ảnh linux ra
-   artifact để commit một lần. `pnpm e2e:visual` giờ chỉ là lệnh cập nhật ảnh tại máy.
+5. **CI không chạy e2e** (job `visual` bỏ 02/11/2026). `pnpm e2e` so sánh ảnh chuẩn,
+   `pnpm e2e:visual` ghi đè ảnh (`--update-snapshots`) — chỉ là lệnh cập nhật ảnh tại máy.
+   Ảnh chuẩn trong repo chỉ có bản `win32`.
 
 ---
 
