@@ -207,10 +207,17 @@ const messageOf = (error: unknown): string => {
   return BRIDGE_LOAD_ERROR;
 };
 
+/**
+ * Đồ bày trong 3D: có concept AI đã xong → AI quyết (không tự bày, chỉ đồ AI bổ sung); không có
+ * (Design Director tắt, chưa chạy, lỗi, hết giờ đọc) → tự bày phòng trống làm dự phòng.
+ */
+export const furnishModeOf = (concept: DesignConcept['result']): 'on' | 'off' => (concept === undefined ? 'on' : 'off');
+
 async function loadProject(projectId: string): Promise<{
   readonly projectName: string;
   readonly style: SceneStyle;
   readonly additions: readonly DesignAddition[];
+  readonly furnish: 'on' | 'off';
 }> {
   if (!(await startAppSession())) throw new BridgeLoadError(BRIDGE_SESSION_ERROR);
 
@@ -304,7 +311,7 @@ async function loadProject(projectId: string): Promise<{
       : {}),
   };
 
-  return { projectName: project.name, style, additions: concept?.additions ?? [] };
+  return { projectName: project.name, style, additions: concept?.additions ?? [], furnish: furnishModeOf(concept) };
 }
 
 interface NoticeState {
@@ -325,6 +332,7 @@ interface LoadState {
   readonly projectName?: string;
   readonly style?: SceneStyle;
   readonly additions?: readonly DesignAddition[];
+  readonly furnish?: 'on' | 'off';
 }
 
 /**
@@ -333,7 +341,7 @@ interface LoadState {
  */
 export function usePascalProjectBridge(projectId: string, applyScene?: (scene: PascalSceneGraph) => void): PascalBridge {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
-  const { style, additions } = load;
+  const { style, additions, furnish } = load;
   // Đọc một lần lúc mở trang: màn vừa rời (N1-01, N5-13, N3-09), không có thì Quản lý tầng.
   const [backHref] = useState(() => resolveBackHref(projectId));
   const session = useSession();
@@ -349,7 +357,8 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
 
     setLoad({ status: 'loading' });
     loadProject(projectId).then(
-      ({ projectName, style, additions }) => !cancelled && setLoad({ status: 'ready', projectName, style, additions }),
+      ({ projectName, style, additions, furnish }) =>
+        !cancelled && setLoad({ status: 'ready', projectName, style, additions, furnish }),
       (error: unknown) => !cancelled && setLoad({ status: 'error', error: messageOf(error) }),
     );
 
@@ -431,14 +440,16 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
     if (current === null) return null;
 
     const graph = withoutFloorContents(denormalizeSpatial(current), missingFloors.current);
-    // Đồ AI bổ sung (AID-01) đi cùng phong cách: mọi lượt dựng của trang dùng chung, không thì "sửa ma".
+    // Đồ AI bổ sung (AID-01) và chế độ tự bày dự phòng đi cùng phong cách: chốt một lần mỗi lượt
+    // mở trang, mọi lượt dựng dùng chung, không thì "sửa ma".
     const scene = toPascalScene(graph, {
       style: style ?? readSceneStyle(() => localStorage),
+      ...(furnish === 'on' ? { furnish } : {}),
       ...(additions === undefined || additions.length === 0 ? {} : { additions }),
     }).scene;
 
     return markNotBuilt(scene, missingFloors.current);
-  }, [style, additions]);
+  }, [style, additions, furnish]);
 
   /* Tải lại tầng bị khối (409/422/403): bỏ bản chưa lưu được, nạp lại tầng từ máy chủ vào kho rồi
      dựng lại cảnh từ kho. Không có `applyScene` thì nạp lại cả trang như trước. */
