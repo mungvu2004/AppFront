@@ -258,6 +258,11 @@ export function SessionGate({
   }
 
   if (status === 'anonymous') {
+    // Khách lần đầu (máy chưa từng có phiên) mở trang chủ → trang giới thiệu; máy từng đăng nhập
+    // hay link sâu vẫn sang /login (kèm `next`) như cũ.
+    if (!sessionEnded && pathname === ROUTES.dashboard) {
+      return <Navigate replace to={ROUTES.welcome} />;
+    }
     return (
       <Navigate
         replace

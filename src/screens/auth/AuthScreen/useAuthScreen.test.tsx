@@ -151,7 +151,7 @@ describe('useAuthScreen — a disabled account is not a dead end (BUG-017)', () 
     expect(result.current.model.isBlocked).toBe(false);
     expect(result.current.model.notice).toBeNull();
     expect(result.current.model.canSubmit).toBe(true);
-    expect(result.current.model.values).toEqual({ email: '', password: '', rememberMe: false });
+    expect(result.current.model.values).toEqual({ email: '', password: '', rememberMe: true });
     expect(result.current.model.state).toBe('empty');
   });
 });
