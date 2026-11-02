@@ -406,7 +406,21 @@ describe('a floor with nothing to align by', () => {
     expect(issue?.message).toContain('Tầng 2');
     /* BUG-628: tên tầng đã có chữ "Tầng" — không lặp thành "Tầng Tầng 2". */
     expect(issue?.message).not.toContain('Tầng Tầng');
-    expect(issue?.message).toContain('0 trục');
+    expect(issue?.message).toContain('chưa khớp đủ trục');
+  });
+
+  it('is not moved on one free match per direction (a lone axis always lands exactly)', () => {
+    // Một trục dọc + một trục ngang: phép dời mỗi hướng chọn để đúng một trục trùng khít, nên
+    // "khớp 2 trục" là miễn phí — không phải bằng chứng. Tầng này phải rơi về khung tường.
+    const lone = floor('L-000002AAAA', 'Tầng 2', 3300, 3000, [
+      axis('vertical', 1234, 0, 8000),
+      axis('horizontal', 4321, 0, 9000),
+    ]);
+    const report = alignFloors([SAMPLE_FLOORS[0] as FloorPlan, lone]);
+
+    expect(report.floors[1]?.matchedAxisCount).toBe(2);
+    expect(report.issues.some((issue) => issue.kind === 'unalignable')).toBe(true);
+    expect(report.floors[1]?.transform.translationMm).toEqual({ x: 0, y: 0 });
   });
 
   it('is left exactly where it is', () => {
