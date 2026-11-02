@@ -75,6 +75,18 @@ const END_CLEAR_MM = 160;
 const MAX_FILL_PLANTS = 4;
 /** Ban công/lô-gia từ mức này có chậu cây dọc lan can; ghế nằm từ OTHER_MIN_M2. */
 const OUTDOOR_MIN_M2 = 2;
+/** Tường phủ dưới tỉ lệ chu vi này: đồ thị tường không mô tả phòng (mẫu mock, dò hỏng) → coi mọi cạnh có tường. */
+const MIN_WALLED_FRACTION = 0.25;
+/** Bếp mở từ mức này (m²) mà tầng không có phòng khách: bày thêm bộ sofa. */
+const OPEN_KITCHEN_LIVING_MIN_M2 = 18;
+/** Dãy tủ bếp dưới: dài tối đa, ngắn nhất đáng đặt. */
+const BASE_RUN_MAX_MM = 3600;
+const BASE_RUN_MIN_MM = 1200;
+/** Dãy từ mức này có cả chậu lẫn bếp nấu; ngắn hơn chỉ chậu. */
+const RUN_HOB_MIN_MM = 1600;
+/** Lối đi giữa hai cửa (rộng) và chỗ kéo ghế quanh bàn ăn (mỗi phía). */
+const DOOR_PATH_MM = 900;
+const CHAIR_CLEAR_MM = 600;
 /** Phòng tắm từ mức này có thêm khu tắm vòi sen. */
 const SHOWER_MIN_M2 = 3;
 /** Chậu dọc lan can: khe giữa hai chậu, tối đa số chậu mỗi phòng. */
@@ -118,6 +130,13 @@ const PLANT: Piece = { role: 'plant', kind: 'other', variant: 'plant', w: 600, d
 const LOUNGER: Piece = { role: 'lounger', kind: 'chair', variant: 'lounger', w: 860, d: 1900 };
 // Luống dài sát lan can (mẫu bush / planter-long, cùng tỉ lệ dài ≈ 3:1).
 const PLANTER: Piece = { role: 'planter', kind: 'other', variant: 'planter', w: 1200, d: 400 };
+// Bếp: dãy tủ dưới (dài theo đoạn tường), tủ treo nông phía trên, tủ lạnh một đầu dãy; chậu và
+// mặt bếp mỏng 20 mm nằm trên mặt đá (toPascal nâng lên counterTopMmOf, dãy có chậu dùng mẫu chậu).
+const BASE_RUN: Piece = { role: 'baseRun', kind: 'kitchenCabinet', variant: 'baseRun', w: BASE_RUN_MAX_MM, d: 600 };
+const UPPER_RUN: Piece = { role: 'upperRun', kind: 'kitchenCabinet', variant: 'upperRun', w: BASE_RUN_MAX_MM, d: 350 };
+const FRIDGE: Piece = { role: 'fridge', kind: 'other', variant: 'fridge', w: 700, d: 700 };
+const SINK: Piece = { role: 'sink', kind: 'sanitaryFixture', variant: 'sink', w: 800, d: 450, heightMm: 20 };
+const HOB: Piece = { role: 'hob', kind: 'other', variant: 'hob', w: 600, d: 500, heightMm: 20 };
 // Phòng tắm: nhận diện đồ đã tắt nên bản vẽ không còn cấp thiết bị vệ sinh (mẫu toilet / bathroom-sink / shower-square).
 const WC: Piece = { role: 'wc', kind: 'sanitaryFixture', variant: 'wc', w: 400, d: 700 };
 const BASIN: Piece = { role: 'basin', kind: 'sanitaryFixture', variant: 'basin', w: 600, d: 450 };
@@ -253,12 +272,24 @@ const unplaceLast = (ctx: Ctx): void => {
 };
 
 /**
+ * Cạnh phòng (roomEdges); tường phủ dưới 25 % chu vi thì đồ thị tường không mô tả phòng này (mẫu
+ * mock chỉ có mẩu tường 1 m, phòng dò thiếu tường) → coi mọi cạnh có tường như trước bench-3d.
+ */
+const edgesOf = (room: Room, graph: SpatialGraph): RoomEdge[] => {
+  const edges = roomEdges(room, graph);
+  const total = edges.reduce((sum, e) => sum + e.lengthMm, 0);
+  const walled = edges.reduce((sum, e) => sum + e.walled.reduce((t, w) => t + w.toMm - w.fromMm, 0), 0);
+  if (walled >= MIN_WALLED_FRACTION * total) return edges;
+  return edges.map((e) => ({ ...e, walled: [{ fromMm: 0, toMm: e.lengthMm }] }));
+};
+
+/**
  * Cạnh phòng xếp theo đoạn trống giảm dần, rồi theo thứ tự cạnh. Chỉ CỬA ĐI chặn đoạn trống:
  * đầu giường/lưng sofa tựa dưới cửa sổ là bình thường, còn để cửa sổ chặn thì phòng nhỏ không
  * còn cạnh nào đủ dài (nguyên nhân chính của phòng trống, V5 D1).
  */
 const rankedEdges = (room: Room, graph: SpatialGraph): RankedEdge[] =>
-  roomEdges(room, { ...graph, openings: graph.openings.filter((o) => o.kind === 'door') })
+  edgesOf(room, { ...graph, openings: graph.openings.filter((o) => o.kind === 'door') })
     .map((edge, index) => ({ edge, span: widestSpan(edge), index }))
     .sort((p, q) => lengthOf(q.span) - lengthOf(p.span) || p.index - q.index);
 
@@ -371,7 +402,8 @@ const furnishLiving = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
     const reach = SOFA.d / 2 + COFFEE_TABLE_REACH_MM + COFFEE_TABLE.d / 2;
     const coffee = place(
       ctx,
-      COFFEE_TABLE,
+      // Bếp mở: roleOf không đoán bàn thấp trong bếp là bàn trà (C2) → nói rõ bằng variant `table` thấp.
+      ctx.room.usage === 'livingRoom' ? COFFEE_TABLE : { ...COFFEE_TABLE, variant: 'table' },
       { x: sofa.centre.x + n.x * reach, y: sofa.centre.y + n.y * reach },
       spot.rotationDeg,
     );
@@ -450,6 +482,29 @@ const furnishDining = (ctx: Ctx, edges: readonly RankedEdge[], small = false): b
   }
   candidates.sort((p, q) => q.score - p.score || p.at.x - q.at.x || p.at.y - q.at.y);
 
+  // Lối đi 900 mm nối tâm từng cặp cửa đi của phòng: bàn + chỗ kéo ghế không được chắn.
+  const doors = edges.flatMap(({ edge }) => {
+    const e = directionOf(edge);
+    return edge.openings.map((o) => {
+      const t = (o.fromMm + o.toMm) / 2;
+      return { x: edge.a.x + e.x * t, y: edge.a.y + e.y * t };
+    });
+  });
+  const paths: Rect[] = doors.flatMap((p, i) =>
+    doors.slice(i + 1).map((q) => ({
+      cx: (p.x + q.x) / 2,
+      cy: (p.y + q.y) / 2,
+      w: Math.hypot(q.x - p.x, q.y - p.y),
+      d: DOOR_PATH_MM,
+      rotationDeg: (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI,
+    })),
+  );
+  const blocksPath = (at: Point, rotationDeg: number): boolean => {
+    const w = tablePiece.w + 2 * CHAIR_CLEAR_MM;
+    const d = tablePiece.d + 2 * CHAIR_CLEAR_MM;
+    return paths.some((path) => rectsOverlap({ cx: at.x, cy: at.y, w, d, rotationDeg }, path));
+  };
+
   const longest = [...edges].sort((p, q) => q.edge.lengthMm - p.edge.lengthMm)[0]?.edge;
   if (longest === undefined) return false;
   const along = furnitureFacingDeg(longest.inwardNormal);
@@ -468,6 +523,7 @@ const furnishDining = (ctx: Ctx, edges: readonly RankedEdge[], small = false): b
 
   for (const { at } of candidates) {
     for (const rotationDeg of [along, turn(along, 90)]) {
+      if (blocksPath(at, rotationDeg)) continue;
       const table = place(ctx, tablePiece, at, rotationDeg);
       if (table === null) continue;
       const [ex, ey] = axesOf(rotationDeg);
@@ -535,6 +591,48 @@ const furnishOutdoor = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number):
       const spot = againstEdge(edge, t, PLANTER);
       if (place(ctx, PLANTER, spot.at, spot.rotationDeg, n) !== null) n += 1;
     }
+  }
+};
+
+/** Món chồng lên/treo trên món đã đặt (tủ treo, chậu, mặt bếp): không xét chồng, không chiếm chỗ thêm. */
+const stack = (ctx: Ctx, piece: Piece, edge: RoomEdge, t: number): void => {
+  const spot = againstEdge(edge, t, piece);
+  ctx.out.push(furnitureOf(ctx, piece, spot.at, spot.rotationDeg));
+};
+
+/** Cùng một cạnh (mỗi lần gọi roomEdges cho đối tượng mới). */
+const sameEdge = (p: RoomEdge, q: RoomEdge): boolean =>
+  p.a.x === q.a.x && p.a.y === q.a.y && p.b.x === q.b.x && p.b.y === q.b.y;
+
+/**
+ * Bếp chưa có tủ thật: dãy tủ dưới (≤ 3,6 m) dọc đoạn có tường, không cửa đi, dài nhất; tủ lạnh ở
+ * đầu dãy nếu đủ chỗ; chậu (+ bếp nấu khi dãy ≥ 1,6 m) trên mặt đá; tủ treo phía trên khi đoạn đó
+ * không có cửa sổ.
+ */
+const furnishKitchenRun = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
+  const end = END_CLEAR_MM + SLACK_MM;
+  for (const { edge, span } of allSpans(edges.map((r) => r.edge))) {
+    const usable = lengthOf(span) - 2 * end;
+    if (usable < BASE_RUN_MIN_MM) continue;
+    const withFridge = usable >= BASE_RUN_MIN_MM + GAP_MM + SLACK_MM + FRIDGE.w;
+    const runW = Math.min(BASE_RUN_MAX_MM, withFridge ? usable - GAP_MM - SLACK_MM - FRIDGE.w : usable);
+    const runT = span.from + end + runW / 2;
+    const run = { ...BASE_RUN, w: runW };
+    const spot = againstEdge(edge, runT, run);
+    if (place(ctx, run, spot.at, spot.rotationDeg) === null) continue;
+    if (withFridge) {
+      const f = againstEdge(edge, runT + runW / 2 + GAP_MM + SLACK_MM + FRIDGE.w / 2, FRIDGE);
+      place(ctx, FRIDGE, f.at, f.rotationDeg);
+    }
+    if (runW >= RUN_HOB_MIN_MM) {
+      stack(ctx, SINK, edge, runT + runW / 4);
+      stack(ctx, HOB, edge, runT - runW / 4);
+    } else stack(ctx, SINK, edge, runT);
+    const clear = ctx.clearSpans.some(
+      (c) => sameEdge(c.edge, edge) && c.span.from <= runT - runW / 2 && c.span.to >= runT + runW / 2,
+    );
+    if (clear) stack(ctx, { ...UPPER_RUN, w: runW }, edge, runT);
+    return;
   }
 };
 
@@ -619,11 +717,19 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
     );
     const needsBed =
       pass === 0 && room.usage === 'bedroom' && areaM2 >= BEDROOM_MIN_M2 && !real.some((f) => f.kind === 'bed');
+    // Bếp mở rộng mà tầng không có phòng khách: bếp kiêm phòng khách, bày cả bộ sofa.
+    const openKitchen =
+      room.usage === 'kitchen' &&
+      areaM2 >= OPEN_KITCHEN_LIVING_MIN_M2 &&
+      !rooms.some((r) => r.levelId === room.levelId && r.usage === 'livingRoom');
     const needsSofa =
       pass === 0 &&
-      room.usage === 'livingRoom' &&
-      areaM2 >= LIVING_MIN_M2 &&
-      !real.some((f) => f.kind === 'chair' || roleOf(f, room.usage) === 'sofa');
+      ((room.usage === 'livingRoom' &&
+        areaM2 >= LIVING_MIN_M2 &&
+        !real.some((f) => f.kind === 'chair' || roleOf(f, room.usage) === 'sofa')) ||
+        (openKitchen && !real.some((f) => roleOf(f, 'livingRoom') === 'sofa')));
+    const needsKitchenRun =
+      pass === 0 && room.usage === 'kitchen' && !real.some((f) => f.kind === 'kitchenCabinet');
     const needsTable =
       ((pass === 0 && room.usage === 'kitchen' && areaM2 >= KITCHEN_SMALL_TABLE_MIN_M2) ||
         (pass === 1 && room.usage === 'livingRoom' && areaM2 >= LIVING_DINING_MIN_M2)) &&
@@ -639,18 +745,19 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
       room.usage === 'bathroom' &&
       !real.some((f) => f.kind === 'sanitaryFixture' || f.kind === 'shower');
     const needsFill = pass === 1 && sparse && !outdoor && areaM2 >= (FILL_MIN_M2[room.usage] ?? Infinity);
-    if (!needsBed && !needsSofa && !needsTable && !needsOther && !needsOutdoor && !needsBath && !needsFill) continue;
+    if (!needsBed && !needsSofa && !needsTable && !needsOther && !needsOutdoor && !needsBath && !needsFill && !needsKitchenRun) continue;
 
     const ctx: Ctx = {
       room,
       swings: doorSwingRects(graph, room.levelId),
       walls: wallRects(graph, room.levelId),
-      clearSpans: allSpans(roomEdges(room, graph)),
-      windowEdges: roomEdges(room, graph),
+      clearSpans: allSpans(edgesOf(room, graph)),
+      windowEdges: edgesOf(room, graph),
       taken: [...solid, ...out].filter((f) => f.levelId === room.levelId).map(rectOfFurniture),
       out,
     };
     const edges = rankedEdges(room, graph);
+    if (needsKitchenRun) furnishKitchenRun(ctx, edges);
     if (needsBed) furnishBedroom(ctx, edges, areaM2);
     if (needsSofa) furnishLiving(ctx, edges);
     if (needsTable) {

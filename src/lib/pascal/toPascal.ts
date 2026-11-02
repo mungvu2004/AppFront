@@ -1408,15 +1408,27 @@ export const toPascalScene = (
     [...builtFurniture, ...furnished],
   ).filter(notOff);
   const dressIdsOf = new Map<string, string[]>();
+  const generatedAll = [...furnished, ...dressed, ...aiAdded];
+  /* Chậu/mặt bếp sinh ra nằm trên mặt đá dãy tủ sinh ra (hoặc thật), như đường đồ thật ở trên. */
+  const counterPool = [...builtFurniture, ...generatedAll];
+  const usageOfGenerated = (f: Furniture) => (f.roomId === undefined ? undefined : roomUsageOf.get(f.roomId));
 
-  for (const furniture of [...furnished, ...dressed, ...aiAdded]) {
+  for (const furniture of generatedAll) {
     const levelNodeId = levelNodeIdOf.get(furniture.levelId);
     const levelHeightMm = levelHeightMmOf.get(furniture.levelId);
 
     if (levelNodeId === undefined || levelHeightMm === undefined) continue;
 
     const usage = furniture.roomId === undefined ? undefined : roomUsageOf.get(furniture.roomId);
-    const node = itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage);
+    const node = itemNodeOf(
+      furniture,
+      levelNodeId,
+      levelHeightMm,
+      style,
+      usage,
+      counterTopMmOf(furniture, counterPool, style, usageOfGenerated),
+      sinkFolderOf(furniture, counterPool, usageOfGenerated),
+    );
 
     nodes[node.id] = { ...node, metadata: { ...node.metadata, generated: 'dressing' } };
     adopt(levelNodeId, node.id);

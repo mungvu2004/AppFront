@@ -97,18 +97,6 @@ describe('V2 — phòng `other` đoán công năng theo tên (chỉ để bày �
     if (room === undefined) throw new Error('mẫu chuẩn phải có phòng');
     const named: Room = { ...room, name: 'OH/RP', usage: 'other' };
     graph.rooms = graph.rooms.map((r, i) => (i === index ? named : r));
-    // Mẫu chuẩn chỉ có mẩu tường 1 m; sofa cần tường thật sau lưng (bench-3d) → dựng tường quanh phòng.
-    const base = graph.walls[0] as Wall;
-    graph.walls = [
-      ...graph.walls,
-      ...room.outline.map((start, i) => ({
-        ...base,
-        id: `W-WALL999990${i}` as WallId,
-        levelId: room.levelId,
-        openingIds: [],
-        centreline: { start, end: room.outline[(i + 1) % room.outline.length] ?? start },
-      })),
-    ];
 
     const { scene } = toPascalScene(graph, { furnish: 'on' });
     const sofa = Object.values(scene.nodes).find(
