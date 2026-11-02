@@ -48,6 +48,7 @@ import { Section } from '@/components/shell/Section';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Toggle } from '@/components/ui/Toggle';
 
 import { FloorUploadCard } from './FloorUploadCard';
 import { FloorUploadDropZone } from './FloorUploadDropZone';
@@ -61,6 +62,9 @@ import type { FloorUploadActions, FloorUploadRowModel, FloorUploadScreenViewProp
 
 const PROCESSED_TITLE = 'Bản vẽ đã xử lý';
 const OPEN_REVIEW_LABEL = 'Về Duyệt tầng';
+const FURNITURE_LABEL = 'Nhận diện đồ đạc';
+const FURNITURE_DESCRIPTION =
+  'Bật: dựng cả giường, tủ, sofa… từ bản vẽ. Tắt: chỉ dò tường, cửa và phòng. Áp dụng cho lượt xử lý tiếp theo.';
 
 /** Mẩu vụn đường dẫn, đúng `floorUpload.breadcrumb.*` trong `vi.json`. */
 const BREADCRUMB_PROJECTS = 'Dự án';
@@ -274,6 +278,16 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
 
         {props.readOnlyNotice !== null && (
           <p className="text-body-sm text-text-secondary">{props.readOnlyNotice}</p>
+        )}
+
+        {props.detectFurniture !== undefined && state !== 'error' && (
+          <Toggle
+            checked={props.detectFurniture.detectFurniture}
+            description={props.detectFurniture.saveError ?? FURNITURE_DESCRIPTION}
+            disabled={!props.canEdit || props.detectFurniture.isSaving}
+            label={FURNITURE_LABEL}
+            onChange={(next) => props.detectFurniture?.setDetectFurniture(next)}
+          />
         )}
 
         {state === 'error' ? (

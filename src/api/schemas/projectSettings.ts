@@ -51,6 +51,9 @@ export const ProjectSettingsBodySchema = z
     /* UX-R2 K34 — "Các tầng là các căn hộ riêng": bật thì các tầng không chồng thành một nhà.
        BE mặc định `false`; vắng ở thân gửi = giữ nguyên (như `sceneStyle`). */
     separateUnits: z.boolean().optional(),
+    /* QT-FURN-TOGGLE — dựng đồ đạc AI ở lượt xử lý sau. BE mặc định `false` và luôn trả trường này;
+       vắng ở thân gửi = giữ nguyên (như `sceneStyle`). */
+    detectFurniture: z.boolean().optional(),
     snapToleranceMm: z.number().int().min(1).max(120),
   })
   .strict();
@@ -73,6 +76,7 @@ export const ProjectSettingsSchema = ProjectSettingsBodySchema.extend({
     buildingType: wireSettings.buildingType,
     confidenceThreshold: wireSettings.confidenceThreshold,
     defaultScaleMmPerPx: wireSettings.defaultScaleMmPerPx,
+    ...(wireSettings.detectFurniture !== undefined ? { detectFurniture: wireSettings.detectFurniture } : {}),
     lengthUnit: wireSettings.lengthUnit,
     ...(wireSettings.notes !== undefined ? { notes: wireSettings.notes } : {}),
     revision: wireSettings.revision,

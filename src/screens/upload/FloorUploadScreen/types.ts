@@ -22,6 +22,7 @@
  */
 
 import type { SelectOption } from '@/components/ui/Select';
+import type { DetectFurnitureState } from '@/hooks/useDetectFurniture';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
@@ -300,6 +301,8 @@ export interface FloorUploadModel {
   readonly projectId: string;
   /** Tên dự án cho breadcrumb, lấy từ bộ đệm (BUG-165). Vắng khi bộ đệm chưa có: breadcrumb bỏ cấp ấy. */
   readonly projectName?: string;
+  /** QT-FURN-TOGGLE: công tắc "Nhận diện đồ đạc" của dự án; vắng thì không vẽ công tắc. */
+  readonly detectFurniture?: DetectFurnitureState;
   readonly canEdit: boolean;
   readonly isReadOnly: boolean;
   readonly isCollapsed: boolean;
