@@ -44,7 +44,7 @@ import { applyFloorTransforms, floorDisplayTransformsOf } from './floorAlignment
 import { CATALOG_MODELS, VARIANT_MODEL, isServerModel, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
 import { expandKitchenRuns, isKitchenRunHost } from './kitchenRuns';
-import { orientDetectedFurniture } from './orientDetected';
+import { isAutoFaced, orientDetectedFurniture } from './orientDetected';
 import { roofNodesOf } from './roofs';
 import { insideOutline, swingDirectionOf } from './swingDirection';
 import {
@@ -933,6 +933,7 @@ const itemNodeOf = (
         ...(furniture.roomId === undefined ? {} : { roomId: furniture.roomId }),
         // W3b: lượt về chỉ ghi khe / độ cao / độ nâng khác những số này — cảnh chưa chạm thì không đổi.
         rotationDeg: furniture.rotationDeg,
+        ...(isAutoFaced(furniture) ? { autoFacing: true } : {}),
         styleSlots,
         styleLiftMm: liftMm,
         ...(furniture.variant === undefined ? {} : { variant: furniture.variant }),

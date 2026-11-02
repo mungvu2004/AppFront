@@ -104,13 +104,26 @@ describe('orientDetectedFurniture', () => {
     expect(chair?.rotationDeg).toBe(90);
   });
 
-  it('món đã duyệt, đã xoay, hoặc của người vẽ thì để nguyên', () => {
-    const reviewed = item('r', 'chair', 5921, 4976, 280, 431, { reviewed: true });
+  it('món đã xoay thì để nguyên; món đã duyệt/người vẽ mà góc 0 vẫn được quay (2D không có mặt trước)', () => {
+    const reviewed = item('r', 'chair', 5921, 4976, 280, 431, { reviewed: true, source: 'human' });
     const rotated = item('t', 'chair', 5921, 4976, 280, 431, { rotationDeg: degrees(45) });
-    const manual = item('m', 'chair', 5921, 4976, 280, 431, { source: 'human' });
-    const list = orientDetectedFurniture([FURNITURE[0] as Furniture, reviewed, rotated, manual], WALLS);
-    expect(list[1]).toBe(reviewed);
+    const list = orientDetectedFurniture([FURNITURE[0] as Furniture, reviewed, rotated], WALLS);
+    expect(list[1]?.rotationDeg).toBe(90);
     expect(list[2]).toBe(rotated);
-    expect(list[3]).toBe(manual);
+  });
+
+  it('giường đã duyệt dọc trục y, tường sát cạnh +y: đầu giường vào tường (02/11, H-01 r4: chân dí tường)', () => {
+    // Số của F-03H5EW4M9TEKEYPEBEDI31VQM: hộp 1846 × 2041, tường ngang ngay mép +y.
+    const bed = item('b', 'bed', 5469, 6966.5, 1846, 2041, { source: 'human', reviewed: true });
+    const [out1] = orientDetectedFurniture([bed], [wall('end', 4000, 7987 + 75, 7000, 7987 + 75)]);
+    expect(out1?.rotationDeg).toBe(180);
+  });
+
+  it('giường kê góc: tường hông gần hơn vẫn không thành đầu giường', () => {
+    // Dọc trục y; tường dọc sát cạnh dài (khe 0), tường ngang cuối cạnh ngắn cách 300 mm.
+    const bed = item('c', 'bed', 2000, 3000, 1600, 2000);
+    const walls = [wall('side', 1200 - 75, 0, 1200 - 75, 6000), wall('end', 0, 4000 + 300 + 75, 4000, 4000 + 300 + 75)];
+    const [out1] = orientDetectedFurniture([bed], walls);
+    expect(out1?.rotationDeg).toBe(180);
   });
 });

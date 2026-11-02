@@ -70,6 +70,7 @@ import { AUTHORED_BY_HAND, toPointMm } from '@/lib/commands/business/shared';
 import { isServerModel, serverKindOf, serverModelPath } from './furnitureCatalog';
 import { appFrontIdOf, BUILDING_NODE_ID, toPascalId } from './ids';
 import { LIBRARY_MATERIAL_IDS } from './libraryMaterialIds';
+import { worldBoxOf } from './orientDetected';
 import { roofOf } from './roofs';
 import { CEILING_DEFAULT, isGeneratedLightId, isGeneratedNodeId, SCENE_MATERIALS } from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, SCENE_STYLES, sceneStyleOf } from './sceneStyles';
@@ -749,6 +750,12 @@ const collectItem = (scene: PascalScene, item: PascalItemNode, levelId: LevelId,
     const max = readCorner(fields, 'max');
     const roomId = readString(fields, 'roomId');
     const kind = readOneOf(fields, 'kind', FURNITURE_KINDS) ?? serverKindOf(item.asset.id) ?? 'other';
+    const box = itemBoxOf(centre, min !== null && max !== null ? { min, max } : null, item.asset.dimensions, item.scale);
+    const rotationDeg = planDegreesOf(item.rotation[1]);
+    // Hướng tự đoán (`orientDetected`, góc gốc 0) mà người dùng chưa xoay: trả lại góc 0 + hộp gốc, để món
+    // không thành "đã sửa" chỉ vì cách hiển thị. Xoay rồi thì góc mới là của người dùng.
+    const shownDeg = readNumber(fields, 'rotationDeg');
+    const autoKept = fields['autoFacing'] === true && shownDeg !== null && rotationDeg === normaliseDegrees(asDegrees(shownDeg));
 
     collector.furniture.push({
       ...reviewOf(item, knownId !== null),
@@ -756,13 +763,8 @@ const collectItem = (scene: PascalScene, item: PascalItemNode, levelId: LevelId,
       levelId,
       kind,
       centre,
-      boundingBox: itemBoxOf(
-        centre,
-        min !== null && max !== null ? { min, max } : null,
-        item.asset.dimensions,
-        item.scale,
-      ),
-      rotationDeg: planDegreesOf(item.rotation[1]),
+      boundingBox: autoKept ? worldBoxOf(box, rotationDeg) : box,
+      rotationDeg: autoKept ? asDegrees(0) : rotationDeg,
       ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
       ...itemFieldsOf(item, kind),
     });

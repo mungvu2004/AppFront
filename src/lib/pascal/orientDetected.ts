@@ -4,7 +4,8 @@
  *
  * Luật: ghế quay vào bàn gần nhất (hoặc quầy bar `kitchenCabinet`) trong 900 mm; không có thì
  * lưng tựa tường gần nhất trong 600 mm. Giường, tủ áo, thiết bị vệ sinh, máy giặt, TV… lưng tựa
- * tường gần nhất trong 600 mm. Chỉ đụng món `source: 'ai'`, chưa duyệt, góc còn 0.
+ * tường gần nhất trong 600 mm (giường: chỉ tường ở cạnh ngắn). Chỉ đụng món góc còn 0 — kể cả món đã duyệt
+ * ở 2D, vì 2D không cho thấy mặt trước.
  *
  * Quy ước (K1, `domain/spatial/types.ts` — `boundingBox` là khung riêng chưa xoay): mặt trước là
  * +y riêng, `furnitureFacingDeg` (placement.ts) — cùng hàm `againstEdge`/ghế bàn ăn của
@@ -80,11 +81,16 @@ const nearestTarget = (seat: Furniture, targets: readonly Furniture[]): Furnitur
   return best;
 };
 
-/** Pháp tuyến hướng vào phòng của tường thẳng trục gần lưng món nhất trong 600 mm, hoặc `null`. */
+/**
+ * Pháp tuyến hướng vào phòng của tường thẳng trục gần lưng món nhất trong 600 mm, hoặc `null`.
+ * `endsOnly` (giường): chỉ tường chạy dọc cạnh NGẮN — đầu giường không bao giờ nằm ở cạnh dài, kể cả khi
+ * giường kê sát góc và tường bên hông gần hơn.
+ */
 // ponytail: chỉ tường gần thẳng trục, tường xiên/cong bị bỏ qua; cần thì chiếu lên pháp tuyến thật.
-const intoRoomFromWall = (item: Furniture, walls: readonly Wall[]): Point | null => {
+const intoRoomFromWall = (item: Furniture, walls: readonly Wall[], endsOnly = false): Point | null => {
   const b = item.boundingBox;
   const m = midOf(b);
+  const longAlongY = b.max.y - b.min.y > b.max.x - b.min.x;
   let best: Point | null = null;
   let bestGap = BACK_TO_WALL_MM;
   for (const w of walls) {
@@ -96,6 +102,7 @@ const intoRoomFromWall = (item: Furniture, walls: readonly Wall[]): Point | null
     const horizontal = Math.abs(dy) <= Math.abs(dx) * AXIS_TOLERANCE;
     const vertical = Math.abs(dx) <= Math.abs(dy) * AXIS_TOLERANCE;
     if (!horizontal && !vertical) continue;
+    if (endsOnly && (longAlongY ? !horizontal : !vertical)) continue;
     // Trục dọc tường (u) và trục vuông góc (v) của hộp.
     const [uMin, uMax, vMin, vMax, vMid] = horizontal
       ? [b.min.x, b.max.x, b.min.y, b.max.y, m.y]
@@ -114,6 +121,13 @@ const intoRoomFromWall = (item: Furniture, walls: readonly Wall[]): Point | null
   return best;
 };
 
+/**
+ * Món vừa được quay ở đây (góc gốc 0): toPascal ghi `autoFacing` để lượt về trả lại góc 0 + hộp gốc khi
+ * người dùng chưa xoay — hướng đoán chỉ để hiển thị, không thành "đã sửa" (không mất dấu duyệt).
+ */
+const autoFaced = new WeakSet<Furniture>();
+export const isAutoFaced = (item: Furniture): boolean => autoFaced.has(item);
+
 const turned = (item: Furniture, facing: Point): Furniture => {
   const rotationDeg = furnitureFacingDeg(facing);
   if (rotationDeg === 0) return item;
@@ -126,7 +140,9 @@ const turned = (item: Furniture, facing: Point): Furniture => {
           max: { x: m.x + (b.max.y - b.min.y) / 2, y: m.y + (b.max.x - b.min.x) / 2 },
         }
       : b;
-  return { ...item, rotationDeg: degrees(rotationDeg), boundingBox };
+  const out = { ...item, rotationDeg: degrees(rotationDeg), boundingBox };
+  autoFaced.add(out);
+  return out;
 };
 
 /** Cùng danh sách, cùng thứ tự, cùng id; chỉ `rotationDeg` (và hộp riêng khi quay 90°/270°) đổi. */
@@ -138,7 +154,9 @@ export const orientDetectedFurniture = (
   const bars = furniture.filter((f) => f.kind === 'kitchenCabinet');
 
   return furniture.map((item) => {
-    if (item.source !== 'ai' || item.reviewed || item.rotationDeg !== 0) return item;
+    // Cả món đã duyệt/người vẽ: duyệt 2D đổi `source` sang 'human' (A5) mà 2D không có mặt trước, nên góc 0
+    // không phải lựa chọn của ai — để nguyên thì giường đã duyệt quay chân vào tường (đánh giá 02/11).
+    if (item.rotationDeg !== 0) return item;
     if (item.kind === 'chair') {
       const target = nearestTarget(item, tables) ?? nearestTarget(item, bars);
       const facing = target === undefined ? intoRoomFromWall(item, walls) : towardTable(item.boundingBox, worldBoxOf(target.boundingBox, target.rotationDeg));
@@ -146,7 +164,7 @@ export const orientDetectedFurniture = (
     }
     if (WALL_HUGGING_KINDS.has(item.kind) || (item.variant !== undefined && WALL_HUGGING_VARIANTS.has(item.variant))) {
       if (item.kind === 'kitchenCabinet') return item;
-      const facing = intoRoomFromWall(item, walls);
+      const facing = intoRoomFromWall(item, walls, item.kind === 'bed');
       return facing === null ? item : turned(item, facing);
     }
     return item;
