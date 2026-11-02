@@ -38,6 +38,10 @@ if (VIOLATION === undefined) {
 }
 
 const FLOOR_ID = VIOLATION.levelId ?? GRAPH.byKind.level[0] ?? '';
+// Trần chờ tấm trượt sang vi phạm kế sau "sửa nhanh" (kiểm lại luật + nạp động). 2 s đủ ở máy
+// nhưng mảnh vitest có đo độ phủ trên runner CI 4 vCPU từng vượt (master 02/11, 28V-A-023 và
+// 28V-C-004) — phép kiểm giữ nguyên, chỉ nới thời gian chờ; trần cả bài vẫn là `testTimeout` 30 s.
+const NEXT_VIOLATION_TIMEOUT_MS = 10_000;
 
 function Wired({ seed }: { readonly seed: ViolationDetailGatewaySeed }) {
   const props = useViolationDetail({
@@ -211,7 +215,7 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
       () => {
         expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(SECOND?.message ?? '');
       },
-      { timeout: 2000 },
+      { timeout: NEXT_VIOLATION_TIMEOUT_MS },
     );
     expect(within(panel()).queryByText(/^Đã sửa xong/u)).toBeNull();
   });
@@ -248,7 +252,7 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
       () => {
         expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(second.message);
       },
-      { timeout: 2000 },
+      { timeout: NEXT_VIOLATION_TIMEOUT_MS },
     );
   });
 
@@ -285,7 +289,7 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
       () => {
         expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(renumbered.message);
       },
-      { timeout: 2000 },
+      { timeout: NEXT_VIOLATION_TIMEOUT_MS },
     );
     // Không bị kéo ngược về hàng vừa sửa sau nhịp chuyển.
     await act(async () => {
@@ -347,7 +351,7 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
       () => {
         expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(second.message);
       },
-      { timeout: 2000 },
+      { timeout: NEXT_VIOLATION_TIMEOUT_MS },
     );
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Xoá đối tượng này' }));
