@@ -705,6 +705,16 @@ export const serverCatalogTiles = (): ServerCatalogTile[] =>
       scale: [1, 1, 1],
     }));
 
+/** Mục đóng gói vẫn giữ khi đã có thư viện máy chủ: công cụ tủ bếp mô-đun (`upstream/lib/build-palette.ts`). */
+const KEPT_BUILTIN_IDS: ReadonlySet<string> = new Set(['cabinet']);
+
+/**
+ * Bảng đồ Pascal khi thư viện máy chủ tải được: bỏ mẫu đóng gói low-poly, chỉ giữ công cụ + mẫu tải về.
+ * Không có mẫu máy chủ (lỗi/offline) → giữ nguyên danh mục đóng gói.
+ */
+export const libraryOnlyCatalog = <T extends { readonly id: string }>(builtins: readonly T[], tiles: readonly T[]): T[] =>
+  tiles.length === 0 ? [...builtins] : [...builtins.filter((item) => KEPT_BUILTIN_IDS.has(item.id)), ...tiles];
+
 export const modelSrcOf = (folder: string): string =>
   SERVER_FILES.get(folder)?.model ?? `/items/${fileFolderOf(folder)}/model.glb`;
 export const thumbnailOf = (folder: string): string =>
