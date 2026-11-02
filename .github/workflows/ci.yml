@@ -11,7 +11,10 @@ on:
   # Chạy tay trên nhánh chưa mở PR (`gh workflow run ci.yml --ref <nhánh>`).
   workflow_dispatch: {}
 
-# Năm job, KHÔNG job nào `needs:` job nào. Đây là lựa chọn, không phải thiếu sót.
+# Bốn job, đúng các bước của `pnpm verify`. Job e2e `visual` đã bỏ (02/11/2026): bộ e2e là test
+# của từng đợt làm việc, chạy tại máy bằng `pnpm e2e`, không phải cổng merge.
+#
+# KHÔNG job nào `needs:` job nào. Đây là lựa chọn, không phải thiếu sót.
 #
 # Trước đây chúng nối thành một chuỗi: typecheck ← lint, unit ← typecheck,
 # build ← unit, visual ← build. Chuỗi ấy cho mỗi lượt chạy đúng MỘT phán quyết —
@@ -26,18 +29,12 @@ on:
 # kia. Một cảnh báo lint không làm câu trả lời của `tsc` kém tin cậy đi — nó chỉ
 # làm ta không được nghe câu trả lời đó.
 #
-# `visual` cũng không cần `build`. `pnpm e2e` gọi `scripts/run-playwright.mjs`,
-# và dòng 81 ở đó dựng `vite` — máy chủ DEV — chứ không `vite preview`; `dist/`
-# không bao giờ được đọc. Kể cả nếu có đọc thì `needs:` vẫn không chuyển được
-# file: mỗi job chạy trên một runner riêng, và không có cặp upload/download
-# artifact nào cho `dist/` ở đây.
-#
-# Giá phải trả: không đồng nào. Cả năm job vốn đã tự `checkout` + `pnpm install`
+# Giá phải trả: không đồng nào. Cả bốn job vốn đã tự `checkout` + `pnpm install`
 # riêng, nên tổng số phút máy không đổi — chỉ khác là chúng chạy cùng lúc thay vì
-# xếp hàng. Đổi lại, một lượt chạy cho năm phán quyết, và khi có ba thứ hỏng thì
+# xếp hàng. Đổi lại, một lượt chạy cho bốn phán quyết, và khi có ba thứ hỏng thì
 # ta thấy cả ba trong một lần đọc chứ không phải sửa-chạy-lại bốn vòng.
-# `ubuntu-24.04` chứ không `ubuntu-latest`: nhãn đó chuyển sang Ubuntu 26 từ 19/10/2026, Playwright
-# 1.45.2 chưa hỗ trợ bản đó, và ảnh chuẩn linux gắn với phông của một bản Ubuntu cố định.
+# `ubuntu-24.04` chứ không `ubuntu-latest`: nhãn đó chuyển sang Ubuntu 26 từ 19/10/2026; ghim để
+# môi trường không đổi ngầm giữa hai lượt chạy.
 jobs:
   lint:
     runs-on: ubuntu-24.04
@@ -105,98 +102,3 @@ jobs:
       - run: pnpm build
       # Ngân sách gzip, đọc từ `dist/` mà bước trên vừa dựng.
       - run: pnpm size
-
-  visual:
-    # Bộ e2e Playwright (380 bài) là test riêng, không thuộc `pnpm verify`: không chạy trên push/PR,
-    # chỉ khi bấm tay (`gh workflow run ci.yml --ref <nhánh>`). CI của PR = đúng các bước `pnpm verify`.
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    # 380 bài với `workers: 1` (mặc định CI của playwright.config.ts) chạy ~2 bài/phút, cả bộ 2–3 giờ
-    # (đo 02/11/2026). Chia 3 máy × 2 worker; `timeout-minutes` để một lượt treo không giữ runner 6 giờ.
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      - run: pnpm install
-      # `playwright.config.ts` khai `channel: 'chrome'` — Google Chrome THẬT, không
-      # phải Chromium đóng gói. `playwright install --with-deps` KHÔNG cài Chrome:
-      # nó chỉ cài chromium/firefox/webkit của Playwright. Thiếu dòng dưới thì mọi
-      # bài e2e chết ngay lúc mở trình duyệt với "Chromium distribution 'chrome' is
-      # not found at /opt/google/chrome/chrome" — TRƯỚC khi so bất kỳ ảnh nào, nên
-      # bước đẩy artifact bên dưới cũng không có ảnh linux nào để đẩy.
-      # Đã dựng lại lỗi này trong ảnh mcr.microsoft.com/playwright:v1.45.2-jammy.
-      - run: npx playwright install --with-deps
-      - run: npx playwright install chrome
-      # `pnpm e2e` SO SÁNH ảnh chuẩn. `pnpm e2e:visual` thì KHÔNG — nó chạy với
-      # `--update-snapshots`, tức ghi đè ảnh chuẩn rồi báo đạt. Job này từng gọi
-      # lệnh đó, nên nó hiển thị dấu tích mà không kiểm gì: đúng thứ mục E.10 của
-      # CLAUDE.md cấm. `e2e:visual` vẫn giữ, nhưng là lệnh cập nhật ảnh chạy tại máy.
-      # `--fail-on-flaky-tests`: `retries: 2` (playwright.config.ts) giữ lại để có
-      # trace, nhưng một bài chỉ xanh nhờ chạy lại là một bài chập chờn, không
-      # phải một bài đạt — `viewer3d.spec.ts:546` từng xanh/đỏ xen kẽ như thế.
-      # `--retries=1` (config CI để 2): một lần chạy lại đủ ghi trace (`trace: 'on-first-retry'`), và
-      # `--fail-on-flaky-tests` vẫn tính bài chỉ xanh nhờ chạy lại là hỏng — lần thứ hai chỉ nhân đôi thời gian.
-      - run: pnpm e2e --fail-on-flaky-tests --retries=1 --workers=2 --shard=${{ matrix.shard }}/3
-      # Ảnh chuẩn phụ thuộc nền tảng. Repo hiện chỉ có bản `win32`, còn job này chạy
-      # `ubuntu-24.04`, nên lượt chạy đầu tiên sẽ ĐỎ với "snapshot doesn't exist" —
-      # Playwright ghi ảnh linux ra đĩa rồi vẫn báo hỏng. Bước dưới đẩy đúng những
-      # ảnh đó ra artifact để người duyệt tải về và commit một lần. Sau lần đó job
-      # này so sánh thật.
-      #
-      # Không sinh ảnh linux tại máy Windows được, và ảnh sinh trong container khác
-      # phiên bản ubuntu vẫn có thể lệch phông chữ — commit ảnh đoán mò còn tệ hơn
-      # không có ảnh nào.
-      #
-      # `always()` chứ không `failure()`. Đừng đọc đây như "failure() không nổ khi
-      # bước cài gói hỏng" — nó CÓ nổ: `failure()` trong điều kiện của một bước là
-      # đúng ngay khi bất kỳ bước nào trước đó hỏng. Chỗ nó KHÔNG nổ là khi job bị
-      # HUỶ: hết hạn mức 6 giờ, hay một lượt push mới huỷ lượt đang chạy. Đúng lúc
-      # đó ta vẫn muốn xem `test-results/` kịp ghi được gì. Giá phải trả: lượt xanh
-      # cũng đẩy artifact, nội dung là hai ảnh `win32` đang nằm trong repo — 120 KB.
-      #
-      # Hai đường dưới đây đã đối chiếu với cây thật của repo, không chép từ mặc
-      # định của tài liệu:
-      #
-      # - `e2e/**/*-snapshots/**` — nơi ảnh chuẩn MỚI được ghi. Mặc định
-      #   `snapshotPathTemplate` (playwright 1.45.2, `lib/common/config.js:159`) cho
-      #   `e2e/<tên file spec>-snapshots/<arg>-chromium-<process.platform>.png`, tức
-      #   `dashboard-1440-chromium-linux.png` ở đây. `updateSnapshots` mặc định là
-      #   `'missing'`: ảnh thiếu thì Playwright GHI RA rồi vẫn để bài đỏ
-      #   (`lib/matchers/toMatchSnapshot.js:159-175`) — đúng điều job này cần, nên
-      #   `playwright.config.ts` cố ý không đặt lại trường đó.
-      # - `test-results/**` — `outputDir` mặc định (`config.js:164`), nơi ghi
-      #   `*-actual.png`, `*-diff.png` và trace của lần chạy lại. Trước đây THIẾU,
-      #   nên một bài hỏng vì hết thời gian chờ (không phải vì thiếu ảnh chuẩn) đẩy
-      #   về một artifact không có gì để xem.
-      #
-      # `playwright-report/**` bị bỏ khỏi danh sách: ở CI nó không bao giờ tồn tại.
-      # `pnpm e2e` truyền `--reporter=line`, và tham số dòng lệnh thắng
-      # `reporter: 'html'` trong config (`config.js:77`), nên trình báo cáo html
-      # không chạy.
-      #
-      # Giữ ĐỦ HAI đường cũng là thứ làm zip giải nén đúng chỗ: upload-artifact v4
-      # lấy tổ tiên chung gần nhất của các search path làm gốc artifact. Hai đường
-      # `e2e/` và `test-results/` cho gốc là thư mục làm việc, nên trong zip đường
-      # dẫn là `e2e/<spec>-snapshots/...` — giải nén tại gốc repo là đã đúng chỗ để
-      # `git add`. Bỏ một đường thì gốc thành `e2e/`, mất tiền tố, và người duyệt
-      # phải tự đoán chỗ đặt.
-      - name: Đẩy ảnh chuẩn linux và test-results ra artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-snapshots-linux-${{ matrix.shard }}
-          overwrite: true
-          path: |
-            e2e/**/*-snapshots/**
-            test-results/**
-          retention-days: 14
