@@ -103,9 +103,17 @@ jobs:
   #   luôn thấp hơn thật. `all: true` vẫn bật trong mảnh, nên tệp không bài nào
   #   chạm tới vẫn vào mẫu số với 0%.
   # - Job `unit` gộp mọi mảnh bằng `vitest run --merge-reports --coverage`, không
-  #   có `COVERAGE_SHARD`, nên ngưỡng được đối chiếu trên độ phủ của CẢ bộ — cùng con
-  #   số `pnpm coverage` cho tại máy (đã đối chiếu: gộp hai mảnh ra đúng số của một
-  #   lượt chạy liền). Bài đỏ ở bất kỳ mảnh nào cũng làm `unit` đỏ.
+  #   có `COVERAGE_SHARD`, nên ngưỡng được đối chiếu trên độ phủ của CẢ bộ. Bài đỏ ở
+  #   bất kỳ mảnh nào cũng làm `unit` đỏ.
+  #
+  # Số gộp KHÔNG trùng từng chữ số với một lượt chạy liền. Đối chiếu trên CI
+  # (02/11/2026, lượt 41479385093 liền với lượt 41481345751 gộp): trong `src/domain`
+  # và `src/lib` — hai tầng có ngưỡng — câu lệnh/dòng/hàm trùng khớp từng thư mục,
+  # còn NHÁNH lệch tới vài điểm, đa số lệch lên (`src/lib/telemetry` 85,57 → 90,16):
+  # v8 gộp các mảnh ở mức istanbul chứ không ở mức khối v8 như trong một tiến trình,
+  # nên một nhánh chạy ở hai mảnh được đếm khác. Ngoài hai tầng ấy (components…) số
+  # câu lệnh còn lệch mạnh hơn. Ngưỡng nhánh vì thế hơi dễ hơn lượt chạy liền; cần
+  # đúng từng chữ số thì `pnpm coverage` tại máy vẫn là thước chuẩn.
   unit-shard:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

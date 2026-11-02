@@ -347,7 +347,7 @@ export default defineConfig({
        * --coverage` (không có biến này), có đủ độ phủ của cả bộ, và đối chiếu
        * đúng các con số dưới đây. Chạy tại máy không đặt biến → như cũ.
        */
-      thresholds: process.env.COVERAGE_SHARD === '1' ? undefined : {
+      thresholds: process.env.COVERAGE_SHARD === '1' ? {} : {
         'src/domain/**': {
           branches: DOMAIN_THRESHOLD,
           functions: DOMAIN_THRESHOLD,
