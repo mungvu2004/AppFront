@@ -11,7 +11,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, Room, SpatialGraph, Wall, WallId } from '@/domain/spatial/types';
 
 import { createPascalEditCommand } from '../fromPascal';
-import { furnishingUsageOf, isPlausibleStair, weldWallEnds } from '../structureFixes';
+import { furnishingUsageOf, isPlausibleStair, orphanWallIds, weldWallEnds } from '../structureFixes';
 import { toPascalScene } from '../toPascal';
 import { toSpatialGraph } from '../toSpatial';
 import type { PascalItemNode, PascalNode } from '../types';
@@ -295,5 +295,70 @@ describe('V1 — dãy tủ bếp chữ L cho bằng một hộp bao', () => {
     const straight: Furniture = { ...run, boundingBox: { min: run.boundingBox.min, max: { x: run.boundingBox.min.x + 2200, y: run.boundingBox.min.y + 600 } }, centre: { x: run.boundingBox.min.x + 1100, y: run.boundingBox.min.y + 300 } };
     const flat = toPascalScene({ ...graph, furniture: [straight, ...graph.furniture.slice(1)] }).scene;
     expect(flat.nodes[`item_DRESS-runLeg-${run.id}`]).toBeUndefined();
+  });
+});
+
+describe('tường trôi ngoài nhà → ẩn (bench-3d cn-16)', () => {
+  const base = createSampleBuilding();
+  const levelId = (base.walls[0] as Wall).levelId;
+  const wallAt = (id: string, x0: number, y0: number, x1: number, y1: number): Wall =>
+    ({
+      ...(base.walls[0] as Wall),
+      id: id as WallId,
+      levelId,
+      openingIds: [],
+      centreline: { start: { x: x0, y: y0 }, end: { x: x1, y: y1 } },
+    }) as Wall;
+  // Vỏ 10 × 8 m (thuộc phòng) + vách chữ T không thuộc phòng nào.
+  const shell = [
+    wallAt('W-WALL9000001', 0, 0, 10000, 0),
+    wallAt('W-WALL9000002', 10000, 0, 10000, 8000),
+    wallAt('W-WALL9000003', 10000, 8000, 0, 8000),
+    wallAt('W-WALL9000004', 0, 8000, 0, 0),
+  ];
+  const partition = wallAt('W-WALL9000005', 5000, 0, 5000, 4000);
+  // Cụm 3 tường rời (6 m < 30 % của 40 m đã neo) và cánh rời lớn (15 m > 12 m).
+  const cluster = [
+    wallAt('W-WALL9000011', 20000, 0, 22000, 0),
+    wallAt('W-WALL9000012', 22000, 0, 22000, 2000),
+    wallAt('W-WALL9000013', 22000, 2000, 20000, 2000),
+  ];
+  const wing = [
+    wallAt('W-WALL9000021', 40000, 0, 45000, 0),
+    wallAt('W-WALL9000022', 45000, 0, 45000, 5000),
+    wallAt('W-WALL9000023', 45000, 5000, 40000, 5000),
+  ];
+  const room: Room = {
+    ...(base.rooms[0] as Room),
+    levelId,
+    outline: [
+      { x: 0, y: 0 },
+      { x: 10000, y: 0 },
+      { x: 10000, y: 8000 },
+      { x: 0, y: 8000 },
+    ],
+    wallIds: shell.map((w) => w.id),
+  };
+  const graph: SpatialGraph = {
+    ...base,
+    walls: [...shell, partition, ...cluster, ...wing],
+    rooms: [room],
+    openings: [],
+    furniture: [],
+  };
+
+  it('cụm rời nhỏ ẩn; vách chữ T nối vỏ và cánh rời lớn (> 30 %) giữ', () => {
+    expect([...orphanWallIds(graph)].sort()).toEqual(cluster.map((w) => w.id));
+  });
+
+  it('mẫu mock (mẩu tường 1 m, không mô tả phòng) → không ẩn gì', () => {
+    expect(orphanWallIds(createSampleBuilding()).size).toBe(0);
+  });
+
+  it('toPascal: node tường trôi vẫn có nhưng visible: false', () => {
+    const { scene } = toPascalScene(graph);
+    const hidden = Object.values(scene.nodes).filter((n) => n.type === 'wall' && n.visible === false);
+    expect(hidden).toHaveLength(3);
+    expect(Object.values(scene.nodes).filter((n) => n.type === 'wall')).toHaveLength(11);
   });
 });

@@ -106,3 +106,13 @@ describe('u20: keo trai xoay khong tu huy khi camera dang troi (transitionstart 
     assert.match(out, /if \(\(viewer\.cameraDragging && wantsBoxSelectU20\(event\)\) \|\| viewer\.inputDragging\) return/);
   });
 });
+
+describe('r9x-wall-caps: nhom vat lieu 0 cua tuong (nap tren/day) dung vat lieu son mat trong', () => {
+  it('chi doi nhanh textures, giu vai tro Lambert khi tat texture', () => {
+    const file = 'viewer/src/systems/wall/wall-materials.ts';
+    const id = path.join(PACKAGES, file);
+    const out = transformRealism(readFileSync(id, 'utf8'), id);
+    assert.match(out, /\? \[\n {10}resolveWallFaceMaterial\(wallNode, 'interior', shading, sceneMaterials\),\n {10}resolveWallFaceMaterial\(wallNode, 'interior'/);
+    assert.match(out, /Array\.from\(\{ length: 12 \}, \(\) => wallRoleMaterial\)/);
+  });
+});
