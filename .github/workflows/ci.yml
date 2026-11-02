@@ -8,6 +8,8 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  # Chạy tay trên nhánh chưa mở PR (`gh workflow run ci.yml --ref <nhánh>`).
+  workflow_dispatch: {}
 
 # Một lượt mới trên cùng nhánh/PR huỷ lượt cũ đang chạy — chỉ với PR. Lượt cũ chỉ
 # còn chiếm runner: hạn mức job chạy cùng lúc là của cả tài khoản, dùng chung với
@@ -17,8 +19,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Năm cổng — lint · typecheck · unit · build · visual — KHÔNG cổng nào `needs:` cổng
-# nào. Đây là lựa chọn, không phải thiếu sót.
+# Bốn cổng, đúng các bước của `pnpm verify`. Job e2e `visual` đã bỏ (02/11/2026): bộ e2e là test
+# của từng đợt làm việc, chạy tại máy bằng `pnpm e2e`, không phải cổng merge.
+#
+# KHÔNG cổng nào `needs:` cổng nào. Đây là lựa chọn, không phải thiếu sót.
 #
 # Trước đây chúng nối thành một chuỗi: typecheck ← lint, unit ← typecheck,
 # build ← unit, visual ← build. Chuỗi ấy cho mỗi lượt chạy đúng MỘT phán quyết —
@@ -33,27 +37,24 @@ concurrency:
 # kia. Một cảnh báo lint không làm câu trả lời của `tsc` kém tin cậy đi — nó chỉ
 # làm ta không được nghe câu trả lời đó.
 #
-# `visual` cũng không cần `build`. `pnpm e2e` gọi `scripts/run-playwright.mjs`,
-# và script đó dựng `vite` — máy chủ DEV — chứ không `vite preview`; `dist/`
-# không bao giờ được đọc. Kể cả nếu có đọc thì `needs:` vẫn không chuyển được
-# file: mỗi job chạy trên một runner riêng, và không có cặp upload/download
-# artifact nào cho `dist/` ở đây.
-#
 # `needs:` duy nhất là BÊN TRONG cổng `unit`: job `unit` gộp kết quả của các mảnh
 # `unit-shard` (xem ở đó). Nó không nối hai cổng với nhau — mảnh nào đỏ thì `unit`
 # vẫn chạy (`!cancelled()`) và nói ra bài nào đỏ.
 #
 # Giá phải trả: không đồng nào. Mỗi job vốn đã tự `checkout` + `pnpm install`
 # riêng (~15 s), nên số phút máy gần như không đổi — chỉ khác là chúng chạy cùng
-# lúc thay vì xếp hàng. Đổi lại, một lượt chạy cho năm phán quyết, và khi có ba
-# thứ hỏng thì ta thấy cả ba trong một lần đọc chứ không phải sửa-chạy-lại bốn vòng.
+# lúc thay vì xếp hàng. Đổi lại, một lượt chạy cho bốn phán quyết, và khi có ba thứ
+# hỏng thì ta thấy cả ba trong một lần đọc chứ không phải sửa-chạy-lại bốn vòng.
 #
-# Mọi job có `timeout-minutes`. Trước đây không có: `visual` từng chạy 1 giờ 55
-# phút (02/11/2026), giữ runner suốt thời gian đó trong khi hạn mức chung với
-# AppBack bắt các job khác xếp hàng.
+# Mọi job có `timeout-minutes` (bình thường mỗi job 2–4 phút). Trước đây không có:
+# job e2e cũ từng chạy 1 giờ 55 phút (02/11/2026), giữ runner suốt thời gian đó
+# trong khi hạn mức chung với AppBack bắt các job khác xếp hàng.
+#
+# `ubuntu-24.04` chứ không `ubuntu-latest`: nhãn đó chuyển sang Ubuntu 26 từ 19/10/2026; ghim để
+# môi trường không đổi ngầm giữa hai lượt chạy.
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -70,9 +71,11 @@ jobs:
       # thuộc của hơn 500 file và làm chậm vòng lặp sửa-lint lúc phát triển.
       # Chỗ của nó là đây và trong `pnpm verify` (R-05).
       - run: pnpm cycles
+      # Bước `độ dài file` của `pnpm verify`; thiếu ở đây thì CI xanh vẫn chưa bằng cổng.
+      - run: pnpm length
 
   typecheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -104,7 +107,7 @@ jobs:
   #   số `pnpm coverage` cho tại máy (đã đối chiếu: gộp hai mảnh ra đúng số của một
   #   lượt chạy liền). Bài đỏ ở bất kỳ mảnh nào cũng làm `unit` đỏ.
   unit-shard:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -135,7 +138,7 @@ jobs:
   unit:
     needs: unit-shard
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -158,7 +161,7 @@ jobs:
       - run: pnpm exec vitest run --merge-reports --coverage
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -173,129 +176,3 @@ jobs:
       - run: pnpm build
       # Ngân sách gzip, đọc từ `dist/` mà bước trên vừa dựng.
       - run: pnpm size
-
-  # Bộ e2e chạy MỘT luồng (`workers: 1` khi CI, `playwright.config.ts`), và các bài
-  # Pascal dựng WebGL bằng CPU: một lượt trọn bộ mất ~50 phút cho lần chạy đầu của
-  # mỗi bài (02/11/2026). Nên nó được chia thành sáu nhóm chạy song song, mỗi nhóm
-  # vẫn một luồng.
-  #
-  # Không dùng `--shard` trơn cho cả bộ: Playwright chia theo SỐ bài, liền mạch theo
-  # thứ tự tệp, mà thời gian dồn hết vào vài tệp `pascal-*` đứng cạnh nhau — một
-  # mảnh sẽ ôm ~50 phút, các mảnh khác vài phút. Ba nhóm Pascal tách theo tên tệp
-  # (bài nặng nhất, `pascal-perf.spec.ts:144`, một mình ~10 phút); phần còn lại
-  # (`--grep-invert pascal-` — chuỗi grep của Playwright gồm cả đường tệp) chia đều
-  # ba mảnh. Đã đối chiếu bằng `playwright test --list`: sáu nhóm hợp lại đúng 380
-  # bài, không bài nào ở hai nhóm. Thêm tệp e2e mới không cần sửa ở đây: tệp không
-  # tên `pascal-` tự vào ba mảnh còn lại, tệp `pascal-` khác tự vào `pascal-khac`.
-  visual:
-    runs-on: ubuntu-latest
-    # Bài dài nhất tự đặt trần 15 phút (`pascal-perf.spec.ts`, `TEST_TIMEOUT_MS`).
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - group: pascal-perf
-            args: pascal-perf
-          - group: pascal-fixtures
-            args: pascal-fixtures
-          - group: pascal-khac
-            args: "pascal- --grep-invert 'pascal-(perf|fixtures)'"
-          - group: con-lai-1
-            args: "--grep-invert pascal- --shard=1/3"
-          - group: con-lai-2
-            args: "--grep-invert pascal- --shard=2/3"
-          - group: con-lai-3
-            args: "--grep-invert pascal- --shard=3/3"
-    name: visual (${{ matrix.group }})
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      # `playwright.config.ts` khai `channel: 'chrome'` — Google Chrome THẬT, không
-      # phải Chromium đóng gói. `playwright install` KHÔNG cài Chrome nếu không
-      # gọi tên nó: nó chỉ cài chromium/firefox/webkit của Playwright. Thiếu dòng
-      # `install chrome` thì mọi bài e2e chết ngay lúc mở trình duyệt với "Chromium
-      # distribution 'chrome' is not found at /opt/google/chrome/chrome" — TRƯỚC khi
-      # so bất kỳ ảnh nào, nên bước đẩy artifact bên dưới cũng không có ảnh linux
-      # nào để đẩy. Đã dựng lại lỗi này trong ảnh mcr.microsoft.com/playwright:v1.45.2-jammy.
-      #
-      # `install-deps` cài đúng bộ gói hệ thống (kể cả phông chữ — ảnh chụp phụ thuộc
-      # vào chúng) như `install --with-deps` trước đây, nhưng không tải ba trình
-      # duyệt đóng gói mà không bài nào mở.
-      - run: npx playwright install-deps
-      - run: npx playwright install chrome
-      # `pnpm e2e` SO SÁNH ảnh chuẩn. `pnpm e2e:visual` thì KHÔNG — nó chạy với
-      # `--update-snapshots`, tức ghi đè ảnh chuẩn rồi báo đạt. Job này từng gọi
-      # lệnh đó, nên nó hiển thị dấu tích mà không kiểm gì: đúng thứ mục E.10 của
-      # CLAUDE.md cấm. `e2e:visual` vẫn giữ, nhưng là lệnh cập nhật ảnh chạy tại máy.
-      #
-      # `--fail-on-flaky-tests`: một bài chỉ xanh nhờ chạy lại là một bài chập
-      # chờn, không phải một bài đạt — `viewer3d.spec.ts:546` từng xanh/đỏ xen kẽ
-      # như thế. Với cờ này, lần chạy lại KHÔNG BAO GIỜ đổi được phán quyết: bài đỏ
-      # lần đầu thì job đỏ, dù lần sau xanh hay đỏ. Nên `--retries=0`: `retries: 2`
-      # của config chỉ còn mua trace (`on-first-retry`), với giá ×3 thời gian của
-      # mọi bài đỏ — lượt 02/11/2026 có 58 bài đỏ, phần chạy lại chiếm 64 trong 114
-      # phút. `--trace=retain-on-failure` giữ trace của chính lần chạy đỏ, nên
-      # `test-results/` vẫn có trace để xem như trước.
-      - run: pnpm e2e --fail-on-flaky-tests --retries=0 --trace=retain-on-failure ${{ matrix.args }}
-      # Ảnh chuẩn phụ thuộc nền tảng. Repo hiện chỉ có bản `win32`, còn job này chạy
-      # `ubuntu-latest`, nên lượt chạy đầu tiên sẽ ĐỎ với "snapshot doesn't exist" —
-      # Playwright ghi ảnh linux ra đĩa rồi vẫn báo hỏng. Bước dưới đẩy đúng những
-      # ảnh đó ra artifact để người duyệt tải về và commit một lần. Sau lần đó job
-      # này so sánh thật. Mỗi nhóm đẩy một artifact riêng
-      # (`playwright-snapshots-linux-<nhóm>`); giải nén tất cả tại gốc repo.
-      #
-      # Không sinh ảnh linux tại máy Windows được, và ảnh sinh trong container khác
-      # phiên bản ubuntu vẫn có thể lệch phông chữ — commit ảnh đoán mò còn tệ hơn
-      # không có ảnh nào.
-      #
-      # `always()` chứ không `failure()`. Đừng đọc đây như "failure() không nổ khi
-      # bước cài gói hỏng" — nó CÓ nổ: `failure()` trong điều kiện của một bước là
-      # đúng ngay khi bất kỳ bước nào trước đó hỏng. Chỗ nó KHÔNG nổ là khi job bị
-      # HUỶ: hết `timeout-minutes`, hay một lượt push mới huỷ lượt đang chạy. Đúng lúc
-      # đó ta vẫn muốn xem `test-results/` kịp ghi được gì. Giá phải trả: lượt xanh
-      # cũng đẩy artifact, nội dung là hai ảnh `win32` đang nằm trong repo — 120 KB.
-      #
-      # Hai đường dưới đây đã đối chiếu với cây thật của repo, không chép từ mặc
-      # định của tài liệu:
-      #
-      # - `e2e/**/*-snapshots/**` — nơi ảnh chuẩn MỚI được ghi. Mặc định
-      #   `snapshotPathTemplate` (playwright 1.45.2, `lib/common/config.js:159`) cho
-      #   `e2e/<tên file spec>-snapshots/<arg>-chromium-<process.platform>.png`, tức
-      #   `dashboard-1440-chromium-linux.png` ở đây. `updateSnapshots` mặc định là
-      #   `'missing'`: ảnh thiếu thì Playwright GHI RA rồi vẫn để bài đỏ
-      #   (`lib/matchers/toMatchSnapshot.js:159-175`) — đúng điều job này cần, nên
-      #   `playwright.config.ts` cố ý không đặt lại trường đó.
-      # - `test-results/**` — `outputDir` mặc định (`config.js:164`), nơi ghi
-      #   `*-actual.png`, `*-diff.png` và trace của lần chạy đỏ. Trước đây THIẾU,
-      #   nên một bài hỏng vì hết thời gian chờ (không phải vì thiếu ảnh chuẩn) đẩy
-      #   về một artifact không có gì để xem.
-      #
-      # `playwright-report/**` bị bỏ khỏi danh sách: ở CI nó không bao giờ tồn tại.
-      # `pnpm e2e` truyền `--reporter=line`, và tham số dòng lệnh thắng
-      # `reporter: 'html'` trong config (`config.js:77`), nên trình báo cáo html
-      # không chạy.
-      #
-      # Giữ ĐỦ HAI đường cũng là thứ làm zip giải nén đúng chỗ: upload-artifact v4
-      # lấy tổ tiên chung gần nhất của các search path làm gốc artifact. Hai đường
-      # `e2e/` và `test-results/` cho gốc là thư mục làm việc, nên trong zip đường
-      # dẫn là `e2e/<spec>-snapshots/...` — giải nén tại gốc repo là đã đúng chỗ để
-      # `git add`. Bỏ một đường thì gốc thành `e2e/`, mất tiền tố, và người duyệt
-      # phải tự đoán chỗ đặt.
-      - name: Đẩy ảnh chuẩn linux và test-results ra artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-snapshots-linux-${{ matrix.group }}
-          overwrite: true
-          path: |
-            e2e/**/*-snapshots/**
-            test-results/**
-          retention-days: 14
