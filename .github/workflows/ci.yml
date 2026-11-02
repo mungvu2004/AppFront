@@ -8,6 +8,8 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  # Chạy tay trên nhánh chưa mở PR (`gh workflow run ci.yml --ref <nhánh>`).
+  workflow_dispatch: {}
 
 # Năm job, KHÔNG job nào `needs:` job nào. Đây là lựa chọn, không phải thiếu sót.
 #
@@ -34,9 +36,11 @@ on:
 # riêng, nên tổng số phút máy không đổi — chỉ khác là chúng chạy cùng lúc thay vì
 # xếp hàng. Đổi lại, một lượt chạy cho năm phán quyết, và khi có ba thứ hỏng thì
 # ta thấy cả ba trong một lần đọc chứ không phải sửa-chạy-lại bốn vòng.
+# `ubuntu-24.04` chứ không `ubuntu-latest`: nhãn đó chuyển sang Ubuntu 26 từ 19/10/2026, Playwright
+# 1.45.2 chưa hỗ trợ bản đó, và ảnh chuẩn linux gắn với phông của một bản Ubuntu cố định.
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -52,9 +56,11 @@ jobs:
       # thuộc của hơn 500 file và làm chậm vòng lặp sửa-lint lúc phát triển.
       # Chỗ của nó là đây và trong `pnpm verify` (R-05).
       - run: pnpm cycles
+      # Bước `độ dài file` của `pnpm verify`; thiếu ở đây thì CI xanh vẫn chưa bằng cổng.
+      - run: pnpm length
 
   typecheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -68,7 +74,7 @@ jobs:
       - run: pnpm typecheck
 
   unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -85,7 +91,7 @@ jobs:
       - run: pnpm coverage
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -101,7 +107,7 @@ jobs:
       - run: pnpm size
 
   visual:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -130,7 +136,7 @@ jobs:
       # phải một bài đạt — `viewer3d.spec.ts:546` từng xanh/đỏ xen kẽ như thế.
       - run: pnpm e2e --fail-on-flaky-tests
       # Ảnh chuẩn phụ thuộc nền tảng. Repo hiện chỉ có bản `win32`, còn job này chạy
-      # `ubuntu-latest`, nên lượt chạy đầu tiên sẽ ĐỎ với "snapshot doesn't exist" —
+      # `ubuntu-24.04`, nên lượt chạy đầu tiên sẽ ĐỎ với "snapshot doesn't exist" —
       # Playwright ghi ảnh linux ra đĩa rồi vẫn báo hỏng. Bước dưới đẩy đúng những
       # ảnh đó ra artifact để người duyệt tải về và commit một lần. Sau lần đó job
       # này so sánh thật.
