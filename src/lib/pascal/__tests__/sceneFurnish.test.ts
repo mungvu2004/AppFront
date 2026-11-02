@@ -480,4 +480,61 @@ describe('furnishEmptyRooms', () => {
     expect(items.some((f) => f.variant === 'sofa')).toBe(true);
     expectValid(graph, items);
   });
+
+  it('phòng khách chữ L thông một phía (cạnh y = 0 không tường) → sofa/TV không tựa cạnh hở', () => {
+    const living = room('R-OPEN', 'livingRoom', [
+      { x: 0, y: 0 },
+      { x: 6000, y: 0 },
+      { x: 6000, y: 3000 },
+      { x: 3000, y: 3000 },
+      { x: 3000, y: 6000 },
+      { x: 0, y: 6000 },
+    ]);
+    const base = graphOf([living]);
+    const graph = { ...base, walls: base.walls.filter((w) => w.id !== 'W-R-OPEN-0') };
+    const items = furnishEmptyRooms(graph, style);
+    const backed = items.filter((f) => f.variant === 'sofa' || f.variant === 'tv');
+    expect(backed.some((f) => f.variant === 'sofa')).toBe(true);
+    // Tựa cạnh hở thì tâm cách y = 0 đúng 100 + 1 + d/2 ≤ 551 mm.
+    for (const f of backed) expect(f.centre.y, f.id).toBeGreaterThan(600);
+    expectValid(graph, items);
+  });
+
+  const bathDoor = (wallId: string): Opening =>
+    ({ ...door, id: `D-${wallId}`, wallId, offsetMm: 200, widthMm: 700 }) as Opening;
+
+  it('phòng tắm 1,6 × 2 m có cửa, chưa có thiết bị → bồn cầu + lavabo, hợp lệ', () => {
+    const graph = graphOf([square('R-B1', 'bathroom', 0, 1600, 2000)], [], [bathDoor('W-R-B1-0')]);
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.filter((f) => f.variant === 'wc')).toHaveLength(1);
+    expect(items.filter((f) => f.variant === 'basin')).toHaveLength(1);
+    expect(items.every((f) => f.kind === 'sanitaryFixture' || f.kind === 'shower')).toBe(true);
+    expectValid(graph, items);
+  });
+
+  it('phòng tắm 2 × 2,5 m → thêm khu tắm vòi sen ở góc xa cửa', () => {
+    const graph = graphOf([square('R-B2', 'bathroom', 0, 2000, 2500)], [], [bathDoor('W-R-B2-0')]);
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.map((f) => f.variant).sort()).toEqual(['basin', 'shower', 'wc']);
+    const shower = items.find((f) => f.variant === 'shower') as Furniture;
+    expect(shower.kind).toBe('shower');
+    // Cửa ở tường y = 0, x ∈ [200, 900]: khu tắm ở nửa xa (y lớn).
+    expect(shower.centre.y).toBeGreaterThan(1250);
+    expectValid(graph, items);
+  });
+
+  it('phòng tắm đã có bồn cầu thật → không thêm gì', () => {
+    const bath = square('R-B3', 'bathroom', 0, 2000, 2500);
+    const wc = {
+      ...META,
+      id: 'F-WC',
+      levelId: 'L-1',
+      roomId: 'R-B3',
+      kind: 'sanitaryFixture',
+      centre: { x: 400, y: 2000 },
+      boundingBox: { min: { x: 200, y: 1650 }, max: { x: 600, y: 2350 } },
+      rotationDeg: 0,
+    } as Furniture;
+    expect(furnishEmptyRooms(graphOf([bath], [wc], [bathDoor('W-R-B3-0')]), style)).toEqual([]);
+  });
 });

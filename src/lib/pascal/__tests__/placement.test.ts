@@ -124,6 +124,19 @@ describe('roomEdges', () => {
     ]);
   });
 
+  it('tường thẳng hàng nhưng ngoài đoạn cạnh không phủ cạnh; tường phủ một phần → walled đúng đoạn đó', () => {
+    // Tường trên đường y = 0 nhưng ở x ∈ [5000, 8000]: cạnh 0 (x ∈ [0, 4000]) không có tường.
+    const elsewhere = wallOf('W-A', { x: 5000, y: 0 }, { x: 8000, y: 0 });
+    const [edge] = roomEdges(room, graphOf([elsewhere], [doorOf('O-D', 'W-A', 500)]));
+    expect(edge?.walled).toEqual([]);
+    expect(edge?.wallHalfMm).toBe(0);
+    expect(edge?.openings).toEqual([]);
+
+    // Hai đoạn tường x ∈ [0, 1500] và [1600, 2500] (khe 100 mm coi là liền), x ∈ [2500, 4000] hở.
+    const parts = [wallOf('W-B', { x: -100, y: 0 }, { x: 1500, y: 0 }), wallOf('W-C', { x: 1600, y: 0 }, { x: 2500, y: 0 })];
+    expect(roomEdges(room, graphOf(parts, []))[0]?.walled).toEqual([{ fromMm: 0, toMm: 2500 }]);
+  });
+
   it('tường xa cạnh hơn dày/2 + 50 mm không tính', () => {
     const far = wallOf('W-A', { x: 0, y: -300 }, { x: 4000, y: -300 });
     expect(roomEdges(room, graphOf([far], [doorOf('O-D', 'W-A', 1000)]))[0]?.openings).toEqual([]);

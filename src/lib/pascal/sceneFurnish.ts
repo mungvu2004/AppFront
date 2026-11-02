@@ -75,6 +75,8 @@ const END_CLEAR_MM = 160;
 const MAX_FILL_PLANTS = 4;
 /** Ban công/lô-gia từ mức này có chậu cây dọc lan can; ghế nằm từ OTHER_MIN_M2. */
 const OUTDOOR_MIN_M2 = 2;
+/** Phòng tắm từ mức này có thêm khu tắm vòi sen. */
+const SHOWER_MIN_M2 = 3;
 /** Chậu dọc lan can: khe giữa hai chậu, tối đa số chậu mỗi phòng. */
 const PLANTER_SPACING_MM = 400;
 const MAX_PLANTERS = 6;
@@ -116,6 +118,10 @@ const PLANT: Piece = { role: 'plant', kind: 'other', variant: 'plant', w: 600, d
 const LOUNGER: Piece = { role: 'lounger', kind: 'chair', variant: 'lounger', w: 860, d: 1900 };
 // Luống dài sát lan can (mẫu bush / planter-long, cùng tỉ lệ dài ≈ 3:1).
 const PLANTER: Piece = { role: 'planter', kind: 'other', variant: 'planter', w: 1200, d: 400 };
+// Phòng tắm: nhận diện đồ đã tắt nên bản vẽ không còn cấp thiết bị vệ sinh (mẫu toilet / bathroom-sink / shower-square).
+const WC: Piece = { role: 'wc', kind: 'sanitaryFixture', variant: 'wc', w: 400, d: 700 };
+const BASIN: Piece = { role: 'basin', kind: 'sanitaryFixture', variant: 'basin', w: 600, d: 450 };
+const SHOWER: Piece = { role: 'shower', kind: 'shower', variant: 'shower', w: 900, d: 900 };
 
 interface Span {
   readonly from: number;
@@ -161,14 +167,27 @@ const directionOf = (edge: RoomEdge): Point => ({
 
 const turn = (rotationDeg: number, byDeg: number): number => (rotationDeg + byDeg) % 360;
 
-/** Các đoạn trống của cạnh sau khi trừ các khoảng cửa (mỗi bên thêm 100 mm), theo thứ tự dọc cạnh. */
-const freeSpans = (edge: RoomEdge): Span[] => {
+/**
+ * Các đoạn trống của cạnh sau khi trừ các khoảng cửa (mỗi bên thêm 100 mm) và — trừ khi `open` —
+ * mọi đoạn không có tường thật phía sau (phòng thông nhau, khe giữa hai tường): lưng sofa/TV/giường
+ * không được quay ra chỗ trống. Theo thứ tự dọc cạnh.
+ */
+const freeSpans = (edge: RoomEdge, open = false): Span[] => {
+  const blocked: Span[] = edge.openings.map((o) => ({ from: o.fromMm - OPENING_MARGIN_MM, to: o.toMm + OPENING_MARGIN_MM }));
+  if (!open) {
+    let wallEnd = 0;
+    for (const w of edge.walled) {
+      if (w.fromMm > wallEnd) blocked.push({ from: wallEnd, to: w.fromMm });
+      wallEnd = w.toMm;
+    }
+    if (edge.lengthMm > wallEnd) blocked.push({ from: wallEnd, to: edge.lengthMm });
+  }
+  blocked.sort((p, q) => p.from - q.from || p.to - q.to);
   const spans: Span[] = [];
   let cursor = 0;
-  for (const opening of edge.openings) {
-    const stop = opening.fromMm - OPENING_MARGIN_MM;
-    if (stop > cursor) spans.push({ from: cursor, to: stop });
-    cursor = Math.max(cursor, opening.toMm + OPENING_MARGIN_MM);
+  for (const b of blocked) {
+    if (b.from > cursor) spans.push({ from: cursor, to: b.from });
+    cursor = Math.max(cursor, b.to);
   }
   if (edge.lengthMm > cursor) spans.push({ from: cursor, to: edge.lengthMm });
   return spans;
@@ -243,10 +262,10 @@ const rankedEdges = (room: Room, graph: SpatialGraph): RankedEdge[] =>
     .map((edge, index) => ({ edge, span: widestSpan(edge), index }))
     .sort((p, q) => lengthOf(q.span) - lengthOf(p.span) || p.index - q.index);
 
-/** MỌI đoạn trống của mọi cạnh (dài trước, rồi thứ tự cạnh, rồi dọc cạnh). */
-const allSpans = (edges: readonly RoomEdge[]): RankedEdge[] =>
+/** MỌI đoạn trống của mọi cạnh (dài trước, rồi thứ tự cạnh, rồi dọc cạnh); `open` = kể cả đoạn không tường. */
+const allSpans = (edges: readonly RoomEdge[], open = false): RankedEdge[] =>
   edges
-    .flatMap((edge, index) => freeSpans(edge).map((span) => ({ edge, span, index })))
+    .flatMap((edge, index) => freeSpans(edge, open).map((span) => ({ edge, span, index })))
     .sort((p, q) => lengthOf(q.span) - lengthOf(p.span) || p.index - q.index || p.span.from - q.span.from);
 
 /**
@@ -503,7 +522,11 @@ const furnishStudy = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
  * nhau PLANTER_SPACING_MM, tối đa MAX_PLANTERS — như bản render Blender. Chỉ mô hình đã đăng ký.
  */
 const furnishOutdoor = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number): void => {
-  const spans = allSpans(edges.map(({ edge }) => edge));
+  // Lan can hở (không có tường trong đồ thị) vẫn bày chậu được.
+  const spans = allSpans(
+    edges.map(({ edge }) => edge),
+    true,
+  );
   if (areaM2 >= OTHER_MIN_M2) alongWall(ctx, spans, LOUNGER);
   let n = 1;
   for (const { edge, span } of spans) {
@@ -513,6 +536,26 @@ const furnishOutdoor = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number):
       if (place(ctx, PLANTER, spot.at, spot.rotationDeg, n) !== null) n += 1;
     }
   }
+};
+
+/**
+ * Phòng tắm chưa có thiết bị thật: bồn cầu sát góc, lavabo ở đoạn tường còn trống, rồi (≥ 3 m²)
+ * khu tắm vòi sen ở góc còn trống xa cửa nhất — thiết bị chính trước để khu tắm không chiếm chỗ của
+ * chúng ở phòng nhỏ. Mọi món tựa tường thật, ngoài vùng mở cửa.
+ */
+const furnishBathroom = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number): void => {
+  const spans = allSpans(edges.map(({ edge }) => edge));
+  alongWall(ctx, spans, WC, undefined, true);
+  alongWall(ctx, spans, BASIN);
+  if (areaM2 < SHOWER_MIN_M2) return;
+  const corners = spans
+    .flatMap(({ edge, span }) =>
+      lengthOf(span) < SHOWER.w ? [] : endsOf(span, SHOWER.w / 2).map((t) => againstEdge(edge, t, SHOWER)),
+    )
+    .map((spot) => ({ spot, far: Math.min(Infinity, ...ctx.swings.map((r) => rectDistance(spot.at, r))) }))
+    // Sắp ổn định: hoà khoảng cách thì giữ thứ tự đoạn.
+    .sort((p, q) => q.far - p.far);
+  corners.some(({ spot }) => place(ctx, SHOWER, spot.at, spot.rotationDeg) !== null);
 };
 
 /** Bù mật độ: cây ở góc trống tới khi đủ ~1 món đứng / 2,5 m² (tối đa MAX_FILL_PLANTS). */
@@ -591,8 +634,12 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
     // Ban công/lô-gia: luôn có chậu dọc lan can (đồ thật như máy giặt vẫn được tránh).
     const needsOutdoor =
       pass === 0 && (room.usage === 'loggia' || (room.usage === 'other' && outdoor)) && areaM2 >= OUTDOOR_MIN_M2;
+    const needsBath =
+      pass === 0 &&
+      room.usage === 'bathroom' &&
+      !real.some((f) => f.kind === 'sanitaryFixture' || f.kind === 'shower');
     const needsFill = pass === 1 && sparse && !outdoor && areaM2 >= (FILL_MIN_M2[room.usage] ?? Infinity);
-    if (!needsBed && !needsSofa && !needsTable && !needsOther && !needsOutdoor && !needsFill) continue;
+    if (!needsBed && !needsSofa && !needsTable && !needsOther && !needsOutdoor && !needsBath && !needsFill) continue;
 
     const ctx: Ctx = {
       room,
@@ -613,6 +660,7 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
     }
     if (needsOther) furnishStudy(ctx, edges);
     if (needsOutdoor) furnishOutdoor(ctx, edges, areaM2);
+    if (needsBath) furnishBathroom(ctx, edges, areaM2);
     if (needsFill) {
       const mine = (): Furniture[] => [...real, ...out.filter((f) => f.roomId === room.id)];
       if (room.usage === 'bedroom' && areaM2 >= BEDROOM_EXTRAS_MIN_M2) {
