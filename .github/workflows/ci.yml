@@ -107,6 +107,9 @@ jobs:
       - run: pnpm size
 
   visual:
+    # Bộ e2e Playwright (380 bài) là test riêng, không thuộc `pnpm verify`: không chạy trên push/PR,
+    # chỉ khi bấm tay (`gh workflow run ci.yml --ref <nhánh>`). CI của PR = đúng các bước `pnpm verify`.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     # 380 bài với `workers: 1` (mặc định CI của playwright.config.ts) chạy ~2 bài/phút, cả bộ 2–3 giờ
     # (đo 02/11/2026). Chia 3 máy × 2 worker; `timeout-minutes` để một lượt treo không giữ runner 6 giờ.
