@@ -10,7 +10,9 @@
  * - `orphanWallIds`: cụm tường trôi không neo vào phòng nào (nhỏ) → ẩn.
  */
 
+import { outlineContains } from '@/domain/rooms/area';
 import type { Furniture, FurnitureId, Room, RoomUsage, SpatialGraph, Wall } from '@/domain/spatial/types';
+import { toPointMm } from '@/lib/commands/business/shared';
 
 import { worldBoxOf } from './orientDetected';
 import { furnitureFacingDeg, roomEdges } from './placement';
@@ -231,6 +233,8 @@ const pointToSegmentMm = (p: Xy, a: Xy, b: Xy): number => {
  * phòng là đã neo. Cụm chưa neo có tổng dài < 30 % phần đã neo cùng tầng → id để ẩn
  * (`visible: false`, không bỏ node — thiếu node lượt lưu đọc thành xoá). Tầng có tường neo dưới
  * 25 % chu vi phòng (mẫu mock chỉ có mẩu 1 m) thì đồ thị tường không đáng tin → bỏ qua.
+ * Cụm có tường nằm TRONG một phòng (tâm trong outline) luôn giữ: mẩu vách trong nhà thường là vách
+ * thật của phòng dò sót/gộp (cn-16: vách phòng học trong "bếp 43,7 m²"), không phải rác ngoài nhà.
  */
 // ponytail: O(n²) cặp tường mỗi tầng, như weldWallEnds.
 export const orphanWallIds = (graph: Pick<SpatialGraph, 'walls' | 'rooms'>): ReadonlySet<string> => {
@@ -249,6 +253,10 @@ export const orphanWallIds = (graph: Pick<SpatialGraph, 'walls' | 'rooms'>): Rea
       (e) => pointToSegmentMm(e, q.centreline.start, q.centreline.end) <= q.thicknessMm / 2 + ORPHAN_JOIN_SLACK_MM,
     );
   const total = (ws: readonly Wall[]): number => ws.reduce((sum, w) => sum + lengthOfWall(w), 0);
+  const insideRoom = (w: Wall): boolean => {
+    const mid = toPointMm({ x: (w.centreline.start.x + w.centreline.end.x) / 2, y: (w.centreline.start.y + w.centreline.end.y) / 2 });
+    return graph.rooms.some((r) => r.levelId === w.levelId && outlineContains(r.outline.map(toPointMm), mid));
+  };
 
   const out = new Set<string>();
   for (const level of new Set(graph.walls.map((w) => w.levelId))) {
@@ -269,7 +277,8 @@ export const orphanWallIds = (graph: Pick<SpatialGraph, 'walls' | 'rooms'>): Rea
     const roomsMm = graph.rooms.filter((r) => r.levelId === level).reduce((sum, r) => sum + perimeterMm(r.outline), 0);
     if (anchoredMm < ORPHAN_MIN_DESCRIBED * roomsMm) continue;
     for (const ws of groups.values()) {
-      if (!anchored.includes(ws) && total(ws) < ORPHAN_MAX_FRACTION * anchoredMm) for (const w of ws) out.add(w.id);
+      if (anchored.includes(ws) || total(ws) >= ORPHAN_MAX_FRACTION * anchoredMm || ws.some(insideRoom)) continue;
+      for (const w of ws) out.add(w.id);
     }
   }
   return out;

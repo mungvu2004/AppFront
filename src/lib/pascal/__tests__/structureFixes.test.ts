@@ -351,6 +351,13 @@ describe('tường trôi ngoài nhà → ẩn (bench-3d cn-16)', () => {
     expect([...orphanWallIds(graph)].sort()).toEqual(cluster.map((w) => w.id));
   });
 
+  it('mẩu vách rời nằm trong phòng → giữ; nhánh ngoài nhà bám vỏ (tường phòng dò sót, cn-16/ch-07) → giữ', () => {
+    const stub = wallAt('W-WALL9000031', 7000, 5000, 7000, 6500);
+    const missedRoom = [wallAt('W-WALL9000041', 10000, 8000, 11700, 8000), wallAt('W-WALL9000042', 11700, 8000, 11700, 0)];
+    const hidden = orphanWallIds({ ...graph, walls: [...graph.walls, stub, ...missedRoom] });
+    expect([...hidden].sort()).toEqual(cluster.map((w) => w.id));
+  });
+
   it('mẫu mock (mẩu tường 1 m, không mô tả phòng) → không ẩn gì', () => {
     expect(orphanWallIds(createSampleBuilding()).size).toBe(0);
   });
