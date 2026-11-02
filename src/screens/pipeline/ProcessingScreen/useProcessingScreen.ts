@@ -1442,6 +1442,18 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     const reviewReasons = [
       ...new Set(floorStatuses.flatMap((status, index) => (status === 'done' ? reasonsAt(index) : []))),
     ];
+    const reviewChecks = [
+      ...new Set(
+        floorStatuses.flatMap((status, index) =>
+          status === 'done' && reasonsAt(index).includes('geometrySuspect')
+            ? (extractions[index]?.readiness?.checks ?? [])
+            : [],
+        ),
+      ),
+    ];
+    const scaleEstimated = floorStatuses.some(
+      (status, index) => status === 'done' && extractions[index]?.scaleEstimated === true,
+    );
     const goTo = (route: (projectId: string, floorId: string) => string, index = doneIndex) => () => {
       const upload = uploadsRef.current[index];
 
@@ -1454,6 +1466,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       onCalibrateScale: goTo(ROUTES.project.scale, noScaleIndex < 0 ? doneIndex : noScaleIndex),
       onOpenViewer3d: () => navigate(ROUTES.project.viewer(projectId)),
       ...(reviewReasons.length > 0 ? { reviewReasons } : {}),
+      ...(reviewChecks.length > 0 ? { reviewChecks } : {}),
+      ...(scaleEstimated ? { scaleEstimated: true as const } : {}),
     };
 
     if (parts.length === 0) {

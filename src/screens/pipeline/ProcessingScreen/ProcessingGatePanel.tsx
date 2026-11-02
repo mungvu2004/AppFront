@@ -159,7 +159,7 @@ export function ProcessingGatePanel({
           <Condition isOk={gate.isAiDone} label={gate.isAiDone ? AI_DONE_LABEL : AI_RUNNING_LABEL} value={gate.doneStepsLabel} />
           <Condition isOk={gate.isScaleOk} label={SCALE_LABEL} note={gate.scaleNote} value={gate.scaleValue} />
           {gate.reviewRows?.map((row) => (
-            <li className="flex items-start gap-2" key={row.reason}>
+            <li className="flex items-start gap-2" key={row.key}>
               <TriangleAlert aria-hidden="true" className="mt-0.5 shrink-0 text-state-attention-text" size={16} />
               <p className="min-w-0 flex-1 text-[13px] text-text-primary">{row.sentence}</p>
             </li>

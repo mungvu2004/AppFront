@@ -265,8 +265,10 @@ export interface RoomLabelViewModel {
   readonly usage: RoomUsage;
   /** Lấy từ `ROOM_USAGE_LABELS` (`src/domain/rules/registry.ts:390`). */
   readonly usageLabel: string;
-  /** Ví dụ `"18,40 m²"` (`formatArea`, `src/lib/format/measure.ts`). */
+  /** Ví dụ `"18,40 m²"` (`formatArea`, `src/lib/format/measure.ts`); có `clearAreaM2` thì `"16,90 m² thông thuỷ"`. */
   readonly areaText: string;
+  /** Số phụ theo tim tường (`"18,40 m² tim tường"`), chỉ khi `areaText` là thông thuỷ. */
+  readonly centerlineAreaText?: string;
   /** Ví dụ `"17.600 mm"` (`formatLength`, chu vi tính bằng `computePerimeter`). */
   readonly perimeterText: string;
   /** Chiều cao thông thuỷ đã định dạng. `null` khi tầng chưa có `heightMm` đáng tin — đồ thị hiện KHÔNG lưu chiều cao riêng cho từng phòng. */

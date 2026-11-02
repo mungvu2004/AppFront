@@ -285,6 +285,8 @@ export interface Room extends ReviewMetadata {
   /** Closed outline; the first point is not repeated at the end. */
   outline: readonly Point[];
   areaM2: SquareMetres;
+  /** Clear (net) area inside half the bounding walls' thickness; server-derived, read-only; absent = unknown. */
+  clearAreaM2?: SquareMetres;
   wallIds: readonly WallId[];
   /** Floor finish; absent = derived from `usage`. */
   finish?: RoomFinish;

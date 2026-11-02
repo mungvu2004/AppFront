@@ -735,7 +735,10 @@ export interface RoomLabelBoxPx {
  */
 export interface RoomLabelMeasures {
   readonly areaM2: SquareMetres;
+  /** Số chính: thông thuỷ khi máy chủ gửi `clearAreaM2`, không thì theo tim tường như cũ. */
   readonly areaText: string;
+  /** Số phụ theo tim tường, chỉ khi số chính là thông thuỷ; vắng khi không. */
+  readonly centerlineAreaText?: string;
   readonly perimeterText: string;
   readonly labelAnchorMm: PointMm;
   readonly labelBoxPx: RoomLabelBoxPx | null;
@@ -752,6 +755,10 @@ export interface RoomLabelMeasures {
  *   ấy — màn không viết `(min + max) / 2`). Phòng không có hộp nào lọt thì rơi
  *   về trọng tâm của chính đa giác.
  */
+/** Hậu tố của diện tích thông thuỷ (`Room.clearAreaM2`) và của diện tích theo tim tường bên cạnh nó. */
+export const CLEAR_AREA_SUFFIX = 'thông thuỷ';
+export const CENTERLINE_AREA_SUFFIX = 'tim tường';
+
 /** Câu thay số đo khi tầng đỏ (máy không đo được tỷ lệ): số theo tỷ lệ mặc định sai hẳn (K16). */
 export const MISSING_SCALE_MEASURE_TEXT = 'Chưa có';
 
@@ -779,11 +786,19 @@ export function measureRoom(
 ): RoomLabelMeasures {
   const outlineMm = room.outline.map(toPointMm);
   const rect = computeLargestInnerRectangle(outlineMm);
+  const centerline = formatArea(computeArea(outlineMm));
+  // Tầng đỏ thì mọi số đo là "Chưa có": không nói thêm số phụ nào.
+  const hasClear = room.clearAreaM2 !== undefined && !(scaleStatus === 'unresolved' && isScaleMissing(scaleSource));
 
   return {
     areaM2: computeArea(outlineMm),
     /* Tầng ở tỉ lệ tạm thì số đo chưa tin được (F-04x-2). */
-    areaText: provisionalMeasureText(formatArea(computeArea(outlineMm)), scaleStatus, scaleSource),
+    ...(hasClear && room.clearAreaM2 !== undefined
+      ? {
+          areaText: provisionalMeasureText(`${formatArea(room.clearAreaM2)} ${CLEAR_AREA_SUFFIX}`, scaleStatus, scaleSource),
+          centerlineAreaText: provisionalMeasureText(`${centerline} ${CENTERLINE_AREA_SUFFIX}`, scaleStatus, scaleSource),
+        }
+      : { areaText: provisionalMeasureText(centerline, scaleStatus, scaleSource) }),
     perimeterText: provisionalMeasureText(formatLength(computePerimeter(outlineMm)), scaleStatus, scaleSource),
     labelAnchorMm:
       rect === null ? computeCentroid(outlineMm) : computeCentroid(cornersOfRectangle(rect)),
@@ -1077,6 +1092,9 @@ export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): Room
     usage: room.usage,
     usageLabel: ROOM_USAGE_LABELS[room.usage],
     areaText: options.measures.areaText,
+    ...(options.measures.centerlineAreaText !== undefined
+      ? { centerlineAreaText: options.measures.centerlineAreaText }
+      : {}),
     perimeterText: options.measures.perimeterText,
     /*
      * NOT FOUND — `readClearHeight`. `Level.heightMm` là chiều cao TẦNG, không

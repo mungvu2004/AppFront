@@ -27,8 +27,11 @@ import { UNNAMED_ROOM_LABEL } from '@/lib/viewmodel/toViewModel';
  * chặn cả tầng: gửi với tên tạm `UNNAMED_ROOM_LABEL` và `reviewed: false` (tên tạm không phải dữ liệu
  * đã duyệt). Bảng diện tích coi tên tạm là chưa đặt tên, nên cảnh báo vẫn hiện tới khi người đặt tên.
  */
-const withSendableName = (room: Room): Room =>
-  room.name.trim() === '' ? { ...room, name: UNNAMED_ROOM_LABEL, reviewed: false } : room;
+const withSendableName = ({ clearAreaM2, ...room }: Room): Room => {
+  // `clearAreaM2` máy chủ tính từ đường bao + tường: không gửi lại, để nó tính lại theo bản vừa sửa.
+  void clearAreaM2;
+  return room.name.trim() === '' ? { ...room, name: UNNAMED_ROOM_LABEL, reviewed: false } : room;
+};
 
 const withSendableNames = (layer: SpatialLayer | null): SpatialLayer | null =>
   layer && { ...layer, rooms: layer.rooms.map(withSendableName) };

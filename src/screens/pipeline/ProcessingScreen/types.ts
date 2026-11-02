@@ -155,6 +155,7 @@ export interface ProcessingLogLineViewModel {
 export type ProcessingReviewReason =
   | 'scaleUnresolved'
   | 'criticalIssues'
+  | 'geometrySuspect'
   | 'fallbackWallModel'
   | 'fallbackObjectModel'
   | 'fallbackTextModel';
@@ -178,6 +179,10 @@ export interface ProcessingSummaryViewModel {
   readonly scaleKnown?: boolean;
   /** Lý do "cần xem lại" gộp từ mọi tầng xong (N16 `readiness`, FIX-P0-15); rỗng/vắng khi không có. */
   readonly reviewReasons?: readonly ProcessingReviewReason[];
+  /** Mã kiểm hình học critical (N16 `readiness.checks`) gộp từ mọi tầng xong, không lặp; vắng khi không có. */
+  readonly reviewChecks?: readonly string[];
+  /** Tỷ lệ máy ước lượng (cửa, độ dày tường, mặc định — N16 `scaleBasis`), không đọc từ số trên bản vẽ. */
+  readonly scaleEstimated?: true;
   readonly onReviewWalls: () => void;
   readonly onCalibrateScale: () => void;
   /** UX-30: người chỉ muốn ngắm thì đi thẳng tới 3D, cạnh lối đi tiếp chính. */
