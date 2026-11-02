@@ -52,6 +52,7 @@ coverage/
 playwright-report/
 test-results/
 blob-report/
+.vitest-reports/
 playwright/.cache/
 
 # Storybook

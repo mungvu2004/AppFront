@@ -30,10 +30,11 @@ tiếng Anh — xem mục B và E.11.
 Các lệnh còn lại (`dev`, `typecheck`, `build`, `size`, `e2e`, `e2e:visual`, `storybook`,
 `draco`) là lệnh chuẩn — xem `scripts` trong `package.json`.
 
-CI (`.github/workflows/ci.yml`) chạy năm job **song song và độc lập** — `lint` ·
-`typecheck` · `unit` · `build` · `visual` — trên cả `main` và `master`. Không job
-nào `needs:` job nào: một lượt chạy phải cho năm phán quyết, không phải một. Lý do
-đầy đủ nằm trong khối chú thích ngay trên `jobs:` của file đó.
+CI (`.github/workflows/ci.yml`) chạy năm cổng **song song và độc lập** — `lint` ·
+`typecheck` · `unit` · `build` · `visual` — trên cả `main` và `master`. Không cổng
+nào `needs:` cổng nào: một lượt chạy phải cho năm phán quyết, không phải một. Lý do
+đầy đủ nằm trong khối chú thích ngay trên `jobs:` của file đó. `unit` chia bốn mảnh
+`unit-shard` rồi job `unit` gộp độ phủ và đối chiếu ngưỡng; `visual` chia sáu nhóm.
 
 ---
 
@@ -178,7 +179,7 @@ component, và D không cản đường ở đó.
 5. **Cổng "visual" của CI: đã cho so sánh thật, nhưng CHƯA có ảnh chuẩn `linux`.** CI nay
    gọi `pnpm e2e` (so sánh) chứ không `pnpm e2e:visual` (ghi đè). Ảnh chuẩn hiện có vẫn chỉ
    có bản `win32` còn CI chạy `ubuntu-latest`, nên lượt chạy đầu sẽ ĐỎ và đẩy ảnh linux ra
-   artifact để commit một lần. `pnpm e2e:visual` giờ chỉ là lệnh cập nhật ảnh tại máy.
+   artifact (`playwright-snapshots-linux-<nhóm>`, mỗi nhóm một cái) để commit một lần. `pnpm e2e:visual` giờ chỉ là lệnh cập nhật ảnh tại máy.
 
 ---
 

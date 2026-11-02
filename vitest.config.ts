@@ -339,7 +339,15 @@ export default defineConfig({
         'src/main.tsx',
       ],
 
-      thresholds: {
+      /**
+       * CI chia `pnpm coverage` thành nhiều mảnh (`--shard=i/N --reporter=blob`),
+       * đặt `COVERAGE_SHARD=1`. Một mảnh chỉ chạy một phần bài nên độ phủ của
+       * riêng nó luôn thấp hơn thật — đối chiếu ngưỡng ở đó là đỏ oan. Ngưỡng
+       * KHÔNG bị bỏ: job `unit` gộp mọi mảnh bằng `vitest run --merge-reports
+       * --coverage` (không có biến này), có đủ độ phủ của cả bộ, và đối chiếu
+       * đúng các con số dưới đây. Chạy tại máy không đặt biến → như cũ.
+       */
+      thresholds: process.env.COVERAGE_SHARD === '1' ? undefined : {
         'src/domain/**': {
           branches: DOMAIN_THRESHOLD,
           functions: DOMAIN_THRESHOLD,
