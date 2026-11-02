@@ -16,7 +16,7 @@ import { type ReactNode, StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { flushAutosaves } from '@/hooks/useAutosave';
-import { serverCatalogTiles, setRealismModels } from '@/lib/pascal/furnitureCatalog';
+import { libraryOnlyCatalog, serverCatalogTiles, setRealismModels } from '@/lib/pascal/furnitureCatalog';
 import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
 import { BRIDGE_SESSION_ERROR, loginHrefOf, savePascalNow, usePascalProjectBridge } from './bridge';
@@ -199,8 +199,8 @@ const serverLibraryLoaded = Promise.all([import('@/api/appClient'), import('@/ro
     if (!(await startAppSession())) return 0;
     const { loadServerLibrary } = await import('@/lib/pascal/serverLibrary');
     const count = await loadServerLibrary(createAppApiClient().library);
-    // Mẫu tải về của máy chủ vào bảng đồ Pascal (bảng đồ chỉ đọc `CATALOG_ITEMS`).
-    CATALOG_ITEMS.push(...serverCatalogTiles());
+    // Bảng đồ Pascal chỉ đọc `CATALOG_ITEMS`: có mẫu máy chủ thì thay mẫu đóng gói bằng chúng (giữ công cụ).
+    CATALOG_ITEMS.splice(0, CATALOG_ITEMS.length, ...libraryOnlyCatalog(CATALOG_ITEMS, serverCatalogTiles()));
     return count;
   })
   .catch(() => 0);

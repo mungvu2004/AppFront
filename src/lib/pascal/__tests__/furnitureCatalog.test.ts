@@ -1,7 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { APPFRONT_MODELS, CATALOG_MODELS, REALISM_MODEL_SWAP, VARIANT_MODEL, VENDOR_MODELS, modelSrcOf, thumbnailOf } from '../furnitureCatalog';
+import {
+  APPFRONT_MODELS,
+  CATALOG_MODELS,
+  REALISM_MODEL_SWAP,
+  VARIANT_MODEL,
+  VENDOR_MODELS,
+  libraryOnlyCatalog,
+  modelSrcOf,
+  thumbnailOf,
+} from '../furnitureCatalog';
 import { itemSlotsOf, lampInteractiveOf } from '../sceneDressing';
 
 const ROOT = resolve(__dirname, '../../../..');
@@ -119,5 +128,17 @@ describe('furnitureCatalog', () => {
       const names = new Set([...materialsOf(folder), ...(swap === undefined ? [] : materialsOf(swap))]);
       for (const slot of Object.keys(slots)) expect(names.has(`slot_${slot}`), `${folder} slot_${slot}`).toBe(true);
     }
+  });
+});
+
+describe('libraryOnlyCatalog', () => {
+  const builtins = [{ id: 'sofa' }, { id: 'cabinet' }, { id: 'single-bed' }];
+
+  it('thay mẫu đóng gói bằng mẫu máy chủ, chỉ giữ công cụ tủ bếp mô-đun', () => {
+    expect(libraryOnlyCatalog(builtins, [{ id: 'sofa-grey' }]).map((item) => item.id)).toEqual(['cabinet', 'sofa-grey']);
+  });
+
+  it('không có mẫu máy chủ (lỗi/offline) → giữ nguyên danh mục đóng gói', () => {
+    expect(libraryOnlyCatalog(builtins, [])).toEqual(builtins);
   });
 });
