@@ -1424,6 +1424,7 @@ export function useFloorUploadScreen(
       pageOptions,
       selectedPage: attachment.selectedPage,
       ...(thumbnails === undefined ? {} : { pageThumbnails: thumbnails }),
+      ...(attachment.crop === undefined ? {} : { crop: attachment.crop }),
     };
   }, [pageThumbnails, previewUrlFor]);
 

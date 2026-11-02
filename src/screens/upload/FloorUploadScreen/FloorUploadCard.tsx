@@ -32,6 +32,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { IconButton } from '@/components/ui/IconButton';
 import { Select } from '@/components/ui/Select';
 
+import { FloorUploadCropThumb } from './FloorUploadCropThumb';
 import { SheetGlyph } from './FloorUploadGlyphs';
 import type { FloorUploadActions, FloorUploadRowModel } from './types';
 
@@ -252,7 +253,9 @@ export function FloorUploadCard({
           )}
           {...(file === null ? {} : { layoutId: `floor-upload-thumb-${file.id}` })}
         >
-          {file?.previewUrl ? (
+          {file?.previewUrl && file.crop ? (
+            <FloorUploadCropThumb boxAspect={isCollapsed ? 96 / 72 : 112 / 80} crop={file.crop} src={file.previewUrl} />
+          ) : file?.previewUrl ? (
             <img alt="" className="h-full w-full rounded-lg bg-bg-surface object-contain" src={file.previewUrl} />
           ) : (
             <SheetGlyph />
