@@ -80,3 +80,14 @@ describe('pascal-ui-patch', () => {
     expect(() => plugin.buildEnd()).not.toThrow();
   });
 });
+
+describe('đợt 3 D: viền rê chuột theo cùng luật ưu tiên với cú bấm', () => {
+  it('hover chế độ Chọn hỏi cùng hook, nghe cả :move', () => {
+    const file = 'editor/src/components/editor/selection-manager.tsx';
+    const out = applyUiPatches(readFileSync(path.join(PACKAGES, file), 'utf8'), file, UI_PATCHES[file]);
+    expect(out).toContain("?.(event, 'hover') ?? event");
+    expect(out).toContain("?.(event, 'leave') ?? event");
+    expect(out).toContain('emitter.on(`${type}:move` as any, onEnter as any)');
+    expect(out).toContain('emitter.off(`${type}:move` as any, onEnter as any)');
+  });
+});

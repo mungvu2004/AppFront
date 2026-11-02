@@ -96,3 +96,13 @@ describe('u40/u42: nhan ten phong thuong truc, khoi cho tai noi that thap va co 
     assert.match(block, /onPointerUp=\{\(e\) => e\.stopPropagation\(\)\}/);
   });
 });
+
+describe('u20: keo trai xoay khong tu huy khi camera dang troi (transitionstart bat cameraDragging)', () => {
+  it('mien cameraDragging cho lan keo-xoay, Shift-keo van bi chan nhu cu', () => {
+    const id = 'editor/src/components/tools/select/box-select-tool.tsx';
+    const full = path.join(PACKAGES, id);
+    const out = transformRealism(readFileSync(full, 'utf8'), full);
+    assert.match(out, /\(viewer\.cameraDragging && !orbitFromU20\.current\) \|\|/);
+    assert.match(out, /if \(\(viewer\.cameraDragging && wantsBoxSelectU20\(event\)\) \|\| viewer\.inputDragging\) return/);
+  });
+});
