@@ -30,6 +30,7 @@ import { ModelCreditCard } from './ModelCreditCard';
 import { realismFlagsFrom, useRealism } from './realism/store';
 import { setDetailsEnabled } from './realism/details';
 import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
+import { useSceneLoader } from './sceneLoader';
 import { SceneStyleCard } from './SceneStyleCard';
 import { SwapModelCard } from './SwapModelCard';
 import { PascalTour } from './tour/PascalTour';
@@ -130,25 +131,11 @@ const hasWalls = () =>
 const exportSceneGlb = async (): Promise<Blob | null> =>
   (await useEditor.getState().modelExport?.('glb', { download: false }))?.blob ?? null;
 
-/**
- * Nạp cảnh, rồi lấy cảnh Pascal giữ SAU `setScene` (đã điền mặc định lược đồ) làm mốc "trước" của lượt
- * sửa đầu (`PascalBridge.rebaseLoaded`). Lượt đổi kho đầu tiên sau khi nạp chính là `setScene` của
- * Editor với đúng các gốc của cảnh vừa trao.
- */
-const loadAndRebase = async (bridge: ReturnType<typeof usePascalProjectBridge>): Promise<SceneGraph> => {
-  const scene = (await bridge.onLoad()) as unknown as SceneGraph;
-  const roots = new Set<string>(scene.rootNodeIds);
-  const unsubscribe = useScene.subscribe((state) => {
-    if (!state.rootNodeIds.some((id) => roots.has(id))) return;
-    unsubscribe();
-    bridge.rebaseLoaded({ nodes: state.nodes, rootNodeIds: state.rootNodeIds });
-  });
-  return scene;
-};
-
 function PascalPage({ projectId }: { readonly projectId: string }) {
   const bridge = usePascalProjectBridge(projectId, applyRejectedRevert);
   const readOnly = bridge.status === 'ready' && bridge.readOnly;
+  // Cầu khai kiểu lỏng (`PascalSceneGraph`, `unknown`) để không nhập Pascal; `useSceneLoader` ráp với `SceneGraph`.
+  const onLoad = useSceneLoader(bridge.onLoad, bridge.rebaseLoaded);
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);
 
@@ -170,8 +157,6 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
     );
   }
 
-  // Cầu khai kiểu lỏng (`PascalSceneGraph`, `unknown`) để không nhập Pascal; ở đây là chỗ ráp với `SceneGraph`.
-  const onLoad = (): Promise<SceneGraph> => loadAndRebase(bridge);
   return (
     <>
     <Home
