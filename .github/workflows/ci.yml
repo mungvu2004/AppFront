@@ -108,6 +108,13 @@ jobs:
 
   visual:
     runs-on: ubuntu-24.04
+    # 380 bài với `workers: 1` (mặc định CI của playwright.config.ts) chạy ~2 bài/phút, cả bộ 2–3 giờ
+    # (đo 02/11/2026). Chia 3 máy × 2 worker; `timeout-minutes` để một lượt treo không giữ runner 6 giờ.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -134,7 +141,9 @@ jobs:
       # `--fail-on-flaky-tests`: `retries: 2` (playwright.config.ts) giữ lại để có
       # trace, nhưng một bài chỉ xanh nhờ chạy lại là một bài chập chờn, không
       # phải một bài đạt — `viewer3d.spec.ts:546` từng xanh/đỏ xen kẽ như thế.
-      - run: pnpm e2e --fail-on-flaky-tests
+      # `--retries=1` (config CI để 2): một lần chạy lại đủ ghi trace (`trace: 'on-first-retry'`), và
+      # `--fail-on-flaky-tests` vẫn tính bài chỉ xanh nhờ chạy lại là hỏng — lần thứ hai chỉ nhân đôi thời gian.
+      - run: pnpm e2e --fail-on-flaky-tests --retries=1 --workers=2 --shard=${{ matrix.shard }}/3
       # Ảnh chuẩn phụ thuộc nền tảng. Repo hiện chỉ có bản `win32`, còn job này chạy
       # `ubuntu-24.04`, nên lượt chạy đầu tiên sẽ ĐỎ với "snapshot doesn't exist" —
       # Playwright ghi ảnh linux ra đĩa rồi vẫn báo hỏng. Bước dưới đẩy đúng những
@@ -182,7 +191,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-snapshots-linux
+          name: playwright-snapshots-linux-${{ matrix.shard }}
           overwrite: true
           path: |
             e2e/**/*-snapshots/**
