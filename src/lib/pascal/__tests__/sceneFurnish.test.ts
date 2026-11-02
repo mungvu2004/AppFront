@@ -629,4 +629,65 @@ describe('furnishEmptyRooms', () => {
     expect(items.filter((f) => f.variant === 'basin')).toHaveLength(1);
     expectValid(graph, items);
   });
+
+  it('phòng tắm 2,9 × 1,6 m cửa ở tường ngắn → đủ bồn cầu, lavabo và khu sen (góc kín thì giữa tường)', () => {
+    // Cửa trên tường x = 2900 (cạnh 1, đi y 0 → 1600): hai góc phía cửa vướng vùng mở.
+    const bath = square('R-B5', 'bathroom', 0, 2900, 1600);
+    const graph = graphOf([bath], [], [{ ...bathDoor('W-R-B5-1'), offsetMm: 650, widthMm: 680 } as Opening]);
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.filter((f) => f.variant === 'wc')).toHaveLength(1);
+    expect(items.filter((f) => f.variant === 'basin')).toHaveLength(1);
+    expect(items.filter((f) => f.kind === 'shower')).toHaveLength(1);
+    expectValid(graph, items);
+  });
+
+  it("phòng 'other' / hành lang rộng ≥ 25 m² → bày như phòng khách (sofa + khu ăn), bàn nước giữ variant bàn thấp", () => {
+    for (const usage of ['other', 'corridor'] as const) {
+      const graph = graphOf([square('R-OPEN', usage, 0, 6500, 5000)]);
+      const items = furnishEmptyRooms(graph, style);
+      expect(items.some((f) => f.variant === 'sofa'), usage).toBe(true);
+      expect(items.some((f) => f.id.startsWith('DRESS-diningTable-')), usage).toBe(true);
+      expect(items.some((f) => f.id.startsWith('DRESS-desk-')), usage).toBe(false);
+      // Công năng lưu vẫn là 'other'/'corridor': bàn nước phải tự nói mình là bàn thấp.
+      expect(items.find((f) => f.id.startsWith('DRESS-coffeeTable-'))?.variant, usage).toBe('table');
+      expectValid(graph, items);
+    }
+    // 'other' 24 m² vẫn là phòng đọc.
+    expect(furnishEmptyRooms(graphOf([square('R-OPEN', 'other', 0, 6000, 4000)]), style).some((f) => f.variant === 'sofa')).toBe(false);
+  });
+
+  it('bàn ăn gần tường, đủ 4 ghế, không đứng giữa sofa và TV', () => {
+    const graph = graphOf([square('R-LV8', 'livingRoom', 0, 8000, 6000)]);
+    const items = furnishEmptyRooms(graph, style);
+    const table = items.find((f) => f.id.startsWith('DRESS-diningTable-')) as Furniture;
+    expect(table).toBeDefined();
+    expect(items.filter((f) => f.variant === 'chair')).toHaveLength(4);
+    const { x, y } = table.centre;
+    // Nửa sâu bàn + khe + ghế + lùi tường + một ô lưới.
+    expect(Math.min(x, 8000 - x, y, 6000 - y)).toBeLessThanOrEqual(1300);
+    const sofa = items.find((f) => f.variant === 'sofa') as Furniture;
+    const tv = items.find((f) => f.variant === 'tv') as Furniture;
+    const between = {
+      cx: (sofa.centre.x + tv.centre.x) / 2,
+      cy: (sofa.centre.y + tv.centre.y) / 2,
+      w: 2000,
+      d: Math.hypot(tv.centre.x - sofa.centre.x, tv.centre.y - sofa.centre.y),
+      rotationDeg: sofa.rotationDeg,
+    };
+    expect(rectsOverlap(rectOfFurniture(table), between)).toBe(false);
+    expectValid(graph, items);
+  });
+
+  it('outline phòng chồng nhau → không bày đồ của phòng lớn vào phòng nhỏ', () => {
+    const big = square('R-A-LV', 'livingRoom', 0, 7000, 5000);
+    const nested = room('R-B-OT', 'other', [
+      { x: 4500, y: 0 },
+      { x: 7000, y: 0 },
+      { x: 7000, y: 2400 },
+      { x: 4500, y: 2400 },
+    ]);
+    const items = furnishEmptyRooms(graphOf([big, nested]), style).filter((f) => f.roomId === 'R-A-LV');
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.some((f) => f.centre.x > 4500 && f.centre.y < 2400)).toBe(false);
+  });
 });
