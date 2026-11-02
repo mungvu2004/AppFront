@@ -570,7 +570,7 @@ describe('AuthScreen — keyboard', () => {
     type(passwordField(), PASSWORD);
     fireEvent.keyDown(passwordField(), { key: 'Enter' });
 
-    expect(signIn).toHaveBeenCalledWith({ email: EMAIL, password: PASSWORD, rememberMe: false });
+    expect(signIn).toHaveBeenCalledWith({ email: EMAIL, password: PASSWORD, rememberMe: true });
   });
 });
 

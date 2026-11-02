@@ -221,6 +221,7 @@ const gateTree = (overrides: Partial<SessionGateProps>) => (
   <MemoryRouter initialEntries={['/bat-ky']}>
     <Routes>
       <Route path="/login" element={<LoginProbe />} />
+      <Route path="/welcome" element={<p data-testid="trang-gioi-thieu">welcome</p>} />
       <Route path="*" element={<SessionGate {...gateProps(overrides)} />} />
     </Routes>
   </MemoryRouter>
@@ -363,17 +364,24 @@ describe('SessionGate — năm nhánh', () => {
     expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', 'signInRequired');
   });
 
-  it('không nói "hãy đăng nhập để tiếp tục" khi khách chỉ mở trang chủ (BUG-007)', () => {
+  it('khách lần đầu mở trang chủ thì sang trang giới thiệu /welcome, không sang /login', () => {
     renderGate({ status: 'anonymous', loginHref: '/login?next=%2F', pathname: '/' });
 
-    expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', '');
+    expect(screen.getByTestId('trang-gioi-thieu')).toBeInTheDocument();
+    expect(screen.queryByTestId('man-dang-nhap')).not.toBeInTheDocument();
   });
 
-  it('trang chủ kèm tham số vẫn là trang chủ: đọc đường hiện tại, không tách lại loginHref (nợ QA-01 #23)', () => {
-    renderGate({ status: 'anonymous', loginHref: '/login?next=%2F%3Fx%3D1', pathname: '/' });
+  it('khách lần đầu mở link sâu vẫn sang /login kèm đường định tới', () => {
+    renderGate({ status: 'anonymous', loginHref: '/login?next=%2Fprojects%2Fp1', pathname: '/projects/p1' });
+
+    expect(screen.getByTestId('man-dang-nhap')).toHaveTextContent('/login?next=%2Fprojects%2Fp1');
+  });
+
+  it('máy từng đăng nhập mở trang chủ thì sang /login (phiên đã kết thúc), giữ cả tham số (nợ QA-01 #23)', () => {
+    renderGate({ status: 'anonymous', loginHref: '/login?next=%2F%3Fx%3D1', pathname: '/', sessionEnded: true });
 
     expect(screen.getByTestId('man-dang-nhap')).toHaveTextContent('/login?next=%2F%3Fx%3D1');
-    expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', '');
+    expect(screen.getByTestId('man-dang-nhap')).toHaveAttribute('data-notice', 'sessionEnded');
   });
 
   it('khung chờ thấy được trên nền trang: viền điều khiển (≥ 3:1), nền mặt (BUG-027)', () => {

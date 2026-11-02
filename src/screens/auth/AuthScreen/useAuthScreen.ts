@@ -444,7 +444,7 @@ function forgotStateOf(forgot: ForgotPasswordModel): SevenState {
 /** What the last attempt left behind. */
 type Phase = 'idle' | 'submitting' | 'succeeded';
 
-const EMPTY_VALUES: AuthValues = { email: '', password: '', rememberMe: false };
+const EMPTY_VALUES: AuthValues = { email: '', password: '', rememberMe: true };
 
 /**
  * The sign-in screen's state, decisions and wording.
