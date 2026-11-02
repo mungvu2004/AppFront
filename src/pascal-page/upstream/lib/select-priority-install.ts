@@ -1,16 +1,22 @@
 /**
- * AppFront addition (đợt sửa 2 H1, C2): live side of `select-priority.ts`. Pascal's Select-mode
- * click handler (`selection-manager.tsx`, patched by `scripts/pascal-ui-patch.mjs`) calls
- * `globalThis.__appfrontPreferItemHit(event)` first; a returned event replaces the clicked one, so
- * the item is selected through Pascal's own path (phase switch, panel, undo). Only Select mode
- * subscribes that handler, so wall / door / paint tools keep Pascal's behaviour untouched.
+ * AppFront addition (đợt sửa 2 H1, C2; đợt 3 nhóm D): live side of `select-priority.ts`. Pascal's
+ * Select-mode handlers (`selection-manager.tsx`, patched by `scripts/pascal-ui-patch.mjs`) call
+ * `globalThis.__appfrontPreferItemHit(event, phase)` first; a returned event replaces the original,
+ * so the item goes through Pascal's own path (phase switch, panel, undo; hover outline).
+ *   - no phase: click;
+ *   - 'hover': pointer enter / move — same rule, so the outline shows what a click would select;
+ *   - 'leave': pointer left a mesh — hands back the item that mesh's hover was swapped to, so the
+ *     outline is cleared instead of sticking on the item.
+ * Only Select mode subscribes those handlers, so wall / door / paint tools keep Pascal's behaviour.
  */
 import { type AnyNode, type NodeEvent, resolveLevelId, sceneRegistry, useScene } from '@pascal-app/core'
 import { useEditor, useViewer } from '@pascal-app/editor'
-import { Box3, type Intersection, Matrix4, type Mesh, type Object3D, type Plane, type Ray, Vector3 } from 'three'
-import { type ItemRayEntry, pickItemOnRay } from './select-priority'
+import { Box3, type Intersection, Matrix4, type Mesh, type Object3D, type Plane, Ray, Vector3 } from 'three'
+import { canPreferItem, type ItemRayEntry, pickItemOnRay } from './select-priority'
 
 export const PREFER_ITEM_HOOK = '__appfrontPreferItemHit'
+
+export type PreferPhase = 'hover' | 'leave'
 
 type ItemLike = AnyNode & { asset?: { category?: string } }
 
@@ -46,44 +52,96 @@ const clippedAway = (object: Object3D, point: Vector3 | undefined): boolean => {
   return false
 }
 
-function ownerLookup(): (object: Object3D) => string | null {
-  const reverse = new Map<Object3D, string>()
-  for (const [id, root] of sceneRegistry.nodes.entries()) reverse.set(root, id)
-  return (object) => {
-    for (let o: Object3D | null = object; o; o = o.parent) {
-      const id = reverse.get(o)
-      if (id !== undefined) return id
-    }
-    return null
+/** Object3D → registered node id, rebuilt only when the registry changes (hover runs per move). */
+let owners: { revision: number; byRoot: Map<Object3D, string> } | null = null
+function ownerOf(object: Object3D): string | null {
+  let current = owners
+  if (!current || current.revision !== sceneRegistry.revision) {
+    const byRoot = new Map<Object3D, string>()
+    for (const [id, root] of sceneRegistry.nodes.entries()) byRoot.set(root, id)
+    current = { revision: sceneRegistry.revision, byRoot }
+    owners = current
+  }
+  for (let o: Object3D | null = object; o; o = o.parent) {
+    const id = current.byRoot.get(o)
+    if (id !== undefined) return id
+  }
+  return null
+}
+
+/**
+ * Item box in its root's own frame. Kept until the node changes (move / resize / swap) or the set
+ * of drawn meshes changes (GLB replaces the loading placeholder, a part is hidden).
+ */
+type BoxCache = { node: AnyNode; meshes: Mesh[]; box: Box3 }
+const boxCache = new WeakMap<Object3D, BoxCache>()
+const tmpBox = new Box3()
+const tmpMatrix = new Matrix4()
+const inverse = new Matrix4()
+
+function localBox(root: Object3D, node: AnyNode): Box3 {
+  const meshes: Mesh[] = []
+  root.traverse((child) => {
+    const mesh = child as Mesh
+    if (mesh.isMesh && mesh.visible && mesh.name !== 'cutout' && mesh.geometry) meshes.push(mesh)
+  })
+  const cached = boxCache.get(root)
+  if (cached && cached.node === node && cached.meshes.length === meshes.length && cached.meshes.every((m, i) => m === meshes[i])) {
+    return cached.box
+  }
+  root.updateWorldMatrix(true, true)
+  inverse.copy(root.matrixWorld).invert()
+  const box = new Box3()
+  for (const mesh of meshes) {
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
+    const bb = mesh.geometry.boundingBox
+    if (bb) box.union(tmpBox.copy(bb).applyMatrix4(tmpMatrix.multiplyMatrices(inverse, mesh.matrixWorld)))
+  }
+  boxCache.set(root, { node, meshes, box })
+  return box
+}
+
+const localRay = new Ray()
+const size = new Vector3()
+const scale = new Vector3()
+
+/** Where `ray` enters the item's oriented box (its own frame), plus the box's world volume/height. */
+function rayEntry(root: Object3D, node: AnyNode, ray: Ray): { entry: number; point: Vector3; volume: number; height: number } | null {
+  const box = localBox(root, node)
+  if (box.isEmpty()) return null
+  inverse.copy(root.matrixWorld).invert()
+  const hit = localRay.copy(ray).applyMatrix4(inverse).intersectBox(box, new Vector3())
+  if (!hit) return null
+  const point = hit.applyMatrix4(root.matrixWorld)
+  box.getSize(size)
+  scale.setFromMatrixScale(root.matrixWorld)
+  return {
+    entry: point.distanceTo(ray.origin),
+    point,
+    volume: size.x * scale.x * size.y * scale.y * size.z * scale.z,
+    height: size.y * scale.y,
   }
 }
 
-const tmpBox = new Box3()
-const toLocal = new Matrix4()
+/** Last hover swap: the mesh the pointer is over (raw node id) and the item event shown instead. */
+let hoverSwap: { from: string; event: NodeEvent } | null = null
 
-/** Distance along `ray` where it enters the item's oriented box (its own frame), or null. */
-function rayEntry(root: Object3D, ray: Ray): { entry: number; point: Vector3 } | null {
-  root.updateWorldMatrix(true, true)
-  const inverse = root.matrixWorld.clone().invert()
-  const box = new Box3()
-  root.traverse((child) => {
-    const mesh = child as Mesh
-    if (!mesh.isMesh || !mesh.visible || mesh.name === 'cutout' || !mesh.geometry) return
-    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
-    const bb = mesh.geometry.boundingBox
-    if (!bb) return
-    box.union(tmpBox.copy(bb).applyMatrix4(toLocal.multiplyMatrices(inverse, mesh.matrixWorld)))
-  })
-  if (box.isEmpty()) return null
-  const local = ray.clone().applyMatrix4(inverse)
-  const hit = local.intersectBox(box, new Vector3())
-  if (!hit) return null
-  const point = hit.applyMatrix4(root.matrixWorld)
-  return { entry: point.distanceTo(ray.origin), point }
+export function preferItemHit(event: NodeEvent, phase?: PreferPhase): NodeEvent | null {
+  if (phase === 'leave') {
+    const swap = hoverSwap
+    if (!swap || swap.from !== event.node.id) return null
+    hoverSwap = null
+    return swap.event
+  }
+  const swapped = computePreferredHit(event)
+  if (phase === 'hover') hoverSwap = swapped ? { from: event.node.id, event: swapped } : null
+  return swapped
 }
 
-export function preferItemHit(event: NodeEvent): NodeEvent | null {
+function computePreferredHit(event: NodeEvent): NodeEvent | null {
   if (useEditor.getState().mode !== 'select') return null
+  const clicked = event.node
+  if (!canPreferItem({ kind: clicked.type, viaHandle: event.viaHandle })) return null
   const native = event.nativeEvent as unknown as {
     ray?: Ray
     distance?: number
@@ -93,12 +151,11 @@ export function preferItemHit(event: NodeEvent): NodeEvent | null {
   if (!ray || typeof native.distance !== 'number') return null
 
   const nodes = useScene.getState().nodes as Record<string, AnyNode | undefined>
-  const clicked = event.node
-  const ownerOf = ownerLookup()
 
   const opaque: number[] = []
   const clickedHit = native as { object?: Object3D; point?: Vector3 }
   const clickedSeeThrough =
+    clicked.type === 'item' ||
     clicked.type === 'ceiling' ||
     (clicked.type === 'wall' && isHiddenWall(clicked.id)) ||
     (clickedHit.object !== undefined && clippedAway(clickedHit.object, clickedHit.point))
@@ -125,16 +182,17 @@ export function preferItemHit(event: NodeEvent): NodeEvent | null {
     const category = node.asset?.category
     if (category === 'door' || category === 'window') continue
     if (levelId && resolveLevelId(node, useScene.getState().nodes) !== levelId) continue
-    const hit = rayEntry(root, ray)
-    if (!hit) continue
-    entries.push({ id, entry: hit.entry })
-    points.set(id, hit.point)
+    const box = rayEntry(root, node, ray)
+    if (!box) continue
+    entries.push({ id, entry: box.entry, hit: itemHit.get(id)?.distance, volume: box.volume, height: box.height })
+    points.set(id, box.point)
   }
 
   const pickedId = pickItemOnRay({ kind: clicked.type, viaHandle: event.viaHandle }, opaque, entries)
-  const item = pickedId ? nodes[pickedId] : undefined
-  const root = pickedId ? sceneRegistry.nodes.get(pickedId) : undefined
-  if (!pickedId || !item || !root) return null
+  if (!pickedId || pickedId === clicked.id) return null
+  const item = nodes[pickedId]
+  const root = sceneRegistry.nodes.get(pickedId)
+  if (!item || !root) return null
 
   // Prefer the item's real mesh hit (paint-slot lookup reads its material groups); else its box.
   const meshHit = itemHit.get(pickedId)
@@ -156,6 +214,7 @@ export function installSelectPriority(): () => void {
   const g = globalThis as Record<string, unknown>
   g[PREFER_ITEM_HOOK] = preferItemHit
   return () => {
+    hoverSwap = null
     if (g[PREFER_ITEM_HOOK] === preferItemHit) delete g[PREFER_ITEM_HOOK]
   }
 }

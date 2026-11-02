@@ -109,6 +109,30 @@ export const UI_PATCHES = {
       "      if (activeScope.kind === 'reshaping' && activeScope.reshape === 'endpoint') return\n\n      event =\n        ((globalThis as Record<string, unknown>).__appfrontPreferItemHit as\n          | ((e: NodeEvent) => NodeEvent | null)\n          | undefined)?.(event) ?? event\n\n      if (dispatchSceneAction(event.node, getEventObject(event))) {",
       1,
     ],
+    // Đợt 3 nhóm D: viền sáng khi rê chuột (hover chế độ Chọn) theo cùng luật ưu tiên, để viền hiện đúng món
+    // mà cú bấm sẽ chọn. Hook nhận 'hover' (vào/di trên lưới) và 'leave' (rời lưới: trả lại món đã thay để xoá
+    // viền). Nghe thêm `:move` vì trên cùng một lưới (sàn, tường) món được ưu tiên đổi theo vị trí chuột; chỉ
+    // ghi hoveredId khi đổi để khỏi báo store mỗi lần di chuột.
+    [
+      '      if (useViewer.getState().inputDragging) return\n      const node = resolveCanvasSelectionNode({\n        node: resolveSelectModeNodeTarget(event),',
+      "      if (useViewer.getState().inputDragging) return\n      event =\n        ((globalThis as Record<string, unknown>).__appfrontPreferItemHit as\n          | ((e: NodeEvent, phase?: 'hover' | 'leave') => NodeEvent | null)\n          | undefined)?.(event, 'hover') ?? event\n      const node = resolveCanvasSelectionNode({\n        node: resolveSelectModeNodeTarget(event),",
+      1,
+    ],
+    [
+      '      event.stopPropagation()\n      useViewer.setState({ hoveredId: node.id })\n    }\n\n    const onLeave = (event: NodeEvent) => {\n      if (useViewer.getState().inputDragging) return\n      const nodeId = resolveCanvasSelectionNode({',
+      "      event.stopPropagation()\n      if (useViewer.getState().hoveredId !== node.id) useViewer.setState({ hoveredId: node.id })\n    }\n\n    const onLeave = (event: NodeEvent) => {\n      if (useViewer.getState().inputDragging) return\n      event =\n        ((globalThis as Record<string, unknown>).__appfrontPreferItemHit as\n          | ((e: NodeEvent, phase?: 'hover' | 'leave') => NodeEvent | null)\n          | undefined)?.(event, 'leave') ?? event\n      const nodeId = resolveCanvasSelectionNode({",
+      1,
+    ],
+    [
+      '      emitter.on(`${type}:enter` as any, onEnter as any)\n      emitter.on(`${type}:leave` as any, onLeave as any)\n      emitter.on(`${type}:double-click` as any, onDoubleClick as any)',
+      '      emitter.on(`${type}:enter` as any, onEnter as any)\n      emitter.on(`${type}:move` as any, onEnter as any)\n      emitter.on(`${type}:leave` as any, onLeave as any)\n      emitter.on(`${type}:double-click` as any, onDoubleClick as any)',
+      1,
+    ],
+    [
+      '        emitter.off(`${type}:enter` as any, onEnter as any)\n        emitter.off(`${type}:leave` as any, onLeave as any)\n        emitter.off(`${type}:double-click` as any, onDoubleClick as any)',
+      '        emitter.off(`${type}:enter` as any, onEnter as any)\n        emitter.off(`${type}:move` as any, onEnter as any)\n        emitter.off(`${type}:leave` as any, onLeave as any)\n        emitter.off(`${type}:double-click` as any, onDoubleClick as any)',
+      1,
+    ],
   ],
 };
 

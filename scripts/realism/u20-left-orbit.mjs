@@ -57,5 +57,12 @@ export const RULES = {
         '      }\n' +
         '      if (isDraggingRef.current) {\n        event.preventDefault()\n',
     ],
+    // rotate(..., true) phat transitionstart -> cameraDragging=true; khong mien thi keo-trai-xoay bi huy sau buoc dau,
+    // va keo moi luc camera con troi (hoac 500 ms sau lan chuot) bi bo qua
+    [
+      '      if (viewer.cameraDragging || viewer.inputDragging) return\n',
+      '      if ((viewer.cameraDragging && wantsBoxSelectU20(event)) || viewer.inputDragging) return\n',
+    ],
+    ['        viewer.cameraDragging ||\n', '        (viewer.cameraDragging && !orbitFromU20.current) ||\n'],
   ],
 };
