@@ -390,9 +390,23 @@ interface RotationFit {
   readonly rotationDeg: FloorRotation;
   readonly transform: FloorTransform;
   readonly matched: number;
+  /**
+   * Matches beyond the one each direction gets for free: the offset is chosen
+   * to land one axis exactly, so only the second and later axes in a direction
+   * are evidence that the grids agree.
+   */
+  readonly confirmed: number;
+  /**
+   * At least one confirmed match, and no direction whose offset rests on a single
+   * (free) match. A direction with no axes on one side has nothing to say and
+   * keeps a zero offset, which is not luck.
+   */
+  readonly isConfirmed: boolean;
   readonly totalResidualMm: number;
   readonly maxResidualMm: number;
 }
+
+const confirmedOf = (fit: Fit): number => Math.max(0, fit.matched - 1);
 
 function fitRotation(
   floor: FloorPlan,
@@ -419,6 +433,8 @@ function fitRotation(
       scale: 1,
     },
     matched: alongX.matched + alongY.matched,
+    confirmed: confirmedOf(alongX) + confirmedOf(alongY),
+    isConfirmed: confirmedOf(alongX) + confirmedOf(alongY) > 0 && alongX.matched !== 1 && alongY.matched !== 1,
     totalResidualMm: alongX.totalResidualMm + alongY.totalResidualMm,
     maxResidualMm: Math.max(alongX.maxResidualMm, alongY.maxResidualMm),
   };
@@ -436,8 +452,15 @@ function fitRotation(
  * at all four. There is no geometry that resolves it, so the earliest rotation
  * wins and the floor is left the way round it arrived — the answer a person
  * would have to confirm anyway, reached without scrambling the plan first.
+ *
+ * Confirmed matches come first: on a near-square plan with a few axes, a half
+ * turn can pick up one extra free match by chance and flip a floor that was
+ * the right way round (seen on a real three-floor sheet).
  */
 function isBetterRotation(candidate: RotationFit, incumbent: RotationFit): boolean {
+  if (candidate.confirmed !== incumbent.confirmed) {
+    return candidate.confirmed > incumbent.confirmed;
+  }
   if (candidate.matched !== incumbent.matched) {
     return candidate.matched > incumbent.matched;
   }
@@ -682,9 +705,11 @@ export function alignFloors(
       }
     }
 
-    const unalignable = best.matched < MIN_MATCHED_AXES;
+    // Two matches can both be the free ones (one per direction); without a confirmed
+    // match in each direction the offsets are luck, so fall back to the wall box.
+    const unalignable = best.matched < MIN_MATCHED_AXES || !best.isConfirmed;
     const bbox = unalignable ? bboxTransform(floor.wallBoundsMm, base.wallBoundsMm) : null;
-    const transform = bbox ?? best.transform;
+    const transform = bbox ?? (unalignable ? IDENTITY_TRANSFORM : best.transform);
 
     alignments.push({
       levelId: floor.levelId,
@@ -706,8 +731,8 @@ export function alignFloors(
         severity: 'attention',
         amountMm: millimetres(0),
         message:
-          `${floorLabel(floor.name)} chỉ khớp được ${String(best.matched)} trục với tầng chuẩn ` +
-          `${base.name}, ` +
+          `${floorLabel(floor.name)} chưa khớp đủ trục với tầng chuẩn ${base.name} ` +
+          `(mỗi hướng dọc, ngang cần ít nhất 2 trục trùng), ` +
           (bbox === null
             ? 'chưa đủ căn cứ để chồng tầng.'
             : 'đã tạm chồng tầng theo khung bao tường — cần kiểm tra lại.'),

@@ -1175,3 +1175,26 @@ describe('FloorUploadScreenView — QA-03e', () => {
     expect(screen.queryByRole('button', { name: 'Bắt đầu xử lý' })).toBeNull();
   });
 });
+
+describe('FloorUploadScreenView — ảnh nhỏ một tờ nhiều tầng', () => {
+  it('tệp có crop: ảnh nhỏ chỉ hiện vùng đã khoanh', () => {
+    const base = scenarioFor('success');
+    const crop = { xRatio: 0.5, yRatio: 0.06, widthRatio: 0.48, heightRatio: 0.49 };
+    const floors = base.floors.map((row, index) =>
+      index === 0 && row.file !== null
+        ? { ...row, file: { ...row.file, previewUrl: 'blob:to-mat-bang', crop } }
+        : row,
+    );
+    renderWithProviders(<FloorUploadScreenView {...base} floors={floors} />);
+
+    const thumbs = screen.getAllByTestId('floor-upload-crop-thumb');
+    expect(thumbs).toHaveLength(1);
+    const image = thumbs[0]?.querySelector('img');
+    const percent = (value: string | undefined): number => Number.parseFloat(value ?? '');
+    expect(image?.getAttribute('src')).toBe('blob:to-mat-bang');
+    expect(percent(image?.style.width)).toBeCloseTo(100 / 0.48, 3);
+    expect(percent(image?.style.height)).toBeCloseTo(100 / 0.49, 3);
+    expect(percent(image?.style.left)).toBeCloseTo((-0.5 / 0.48) * 100, 3);
+    expect(percent(image?.style.top)).toBeCloseTo((-0.06 / 0.49) * 100, 3);
+  });
+});

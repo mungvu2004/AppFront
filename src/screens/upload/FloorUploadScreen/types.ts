@@ -85,6 +85,8 @@ export interface FloorUploadFileModel {
   readonly selectedPage: string | null;
   /** Ảnh nhỏ (`data:` URL) cùng thứ tự `pageOptions`; vắng hay rỗng khi chưa có (U05). */
   readonly pageThumbnails?: readonly string[];
+  /** Vùng đã khoanh của tờ (một tờ nhiều tầng): ảnh nhỏ chỉ hiện vùng ấy. Vắng = cả tờ. */
+  readonly crop?: FloorUploadSheetRect;
 }
 
 /**

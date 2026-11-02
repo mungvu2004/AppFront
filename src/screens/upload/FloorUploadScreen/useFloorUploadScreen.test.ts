@@ -1824,6 +1824,10 @@ describe('useFloorUploadScreen — một tờ nhiều tầng', () => {
       expect(result.current.floors[1]?.file).not.toBeNull();
     });
     expect(readPageThumbnails).toHaveBeenCalledTimes(1);
+    // Vùng đã khoanh tới mô hình hàng: thẻ tầng vẽ ảnh nhỏ của đúng vùng ấy.
+    expect(result.current.floors[1]?.file?.crop).toEqual(left);
+    expect(result.current.floors[3]?.file?.crop).toEqual(right);
+    expect(result.current.floors[2]?.file?.crop).toBeUndefined();
   });
 });
 
