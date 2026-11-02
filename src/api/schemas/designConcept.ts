@@ -78,12 +78,13 @@ export const DesignAdditionSchema = z
     levelId: z.string().min(1),
     roomId: z.string().min(1),
     kind: z.enum(FURNITURE_KINDS),
-    variant: z.enum(FURNITURE_VARIANTS).optional(),
+    // Trong `result` BE giữ `null` (JSONB nguyên bản, HOP-DONG-MOI §12): nhận cả vắng lẫn `null`.
+    variant: z.enum(FURNITURE_VARIANTS).nullish(),
     centre: z.object({ x: z.number(), y: z.number() }).strict(),
     widthMm: positiveMm,
     depthMm: positiveMm,
     rotationDeg: z.number(),
-    modelId: z.string().min(1).optional(),
+    modelId: z.string().min(1).nullish(),
   })
   .strict();
 

@@ -40,6 +40,12 @@ describe('DesignConcept (N47/N48)', () => {
     ).toBeUndefined();
   });
 
+  it('trong result nhận null của variant/modelId như BE ghi (máy giặt không có variant)', () => {
+    const addition = { ...done.result.additions[0], kind: 'washingMachine', variant: null, modelId: null };
+    const parsed = DesignConceptSchema.parse({ ...done, result: { ...done.result, additions: [addition] } });
+    expect(parsed.result?.additions[0]?.variant).toBeNull();
+  });
+
   it('W2: null bị từ chối, trường lạ bị từ chối', () => {
     expect(DesignConceptSchema.safeParse({ ...done, failureCode: null }).success).toBe(false);
     expect(DesignConceptSchema.safeParse({ ...done, extra: 1 }).success).toBe(false);

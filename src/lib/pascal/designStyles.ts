@@ -41,8 +41,8 @@ export const designAdditionsOf = (
       levelId: addition.levelId as LevelId,
       roomId: addition.roomId as RoomId,
       kind: addition.kind,
-      ...(addition.variant === undefined ? {} : { variant: addition.variant }),
-      ...(addition.modelId !== undefined &&
+      ...(addition.variant == null ? {} : { variant: addition.variant }),
+      ...(addition.modelId != null &&
       Object.prototype.hasOwnProperty.call(CATALOG_MODELS, addition.modelId)
         ? { model: { id: addition.modelId, src: `/items/${addition.modelId}/model.glb` } }
         : {}),
