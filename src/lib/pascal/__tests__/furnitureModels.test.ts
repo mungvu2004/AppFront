@@ -267,7 +267,11 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
 
   it('FE-H: mẫu khác dáng hộp không phình quá hộp ở trục bị chặn (tủ đầu giường 0,38 m, chậu, kệ nông)', () => {
     for (const [variant, w, d] of [['nightstand', 380, 380], ['wardrobe', 2300, 360], ['basin', 450, 770], ['shelves', 390, 2070]] as const) {
-      const [fw, fd] = footprintOf(oneItem(variant, w, d));
+      // Kệ sát tường được quay lưng vào tường (`orientDetected`): hộp riêng đổi cạnh, so theo khung thế giới.
+      const item = oneItem(variant, w, d);
+      const quarter = Math.round(Math.abs(item.rotation[1]) / (Math.PI / 2)) % 2 === 1;
+      const [lw, ld] = footprintOf(item);
+      const [fw, fd] = quarter ? [ld, lw] : [lw, ld];
       expect(fw).toBeLessThanOrEqual(w / 1000 + 1e-6);
       expect(fd).toBeLessThanOrEqual(d / 1000 + 1e-6);
     }
