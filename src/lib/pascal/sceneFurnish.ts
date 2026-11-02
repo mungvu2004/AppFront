@@ -72,7 +72,14 @@ const OTHER_MIN_M2 = 8;
 const M2_PER_PIECE = 2.5;
 /** Đầu đoạn trống chừa thêm cho tường vuông góc dày (tường ngoài 300 mm). */
 const END_CLEAR_MM = 160;
-const MAX_FILL_PLANTS = 4;
+/** Bù mật độ: tối đa một cây mỗi phòng (cây lặp lại trông như kho cây). */
+const MAX_FILL_PLANTS = 1;
+/** Hành lang được bày từ mức này (m²) và bề rộng này (mm); luôn chừa lối đi 900 mm. */
+const CORRIDOR_MIN_M2 = 8;
+const CORRIDOR_MIN_WIDTH_MM = 1800;
+const WALKWAY_MM = 900;
+/** Phòng tắm có cạnh ngắn (hình chữ nhật trong lớn nhất) từ mức này thì thử thêm bồn tắm. */
+const BATHTUB_MIN_SHORT_MM = 1700;
 /** Ban công/lô-gia từ mức này có chậu cây dọc lan can; ghế nằm từ OTHER_MIN_M2. */
 const OUTDOOR_MIN_M2 = 2;
 /** Tường phủ dưới tỉ lệ chu vi này: đồ thị tường không mô tả phòng (mẫu mock, dò hỏng) → coi mọi cạnh có tường. */
@@ -141,6 +148,12 @@ const HOB: Piece = { role: 'hob', kind: 'other', variant: 'hob', w: 600, d: 500,
 const WC: Piece = { role: 'wc', kind: 'sanitaryFixture', variant: 'wc', w: 400, d: 700 };
 const BASIN: Piece = { role: 'basin', kind: 'sanitaryFixture', variant: 'basin', w: 600, d: 450 };
 const SHOWER: Piece = { role: 'shower', kind: 'shower', variant: 'shower', w: 900, d: 900 };
+// Không variant: thiết bị vệ sinh dài ≥ 1,4 m → vai trò bồn tắm (sceneVariety, mẫu `bathtub`).
+const BATHTUB: Piece = { role: 'bathtub', kind: 'sanitaryFixture', w: 1700, d: 750 };
+// Bù mật độ: tủ thấp làm tủ chén ở phòng khách; hành lang có bàn console nông + ghế băng.
+const SIDEBOARD: Piece = { ...DRESSER, role: 'sideboard' };
+const CONSOLE: Piece = { role: 'console', kind: 'other', variant: 'cabinet', w: 1000, d: 350 };
+const BENCH: Piece = { role: 'bench', kind: 'chair', variant: 'bench', w: 1200, d: 400 };
 
 interface Span {
   readonly from: number;
@@ -656,12 +669,75 @@ const furnishBathroom = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number)
   corners.some(({ spot }) => place(ctx, SHOWER, spot.at, spot.rotationDeg) !== null);
 };
 
-/** Bù mật độ: cây ở góc trống tới khi đủ ~1 món đứng / 2,5 m² (tối đa MAX_FILL_PLANTS). */
-const fillPlants = (ctx: Ctx, edges: readonly RankedEdge[], count: number, target: number): void => {
-  const spans = allSpans(edges.map(({ edge }) => edge));
-  for (let n = 1, have = count; have < target && n <= MAX_FILL_PLANTS; n += 1) {
-    if (alongWall(ctx, spans, PLANT, n, true) === null) return;
-    have += 1;
+/** Bồn tắm dọc đoạn tường còn trống khi cạnh ngắn của phòng ≥ 1,7 m (sau thiết bị chính). */
+const furnishBathtub = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
+  const inner = computeLargestInnerRectangle(ctx.room.outline.map(toMm));
+  if (inner === null || Math.min(inner.widthMm, inner.heightMm) < BATHTUB_MIN_SHORT_MM) return;
+  alongWall(ctx, allSpans(edges.map(({ edge }) => edge)), BATHTUB, undefined, true);
+};
+
+interface FillEntry {
+  readonly piece: Piece;
+  /** Tối đa bấy nhiêu món cùng variant trong phòng (kể cả đồ thật/đồ bộ chính). */
+  readonly max: number;
+  /** Món cao: không che cửa sổ (clearSpans). */
+  readonly tall?: boolean;
+  /** Bỏ qua khi phòng đã có món mang một trong các vai này (tủ áo thật → không thêm tủ thấp). */
+  readonly unless?: readonly string[];
+}
+
+/** Danh sách bù theo công năng, thử theo thứ tự tới khi đủ mật độ; cuối cùng tối đa một cây. */
+const FILL_LISTS: Partial<Record<Room['usage'], readonly FillEntry[]>> = {
+  // Đôi ghế bành thứ hai, giá sách, tủ chén, đèn cây thứ hai.
+  livingRoom: [
+    { piece: ARMCHAIR, max: 3 },
+    { piece: BOOKSHELF, max: 1, tall: true },
+    { piece: SIDEBOARD, max: 1 },
+    { piece: FLOOR_LAMP, max: 2 },
+  ],
+  bedroom: [
+    { piece: DRESSER, max: 1, unless: ['closet', 'dresser', 'bookshelf'] },
+    { piece: ARMCHAIR, max: 1 },
+  ],
+  corridor: [
+    { piece: CONSOLE, max: 1 },
+    { piece: BENCH, max: 1 },
+  ],
+  other: [
+    { piece: BOOKSHELF, max: 1, tall: true },
+    { piece: ARMCHAIR, max: 2 },
+    { piece: FLOOR_LAMP, max: 1 },
+  ],
+};
+
+/**
+ * Bù mật độ tới ~1 món đứng / 2,5 m²: danh sách theo công năng rồi một cây ở góc. Hành lang chỉ
+ * bày dọc MỘT cạnh dài và món đủ nông để còn lối đi 900 mm.
+ */
+const fillRoom = (ctx: Ctx, edges: readonly RankedEdge[], mine: () => readonly Furniture[], target: number): void => {
+  let doorSpans = allSpans(edges.map(({ edge }) => edge));
+  let tallSpans = ctx.clearSpans;
+  let maxDepth = Infinity;
+  if (ctx.room.usage === 'corridor') {
+    const inner = computeLargestInnerRectangle(ctx.room.outline.map(toMm));
+    const width = inner === null ? 0 : Math.min(inner.widthMm, inner.heightMm);
+    const along = [...edges].sort((p, q) => q.edge.lengthMm - p.edge.lengthMm)[0]?.edge;
+    if (along === undefined || width < CORRIDOR_MIN_WIDTH_MM) return;
+    doorSpans = doorSpans.filter((s) => s.edge === along);
+    tallSpans = [];
+    maxDepth = width - 2 * INSET_MM - SLACK_MM - WALKWAY_MM;
+  }
+  const count = (): number => mine().filter(standsOnFloor).length;
+  for (const { piece, max, tall, unless = [] } of FILL_LISTS[ctx.room.usage] ?? []) {
+    if (piece.d > maxDepth || mine().some((f) => unless.includes(roleOf(f, ctx.room.usage)))) continue;
+    const spans = tall === true ? tallSpans : doorSpans;
+    for (let n = 1; count() < target && mine().filter((f) => f.variant === piece.variant).length < max; n += 1) {
+      // Vai `…Fill`: id riêng, không trùng món cùng loại của bộ chính (DRESS-armchair-R-2 của phòng đọc).
+      if (alongWall(ctx, spans, { ...piece, role: `${piece.role}Fill` }, n) === null) break;
+    }
+  }
+  for (let n = 1; count() < target && n <= MAX_FILL_PLANTS && PLANT.d <= maxDepth; n += 1) {
+    if (alongWall(ctx, doorSpans, PLANT, n, true) === null) return;
   }
 };
 
@@ -670,6 +746,8 @@ const FILL_MIN_M2: Partial<Record<Room['usage'], number>> = {
   bedroom: BEDROOM_MIN_M2,
   livingRoom: LIVING_MIN_M2,
   other: OTHER_MIN_M2,
+  kitchen: KITCHEN_SMALL_TABLE_MIN_M2,
+  corridor: CORRIDOR_MIN_M2,
 };
 
 const DINING_USAGES: ReadonlySet<Room['usage'] | undefined> = new Set([undefined, 'kitchen', 'livingRoom']);
@@ -767,14 +845,16 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
     }
     if (needsOther) furnishStudy(ctx, edges);
     if (needsOutdoor) furnishOutdoor(ctx, edges, areaM2);
-    if (needsBath) furnishBathroom(ctx, edges, areaM2);
+    if (needsBath) {
+      furnishBathroom(ctx, edges, areaM2);
+      furnishBathtub(ctx, edges);
+    }
     if (needsFill) {
       const mine = (): Furniture[] => [...real, ...out.filter((f) => f.roomId === room.id)];
       if (room.usage === 'bedroom' && areaM2 >= BEDROOM_EXTRAS_MIN_M2) {
         furnishBedroomExtras(ctx, edges, new Set(mine().map((f) => roleOf(f, room.usage))));
       }
-      const count = mine().filter(standsOnFloor).length;
-      fillPlants(ctx, edges, count, target);
+      fillRoom(ctx, edges, mine, target);
     }
   }
   return out;
