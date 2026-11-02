@@ -19,9 +19,11 @@ import type {
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 
 import { fixtureF1 } from '../__fixtures__';
-import { doorSwingRects, rectInsidePolygon, rectOfFurniture, rectsOverlap, wallRects } from '../placement';
+import { doorSwingRects, rectCorners, rectInsidePolygon, rectOfFurniture, rectsOverlap, wallRects } from '../placement';
 import { furnishEmptyRooms } from '../sceneFurnish';
 import { sceneStyleOf } from '../sceneStyles';
+
+const rectCornersOf = (f: Furniture): Point[] => rectCorners(rectOfFurniture(f));
 
 const META = { source: 'human', reviewed: true, confidence: 1 } as const;
 const style = sceneStyleOf(undefined);
@@ -75,8 +77,12 @@ const realSofa = (roomId: string, cx: number, cy: number): Furniture =>
     rotationDeg: 0,
   }) as Furniture;
 
+/** Món nằm chồng trên dãy tủ (tủ treo, chậu, mặt bếp mỏng): không xét chồng/vùng mở. */
+const STACKED = new Set(['upperRun', 'sink', 'hob']);
+
 /** Mọi món sinh ra: trong outline lùi 100, cách nhau ≥ 50, không lấn vùng mở cửa. */
-const expectValid = (graph: SpatialGraph, items: readonly Furniture[]): void => {
+const expectValid = (graph: SpatialGraph, all_: readonly Furniture[]): void => {
+  const items = all_.filter((f) => !STACKED.has(f.variant ?? ''));
   const swings = doorSwingRects(graph, 'L-1');
   const all = [...graph.furniture, ...items];
   for (const item of items) {
@@ -142,8 +148,8 @@ describe('furnishEmptyRooms', () => {
     expect(furnishEmptyRooms(graphOf([tiny]), style)).toEqual([]);
   });
 
-  it('phòng khách đã có sofa thật → không thêm bộ sofa; phòng thưa chỉ được bù cây ở góc', () => {
-    // C2: trước đây mong đợi [] — nay luật mật độ (~1 món / 4 m²) bù cây cho phòng 16 m² chỉ có 1 món.
+  it('phòng khách đã có sofa thật → không thêm bộ sofa; phòng thưa chỉ được bù theo danh sách + tối đa 1 cây', () => {
+    // C2: trước đây mong đợi [] — nay luật mật độ bù cho phòng 16 m² chỉ có 1 món.
     const living = room('R-LIV', 'livingRoom', [
       { x: 0, y: 0 },
       { x: 4500, y: 0 },
@@ -153,7 +159,8 @@ describe('furnishEmptyRooms', () => {
     const graph = graphOf([living], [realSofa('R-LIV', 2250, 600)]);
     const items = furnishEmptyRooms(graph, style);
     expect(items.length).toBeGreaterThan(0);
-    expect(items.every((f) => f.variant === 'plant')).toBe(true);
+    expect(items.some((f) => ['sofa', 'tv'].includes(f.variant ?? '') || f.heightMm === 400)).toBe(false);
+    expect(items.filter((f) => f.variant === 'plant').length).toBeLessThanOrEqual(1);
     expectValid(graph, items);
   });
 
@@ -356,7 +363,8 @@ describe('furnishEmptyRooms', () => {
       [kitchen, square('R-L', 'livingRoom', 4000, 5000, 4000)],
       [realOf('F-T', 'R-L', 'table', 'table', 5800, 1600, 7200, 2400)],
     );
-    expect(furnishEmptyRooms(withLiving, style).filter((f) => f.roomId === 'R-K')).toEqual([]);
+    // Bếp vẫn có dãy tủ (mọi cỡ), nhưng không bộ bàn ăn thứ hai.
+    expect(furnishEmptyRooms(withLiving, style).filter((f) => f.roomId === 'R-K' && (f.kind === 'table' || f.kind === 'chair'))).toEqual([]);
   });
 
   it('phòng ngủ ≥ 12 m² trống → giường + tủ áo/tủ thấp + góc bàn làm việc hoặc ghế bành, tất cả hợp lệ', () => {
@@ -478,6 +486,147 @@ describe('furnishEmptyRooms', () => {
     const graph = { ...base, walls: [...thick, stub] };
     const items = furnishEmptyRooms(graph, style);
     expect(items.some((f) => f.variant === 'sofa')).toBe(true);
+    expectValid(graph, items);
+  });
+
+  it('phòng khách chữ L thông một phía (cạnh y = 0 không tường) → sofa/TV không tựa cạnh hở', () => {
+    const living = room('R-OPEN', 'livingRoom', [
+      { x: 0, y: 0 },
+      { x: 6000, y: 0 },
+      { x: 6000, y: 3000 },
+      { x: 3000, y: 3000 },
+      { x: 3000, y: 6000 },
+      { x: 0, y: 6000 },
+    ]);
+    const base = graphOf([living]);
+    const graph = { ...base, walls: base.walls.filter((w) => w.id !== 'W-R-OPEN-0') };
+    const items = furnishEmptyRooms(graph, style);
+    const backed = items.filter((f) => f.variant === 'sofa' || f.variant === 'tv');
+    expect(backed.some((f) => f.variant === 'sofa')).toBe(true);
+    // Tựa cạnh hở thì tâm cách y = 0 đúng 100 + 1 + d/2 ≤ 551 mm.
+    for (const f of backed) expect(f.centre.y, f.id).toBeGreaterThan(600);
+    expectValid(graph, items);
+  });
+
+  const bathDoor = (wallId: string): Opening =>
+    ({ ...door, id: `D-${wallId}`, wallId, offsetMm: 200, widthMm: 700 }) as Opening;
+
+  it('phòng tắm 1,6 × 2 m có cửa, chưa có thiết bị → bồn cầu + lavabo, hợp lệ', () => {
+    const graph = graphOf([square('R-B1', 'bathroom', 0, 1600, 2000)], [], [bathDoor('W-R-B1-0')]);
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.filter((f) => f.variant === 'wc')).toHaveLength(1);
+    expect(items.filter((f) => f.variant === 'basin')).toHaveLength(1);
+    expect(items.every((f) => f.kind === 'sanitaryFixture' || f.kind === 'shower')).toBe(true);
+    expectValid(graph, items);
+  });
+
+  it('phòng tắm 2 × 2,5 m → thêm khu tắm vòi sen ở góc xa cửa', () => {
+    const graph = graphOf([square('R-B2', 'bathroom', 0, 2000, 2500)], [], [bathDoor('W-R-B2-0')]);
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.map((f) => f.variant).sort()).toEqual(['basin', 'shower', 'wc']);
+    const shower = items.find((f) => f.variant === 'shower') as Furniture;
+    expect(shower.kind).toBe('shower');
+    // Cửa ở tường y = 0, x ∈ [200, 900]: khu tắm ở nửa xa (y lớn).
+    expect(shower.centre.y).toBeGreaterThan(1250);
+    expectValid(graph, items);
+  });
+
+  it('phòng tắm đã có bồn cầu thật → không thêm gì', () => {
+    const bath = square('R-B3', 'bathroom', 0, 2000, 2500);
+    const wc = {
+      ...META,
+      id: 'F-WC',
+      levelId: 'L-1',
+      roomId: 'R-B3',
+      kind: 'sanitaryFixture',
+      centre: { x: 400, y: 2000 },
+      boundingBox: { min: { x: 200, y: 1650 }, max: { x: 600, y: 2350 } },
+      rotationDeg: 0,
+    } as Furniture;
+    expect(furnishEmptyRooms(graphOf([bath], [wc], [bathDoor('W-R-B3-0')]), style)).toEqual([]);
+  });
+
+  it('bếp 2,2 × 2,5 m có cửa → dãy tủ dưới + chậu + tủ treo, không bàn ăn', () => {
+    const graph = graphOf([square('R-K1', 'kitchen', 0, 2200, 2500)], [], [bathDoor('W-R-K1-0')]);
+    const items = furnishEmptyRooms(graph, style);
+    const run = items.find((f) => f.variant === 'baseRun');
+    expect(run?.kind).toBe('kitchenCabinet');
+    expect(items.some((f) => f.variant === 'sink')).toBe(true);
+    expect(items.some((f) => f.variant === 'upperRun')).toBe(true);
+    expect(items.some((f) => f.kind === 'table')).toBe(false);
+    expectValid(graph, items);
+  });
+
+  it('bếp mở 43 m² một mình trên tầng → dãy tủ + bộ sofa + bàn ăn', () => {
+    const graph = graphOf([square('R-K2', 'kitchen', 0, 8600, 5000)], [], [bathDoor('W-R-K2-0')]);
+    const items = furnishEmptyRooms(graph, style);
+    const variants = items.map((f) => f.variant);
+    expect(variants).toEqual(expect.arrayContaining(['baseRun', 'fridge', 'sink', 'hob', 'sofa', 'chair']));
+    // Bàn ăn (cao) và bàn nước (variant `table` thấp 400 → mẫu bàn trà).
+    expect(items.some((f) => f.variant === 'table' && f.heightMm === undefined)).toBe(true);
+    expect(items.some((f) => f.variant === 'table' && f.heightMm === 400)).toBe(true);
+    expectValid(graph, items);
+    // Tầng đã có phòng khách → bếp không thêm sofa.
+    const withLiving = graphOf([square('R-K2', 'kitchen', 0, 8600, 5000), square('R-LV', 'livingRoom', 9000, 4000, 4000)]);
+    expect(furnishEmptyRooms(withLiving, style).filter((f) => f.roomId === 'R-K2').some((f) => f.variant === 'sofa')).toBe(false);
+  });
+
+  it('phòng khách cửa ở hai tường đối diện → bàn ăn + chỗ ghế không chắn lối đi giữa hai cửa', () => {
+    // Cửa tâm x = 3000 trên tường y = 0 (đi 0→6000) và tường y = 5000 (đi 6000→0).
+    const doors = [bathDoor('W-R-LD-0'), bathDoor('W-R-LD-2')].map((d) => ({ ...d, offsetMm: 2550, widthMm: 900 }) as Opening);
+    const graph = graphOf([square('R-LD', 'livingRoom', 0, 6000, 5000)], [], doors);
+    const items = furnishEmptyRooms(graph, style);
+    const table = items.find((f) => f.variant === 'table');
+    expect(table).toBeDefined();
+    const r = rectOfFurniture(table as Furniture);
+    const path = { cx: 3000, cy: 2500, w: 5000, d: 900, rotationDeg: 90 };
+    expect(rectsOverlap({ ...r, w: r.w + 1200, d: r.d + 1200 }, path)).toBe(false);
+    expectValid(graph, items);
+  });
+
+  it('tường phủ < 25 % chu vi (mẫu mock) → vẫn bày như mọi cạnh có tường; ≥ 25 % thì theo tường thật', () => {
+    const lv = square('R-MK', 'livingRoom', 0, 4000, 3000); // chu vi 14 m, ngưỡng 3,5 m
+    const base = graphOf([lv]);
+    const stub = (id: string, x0: number, x1: number, y: number): Wall =>
+      ({ ...(base.walls[0] as Wall), id, centreline: { start: { x: x0, y }, end: { x: x1, y } } }) as Wall;
+    // 1,8 + 1,5 = 3,3 m (23,6 %): đồ thị tường không mô tả phòng → có sofa.
+    const sparse = { ...base, walls: [stub('W-A', 0, 1800, 0), stub('W-B', 0, 1500, 3000)] };
+    expect(furnishEmptyRooms(sparse, style).some((f) => f.variant === 'sofa')).toBe(true);
+    // 1,8 + 1,8 = 3,6 m (25,7 %): tin tường; không đoạn có tường nào đủ 2 m → không sofa.
+    const walled = { ...base, walls: [stub('W-A', 0, 1800, 0), stub('W-B', 0, 1800, 3000)] };
+    expect(furnishEmptyRooms(walled, style).some((f) => f.variant === 'sofa')).toBe(false);
+  });
+
+  it('phòng khách trống 40 m² → đạt ≥ 70 % mật độ (1 món / 2,5 m²), tối đa 1 cây', () => {
+    const graph = graphOf([square('R-LV40', 'livingRoom', 0, 8000, 5000)]);
+    const items = furnishEmptyRooms(graph, style);
+    const standing = items.filter((f) => (f.liftMm ?? 0) === 0 && f.heightMm !== 20);
+    expect(standing.length).toBeGreaterThanOrEqual(Math.ceil(0.7 * Math.floor(40 / 2.5)));
+    expect(items.filter((f) => f.variant === 'plant').length).toBeLessThanOrEqual(1);
+    expect(new Set(items.map((f) => f.id)).size).toBe(items.length);
+    expectValid(graph, items);
+  });
+
+  it('hành lang 27 m² rộng 2 m → có đồ dọc một tường, còn lối đi ≥ 900 mm', () => {
+    const corridor = square('R-COR', 'corridor', 0, 13500, 2000);
+    const end = { ...bathDoor('W-R-COR-1'), offsetMm: 550, widthMm: 900 } as Opening;
+    const graph = graphOf([corridor], [], [end]);
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.length).toBeGreaterThan(0);
+    const ys = items.flatMap((f) => rectCornersOf(f).map((p) => p.y));
+    const walkway = Math.max(Math.min(...ys), 2000 - Math.max(...ys));
+    expect(walkway).toBeGreaterThanOrEqual(900);
+    expectValid(graph, items);
+    // Hẹp hơn 1,8 m: không bày.
+    expect(furnishEmptyRooms(graphOf([square('R-COR', 'corridor', 0, 13500, 1500)]), style)).toEqual([]);
+  });
+
+  it('phòng tắm cạnh ngắn ≥ 1,7 m (2,4 × 3 m) → thêm bồn tắm, bồn cầu + lavabo vẫn hợp lệ', () => {
+    const graph = graphOf([square('R-B4', 'bathroom', 0, 2400, 3000)], [], [bathDoor('W-R-B4-0')]);
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.some((f) => f.id.startsWith('DRESS-bathtub-'))).toBe(true);
+    expect(items.filter((f) => f.variant === 'wc')).toHaveLength(1);
+    expect(items.filter((f) => f.variant === 'basin')).toHaveLength(1);
     expectValid(graph, items);
   });
 });

@@ -7,9 +7,12 @@
  * - V6 `weldWallEnds`: đầu tường gần nhau (tường cong dò thành chuỗi đoạn ngắn) dồn về một điểm
  *   để vendor nối góc (nó chỉ nối đầu trùng nhau trên lưới 1 mm).
  * - V1 `lShapedRunArms`: dãy tủ bếp chữ L mà bản dò cho một hộp bao → hai nhánh dọc hai tường.
+ * - `orphanWallIds`: cụm tường trôi không neo vào phòng nào (nhỏ) → ẩn.
  */
 
+import { outlineContains } from '@/domain/rooms/area';
 import type { Furniture, FurnitureId, Room, RoomUsage, SpatialGraph, Wall } from '@/domain/spatial/types';
+import { toPointMm } from '@/lib/commands/business/shared';
 
 import { worldBoxOf } from './orientDetected';
 import { furnitureFacingDeg, roomEdges } from './placement';
@@ -195,4 +198,88 @@ export const lShapedRunArms = (
       rotationDeg: furnitureFacingDeg(inward),
     },
   };
+};
+
+/* Tường trôi ---------------------------------------------------------------- */
+
+/** Đầu tường cách thân tường kia ≤ nửa dày + chừng này (mm) thì nối (góc, chữ T). */
+const ORPHAN_JOIN_SLACK_MM = 50;
+/** Cụm không neo vào phòng chỉ ẩn khi tổng dài dưới tỉ lệ này của phần đã neo cùng tầng. */
+const ORPHAN_MAX_FRACTION = 0.3;
+/** Tường đã neo dưới tỉ lệ này của chu vi các phòng cùng tầng: đồ thị tường không mô tả tầng (mẫu mock) → không ẩn gì. */
+const ORPHAN_MIN_DESCRIBED = 0.25;
+
+interface Xy {
+  readonly x: number;
+  readonly y: number;
+}
+
+const segmentLengthMm = (a: Xy, b: Xy): number => Math.hypot(b.x - a.x, b.y - a.y);
+const lengthOfWall = (w: Wall): number => segmentLengthMm(w.centreline.start, w.centreline.end);
+const perimeterMm = (outline: readonly Xy[]): number =>
+  outline.reduce((sum, a, i) => sum + segmentLengthMm(a, outline[(i + 1) % outline.length] ?? a), 0);
+
+const pointToSegmentMm = (p: Xy, a: Xy, b: Xy): number => {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.min(1, Math.max(0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  return Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t);
+};
+
+/**
+ * Tường trôi ngoài nhà (bench-3d cn-16: 31/58 tường không thuộc phòng nào): gom tường theo đầu
+ * chạm thân tường khác (góc, chữ T); cụm có tường thuộc `room.wallIds` hoặc nằm trên cạnh outline
+ * phòng là đã neo. Cụm chưa neo có tổng dài < 30 % phần đã neo cùng tầng → id để ẩn
+ * (`visible: false`, không bỏ node — thiếu node lượt lưu đọc thành xoá). Tầng có tường neo dưới
+ * 25 % chu vi phòng (mẫu mock chỉ có mẩu 1 m) thì đồ thị tường không đáng tin → bỏ qua.
+ * Cụm có tường nằm TRONG một phòng (tâm trong outline) luôn giữ: mẩu vách trong nhà thường là vách
+ * thật của phòng dò sót/gộp (cn-16: vách phòng học trong "bếp 43,7 m²"), không phải rác ngoài nhà.
+ */
+// ponytail: O(n²) cặp tường mỗi tầng, như weldWallEnds.
+export const orphanWallIds = (graph: Pick<SpatialGraph, 'walls' | 'rooms'>): ReadonlySet<string> => {
+  const inRoom = new Set<string>(graph.rooms.flatMap((r) => r.wallIds));
+  const onOutline = (w: Wall): boolean => {
+    const mid = { x: (w.centreline.start.x + w.centreline.end.x) / 2, y: (w.centreline.start.y + w.centreline.end.y) / 2 };
+    const tol = w.thicknessMm / 2 + ORPHAN_JOIN_SLACK_MM;
+    return graph.rooms.some(
+      (r) =>
+        r.levelId === w.levelId &&
+        r.outline.some((a, i) => pointToSegmentMm(mid, a, r.outline[(i + 1) % r.outline.length] ?? a) <= tol),
+    );
+  };
+  const touches = (p: Wall, q: Wall): boolean =>
+    [p.centreline.start, p.centreline.end].some(
+      (e) => pointToSegmentMm(e, q.centreline.start, q.centreline.end) <= q.thicknessMm / 2 + ORPHAN_JOIN_SLACK_MM,
+    );
+  const total = (ws: readonly Wall[]): number => ws.reduce((sum, w) => sum + lengthOfWall(w), 0);
+  const insideRoom = (w: Wall): boolean => {
+    const mid = toPointMm({ x: (w.centreline.start.x + w.centreline.end.x) / 2, y: (w.centreline.start.y + w.centreline.end.y) / 2 });
+    return graph.rooms.some((r) => r.levelId === w.levelId && outlineContains(r.outline.map(toPointMm), mid));
+  };
+
+  const out = new Set<string>();
+  for (const level of new Set(graph.walls.map((w) => w.levelId))) {
+    const walls = graph.walls.filter((w) => w.levelId === level && lengthOfWall(w) > 0);
+    const parent = walls.map((_w, i) => i);
+    const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i] as number)));
+    for (let i = 0; i < walls.length; i++) {
+      for (let j = i + 1; j < walls.length; j++) {
+        const p = walls[i] as Wall;
+        const q = walls[j] as Wall;
+        if (touches(p, q) || touches(q, p)) parent[find(i)] = find(j);
+      }
+    }
+    const groups = new Map<number, Wall[]>();
+    walls.forEach((w, i) => groups.set(find(i), [...(groups.get(find(i)) ?? []), w]));
+    const anchored = [...groups.values()].filter((ws) => ws.some((w) => inRoom.has(w.id) || onOutline(w)));
+    const anchoredMm = anchored.reduce((sum, ws) => sum + total(ws), 0);
+    const roomsMm = graph.rooms.filter((r) => r.levelId === level).reduce((sum, r) => sum + perimeterMm(r.outline), 0);
+    if (anchoredMm < ORPHAN_MIN_DESCRIBED * roomsMm) continue;
+    for (const ws of groups.values()) {
+      if (anchored.includes(ws) || total(ws) >= ORPHAN_MAX_FRACTION * anchoredMm || ws.some(insideRoom)) continue;
+      for (const w of ws) out.add(w.id);
+    }
+  }
+  return out;
 };

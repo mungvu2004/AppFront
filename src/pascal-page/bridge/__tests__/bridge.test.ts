@@ -44,6 +44,8 @@ const settingsApi = vi.hoisted(() => ({
   read: { ok: true, data: {} } as { ok: boolean; data?: unknown; error?: unknown },
   puts: [] as unknown[],
 }));
+/** N47 giả (AID-01): kết quả đọc concept; mặc định hỏng = không có concept → tự bày dự phòng. */
+const conceptApi = vi.hoisted(() => ({ read: { ok: false, error: new Error('off') } as { ok: boolean; data?: unknown; error?: unknown } }));
 const detail = vi.hoisted(() => ({ fail: false, levels: 1, walls: 1, role: 'engineer' as ProjectRole }));
 /** Kết quả `onSceneCommit` giả: `reason` khác `null` = có lời từ chối qua `onRejected`. */
 const commit = vi.hoisted(() => ({
@@ -87,6 +89,7 @@ vi.mock('@/api/appClient', async (importOriginal) => ({
         });
       },
     },
+    designConcept: { read: () => Promise.resolve(conceptApi.read) },
     projectSettings: {
       read: () => Promise.resolve(settingsApi.read),
       replace: (input: unknown) => (settingsApi.puts.push(input), Promise.resolve({ ok: true, data: {} })),
@@ -178,6 +181,7 @@ describe('usePascalProjectBridge', () => {
     scaleApi.sources = {};
     settingsApi.read = { ok: true, data: {} };
     settingsApi.puts = [];
+    conceptApi.read = { ok: false, error: new Error('off') };
     detail.fail = false;
     detail.levels = 1;
     detail.walls = 1;
@@ -209,7 +213,7 @@ describe('usePascalProjectBridge', () => {
     await act(() => result.current.onLoad());
 
     expect(toPascalScene).toHaveBeenCalledTimes(1);
-    expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style });
+    expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style, furnish: 'on' });
     localStorage.removeItem(SCENE_STYLE_STORAGE_KEY);
   });
 
@@ -229,7 +233,7 @@ describe('usePascalProjectBridge', () => {
     await waitFor(() => expect(first.result.current.status).toBe('ready'));
     vi.mocked(toPascalScene).mockClear();
     await act(() => first.result.current.onLoad());
-    expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style: SCENE_STYLES['toi-gian'] });
+    expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style: SCENE_STYLES['toi-gian'], furnish: 'on' });
     expect(currentProjectSceneStyle()?.id).toBe('toi-gian');
 
     settingsApi.read = { ok: false, error: new Error('403') };
@@ -237,9 +241,44 @@ describe('usePascalProjectBridge', () => {
     await waitFor(() => expect(second.result.current.status).toBe('ready'));
     vi.mocked(toPascalScene).mockClear();
     await act(() => second.result.current.onLoad());
-    expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style: SCENE_STYLES['go-am'] });
+    expect(toPascalScene).toHaveBeenCalledWith(expect.anything(), { style: SCENE_STYLES['go-am'], furnish: 'on' });
     expect(currentProjectSceneStyle()?.saveToProject).toBeUndefined();
     localStorage.removeItem(SCENE_STYLE_STORAGE_KEY);
+  });
+
+  it('bench-3d — không có concept AI: tự bày dự phòng (furnish on); concept xong: AI quyết (off + đồ AI)', async () => {
+    const result = {
+      nameVi: 'Japandi',
+      summaryVi: 'Gỗ sáng.',
+      baseStyle: 'toi-gian',
+      wall: {},
+      floor: {},
+      models: {},
+      additions: [
+        { levelId: 'L-1', roomId: 'R-1', kind: 'other', variant: 'plant', centre: { x: 100, y: 200 }, widthMm: 300, depthMm: 300, rotationDeg: 90 },
+      ],
+    };
+    const T = '2026-11-02T01:00:00.000Z';
+    conceptApi.read = {
+      ok: true,
+      data: { enabled: true, active: { id: 'dcn_01', suggested: true, status: 'done', createdAt: T, startedAt: T, endedAt: T, result } },
+    };
+    const withConcept = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(withConcept.result.current.status).toBe('ready'));
+    vi.mocked(toPascalScene).mockClear();
+    await act(() => withConcept.result.current.onLoad());
+    const [, options] = vi.mocked(toPascalScene).mock.calls[0] ?? [];
+    expect(options?.furnish).toBeUndefined();
+    expect(options?.additions).toHaveLength(1);
+
+    // Concept chưa xong (đang chạy) cũng như không có: tự bày.
+    conceptApi.read = { ok: true, data: { enabled: true, active: { id: 'dcn_02', suggested: true, status: 'running', createdAt: T, startedAt: T } } };
+    const running = renderHook(() => usePascalProjectBridge('p1'));
+    await waitFor(() => expect(running.result.current.status).toBe('ready'));
+    vi.mocked(toPascalScene).mockClear();
+    await act(() => running.result.current.onLoad());
+    expect(vi.mocked(toPascalScene).mock.calls[0]?.[1]).toMatchObject({ furnish: 'on' });
+    expect(vi.mocked(toPascalScene).mock.calls[0]?.[1]?.additions).toBeUndefined();
   });
 
   it('UX-R2: separateUnits của N5 đọc lúc nạp; vắng hay N5 hỏng thì tắt', async () => {
@@ -323,7 +362,7 @@ describe('usePascalProjectBridge', () => {
     await act(async () => {
       scene = await result.current.onLoad();
     });
-    expect(scene).toEqual(toPascalScene(createSampleBuilding()).scene);
+    expect(scene).toEqual(toPascalScene(createSampleBuilding(), { furnish: 'on' }).scene);
   });
 
   it('vai người xem: chỉ đọc', async () => {
@@ -609,13 +648,13 @@ describe('usePascalProjectBridge', () => {
     });
     const sample = createSampleBuilding();
     const hidden = new Set([sampleLevelId(1)]);
-    expect(scene).toEqual(markNotBuilt(toPascalScene(withoutFloorContents(sample, hidden)).scene, hidden));
+    expect(scene).toEqual(markNotBuilt(toPascalScene(withoutFloorContents(sample, hidden), { furnish: 'on' }).scene, hidden));
     // UX-R2 K36: danh sách tầng của editor đọc dấu này để ghi "Chưa dựng".
     const notBuilt = (levelId: string) =>
       (scene?.nodes[`level_${levelId}`] as { metadata?: Record<string, unknown> } | undefined)?.metadata?.[NOT_BUILT_KEY];
     expect(notBuilt(sampleLevelId(1))).toBe(true);
     expect(notBuilt(sampleLevelId(0))).toBeUndefined();
-    expect(scene).not.toEqual(toPascalScene(sample).scene);
+    expect(scene).not.toEqual(toPascalScene(sample, { furnish: 'on' }).scene);
   });
 
   it('Codex P1 — mọi tầng chưa có tỷ lệ: cảnh trống nhưng vẫn mở (không báo lỗi nạp)', async () => {

@@ -27,6 +27,8 @@ export interface RoomEdge {
   /** Nửa dày lớn nhất của tường nằm trên cạnh (0 = không có tường): đồ tựa cạnh phải lùi hơn mức này. */
   readonly wallHalfMm: number;
   readonly openings: readonly { readonly fromMm: number; readonly toMm: number }[];
+  /** Đoạn dọc cạnh có tường thật phía sau (đã gộp, theo thứ tự); phần còn lại là chỗ trống/thông phòng. */
+  readonly walled: readonly { readonly fromMm: number; readonly toMm: number }[];
 }
 
 const EPS = 1e-6;
@@ -34,6 +36,8 @@ const EPS = 1e-6;
 const SLIDING_SWING_DEPTH_MM = 600;
 /** Tường được coi là nằm trên cạnh phòng khi tâm tường cách cạnh ≤ nửa dày + 50 mm. */
 const EDGE_WALL_SLACK_MM = 50;
+/** Khe giữa hai đoạn tường (hoặc tới đầu cạnh) ngắn hơn mức này coi như liền: mối nối tường dò không khít. */
+const WALL_JOIN_MM = 300;
 
 const radiansOf = (deg: number): number => (deg * Math.PI) / 180;
 const axesOf = (r: Rect): readonly [Point, Point] => {
@@ -161,7 +165,8 @@ export const wallRects = (graph: SpatialGraph, levelId: LevelId): Rect[] =>
 
 /**
  * Các cạnh outline của phòng, pháp tuyến hướng vào trong và khoảng cửa (đi + sổ) dọc cạnh:
- * lấy từ tường cùng tầng có cả hai đầu tâm tường cách đường cạnh ≤ dày/2 + 50 mm.
+ * lấy từ tường cùng tầng có cả hai đầu tâm tường cách đường cạnh ≤ dày/2 + 50 mm và phủ một
+ * phần đoạn cạnh; `walled` là các đoạn cạnh có tường đó phía sau.
  */
 export const roomEdges = (room: Pick<Room, 'levelId' | 'outline'>, graph: SpatialGraph): RoomEdge[] => {
   const outline = room.outline;
@@ -180,10 +185,27 @@ export const roomEdges = (room: Pick<Room, 'levelId' | 'outline'>, graph: Spatia
     const offLine = (p: Point): number => Math.abs((p.x - a.x) * e.y - (p.y - a.y) * e.x);
     const along = (p: Point): number => (p.x - a.x) * e.x + (p.y - a.y) * e.y;
 
+    // Tường thẳng hàng nhưng nằm ngoài đoạn cạnh (cạnh khác cùng đường thẳng) không tính.
+    const spanOf = (w: (typeof walls)[number]): { fromMm: number; toMm: number } => {
+      const p = along(w.centreline.start);
+      const q = along(w.centreline.end);
+      return { fromMm: Math.max(0, Math.min(p, q)), toMm: Math.min(lengthMm, Math.max(p, q)) };
+    };
     const onEdge = walls.filter((w) => {
       const tol = w.thicknessMm / 2 + EDGE_WALL_SLACK_MM;
-      return offLine(w.centreline.start) <= tol && offLine(w.centreline.end) <= tol;
+      const { fromMm, toMm } = spanOf(w);
+      return offLine(w.centreline.start) <= tol && offLine(w.centreline.end) <= tol && toMm - fromMm > EPS;
     });
+    const walled: { fromMm: number; toMm: number }[] = [];
+    for (const s of onEdge.map(spanOf).sort((x, y) => x.fromMm - y.fromMm)) {
+      const last = walled[walled.length - 1];
+      if (last !== undefined && s.fromMm - last.toMm <= WALL_JOIN_MM) last.toMm = Math.max(last.toMm, s.toMm);
+      else walled.push({ ...s });
+    }
+    const head = walled[0];
+    const tail = walled[walled.length - 1];
+    if (head !== undefined && head.fromMm <= WALL_JOIN_MM) head.fromMm = 0;
+    if (tail !== undefined && lengthMm - tail.toMm <= WALL_JOIN_MM) tail.toMm = lengthMm;
     const wallHalfMm = Math.max(0, ...onEdge.map((w) => w.thicknessMm / 2));
     const openings = onEdge
       .flatMap((w) => {
@@ -204,7 +226,7 @@ export const roomEdges = (room: Pick<Room, 'levelId' | 'outline'>, graph: Spatia
       })
       .sort((x, y) => x.fromMm - y.fromMm || x.toMm - y.toMm);
 
-    return [{ a, b, lengthMm, inwardNormal, wallHalfMm, openings }];
+    return [{ a, b, lengthMm, inwardNormal, wallHalfMm, openings, walled }];
   });
 };
 

@@ -65,7 +65,7 @@ import {
 import { SCENE_STYLE_MATERIALS, sceneStyleOf, type SceneStyle } from './sceneStyles';
 import { dressingOf, hostTopMm } from './sceneDressingRules';
 import { furnishEmptyRooms } from './sceneFurnish';
-import { furnishingUsageOf, isPlausibleStair, lShapedRunArms, weldWallEnds } from './structureFixes';
+import { furnishingUsageOf, isPlausibleStair, lShapedRunArms, orphanWallIds, weldWallEnds } from './structureFixes';
 import { contextRolesOf, isThinHob, isThinSink, modelFolderOf, roleOf } from './sceneVariety';
 import type {
   AppFrontOrigin,
@@ -1168,6 +1168,10 @@ export const toPascalScene = (
     ),
   );
 
+  /* Tường trôi ngoài nhà: node vẫn có (thiếu = lượt lưu đọc thành xoá) nhưng ẩn, và không vào
+     `builtWalls` để không ảnh hưởng bày đồ, cửa, khung bóng. */
+  const orphanWalls = orphanWallIds(graph);
+
   for (const wall of graph.walls) {
     const levelNodeId = levelNodeIdOf.get(wall.levelId);
 
@@ -1206,6 +1210,13 @@ export const toPascalScene = (
               appfront: { ...origin, fields: { ...origin.fields, weldedFrom: wall.centreline, weldedTo: welded.centreline } },
             },
           };
+
+    if (orphanWalls.has(wall.id)) {
+      nodes[node.id] = { ...node, visible: false };
+      wallNodeIdOf.set(wall.id, node.id);
+      adopt(levelNodeId, node.id);
+      continue;
+    }
 
     builtWalls.push(wall);
     const railing = isLoggiaRailing(wall, graph.rooms, graph.openings.some((o) => o.wallId === wall.id));
@@ -1408,15 +1419,27 @@ export const toPascalScene = (
     [...builtFurniture, ...furnished],
   ).filter(notOff);
   const dressIdsOf = new Map<string, string[]>();
+  const generatedAll = [...furnished, ...dressed, ...aiAdded];
+  /* Chậu/mặt bếp sinh ra nằm trên mặt đá dãy tủ sinh ra (hoặc thật), như đường đồ thật ở trên. */
+  const counterPool = [...builtFurniture, ...generatedAll];
+  const usageOfGenerated = (f: Furniture) => (f.roomId === undefined ? undefined : roomUsageOf.get(f.roomId));
 
-  for (const furniture of [...furnished, ...dressed, ...aiAdded]) {
+  for (const furniture of generatedAll) {
     const levelNodeId = levelNodeIdOf.get(furniture.levelId);
     const levelHeightMm = levelHeightMmOf.get(furniture.levelId);
 
     if (levelNodeId === undefined || levelHeightMm === undefined) continue;
 
     const usage = furniture.roomId === undefined ? undefined : roomUsageOf.get(furniture.roomId);
-    const node = itemNodeOf(furniture, levelNodeId, levelHeightMm, style, usage);
+    const node = itemNodeOf(
+      furniture,
+      levelNodeId,
+      levelHeightMm,
+      style,
+      usage,
+      counterTopMmOf(furniture, counterPool, style, usageOfGenerated),
+      sinkFolderOf(furniture, counterPool, usageOfGenerated),
+    );
 
     nodes[node.id] = { ...node, metadata: { ...node.metadata, generated: 'dressing' } };
     adopt(levelNodeId, node.id);

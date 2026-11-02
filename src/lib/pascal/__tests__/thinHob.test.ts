@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
+import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { degrees, millimetres } from '@/domain/units/types';
 
 import { houseModelSpatial } from '../__fixtures__/houseModelSpatial';
@@ -70,5 +71,19 @@ describe('mặt bếp mỏng', () => {
     const hobNode = items.find((n) => n.asset.src === '/items/hob-sf/model.glb');
     expect(hobNode?.position[1]).toBeCloseTo(0.9 * topFractionOf('kitchen-cabinet')!, 3);
     expect(items.filter((n) => n.asset.src === '/items/kitchen/model.glb')).toHaveLength(2);
+  });
+
+  it('bếp trống tự bày: mặt bếp sinh ra nằm trên mặt đá dãy tủ sinh ra, dãy có chậu dùng mẫu bếp có chậu', () => {
+    const graph = createSampleBuilding();
+    graph.rooms = graph.rooms.map((r, i) => (i === 5 ? { ...r, usage: 'kitchen' as const } : r));
+    const items = Object.values(toPascalScene(graph, { furnish: 'on' }).scene.nodes).filter((n) => n.type === 'item');
+    const run = items.find((n) => n.id.startsWith('item_DRESS-baseRun-'));
+    const hobNode = items.find((n) => n.id.startsWith('item_DRESS-hob-'));
+    expect(run?.asset.src).toBe('/items/kitchen/model.glb');
+    expect(run?.position[1]).toBe(0);
+    expect(hobNode?.asset.src).toBe('/items/hob-sf/model.glb');
+    // Mặt đá tủ bếp ~0,85–0,9 m, không nằm dưới sàn.
+    expect(hobNode?.position[1]).toBeGreaterThan(0.75);
+    expect(hobNode?.position[1]).toBeLessThan(1);
   });
 });

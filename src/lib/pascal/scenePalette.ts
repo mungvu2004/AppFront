@@ -35,6 +35,8 @@ export const SCENE_PALETTE = {
   floorOak: '#b3916f',
   // Mặt cắt tường (chế độ "Tường: cắt", xem thử nướng) và trình bày studio (`src/pascal-page/realism/studio.ts`).
   cutFace: '#141416',
+  // Nắp cắt tường ở chế độ "Tường: cắt" (bench-3d: thay dải gần đen quanh tường bao).
+  cutCap: '#ddd9d3',
   studioGround: '#d6d7d8',
   studioShadow: '#2e3134',
   studioPlinth: '#e6e3de',
