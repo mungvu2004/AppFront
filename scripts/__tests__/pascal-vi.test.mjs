@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { applyTable, pascalVi, PASCAL_VI_TABLES } from '../pascal-vi.mjs';
 import { ITEM_NAME_VI, MATERIAL_LABEL_VI } from '../pascal-vi/materials-ui.mjs';
+import { RESET_CONFIRM } from '../pascal-vi/editor-extra7.mjs';
 
 const PACKAGES = path.resolve('vendor/pascal/packages');
 
@@ -85,5 +86,26 @@ describe('pascal-vi', () => {
     const settings = 'editor/src/components/ui/sidebar/panels/settings-panel/index.tsx';
     const s = applyTable(readFileSync(path.join(PACKAGES, settings), 'utf8'), settings, PASCAL_VI_TABLES[settings]);
     expect(s).toContain("className={readOnly ? 'hidden' : 'grid grid-cols-2 gap-2'}");
+  });
+
+  it('editor-hig C: trợ giúp khi chọn vật hết chữ Anh; "Xoá hết và làm lại" hỏi trước khi xoá', () => {
+    const tr = (file) => applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]);
+    const help = tr('editor/src/lib/contextual-help.ts');
+    const labels = [...help.matchAll(/label: (?:altPressed \? )?'([^']+)'/g)].map((m) => m[1]);
+    expect(labels.length).toBeGreaterThan(10);
+    expect(labels.filter((l) => /\b(the|selection|selected|object|Drag|Click|Rotate|Hold)\b/.test(l))).toEqual([]);
+    expect(help).not.toContain("'Hold to rotate freely'");
+    expect(tr('editor/src/components/editor/floorplan-mode-coordinator.tsx')).not.toMatch(/Switch to Expert|Switched to Default/);
+    const s = tr('editor/src/components/ui/sidebar/panels/settings-panel/index.tsx').replaceAll('\r\n', '\n');
+    expect(s).toContain(`const handleResetToDefault = () => {\n    ${RESET_CONFIRM}\n    clearScene()`);
+    expect(RESET_CONFIRM).toMatch(/không thể hoàn tác/);
+    // Vòng 2: nhãn chế độ nối tiếp (bảng gợi ý công cụ Tường hiện "Room (auto-close)") và chip hàng rào
+    const cont = tr('editor/src/lib/continuation.ts');
+    expect(cont).toContain("room: 'Phòng (tự khép kín)'");
+    expect(cont).not.toMatch(/'(Room \(auto-close\)|Single wall|Continuous|Single fence|Curved fence|Place once|Place multiple)'/);
+    expect(tr('editor/src/components/ui/helpers/contextual-helper-panel.tsx')).not.toMatch(/'(Straight|Type): |Fence (type|continuation)/);
+    expect(tr('editor/src/lib/paint-scope.ts')).not.toMatch(/`Whole |return '(All matching|Room)'|'This surface'/);
+    expect(tr('editor/src/components/ui/helpers/contextual-helper-panel.tsx')).not.toMatch(/`Paint(:| scope:)/);
+    expect(tr('nodes/src/block/contextual-help.ts')).not.toMatch(/'(Vertex|Edge|Face)'|Exit mesh editing/);
   });
 });

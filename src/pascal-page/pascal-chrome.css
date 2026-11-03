@@ -54,6 +54,11 @@
 }
 
 /* ---- Ô tầng nổi + nút tròn ---- */
+/* HIG-A: dưới mép thật của thanh trên (thanh xuống dòng khi hẹp; viewer-toolbar.tsx `useBarLayoutVars`),
+ * mặc định 44 + 12 = top-14 như vendor. */
+.absolute.top-14.left-3.z-20 {
+  top: calc(var(--appfront-bar-bottom, 44px) + 12px);
+}
 .absolute.top-14.left-3.z-20 .rounded-xl.border {
   background: var(--pa-surface);
   border-color: var(--pa-border);
@@ -304,7 +309,8 @@ button[data-slot="button"]:has(> svg.lucide-volume-x) {
 }
 
 /* Đợt 2: thanh dưới bên phải không đủ chỗ (viewer-toolbar `useDockCompact`) → chỉ còn biểu tượng. */
-[data-appfront-dock][data-compact] .dock-label {
+[data-appfront-dock][data-compact] .dock-label,
+[data-appfront-undo][data-compact] .dock-label {
   position: absolute !important;
   width: 1px !important;
   height: 1px !important;
