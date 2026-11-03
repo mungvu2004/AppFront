@@ -1074,6 +1074,22 @@ describe('[K10] đường bao tràn ra ngoài: chặn duyệt ở hook', () => {
     expect(reviewedInStore()).toBe(false);
     expect(useStore.getState().selectedIds).toEqual([spillRoom.id]);
   });
+
+  it('Esc bỏ chọn phòng như × "Bỏ chọn" của panel phải', async () => {
+    const shortcutRegistry = createShortcutRegistry();
+    const mounted = await mountSettled({ shortcutRegistry });
+    const first = mounted.result.current.rooms[0]!;
+
+    act(() => {
+      mounted.result.current.onSelect(first.id);
+    });
+    expect(mounted.result.current.selectedRoomId).toBe(first.id);
+
+    act(() => {
+      shortcutRegistry.handleKeyDown({ key: 'Escape' }, null);
+    });
+    expect(mounted.result.current.selectedRoomId).toBeNull();
+  });
 });
 
 describe('[UX-08] đoạn đo tỷ lệ vẽ lên bản vẽ Phòng', () => {

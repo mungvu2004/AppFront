@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { QcAskAnchor, QcAskCard, QcQueueAskCard } from './QcAskCard';
+import { QcAskCard, QcQueueAskCard } from './QcAskCard';
 import { QcInspectorEmpty, QcInspectorSection } from './QcInspectorSection';
 import { askNavOf, rectInFrame } from './qcAsk';
 import { focusBoundsOf, focusFrameOf } from './qcViewMode';
@@ -99,13 +99,6 @@ describe('QcAskCard: nút đóng', () => {
   });
 });
 
-describe('QcAskAnchor (shim chuyển tiếp)', () => {
-  it('không vẽ gì trên bản vẽ nữa: panel đã neo ở QcWorkspace', () => {
-    const { container } = render(<QcAskAnchor rect={{ x: 0, y: 0, width: 1, height: 1 }}>thẻ</QcAskAnchor>);
-    expect(container).toBeEmptyDOMElement();
-  });
-});
-
 describe('QcQueueAskCard', () => {
   it('giữ "k trong N" và nhận thêm mã/chân', () => {
     render(
@@ -121,6 +114,18 @@ describe('QcQueueAskCard', () => {
       </QcQueueAskCard>,
     );
     expect(screen.getByRole('region', { name: 'Chi tiết mục đang chọn' })).toHaveTextContent('#W-002Đoạn 2 trong 2 cần xemthânchân');
+  });
+
+  it('× "Bỏ chọn" gọi onSelect(null): API bỏ chọn chung của ba màn', () => {
+    const onSelect = vi.fn();
+    render(
+      <QcQueueAskCard items={[{ id: 'a', pending: true }]} onSelect={onSelect} selectedId="a" unit="Mục">
+        thân
+      </QcQueueAskCard>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith(null);
   });
 });
 

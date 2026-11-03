@@ -1,9 +1,9 @@
 import { PanelLeftOpen } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
+import { useShortcut } from '@/hooks/useShortcut';
 import { cn } from '@/lib/utils';
 
-import { useQcAskSlot } from './qcAsk';
 import { QC_COLUMN_DRAWER_CLASS, QC_COLUMN_ID } from './qcLayout';
 
 /**
@@ -66,7 +66,7 @@ interface QcWorkspaceProps {
   /**
    * Bố cục hai panel kiểu Figma (`docs/figma-layout-spec.md`): cột trái và panel phải neo cùng cỡ —
    * 260 ở 1024-1279, 280 ở 1280-1535, 320 từ 1536 — nên bản vẽ không đổi cỡ khi chọn. Dưới 1024: cột trái
-   * là ngăn kéo, panel phải là tấm đáy ≤ 45 % (chỉ khi đang chọn). Thắng `wideLeft`.
+   * là ngăn kéo, panel phải là tấm đáy ≤ 45 % (khi đang chọn, hoặc mở bằng nút "Chi tiết"). Thắng `wideLeft`.
    */
   readonly column?: boolean;
   /** "Thu gọn" (ray): ẩn cả hai panel, bản vẽ chiếm hết. */
@@ -78,8 +78,8 @@ interface QcWorkspaceProps {
   /** Thẻ nổi trên bản vẽ không gắn với mục nào (bố cục L23: thẻ Xong tầng). */
   readonly canvasOverlay?: ReactNode;
   /**
-   * Panel chi tiết phải. `column`: panel neo (`QcAskCard` khi chọn, `QcInspectorEmpty` khi chưa); vắng thì
-   * lấy khe `QcAskSlot` (shim chuyển tiếp). Không `column`, 1024-1279: lớp phủ trên mép phải bản vẽ.
+   * Panel chi tiết phải. `column`: panel neo (`QcAskCard` khi chọn, `QcInspectorEmpty` khi chưa).
+   * Không `column`, 1024-1279: lớp phủ trên mép phải bản vẽ.
    */
   readonly inspector?: ReactNode;
   /**
@@ -96,6 +96,8 @@ const DRAWER_SHOW_LABEL = 'Hiện chi tiết';
 const COLUMN_OPEN_LABEL = 'Mở cột việc';
 const COLUMN_OPEN_TEXT = 'Việc';
 const COLUMN_CLOSE_LABEL = 'Đóng cột việc';
+export const QC_SHEET_TOGGLE_TEXT = 'Chi tiết';
+const QC_DOCK_ID = 'qc-inspector-dock';
 
 /**
  * Hàng làm việc: rail | panel trái | bản vẽ | chi tiết. Bố cục `column`: xem prop `column`.
@@ -120,8 +122,7 @@ export function QcWorkspace({
   inspector: inspectorProp,
   selectionKey = null,
 }: QcWorkspaceProps) {
-  const askSlot = useQcAskSlot();
-  const inspector = collapsed ? null : (inspectorProp ?? (column ? askSlot : null));
+  const inspector = collapsed ? null : inspectorProp;
   // Ẩn/hiện tay chỉ áp cho lần chọn đang có; đổi lựa chọn thì về mặc định (mở khi có chọn).
   const [manual, setManual] = useState<{ readonly key: string | null; readonly open: boolean } | null>(null);
   const isDrawerOpen = manual?.key === selectionKey ? manual.open : selectionKey != null;
@@ -132,6 +133,14 @@ export function QcWorkspace({
   const isColumnOpen = columnManual?.key === selectionKey ? columnManual.open : false;
   const setColumnOpen = (open: boolean) => setColumnManual({ key: selectionKey, open });
   const columnDrawer = column && hasLeft;
+  /* Dưới 1024, chưa chọn gì: tấm đáy ẩn; nút "Chi tiết" mở nó với panel "Tầng này" (chú giải, Hiển thị). Đổi lựa chọn thì đóng. */
+  const [sheet, setSheet] = useState<{ readonly key: string | null; readonly open: boolean }>({ key: selectionKey, open: false });
+  const isSheetOpen = sheet.key === selectionKey && sheet.open;
+  const hasSheetToggle = column && hasInspector && selectionKey == null;
+  useShortcut(
+    { id: 'qcWorkspace.closeSheet', combo: 'Escape', scope: 'sidePanel', description: 'Đóng tấm chi tiết', onTrigger: () => setSheet({ key: selectionKey, open: false }) },
+    { enabled: hasSheetToggle && isSheetOpen },
+  );
 
   return (
     <div className={cn('relative flex min-h-0 flex-1 gap-2 p-2', !columnDrawer && 'max-lg:flex-wrap max-lg:content-start max-lg:overflow-y-auto')}>
@@ -161,6 +170,17 @@ export function QcWorkspace({
         {chromeTopRight != null || hasInspector ? (
           <div className="absolute right-3 top-3 z-30 flex items-center gap-2">
             {chromeTopRight}
+            {hasSheetToggle ? (
+              <button
+                aria-controls={QC_DOCK_ID}
+                aria-expanded={isSheetOpen}
+                className="min-h-8 rounded-lg bg-bg-surface px-3 py-1.5 text-body-sm font-medium text-text-primary shadow-float hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent lg:hidden"
+                onClick={() => setSheet({ key: selectionKey, open: !isSheetOpen })}
+                type="button"
+              >
+                {QC_SHEET_TOGGLE_TEXT}
+              </button>
+            ) : null}
             {hasInspector && !column ? (
               <button
                 aria-expanded={isDrawerOpen}
@@ -178,11 +198,12 @@ export function QcWorkspace({
         <div
           className={cn(
             'flex min-h-0 shrink-0 flex-col overflow-hidden rounded-xl', QC_PANEL_WIDTH_CLASS,
-            /* U20: dưới 1024 tấm đáy trên bản vẽ (rộng hết, cao ≤ 45 %); chưa chọn gì thì không che bản vẽ. */
+            /* U20: dưới 1024 tấm đáy trên bản vẽ (rộng hết, cao ≤ 45 %); chưa chọn gì thì ẩn tới khi bấm "Chi tiết". */
             'max-lg:absolute max-lg:inset-x-2 max-lg:bottom-2 max-lg:z-20 max-lg:max-h-[45%] max-lg:shadow-overlay',
-            selectionKey == null && 'max-lg:hidden',
+            selectionKey == null && !isSheetOpen && 'max-lg:hidden',
           )}
           data-testid="qc-inspector-dock"
+          id={QC_DOCK_ID}
         >
           {inspector}
         </div>

@@ -7,6 +7,7 @@ import { AdminGate } from '../screens/admin/AdminGate';
 import React, { lazy, useCallback, useEffect, useState } from 'react';
 import {
   createBrowserRouter,
+  Navigate,
   Outlet,
   useLocation,
   type RouteObject,
@@ -358,6 +359,8 @@ export const routes: RouteObject[] = [
         element: <AppLayout />,
         children: [
           { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<Screens.RouteDashboard />) },
+          /* Danh sách dự án ở `/`; `/projects` (gõ tay, liên kết cũ) không còn ra 404. */
+          { path: '/projects', element: <Navigate replace to={ROUTE_PATTERNS.dashboard} /> },
           { path: ROUTE_PATTERNS.projectExploded, element: <ExplodedViewRedirect /> },
           { path: ROUTE_PATTERNS.projectMeasure, element: <MeasureViewRedirect /> },
           /* Nhóm màn không tự có `<main>`: một landmark chung ở đây thay vì ba mươi chỗ

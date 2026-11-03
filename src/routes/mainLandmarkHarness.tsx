@@ -44,6 +44,8 @@ export const REDIRECT_PATHS: readonly string[] = [
   ROUTE_PATTERNS.projectViewerPascal,
   ROUTE_PATTERNS.projectExploded,
   ROUTE_PATTERNS.projectMeasure,
+  /* `/projects` → `/` (danh sách dự án). */
+  '/projects',
 ];
 
 /* Phẳng hoá cây route để lấy lại từng route lá cùng với nhóm `<ScreenMain>` bọc nó (nếu có).

@@ -25,7 +25,7 @@
  */
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { createMemoryRouter, MemoryRouter, Outlet, RouterProvider } from 'react-router-dom';
+import { createMemoryRouter, MemoryRouter, Outlet, RouterProvider, type RouteObject } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '@/store';
@@ -232,5 +232,23 @@ describe('[router] trang giới thiệu /welcome', () => {
     expect(top.map((child) => child.path)).toContain(ROUTE_PATTERNS.welcome);
     expect(ROUTES.welcome).toBe('/welcome');
     expect(PUBLIC_ROUTE_PATTERNS).toContain(ROUTE_PATTERNS.welcome);
+  });
+});
+
+describe('[router] /projects về danh sách dự án ở /', () => {
+  it('chuyển hướng thay vì 404', () => {
+    const flatten = (list: readonly RouteObject[]): RouteObject[] => list.flatMap((route) => [route, ...flatten(route.children ?? [])]);
+    const redirect = flatten(routes).find((route) => route.path === '/projects');
+
+    expect(redirect).toBeDefined();
+    const memoryRouter = createMemoryRouter(
+      [redirect!, { path: ROUTE_PATTERNS.dashboard, element: <div>danh sách dự án</div> }],
+      { initialEntries: ['/projects'] },
+    );
+
+    render(<RouterProvider router={memoryRouter} />);
+
+    expect(screen.getByText('danh sách dự án')).toBeInTheDocument();
+    expect(memoryRouter.state.location.pathname).toBe('/');
   });
 });

@@ -16,15 +16,6 @@ import { QcInspectorShell } from './QcInspectorSection';
  * thân cuộn; chân ghim ngoài vùng cuộn.
  */
 
-/**
- * @deprecated Shim chuyển tiếp: panel đã neo ở `QcWorkspace` (prop `inspector`, hoặc khe `QcAskSlot`),
- * không còn nổi trên bản vẽ. Không vẽ gì; gỡ khỏi bản vẽ rồi xoá.
- */
-export function QcAskAnchor(props: { readonly rect: unknown; readonly children?: ReactNode }) {
-  void props;
-  return null;
-}
-
 export interface QcAskCardProps {
   /** "Đoạn 1 trong 7 cần xem"; vắng khi mục đang chọn đã duyệt. */
   readonly eyebrow: string;
@@ -41,7 +32,7 @@ export interface QcAskCardProps {
   readonly display?: ReactNode;
   /** Chân ghim ngoài vùng cuộn: Duyệt (A) · Để sau (S) · Xoá, hoặc thông báo khoá tỷ lệ. */
   readonly footer?: ReactNode;
-  /** Thân: các `QcInspectorSection`. Thanh tra cũ (một thẻ) vẫn nhận được: khung thẻ của nó bị bỏ. */
+  /** Thân: các `QcInspectorSection`. */
   readonly children: ReactNode;
 }
 
@@ -71,15 +62,7 @@ export function QcAskCard({ eyebrow, reason, code, badge, display, footer, onPre
   /* Không có mã thì vị trí trong hàng đợi lên đầu, không lặp ở dòng phụ. */
   const head = code ?? eyebrow;
   return (
-    <QcInspectorShell
-      className={cn(
-        /* Chuyển tiếp: thanh tra cũ là một thẻ (bo, bóng, cao hết cột) — ở đây chỉ là thân, co theo panel để
-           thân của nó tự cuộn và hàng nút đáy của nó luôn thấy. Gỡ khi màn đã dùng `QcInspectorSection` + `footer`. */
-        '[&>[data-qc-body]>div]:h-auto [&>[data-qc-body]>div]:min-h-0 [&>[data-qc-body]>div]:shrink [&>[data-qc-body]>div]:rounded-none [&>[data-qc-body]>div]:shadow-none',
-      )}
-      display={display}
-      label={QC_INSPECTOR_LABEL}
-    >
+    <QcInspectorShell display={display} label={QC_INSPECTOR_LABEL}>
       <header className="shrink-0 border-b border-border-default pb-2">
         <div className="flex h-11 items-center gap-1 pl-4 pr-2">
           <p
@@ -112,7 +95,7 @@ export function QcAskCard({ eyebrow, reason, code, badge, display, footer, onPre
       {reason == null ? null : (
         <p className="shrink-0 border-b border-border-default bg-state-attention-tint px-4 py-2 text-body-sm font-medium text-state-attention-text" title={reason}>{reason}</p>
       )}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto" data-qc-body="">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
       {footer == null ? null : <footer className="shrink-0 border-t border-border-default px-4 py-3">{footer}</footer>}
     </QcInspectorShell>
   );

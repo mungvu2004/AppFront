@@ -1,7 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { QcAskSlot } from './qcAsk';
 import { QC_BODY_CLASS, QC_NO_CHANGES_LABEL, QC_UNDO_LABEL, QcCanvasFrame, QcScreenFrame, QcStatusBar, QcWorkspace } from './QcScreenFrame';
 
 describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
@@ -111,17 +110,35 @@ describe('[figma-layout] QcWorkspace column: hai panel neo cùng cỡ', () => {
     expect(dock()).not.toHaveClass('max-lg:hidden');
   });
 
-  it('shim: không có `inspector` thì lấy khe QcAskSlot; thu gọn ẩn cả hai panel', () => {
-    const tree = (collapsed: boolean) => (
-      <QcAskSlot value={<p>thẻ từ khe</p>}>
-        <QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" collapsed={collapsed} column left={<p>trái</p>} selectionKey="a" />
-      </QcAskSlot>
-    );
-    const { rerender } = render(tree(false));
-    expect(screen.getByText('thẻ từ khe').parentElement).toBe(dock());
-    rerender(tree(true));
-    expect(screen.queryByText('thẻ từ khe')).toBeNull();
+  it('thu gọn ẩn cả hai panel', () => {
+    render(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" collapsed column inspector={<p>chi tiết</p>} left={<p>trái</p>} selectionKey="a" />);
+    expect(screen.queryByText('chi tiết')).toBeNull();
     expect(screen.queryByText('trái')).toBeNull();
+  });
+
+  it('dưới 1024, chưa chọn: nút "Chi tiết" mở tấm đáy "Tầng này", Esc đóng; đang chọn thì không có nút', () => {
+    const tree = (key: string | null) => <QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>Tầng này</p>} selectionKey={key} />;
+    const { rerender } = render(tree(null));
+    const toggle = screen.getByRole('button', { name: 'Chi tiết' });
+    expect(toggle).toHaveClass('lg:hidden', 'min-h-8');
+    expect(toggle).toHaveAttribute('aria-controls', dock().id);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(dock()).not.toHaveClass('max-lg:hidden');
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(dock()).toHaveClass('max-lg:hidden');
+
+    rerender(tree('a'));
+    expect(screen.queryByRole('button', { name: 'Chi tiết' })).toBeNull();
+    expect(dock()).not.toHaveClass('max-lg:hidden');
+    rerender(tree(null));
+    expect(screen.getByRole('button', { name: 'Chi tiết' })).toHaveAttribute('aria-expanded', 'false');
   });
 });
 

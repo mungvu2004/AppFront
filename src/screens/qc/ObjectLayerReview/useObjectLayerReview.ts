@@ -2115,6 +2115,8 @@ export function useObjectLayerReview(
    */
   const viewMode = useQcViewMode();
   const viewFlightRef = useRef<string | null>(null);
+  /* Mục Từng việc vừa bay tới: nó biến mất (hoàn tác "Thêm đồ vật", xoá) thì trả về vừa khung, không kẹt ở chỗ trống. */
+  const viewFlownObjectRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (frameSizePx === null) {
@@ -2130,6 +2132,7 @@ export function useObjectLayerReview(
 
     if (viewMode === 'overview') {
       viewFlightRef.current = key;
+      viewFlownObjectRef.current = null;
       endFlight();
       return;
     }
@@ -2138,6 +2141,12 @@ export function useObjectLayerReview(
 
     if (selectedObjectId === null) {
       viewFlightRef.current = key;
+      const flown = viewFlownObjectRef.current;
+      viewFlownObjectRef.current = null;
+
+      if (flown !== null && !objects.some((object) => object.id === flown)) {
+        endFlight();
+      }
       return;
     }
 
@@ -2147,12 +2156,13 @@ export function useObjectLayerReview(
     }
 
     viewFlightRef.current = key;
+    viewFlownObjectRef.current = selectedObjectId;
     const box = focusBoundsOf(rotatedBounds(placement.boundsPx, placement.angleDeg), surfacePx);
     const min = toFramePoint(fitView, { x: box.x, y: box.y });
     const max = toFramePoint(fitView, { x: box.x + box.width, y: box.y + box.height });
 
     flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, frameSizePx.width, frameSizePx.height);
-  }, [endFlight, fitView, flyToBounds, frameSizePx, placements, selectedObjectId, surfacePx, viewMode]);
+  }, [endFlight, fitView, flyToBounds, frameSizePx, objects, placements, selectedObjectId, surfacePx, viewMode]);
 
   /*
    * Lỗi quy chuẩn của lớp (P03). Mở từ nút "Sửa" hay bấm một dòng: bay tới chỗ lỗi (khung

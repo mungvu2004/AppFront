@@ -21,6 +21,7 @@ import { createTestQueryClient } from '@/lib/testing/render';
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
+import { setQcViewMode } from '../shared/qcViewMode';
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
 import { ObjectLayerFootprintField } from './ObjectLayerFootprintField';
 import {
@@ -209,6 +210,30 @@ describe('vẽ nội thất bị sót (B3)', () => {
       expect(storedFurniture(added.id)).toMatchObject({ kind: 'chair', variant: 'sofa' });
     });
     expect(mounted.result.current.kindPicker).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('Từng việc: vẽ món rồi hoàn tác thì khung nhìn về vừa khung, không kẹt ở chỗ trống', async () => {
+    setQcViewMode('task');
+    const mounted = await mountSettled();
+    const scale = scaleOfLevel(OBJECT_LAYER_SAMPLE_LEVEL);
+    const before = furnitureIds();
+
+    act(() => mounted.result.current.onFrameResize({ width: 600, height: 400 }));
+    const fit = mounted.result.current.viewport;
+
+    await run(() => mounted.result.current.onStartDraw('furniture'));
+    await run(() => mounted.result.current.onPlaceAt(toPixelPoint({ x: 13000, y: 3000 }, scale)));
+    await waitFor(() => expect(mounted.result.current.selectedObjectId).not.toBeNull());
+    await waitFor(() => expect(mounted.result.current.viewport.zoom).toBeGreaterThan(fit.zoom * 1.5));
+
+    await run(() => mounted.result.current.onUndo());
+    await waitFor(() => expect(newFurniture(before)).toBeUndefined());
+    await waitFor(() => expect(mounted.result.current.viewport.zoom).toBeCloseTo(fit.zoom, 6));
+    expect(mounted.result.current.viewport.x).toBeCloseTo(fit.x, 3);
+    expect(mounted.result.current.viewport.y).toBeCloseTo(fit.y, 3);
+    expect(mounted.result.current.selectedObjectId).toBeNull();
 
     mounted.unmount();
   });

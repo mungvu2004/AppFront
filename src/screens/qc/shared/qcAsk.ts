@@ -1,5 +1,3 @@
-import { createContext, useContext, type ReactNode } from 'react';
-
 /** Phép tính của panel chi tiết phải (bố cục hai panel, 04/11); thành phần ở `QcAskCard.tsx`. */
 export interface QcAskRect {
   readonly x: number;
@@ -7,15 +5,6 @@ export interface QcAskRect {
   readonly width: number;
   readonly height: number;
 }
-
-const QcAskSlotContext = createContext<ReactNode>(null);
-/**
- * @deprecated Shim chuyển tiếp: truyền thẳng panel vào prop `inspector` của `QcWorkspace`. Trong lúc chờ,
- * `QcWorkspace` (chế độ `column`, không có `inspector`) tự đọc khe này và neo nó ở panel phải.
- */
-export const QcAskSlot = QcAskSlotContext.Provider;
-/** @deprecated Shim chuyển tiếp (xem `QcAskSlot`); bản vẽ không còn cần đọc khe này. */
-export const useQcAskSlot = (): ReactNode => useContext(QcAskSlotContext);
 
 /** Lớp nội dung `translate(offset) scale(scale)` quanh tâm khung `width × height`. */
 export interface QcContentView {
