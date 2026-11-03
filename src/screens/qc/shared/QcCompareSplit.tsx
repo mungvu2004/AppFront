@@ -175,7 +175,8 @@ function DrawingPane({
           </>
         )}
       </div>
-      <span className={CHIP_CLASSES}>{COMPARE_LEFT_LABEL}</span>
+      {/* Xếp dọc (<1024): nút "Việc"/"Chi tiết" của màn nằm ở hai góc trên nửa này, nên nhãn xuống góc dưới. */}
+      <span className={cn(CHIP_CLASSES, 'max-lg:bottom-3 max-lg:top-auto')}>{COMPARE_LEFT_LABEL}</span>
     </div>
   );
 }

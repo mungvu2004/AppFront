@@ -10,6 +10,7 @@ import { wallConfidenceToken } from '@/components/canvas/materialMap';
 import { MiniMap } from '@/components/canvas/MiniMap';
 
 import { backgroundFrameRect } from '../shared/canvasFit';
+import { useQcCompare } from '../shared/qcCompare';
 
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 import { BACKGROUND_IMAGE_OPACITY, toSvgPoints } from './wallLayerHatch';
@@ -131,6 +132,7 @@ export function WallDraftGuide({
 /**
  * Bản đồ nhỏ. Ở "vừa khung" (100%) cả mặt bằng đã nằm trong khung: không có gì để chỉ, chỉ
  * đè góc trên phải bản vẽ (khung tên). Phóng to qua 100% thì hiện.
+ * "So sánh hai bên" thì ẩn: nửa trái đã cho ngữ cảnh, bản đồ chỉ đè lên bản vẽ của nửa phải hẹp.
  */
 export function WallLayerMiniMap({
   miniMapViewport,
@@ -141,11 +143,13 @@ export function WallLayerMiniMap({
 }: Pick<Props, 'miniMapViewport' | 'onMiniMapViewportChange' | 'shapes' | 'zoomPercent'> & {
   readonly surface: WallLayerRectPx | null;
 }) {
+  const isComparing = useQcCompare();
+
   return (
     <MiniMap
       /* Bản đồ nhỏ góc trên trái, dưới nút "Từng việc / Tổng thể". */
       className="top-[60px] right-auto left-3"
-      isVisible={surface !== null && zoomPercent > FIT_ZOOM_PERCENT}
+      isVisible={surface !== null && zoomPercent > FIT_ZOOM_PERCENT && !isComparing}
       onViewportChange={onMiniMapViewportChange}
       viewport={miniMapViewport}
     >
