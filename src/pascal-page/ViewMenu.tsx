@@ -37,8 +37,9 @@ export function ViewMenu({ projectId, useViewer, saveNow, flushAutosaves, reload
         Xem
         <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
       </summary>
+      {/* 11rem = khoảng trên menu (~3.5rem) + thanh công cụ đáy (bottom-6 + ~3.5rem + khe): dòng cuối không lọt dưới thanh đáy. */}
       <div
-        className="absolute top-full right-0 z-50 mt-1 max-h-[calc(100vh-6rem)] w-64 overflow-y-auto rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 shadow-[var(--pa-shadow-overlay)]"
+        className="absolute top-full right-0 z-50 mt-1 max-h-[calc(100vh-11rem)] w-64 overflow-y-auto rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 shadow-[var(--pa-shadow-overlay)]"
       >
         <SceneStyleCard
           flushAutosaves={flushAutosaves}

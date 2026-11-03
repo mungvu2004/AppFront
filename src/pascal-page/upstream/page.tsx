@@ -304,18 +304,35 @@ const NARROW_PX = 1100
  * Collapse it once the saved state is loaded and whenever the window narrows past 1100 px.
  * Never re-opens it: a user who opens it again on a tablet keeps it open.
  * UX-R2 K35: the page opens to LOOK at the model, so it never opens on the build panel.
- * wall-review-ux (no top bar): the panel's head holds the back link and steps, so from 1100 px it
- * opens on "Cảnh" (the scene tree, Figma's layers); narrower it starts collapsed (head floats by the rail).
+ * wall-review-ux (fewer buttons, open workspace): it opens COLLAPSED at every width — the head (back
+ * link, steps) floats by the rail and the scene tree is one click away. Within one tab session the
+ * last open/closed choice wins from 1100 px (reopens on "Cảnh", never on the build panel — K35).
  */
+const PANEL_OPEN_KEY = 'appfront.pascal.panelOpen'
+
 function useAutoCollapseSidebar() {
   useEffect(() => {
     const collapse = () => useSidebarStore.getState().setIsCollapsed(true)
     let wasNarrow = window.innerWidth < NARROW_PX
+    let ready = false
     const onHydrated = () => {
-      if (window.innerWidth < NARROW_PX) return collapse()
-      useEditor.getState().setActiveSidebarPanel('site')
-      useSidebarStore.getState().setIsCollapsed(false)
+      let open = false
+      try {
+        open = sessionStorage.getItem(PANEL_OPEN_KEY) === '1'
+      } catch {}
+      if (window.innerWidth < NARROW_PX || !open) collapse()
+      else {
+        useEditor.getState().setActiveSidebarPanel('site')
+        useSidebarStore.getState().setIsCollapsed(false)
+      }
+      ready = true
     }
+    const stopRemember = useSidebarStore.subscribe((state, prev) => {
+      if (!ready || state.isCollapsed === prev.isCollapsed) return
+      try {
+        sessionStorage.setItem(PANEL_OPEN_KEY, state.isCollapsed ? '0' : '1')
+      } catch {}
+    })
     const onResize = () => {
       const narrow = window.innerWidth < NARROW_PX
       if (narrow && !wasNarrow) collapse()
@@ -326,6 +343,7 @@ function useAutoCollapseSidebar() {
     window.addEventListener('resize', onResize)
     return () => {
       unsubscribe()
+      stopRemember()
       window.removeEventListener('resize', onResize)
     }
   }, [])
