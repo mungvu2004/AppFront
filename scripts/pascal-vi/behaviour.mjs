@@ -7,6 +7,10 @@
  *
  * UX-R3 U37: người chỉ xem (`useScene.readOnly`, do trang bật qua acquireSceneReadOnlyLease) không thấy nút
  * thêm/chèn tầng, tay kéo đổi thứ tự và không đổi tên tầng bằng nháy đúp. Core đã chặn ghi; đây chỉ ẩn nút.
+ *
+ * editor-hig A: Page Up/Page Down đổi tầng như Cmd/Ctrl+↑/↓ (cùng nhánh, cùng preventDefault; ô nhập
+ * đã bị bỏ qua từ đầu bộ xử lý). Neo dòng phím tắt là chữ ĐÃ DỊCH: mergeTables chạy EDITOR_EXTRA_VI trước bảng này.
+ * Nút nổi trên vật đang chọn không co dưới 0,8 (0,5 còn ~10 px khi thu nhỏ).
  */
 const LEVELS = 'editor/src/components/ui/floating-level-selector.tsx';
 
@@ -50,4 +54,21 @@ export const BEHAVIOUR_PATCHES = {
       '      if (id === activePanel) return\n',
     ],
   ],
+  'editor/src/hooks/use-keyboard.ts': [
+    [
+      "} else if (e.key === 'ArrowUp' && (e.metaKey || e.ctrlKey)) {",
+      "} else if (e.key === 'PageUp' || (e.key === 'ArrowUp' && (e.metaKey || e.ctrlKey))) {",
+    ],
+    [
+      "} else if (e.key === 'ArrowDown' && (e.metaKey || e.ctrlKey)) {",
+      "} else if (e.key === 'PageDown' || (e.key === 'ArrowDown' && (e.metaKey || e.ctrlKey))) {",
+    ],
+  ],
+  'editor/src/components/ui/sidebar/panels/settings-panel/keyboard-shortcuts-dialog.tsx': [
+    [
+      "      { keys: ['Cmd/Ctrl', 'B'], action: 'Ẩn/hiện thanh bên' },\n",
+      "      { keys: ['Page Up'], action: 'Chọn tầng trên của toà nhà đang mở' },\n      { keys: ['Page Down'], action: 'Chọn tầng dưới của toà nhà đang mở' },\n      { keys: ['Cmd/Ctrl', 'B'], action: 'Ẩn/hiện thanh bên' },\n",
+    ],
+  ],
+  'editor/src/lib/floating-menu-scale.ts': [['const MIN_MENU_SCALE = 0.5\n', 'const MIN_MENU_SCALE = 0.8\n']],
 };

@@ -108,4 +108,15 @@ describe('pascal-vi', () => {
     expect(tr('editor/src/components/ui/helpers/contextual-helper-panel.tsx')).not.toMatch(/`Paint(:| scope:)/);
     expect(tr('nodes/src/block/contextual-help.ts')).not.toMatch(/'(Vertex|Edge|Face)'|Exit mesh editing/);
   });
+
+  it('editor-hig A: Page Up/Page Down đổi tầng, bảng phím tắt có 2 dòng mới, nút nổi không co dưới 0,8', () => {
+    const tr = (file) => applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]);
+    const kb = tr('editor/src/hooks/use-keyboard.ts');
+    expect(kb).toContain("e.key === 'PageUp' || (e.key === 'ArrowUp' && (e.metaKey || e.ctrlKey))");
+    expect(kb).toContain("e.key === 'PageDown' || (e.key === 'ArrowDown' && (e.metaKey || e.ctrlKey))");
+    const dlg = tr('editor/src/components/ui/sidebar/panels/settings-panel/keyboard-shortcuts-dialog.tsx');
+    expect(dlg).toContain("{ keys: ['Page Up'], action: 'Chọn tầng trên của toà nhà đang mở' }");
+    expect(dlg).toContain("{ keys: ['Page Down'], action: 'Chọn tầng dưới của toà nhà đang mở' }");
+    expect(tr('editor/src/lib/floating-menu-scale.ts')).toContain('const MIN_MENU_SCALE = 0.8');
+  });
 });
