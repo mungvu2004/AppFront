@@ -5,6 +5,9 @@
  * `useScene.applyNodeChanges`.
  */
 
+import { isAutoSurface } from '@/lib/pascal/toSpatial';
+import type { PascalNode } from '@/lib/pascal/types';
+
 interface LooseNode {
   readonly id: string;
   readonly parentId?: string | null;
@@ -31,6 +34,9 @@ export function nodeChangesTo(
   const create: NodeChanges['create'] = [];
   const update: NodeChanges['update'] = [];
   const added = new Set<string>();
+  /* Sàn/trần vendor tự sinh theo tường (`autoFromWalls`) không có trong cảnh dựng từ kho: xoá chúng
+     (và gỡ khỏi `children` của tầng) là mất sàn/trần — đổi cả ánh sáng — mà không hệ nào dựng lại. */
+  const kept = (id: string): boolean => target[id] === undefined && isAutoSurface(current[id] as PascalNode | undefined);
   const visit = (id: string) => {
     if (added.has(id) || current[id] !== undefined) return;
     const node = target[id] as LooseNode | undefined;
@@ -47,11 +53,15 @@ export function nodeChangesTo(
       visit(id);
       continue;
     }
-    const node = raw as Readonly<Record<string, unknown>>;
+    const keptChildren = Array.isArray(before['children']) ? (before['children'] as string[]).filter(kept) : [];
+    const node =
+      keptChildren.length > 0 && Array.isArray((raw as LooseNode)['children'])
+        ? { ...(raw as LooseNode), children: [...((raw as LooseNode)['children'] as string[]), ...keptChildren] }
+        : (raw as Readonly<Record<string, unknown>>);
     if (Object.keys(node).some((key) => !same(before[key], node[key]))) update.push({ id, data: node });
   }
 
-  const gone = new Set(Object.keys(current).filter((id) => target[id] === undefined));
+  const gone = new Set(Object.keys(current).filter((id) => target[id] === undefined && !kept(id)));
   const removed = [...gone].filter((id) => {
     const parentId = (current[id] as LooseNode | undefined)?.parentId ?? null;
     return parentId === null || !gone.has(parentId);

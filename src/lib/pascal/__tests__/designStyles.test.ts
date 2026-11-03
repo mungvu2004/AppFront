@@ -102,4 +102,27 @@ describe('đồ AI bổ sung', () => {
     expect(toSpatialGraph(scene).graph.furniture.some((f) => f.id.startsWith('DRESS-'))).toBe(false);
     expect(toPascalScene(graph).scene.nodes[id]).toBeUndefined();
   });
+
+  it('thảm lạc ngoài phòng: thảm AI tâm ngoài phòng bị bỏ; thảm thật ngoài mọi phòng giữ node nhưng ẩn', () => {
+    const rugIn: DesignAddition = { ...free, variant: 'rug', modelId: 'rectangular-carpet' };
+    const rugOut: DesignAddition = { ...rugIn, centre: { x: -50_000, y: -50_000 } };
+    const ai = toPascalScene(graph, { additions: [rugIn, rugOut] }).scene.nodes;
+    expect(ai[toPascalId('item', `DRESS-ai-${room.id}-1`)]).toBeDefined();
+    expect(ai[toPascalId('item', `DRESS-ai-${room.id}-2`)]).toBeUndefined();
+
+    const noRoom: typeof existing = {
+      ...existing,
+      id: 'fur_stray_rug' as typeof existing.id,
+      kind: 'other',
+      heightMm: 10 as NonNullable<typeof existing.heightMm>,
+      centre: { x: -50_000, y: -50_000 } as typeof existing.centre,
+      boundingBox: { min: { x: -51_000, y: -50_700 }, max: { x: -49_000, y: -49_300 } } as typeof existing.boundingBox,
+    };
+    // Thảm không thuộc phòng nào (phòng khách chưa dò ra): không `roomId`.
+    delete (noRoom as { roomId?: unknown }).roomId;
+    const nodes = toPascalScene({ ...graph, furniture: [...graph.furniture, noRoom] }).scene.nodes;
+    const node = nodes[toPascalId('item', 'fur_stray_rug')] as { visible?: boolean } | undefined;
+    expect(node).toBeDefined();
+    expect(node?.visible).toBe(false);
+  });
 });

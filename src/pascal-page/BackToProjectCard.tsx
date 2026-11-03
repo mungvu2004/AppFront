@@ -83,10 +83,11 @@ const CARD = 'h-8 shrink-0 items-center rounded-xl border border-[var(--pa-borde
 const STATUS_CARD = 'h-8 shrink-0 items-center rounded-xl border bg-[var(--pa-surface)] text-[13px] shadow-[var(--pa-shadow-float)]';
 /**
  * FE3D-FIX-004 V10: thông báo nổi (toast) cổng ra `body` nên không chiếm chỗ trong thanh và đè được
- * canvas (thanh nằm trong khối `clipPath` của vendor). Góc phải DƯỚI, trên thanh dưới (dock), lớp z
- * dưới menu thả xuống (`z-50`) — toast không che menu đang mở. Lỗi lưu ở trên, câu báo ở dưới.
+ * canvas (thanh nằm trong khối `clipPath` của vendor). Giữa, ngay DƯỚI thanh trên (dưới nút "?"): góc
+ * phải dưới đè hàng "Tỉ lệ chung" của bảng đồ vật bên phải, giữa dưới đè thẻ kích thước (`HomeownerCard`)
+ * và dock. Lớp z dưới menu thả xuống (`z-50`) — toast không che menu đang mở. Lỗi lưu ở trên, câu báo ở dưới.
  */
-const TOAST_STACK = 'fixed right-3 bottom-20 z-40 flex flex-col items-end gap-2';
+const TOAST_STACK = 'fixed top-24 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-2';
 const TOAST =
   'inline-flex min-h-10 max-w-[min(28rem,calc(100vw-2rem))] items-center gap-3 rounded-xl border bg-[var(--pa-surface)] px-4 py-2 text-[14px] leading-[22px] shadow-[var(--pa-shadow-overlay)]';
 const ALERT_TONE = 'border-[var(--pa-danger)] text-[var(--pa-danger)]';

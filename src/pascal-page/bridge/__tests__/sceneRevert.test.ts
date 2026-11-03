@@ -40,4 +40,43 @@ describe('nodeChangesTo — đặt lại cảnh bằng phần chênh, không set
 
     expect(changes.create.map((item) => item.node.id)).toEqual(['ceiling_1', 'item_lamp']);
   });
+
+  it('xoá giường bị từ chối: chỉ tạo lại giường; đồ bày sẵn và sàn/trần tự sinh (autoFromWalls) giữ nguyên', () => {
+    const bed = { id: 'item_F-BED', type: 'item', parentId: 'level_1', children: ['item_DRESS-pillow-R-1'] };
+    const pillow = { id: 'item_DRESS-pillow-R-1', type: 'item', parentId: 'item_F-BED' };
+    const sofa = { id: 'item_DRESS-sofa-R-1', type: 'item', parentId: 'level_1' };
+    const autoSlab = { id: 'slab_auto', type: 'slab', parentId: 'level_1', autoFromWalls: true };
+    const autoCeiling = { id: 'ceiling_auto', type: 'ceiling', parentId: 'level_1', autoFromWalls: true, children: [] };
+    const target = {
+      level_1: { ...level, children: ['wall_1', 'item_F-BED', 'item_DRESS-sofa-R-1'] },
+      wall_1: wall,
+      'item_F-BED': bed,
+      'item_DRESS-pillow-R-1': pillow,
+      'item_DRESS-sofa-R-1': sofa,
+    };
+    const current = {
+      level_1: { ...level, children: ['wall_1', 'item_DRESS-sofa-R-1', 'slab_auto', 'ceiling_auto'] },
+      wall_1: wall,
+      'item_DRESS-sofa-R-1': { ...sofa, visible: true },
+      slab_auto: autoSlab,
+      ceiling_auto: autoCeiling,
+    };
+    const changes = nodeChangesTo(current, target);
+
+    expect(changes.create.map(({ node }) => node.id)).toEqual(['item_F-BED', 'item_DRESS-pillow-R-1']);
+    expect(changes.delete).toEqual([]);
+    expect(changes.update).toEqual([
+      { id: 'level_1', data: { ...target.level_1, children: [...target.level_1.children, 'slab_auto', 'ceiling_auto'] } },
+    ]);
+  });
+
+  it('sàn tự sinh đã có trong children của tầng: không sửa tầng', () => {
+    const autoSlab = { id: 'slab_auto', type: 'slab', parentId: 'level_1', autoFromWalls: true };
+    const changes = nodeChangesTo(
+      { level_1: { ...level, children: ['wall_1', 'door_1', 'slab_auto'] }, wall_1: wall, door_1: door, slab_auto: autoSlab },
+      { level_1: level, wall_1: wall, door_1: door },
+    );
+
+    expect(isEmptyChange(changes)).toBe(true);
+  });
 });

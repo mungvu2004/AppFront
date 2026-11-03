@@ -2,7 +2,7 @@
  * Thẻ nổi cho chủ nhà (K7, K8): chọn đúng MỘT món đồ / cửa đi / cửa sổ ở chế độ Chọn thì hiện thẻ nhỏ
  * gần đáy với tên thường, nguồn ("AI thêm" / "Theo bản vẽ" / "Bạn thêm") và nút có chữ: Xoay 90° (đồ),
  * Xoá, Hoàn tác; cửa đi/cửa sổ thêm hàng chọn kiểu (hình nhỏ) + "Đổi hướng mở"; đồ vật thêm hàng
- * "Kích thước" Dài × Sâu × Cao mm (ghi `scale`, hàm thuần ở `itemSize.ts`).
+ * "Kích thước" Dài × Rộng × Cao mm (ghi `scale`, hàm thuần ở `itemSize.ts`).
  * Chỉ là đường tắt dễ hiểu — bảng tham số của Pascal vẫn nguyên; "Đổi mẫu" có thẻ riêng (`SwapModelCard`).
  *
  * Ghi = `useScene.updateNode` / `deleteNode` như bảng của Pascal (`nodes/src/door/panel.tsx`,
@@ -146,7 +146,7 @@ const SIZE_INPUT =
   'h-8 w-[4.25rem] rounded-lg border border-[var(--pa-border)] bg-[var(--pa-surface)] px-1.5 text-right text-[13px] tabular-nums text-[var(--pa-text)] outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--pa-accent)]';
 const ADOPT_NOTE = 'Đổi kích thước thì món này thành đồ của bạn, không còn thuộc bộ bày sẵn của phòng';
 
-/** Dài × Sâu × Cao (mm) + "Giữ tỉ lệ": Enter/rời ô ghi `scale` (một bước Hoàn tác). */
+/** Dài × Rộng × Cao (mm) + "Giữ tỉ lệ": Enter/rời ô ghi `scale` (một bước Hoàn tác). */
 function SizeRow({
   dimensions,
   scale,
@@ -192,25 +192,28 @@ function SizeRow({
 
   return (
     <div className="flex flex-col gap-1">
-      <div aria-label="Kích thước (mm)" className="flex flex-wrap items-center gap-1" role="group">
-        <span className="mr-0.5 text-[12px] text-[var(--pa-text-2)]">Kích thước</span>
+      <div aria-label="Kích thước (mm)" className="flex flex-wrap items-end gap-1" role="group">
+        <span className="mr-0.5 pb-1.5 text-[12px] text-[var(--pa-text-2)]">Kích thước</span>
         {SIZE_FIELDS.map(({ axis, label }, i) => (
-          <span className="inline-flex items-center gap-1" key={axis}>
-            {i > 0 ? <span aria-hidden="true" className="text-[var(--pa-text-3)]">×</span> : null}
-            <input
-              aria-label={`${label} (mm)`}
-              className={SIZE_INPUT}
-              defaultValue={formatMm(mm[axis])}
-              inputMode="numeric"
-              key={mm[axis]}
-              onBlur={(event) => commit(event.currentTarget, axis)}
-              onKeyDown={(event) => onKeyDown(event, axis)}
-              title={label}
-              type="text"
-            />
+          <span className="inline-flex items-end gap-1" key={axis}>
+            {i > 0 ? <span aria-hidden="true" className="pb-1.5 text-[var(--pa-text-3)]">×</span> : null}
+            {/* Nhãn in trên ô: người dùng thấy số nào là Dài / Rộng / Cao (vendor "Thông tin" ghi W×H×D). */}
+            <label className="flex flex-col gap-0.5 text-[11px] text-[var(--pa-text-2)]">
+              {label}
+              <input
+                aria-label={`${label} (mm)`}
+                className={SIZE_INPUT}
+                defaultValue={formatMm(mm[axis])}
+                inputMode="numeric"
+                key={mm[axis]}
+                onBlur={(event) => commit(event.currentTarget, axis)}
+                onKeyDown={(event) => onKeyDown(event, axis)}
+                type="text"
+              />
+            </label>
           </span>
         ))}
-        <span className="text-[12px] text-[var(--pa-text-2)]">mm</span>
+        <span className="pb-1.5 text-[12px] text-[var(--pa-text-2)]">mm</span>
         <button aria-pressed={keepRatio} className={`${BTN} aria-pressed:border-[var(--pa-accent)] aria-pressed:text-[var(--pa-accent)]`} onClick={() => setKeepRatio((v) => !v)} type="button">
           Giữ tỉ lệ
         </button>

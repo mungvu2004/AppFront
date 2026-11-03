@@ -156,11 +156,11 @@ describe('HomeownerCard', () => {
     expect(viewer.getState().selection.selectedIds).toEqual([]);
   });
 
-  it('kích thước: Dài × Sâu × Cao (mm) = dimensions × scale, nhóm nghìn kiểu Việt; cửa không có hàng này', () => {
+  it('kích thước: Dài × Rộng × Cao (mm) = dimensions × scale, nhóm nghìn kiểu Việt; cửa không có hàng này', () => {
     const { stores } = storesWith([BED_ITEM]);
     render(<HomeownerCard readOnly={false} stores={stores} />);
     expect(screen.getByLabelText<HTMLInputElement>('Dài (mm)').value).toBe('1.800');
-    expect(screen.getByLabelText<HTMLInputElement>('Sâu (mm)').value).toBe('600');
+    expect(screen.getByLabelText<HTMLInputElement>('Rộng (mm)').value).toBe('600');
     expect(screen.getByLabelText<HTMLInputElement>('Cao (mm)').value).toBe('2.000');
     expect(screen.getByRole('button', { name: 'Giữ tỉ lệ' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByText(/bộ bày sẵn/)).toBeNull();
@@ -179,7 +179,7 @@ describe('HomeownerCard', () => {
     expect(scale?.[0]).toBeCloseTo(3);
     expect(scale?.[1]).toBeCloseTo(2);
     expect(scale?.[2]).toBeCloseTo(2);
-    expect(screen.getByLabelText<HTMLInputElement>('Sâu (mm)').value).toBe('1.200');
+    expect(screen.getByLabelText<HTMLInputElement>('Rộng (mm)').value).toBe('1.200');
     expect(screen.getByLabelText<HTMLInputElement>('Cao (mm)').value).toBe('4.000');
   });
 
@@ -192,20 +192,20 @@ describe('HomeownerCard', () => {
     fireEvent.blur(height);
     expect((scene.getState().nodes[BED_ITEM] as SizedItem).scale).toEqual([1.5, 0.5, 1]);
 
-    // Sâu 1.200 → scale z 2 so với x 1,5: 1,33 < 1,5625 → nhận.
-    const depth = screen.getByLabelText<HTMLInputElement>('Sâu (mm)');
+    // Rộng 1.200 → scale z 2 so với x 1,5: 1,33 < 1,5625 → nhận.
+    const depth = screen.getByLabelText<HTMLInputElement>('Rộng (mm)');
     fireEvent.change(depth, { target: { value: '1200' } });
     fireEvent.keyDown(depth, { key: 'Enter' });
     expect((scene.getState().nodes[BED_ITEM] as SizedItem).scale?.[2]).toBeCloseTo(2);
     expect(screen.queryByText('Đồ cứng không kéo méo quá 25%')).toBeNull();
 
-    // Sâu 3.000 → z 5 > 1,5 × 1,5625 → kẹp về 2,34375 (1.406 mm).
-    const depth2 = screen.getByLabelText<HTMLInputElement>('Sâu (mm)');
+    // Rộng 3.000 → z 5 > 1,5 × 1,5625 → kẹp về 2,34375 (1.406 mm).
+    const depth2 = screen.getByLabelText<HTMLInputElement>('Rộng (mm)');
     fireEvent.change(depth2, { target: { value: '3000' } });
     fireEvent.keyDown(depth2, { key: 'Enter' });
     expect((scene.getState().nodes[BED_ITEM] as SizedItem).scale?.[2]).toBeCloseTo(1.5 * 1.5625);
     expect(screen.getByText('Đồ cứng không kéo méo quá 25%')).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>('Sâu (mm)').value).toBe('1.406');
+    expect(screen.getByLabelText<HTMLInputElement>('Rộng (mm)').value).toBe('1.406');
 
     const before = scene.getState().nodes[BED_ITEM];
     const width = screen.getByLabelText<HTMLInputElement>('Dài (mm)');

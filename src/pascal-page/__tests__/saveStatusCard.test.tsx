@@ -48,6 +48,9 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
     expect(screen.getByRole('alert')).toHaveTextContent('Bản vẽ đã đổi ở nơi khác.');
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại tầng' }));
     expect(save.onReloadFloor).toHaveBeenCalledTimes(1);
+    // Không neo góc phải: bảng đồ vật của vendor nằm ở đó (hàng "Tỉ lệ chung" bị đè, 04/11).
+    expect(screen.getByRole('alert').parentElement).not.toHaveClass('right-3');
+    expect(screen.getByRole('alert').parentElement).toHaveClass('left-1/2', 'top-24');
   });
 
   it('câu "Chưa lưu được" đóng được, đủ chữ (không cắt); chưa lưu lần nào thì chip vẫn có: "Tự động lưu" (K5)', () => {

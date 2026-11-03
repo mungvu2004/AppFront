@@ -13,10 +13,10 @@ export interface SizedItem {
   readonly asset?: { readonly dimensions?: Vec3; readonly category?: string; readonly attachTo?: string };
 }
 
-/** Thứ tự hiển thị Dài × Sâu × Cao = trục Pascal x, z, y. */
+/** Thứ tự hiển thị Dài × Rộng × Cao = trục Pascal x, z (chiều sâu), y — mỗi ô có nhãn in trên ô. */
 export const SIZE_FIELDS: readonly { readonly axis: Axis; readonly label: string }[] = [
   { axis: 0, label: 'Dài' },
-  { axis: 2, label: 'Sâu' },
+  { axis: 2, label: 'Rộng' },
   { axis: 1, label: 'Cao' },
 ];
 
