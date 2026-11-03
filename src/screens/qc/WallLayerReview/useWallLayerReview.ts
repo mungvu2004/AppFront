@@ -2198,14 +2198,11 @@ export function useWallLayerReview(
     }
 
     const focus = focusBoundsOf(selected.boundsPx, fitReferencePx);
-    /* Canh giữa phần khung trừ dải thẻ hỏi: tâm nhìn dời sang phải nửa dải ấy (đổi ra px bản vẽ). */
-    const frame = focusFrameOf(frameSizePx);
-    const fitted = fitCanvasView(frame, focus);
-    const nextZoom = fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale);
-    const centre = centreOfBounds(focus);
+    /* Panel phải neo ngoài bản vẽ: canh giữa cả khung, không chừa dải nào. */
+    const fitted = fitCanvasView(focusFrameOf(frameSizePx), focus);
 
-    setZoom(nextZoom);
-    setViewCenter(toMillimetrePoint({ x: centre.x + (frameSizePx.width - frame.width) / 2 / (nextZoom * baseScale), y: centre.y }, scale));
+    setZoom(fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale));
+    setViewCenter(toMillimetrePoint(centreOfBounds(focus), scale));
   }, [baseScale, fitFramePx, fitReferencePx, frameSizePx, level, selectedWallId, setViewCenter, setZoom, shapes, viewMode]);
 
   /*
@@ -2239,12 +2236,10 @@ export function useWallLayerReview(
     const scale = scaleOfLevel(level);
     const centre = toPixelPoint(ruleFocus.at, scale);
     const halfPx = Math.abs(toPixelPoint({ x: millimetres(ruleFocus.at.x + RULE_FOCUS_HALF_MM), y: ruleFocus.at.y }, scale).x - centre.x);
-    const frame = focusFrameOf(frameSizePx);
-    const fitted = fitCanvasView(frame, { x: centre.x - halfPx, y: centre.y - halfPx, width: halfPx * 2, height: halfPx * 2 });
-    const nextZoom = fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale);
+    const fitted = fitCanvasView(focusFrameOf(frameSizePx), { x: centre.x - halfPx, y: centre.y - halfPx, width: halfPx * 2, height: halfPx * 2 });
 
-    setZoom(nextZoom);
-    setViewCenter(toMillimetrePoint({ x: centre.x + (frameSizePx.width - frame.width) / 2 / (nextZoom * baseScale), y: centre.y }, scale));
+    setZoom(fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale));
+    setViewCenter(toMillimetrePoint(centre, scale));
   }, [baseScale, fitReferencePx, frameSizePx, isLoading, level, onSelect, ruleFocus, selectedWallId, setViewCenter, setZoom, viewMode, walls]);
 
   /*
@@ -2516,6 +2511,8 @@ export function useWallLayerReview(
     }),
     selectedId: selectedWallId,
     onPick: (id: string) => onSelect(id as WallId),
+    /* Vẽ/tách/đo: ghim số không nuốt con trỏ, nét xem trước đi theo chuột cả khi rê qua ghim. */
+    pinsInteractive: toolState.tool === 'select',
   };
   const onFrame = (point: WallLayerMeasurementPx['startPx']) =>
     point === null ? null : toFramePoint(viewport, point);

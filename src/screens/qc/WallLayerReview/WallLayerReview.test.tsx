@@ -66,6 +66,7 @@ import { setQcViewMode } from '../shared/qcViewMode';
 import './FloorLayerSaveConfirm';
 import type { WallLayerViewProps } from './types';
 import { WallLayerInspector } from './WallLayerInspector';
+import { WallLayerInspectorPanel } from './WallLayerInspectorPanel';
 import { WallLayerList } from './WallLayerList';
 import { WallLayerReviewContainer } from './WallLayerReview.container';
 import { WallLayerStatusBar } from './WallLayerStatusBar';
@@ -325,7 +326,8 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
       success: { kind: 'group', name: 'Lọc theo độ dày tường' },
       /* Hai trạng thái ánh xạ CHỆCH: chú giải ĐẦY ĐỦ, không phải chữ "T" thu gọn. */
       forbidden: { kind: 'group', name: 'Lọc theo độ dày tường' },
-      collapsed: { kind: 'group', name: 'Lọc theo độ dày tường' },
+      /* Thu gọn ẩn cả hai panel — chú giải ở panel phải ẩn theo (bố cục hai panel). */
+      collapsed: { kind: 'hidden', name: 'Lọc theo độ dày tường' },
     };
 
   it.each(SEVEN_STATES)('trạng thái %s: chú giải có mặt', async (state) => {
@@ -336,6 +338,13 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
 
     if (expectation?.kind === 'group') {
       expect(await screen.findByRole('group', { name: expectation.name })).toBeInTheDocument();
+
+      return;
+    }
+
+    if (expectation?.kind === 'hidden') {
+      await findListReady().catch(() => undefined);
+      expect(screen.queryByRole('group', { name: expectation.name })).toBeNull();
 
       return;
     }
@@ -557,7 +566,7 @@ describe('nhãn mã tường', () => {
     /* Thẻ gọn: các thông số phụ nằm trong "Thông số nâng cao". */
     fireEvent.click(screen.getByRole('button', { name: /Thông số nâng cao/u }));
 
-    for (const label of ['Chiều dài', 'Chiều cao', 'Điểm tin cậy', 'Vật liệu']) {
+    for (const label of ['Dài', 'Dày', 'Chiều cao', 'Điểm tin cậy', 'Vật liệu']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
@@ -972,10 +981,11 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(failed.closest('[role="status"]')?.querySelector('svg.text-state-violation')).not.toBeNull();
   });
 
-  it('[BUG-329] thẻ Đoạn tường trống có đệm dưới', () => {
-    renderWithProviders(<WallLayerInspector panel={inspectorPanel({})} />);
+  it('[BUG-329] chưa chọn gì: panel "Tầng này" có gợi ý và nút xem đoạn đầu tiên', () => {
+    renderWithProviders(<WallLayerInspectorPanel panel={inspectorPanel({})} />);
 
-    expect(screen.getByText(/Chọn một đoạn tường/u)).toHaveClass('pb-5');
+    expect(screen.getByRole('region', { name: 'Tầng này' })).toHaveTextContent(/Chọn một đoạn tường/u);
+    expect(screen.getByRole('button', { name: 'Xem đoạn cần xem đầu tiên (J)' })).toBeInTheDocument();
   });
 
   it('[BUG-604] "Đổi độ dày" đưa focus vào ô chọn độ dày', () => {
@@ -1038,14 +1048,14 @@ describe('đợt sửa P04 — SCR-16', () => {
       advanced: { confidenceLabel: '0,71', elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
     };
     const { rerender } = renderWithProviders(
-      <WallLayerInspector panel={inspectorPanel({ inspector: wall } as Partial<WallLayerViewProps>)} />,
+      <WallLayerInspectorPanel panel={inspectorPanel({ inspector: wall } as Partial<WallLayerViewProps>)} />,
     );
 
-    expect(screen.getByText('100')).toBeInTheDocument();
+    expect((screen.getByRole('combobox', { name: 'Độ dày tường' }) as HTMLSelectElement).value).toBe('100');
     expect(screen.getByText('Không chuẩn')).toBeInTheDocument();
 
     rerender(
-      <WallLayerInspector
+      <WallLayerInspectorPanel
         panel={inspectorPanel({ inspector: { ...wall, thicknessMm: 220 } } as Partial<WallLayerViewProps>)}
       />,
     );

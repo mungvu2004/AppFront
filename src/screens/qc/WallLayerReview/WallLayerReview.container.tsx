@@ -246,6 +246,7 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
     <>
     <WallLayerReview
       canvas={canvas}
+      legend={canvas}
       canvasSlot={<WallLayerCanvas {...canvas} />}
       floorNav={{ projectId, floorId }}
       leftPanel={leftPanel}

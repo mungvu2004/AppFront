@@ -86,9 +86,8 @@ describe('P03 — lỗi quy chuẩn trong lớp tường', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Vẽ tường (phím W)' })).toHaveAttribute('aria-pressed', 'true');
     });
-    await waitFor(() => {
-      expect(screen.queryByText(/Chọn một đoạn tường trên bản vẽ/u)).toBeNull();
-    });
+    /* Chọn tường lỗi chạy khi khung đã có cỡ — jsdom không đo khung, nên không kiểm ở đây (trước đây phép
+       kiểm "không có câu gợi ý" đúng hiển nhiên vì panel phải chỉ có khi đang chọn). */
   });
 });
 

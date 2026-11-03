@@ -6,7 +6,7 @@ import { renderWithProviders } from '@/lib/testing/render';
 
 import type { WallLayerViewProps } from './types';
 import { parseCustomThickness } from './customThickness';
-import { WallLayerInspector } from './WallLayerInspector';
+import { WallLayerInspectorPanel } from './WallLayerInspectorPanel';
 import { WallLayerInspectorActions } from './WallLayerInspectorActions';
 import type { WallRowExtra } from './wallReviewQueue';
 
@@ -91,7 +91,7 @@ describe('khoá tỷ lệ (useScaleLock) ở thanh tra', () => {
   it('ô độ dày tắt, không nút duyệt; có lý do và nút "Đặt tỷ lệ"', () => {
     const onOpenScale = vi.fn();
 
-    renderWithProviders(<WallLayerInspector panel={lockedPanel(onOpenScale)} />);
+    renderWithProviders(<WallLayerInspectorPanel panel={lockedPanel(onOpenScale)} />);
 
     expect(screen.getByRole('combobox', { name: 'Độ dày tường' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: /Duyệt đoạn này/u })).toBeNull();
@@ -100,18 +100,21 @@ describe('khoá tỷ lệ (useScaleLock) ở thanh tra', () => {
     expect(onOpenScale).toHaveBeenCalledTimes(1);
   });
 
-  it('thẻ gọn: chip độ dày/dài/tin cậy; chiều cao, vật liệu chỉ ở "Thông số nâng cao"; một hàng nút', () => {
+  it('panel: mục Kích thước/Độ tin cậy/Loại; điểm tin cậy chỉ ở "Thông số nâng cao"; một hàng nút ở chân', () => {
     const unlocked = { ...lockedPanel(vi.fn()), scaleLock: null, onDelete: vi.fn() } as unknown as WallLayerViewProps;
 
-    renderWithProviders(<WallLayerInspector panel={unlocked} />);
+    renderWithProviders(<WallLayerInspectorPanel panel={unlocked} />);
 
     expect(screen.queryByRole('heading', { name: 'Đoạn tường' })).toBeNull();
-    expect(screen.getByText('Dài 5.757 mm')).toBeInTheDocument();
-    expect(screen.getByText('Máy chưa chắc')).toBeInTheDocument();
-    expect(screen.queryByText('Chiều cao')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Thông số nâng cao' }));
-    expect(screen.getByText('Chiều cao')).toBeInTheDocument();
+    const size = screen.getByRole('region', { name: 'Kích thước' });
+    expect(size).toHaveTextContent('Dài');
+    expect(size).toHaveTextContent('5.757 mm');
+    expect(screen.getByRole('region', { name: 'Độ tin cậy' })).toHaveTextContent('Máy chưa chắc');
+    expect(screen.getByRole('region', { name: 'Loại' })).toHaveTextContent('Chiều cao');
     expect(screen.getByText('Vật liệu')).toBeInTheDocument();
+    expect(screen.queryByText('Điểm tin cậy')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thông số nâng cao' }));
+    expect(screen.getByText('Điểm tin cậy')).toBeInTheDocument();
 
     const approve = screen.getByRole('button', { name: 'Duyệt đoạn này' });
     expect(approve.parentElement).toBe(screen.getByRole('button', { name: 'Để sau' }).parentElement);

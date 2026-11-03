@@ -34,11 +34,9 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { cn } from '@/lib/utils';
 
-import { QcAskAnchor } from '../shared/QcAskCard';
-import { useQcAskSlot } from '../shared/qcAsk';
 import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
 import { QcViewLayer } from '../shared/QcViewLayer';
-import { WallDraftGuide, WallDrawingBackground, WallLayerLegend, WallLayerMiniMap } from './WallLayerCanvasParts';
+import { WallDraftGuide, WallDrawingBackground, WallLayerMiniMap } from './WallLayerCanvasParts';
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
 import { WallLayerOpenings } from './WallLayerOpenings';
@@ -82,7 +80,6 @@ export function WallLayerCanvas({
   hoveredWallId,
   isInteractive,
   isWallLayerVisible,
-  legendLevels,
   measurement,
   ruleMarkerPx = null,
   millimetresPerPixel,
@@ -119,7 +116,6 @@ export function WallLayerCanvas({
   wallTag = null,
   zoomPercent,
 }: WallLayerCanvasViewProps) {
-  const ask = useQcAskSlot();
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const halo = useSelectionHalo();
@@ -389,7 +385,6 @@ export function WallLayerCanvas({
                 />
               )}
 
-              <QcAskAnchor rect={selectedWallId === null ? null : haloRectPx}>{ask}</QcAskAnchor>
               {viewLayer === null ? null : <QcViewLayer {...viewLayer} />}
               {wallTag === null || !isWallLayerVisible ? null : <WallLayerTag {...wallTag} />}
 
@@ -407,12 +402,6 @@ export function WallLayerCanvas({
         </>
       )}
 
-      <WallLayerLegend
-        isWallLayerVisible={isWallLayerVisible}
-        legendLevels={legendLevels}
-        shapes={shapes}
-        state={state}
-      />
       <ZoomCluster
         onFitToScreen={onFitToScreen}
         onResetZoom={onResetZoom}

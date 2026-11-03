@@ -1,7 +1,7 @@
 /**
  * Màn S-12 "Duyệt lớp tường" (`WallLayerReview`) — view THUẦN, bố cục L23: ray công cụ (56),
- * cột việc 360 (`QcStepColumn`: "Duyệt tường" + chip · thanh Lọc/⚠ · danh sách · cổng ở đáy), bản vẽ chiếm phần
- * còn lại với thẻ hỏi neo trên bản vẽ (thanh tra của đoạn đang chọn), thanh trạng thái (32) dính đáy.
+ * cột việc (`QcStepColumn`: "Duyệt tường" + chip · thanh Lọc/⚠ · danh sách · cổng ở đáy), bản vẽ, panel phải
+ * neo luôn có (`WallLayerInspectorPanel`: đoạn đang chọn, hoặc "Tầng này" + chú giải), thanh trạng thái (32) dính đáy.
  *
  * Chỉ nhận {@link WallLayerReviewViewProps} và vẽ. Không `@/api`, không
  * `@/store`, không `@/domain`, không `@/lib/http` (R-60,
@@ -36,11 +36,11 @@
  * |-------------|------------------------------------------------------------------|
  * | `empty`     | `WallLayerList` (panel trái) — `EmptyState` với `emptyNotice`     |
  * | `loading`   | canvas: dự phòng khung xương; panel trái: 12 dòng `Skeleton`      |
- * | `partial`   | mặc định — danh sách + thẻ hỏi bình thường                        |
+ * | `partial`   | mặc định — danh sách + panel phải bình thường                     |
  * | `error`     | `InlineAlert` trong panel trái; đọc lớp hỏng khi chưa có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326) |
  * | `success`   | cổng ở đáy cột việc (`WallLayerGate`) là cổng chung của tầng (`FloorReviewGate`) |
- * | `forbidden` | ray ẩn công cụ sửa; thẻ hỏi bỏ viền + một câu giải thích           |
- * | `collapsed` | cột việc và thẻ hỏi ẩn; ray công cụ vẫn đứng cạnh canvas (G4a-20)  |
+ * | `forbidden` | ray ẩn công cụ sửa; panel phải chỉ đọc                             |
+ * | `collapsed` | cột việc và panel phải ẩn; ray công cụ vẫn đứng cạnh canvas (G4a-20) |
  *
  * Không nhánh nào khiến view trả `null` — canvas, ray công cụ và thanh trạng
  * thái luôn được vẽ, nên màn trắng (thất bại duy nhất A11 tồn tại để chặn)
@@ -59,13 +59,12 @@ import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
-import { QcQueueAskCard } from '../shared/QcAskCard';
-import { QcAskSlot, queueNumbersOf } from '../shared/qcAsk';
+import { queueNumbersOf } from '../shared/qcAsk';
 import { QcDisplayPopover } from '../shared/QcDisplayPopover';
 import { QcStepColumn } from '../shared/QcStepColumn';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { WallLayerGate } from './WallLayerGate';
-import { WallLayerInspector } from './WallLayerInspector';
+import { WallLayerInspectorPanel, type WallLayerLegendSource } from './WallLayerInspectorPanel';
 import {
   WallLayerLeftPanel,
   type WallLayerLeftPanelExtras,
@@ -75,7 +74,7 @@ import { WallLayerStatusBar, type WallLayerStatusBarProps } from './WallLayerSta
 import { WallLayerToolRail, type WallLayerToolRailProps } from './WallLayerToolRail';
 import type { WallLayerCanvasProps, WallLayerReviewProps } from './types';
 import type { WallOpeningLayerToggle } from './wallLayerHatch';
-import { approveAllLabelOf, WALL_REASON_TITLE, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
+import { approveAllLabelOf, type WallReviewQueue } from './wallReviewQueue';
 
 export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly toolRail: WallLayerToolRailProps;
@@ -95,6 +94,8 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
   /** Đọc lớp của tầng hỏng khi chưa có tài liệu: thay cả màn, một lối ra (BUG-326). */
   readonly readFailure?: FloorLayerReadFailure | null | undefined;
+  /** Chú giải ở mục "Chú giải" của panel phải (cùng dữ liệu với bản vẽ). Vắng = không có mục đó. */
+  readonly legend?: WallLayerLegendSource | undefined;
 }
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
@@ -108,8 +109,6 @@ const LAYER_GROUP = 'Lớp của bước';
 const WALL_LAYER = 'Lớp tường';
 const CENTRELINES = 'Tim tường';
 const OPENINGS = 'Cửa đi / cửa sổ';
-const reasonTitleOf = (reason: WallReviewReason | null | undefined): string | null =>
-  reason == null ? null : WALL_REASON_TITLE[reason];
 const CANVAS_REGION_FALLBACK_ALT = 'Chưa có ảnh nền để xem';
 
 /**
@@ -141,26 +140,32 @@ export function WallLayerReview({
   saveBlock,
   provisionalScaleNotice,
   readFailure,
+  legend,
 }: WallLayerReviewViewProps) {
   /*
    * Cờ của vỏ màn, không `state`: ở vai người xem `forbidden` đứng trước `collapsed`, nên nút
    * thu gọn đổi nhãn mà hai panel không thu (BUG-601).
    */
   const isCollapsed = toolRail.isCollapsed;
-  /* Một bộ mục cho thẻ hỏi và số ở cột trái — dòng "3" là ghim "3" (ghim đi theo `rows` chưa duyệt). */
+  /* Một bộ mục cho panel phải và số ở cột trái — dòng "3" là ghim "3" (ghim đi theo `rows` chưa duyệt). */
   const queueItems = panel.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }));
-  const ask =
-    !isCollapsed && panel.selectedWallId !== null ? (
-      <QcQueueAskCard
-        items={queueItems}
-        onSelect={panel.onSelect}
-        reason={reasonTitleOf(queue?.extras.get(panel.selectedWallId)?.reason)}
-        selectedId={panel.selectedWallId}
-        unit="Đoạn"
-      >
-        <WallLayerInspector panel={panel} queue={queue} />
-      </QcQueueAskCard>
-    ) : null;
+  const display = (
+    <QcDisplayPopover
+      groups={[
+        {
+          title: LAYER_GROUP,
+          items: [
+            { key: 'walls', label: WALL_LAYER, checked: leftPanel.isWallLayerVisible, onToggle: leftPanel.onToggleWallLayer },
+            { key: 'centrelines', label: CENTRELINES, checked: leftPanel.showCentrelines, onToggle: leftPanel.onToggleCentrelines },
+            ...(leftPanel.onToggleOpeningLayer === undefined
+              ? []
+              : [{ key: 'openings', label: OPENINGS, checked: leftPanel.isOpeningLayerVisible ?? true, onToggle: leftPanel.onToggleOpeningLayer }]),
+          ],
+        },
+      ]}
+      variant="flat"
+    />
+  );
   /* U17/U32: duyệt hết đoạn máy chắc chắn — nút phụ ở đáy cột, ngay trên cổng (cổng vẫn là nút chính duy nhất). */
   const onApproveConfident = panel.isViewerRole || panel.scaleLock != null ? undefined : queue?.onApproveConfident;
   const confidentCount = queue?.confidentCount ?? 0;
@@ -206,26 +211,10 @@ export function WallLayerReview({
           <ProvisionalScaleBanner notice={provisionalScaleNotice} />
         </div>
       )}
-      {/* Khe chung (A3): rail | cột việc | bản vẽ; chi tiết là thẻ hỏi neo trên bản vẽ. */}
-      <QcAskSlot value={ask}>
+      {/* Khe chung (A3): rail | cột việc | bản vẽ | panel phải neo (luôn có, ẩn khi thu gọn). */}
       <QcWorkspace
+        collapsed={isCollapsed}
         column
-        chromeTopRight={
-          <QcDisplayPopover
-            groups={[
-              {
-                title: LAYER_GROUP,
-                items: [
-                  { key: 'walls', label: WALL_LAYER, checked: leftPanel.isWallLayerVisible, onToggle: leftPanel.onToggleWallLayer },
-                  { key: 'centrelines', label: CENTRELINES, checked: leftPanel.showCentrelines, onToggle: leftPanel.onToggleCentrelines },
-                  ...(leftPanel.onToggleOpeningLayer === undefined
-                    ? []
-                    : [{ key: 'openings', label: OPENINGS, checked: leftPanel.isOpeningLayerVisible ?? true, onToggle: leftPanel.onToggleOpeningLayer }]),
-                ],
-              },
-            ]}
-          />
-        }
         canvas={canvasSlot ?? <CanvasFallback canvas={canvas} />}
         canvasLabel={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}
         left={
@@ -255,9 +244,9 @@ export function WallLayerReview({
         }
         /* Tầng khoá vì thiếu tỷ lệ: không bày Vẽ/Tách/Nối/Đo — sửa đều bị từ chối (UX-R2 K23). */
         rail={<WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole || panel.scaleLock != null} />}
+        inspector={<WallLayerInspectorPanel display={display} legend={legend} panel={panel} queue={queue} />}
         selectionKey={panel.selectedWallId}
       />
-      </QcAskSlot>
 
       <WallLayerStatusBar {...statusBar} onUndo={panel.isViewerRole ? undefined : panel.onUndo} readOnly={panel.isViewerRole} />
     </QcScreenFrame>

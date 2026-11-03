@@ -1,6 +1,6 @@
 /**
  * Mảnh con của `WallLayerCanvas` (tách cho trần 400 dòng): ảnh nền, nét xem trước,
- * chú giải độ dày, bản đồ nhỏ (menu + toạ độ con trỏ ở `wallLayerCanvasActions.ts`).
+ * bản đồ nhỏ (menu + toạ độ con trỏ ở `wallLayerCanvasActions.ts`).
  * Cùng luật view thuần của canvas: không một phép hình học nào, toạ độ do trình duyệt đổi.
  */
 
@@ -13,7 +13,6 @@ import { backgroundFrameRect } from '../shared/canvasFit';
 
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 import { BACKGROUND_IMAGE_OPACITY, toSvgPoints } from './wallLayerHatch';
-import { WallLayerLegendTray } from './WallLayerLegendTray';
 import type { WallDrawSnapKind } from './wallDrawSnap';
 
 type Props = WallLayerCanvasViewProps;
@@ -126,11 +125,6 @@ export function WallDraftGuide({
   );
 }
 
-/** Chú giải hình (Z/S-15): mẫu cùng hình với tường trên bản vẽ — xem `WallLayerLegendTray`. */
-export function WallLayerLegend(props: Pick<Props, 'isWallLayerVisible' | 'legendLevels' | 'shapes' | 'state'>) {
-  return <WallLayerLegendTray {...props} />;
-}
-
 /**
  * Bản đồ nhỏ. Ở "vừa khung" (100%) cả mặt bằng đã nằm trong khung: không có gì để chỉ, chỉ
  * đè góc trên phải bản vẽ (khung tên). Phóng to qua 100% thì hiện.
@@ -146,7 +140,7 @@ export function WallLayerMiniMap({
 }) {
   return (
     <MiniMap
-      /* Góc trên phải là chỗ thẻ hỏi neo — bản đồ nhỏ xuống dưới nút "Từng việc / Tổng thể". */
+      /* Bản đồ nhỏ góc trên trái, dưới nút "Từng việc / Tổng thể". */
       className="top-[60px] right-auto left-3"
       isVisible={surface !== null && zoomPercent > FIT_ZOOM_PERCENT}
       onViewportChange={onMiniMapViewportChange}
