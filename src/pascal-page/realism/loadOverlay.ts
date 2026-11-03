@@ -55,7 +55,10 @@ export function loadDone(s: LoadStats, baseBuilds: number, loadsInFlight: number
   return s.builds > baseBuilds && nowMs - Math.max(s.lastActivityAt, lastLoadEndAt) >= LOAD_QUIET_MS;
 }
 
-/** Kiểu viên nhãn: nhỏ, không chặn chuột, trên nhãn phòng HTML (drei `Html` dùng z-index tới 16777271). */
+/**
+ * Kiểu viên nhãn: nhỏ, không chặn chuột, trên nhãn phòng HTML (drei `Html` dùng z-index tới 16777271).
+ * Trang 3D không nạp `globals.css` → màu lấy từ token `--pa-*` của `pascal-theme.css` (đặt trên `body`, đủ hai chủ đề).
+ */
 export const PILL_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'absolute',
   left: '50%',
@@ -64,9 +67,9 @@ export const PILL_STYLE: Partial<CSSStyleDeclaration> = {
   zIndex: '16777272',
   padding: '6px 14px',
   borderRadius: '999px',
-  background: 'var(--bg-elevated, rgba(255, 255, 255, 0.92))',
-  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
-  color: 'var(--text-muted, #5f5f5f)',
+  background: 'var(--pa-surface)',
+  boxShadow: 'var(--pa-shadow-float)',
+  color: 'var(--pa-text-3)',
   font: '500 13px/1.4 system-ui, sans-serif',
   whiteSpace: 'nowrap',
   pointerEvents: 'none',

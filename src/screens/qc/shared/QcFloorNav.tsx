@@ -2,7 +2,7 @@ import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
 import { Check, ChevronDown, Lock } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { useEditorChrome } from '@/components/shell/EditorChrome';
+import { useEditorChrome } from '@/components/shell/EditorChromeContext';
 import { useShortcut } from '@/hooks/useShortcut';
 
 import { cn } from '@/lib/utils';

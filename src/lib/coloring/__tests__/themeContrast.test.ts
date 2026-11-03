@@ -70,6 +70,10 @@ const NON_TEXT_PAIRS: [ColorTokenName, ColorTokenName][] = [
   ['--wall-220', '--canvas-2d'],
   ['--wall-330-stroke', '--canvas-2d'],
   ['--state-attention-stroke', '--canvas-2d'],
+  // Tường theo độ tin cậy (chắc / khá chắc / chưa chắc) trên tấm vẽ.
+  ['--wall-conf-high', '--canvas-2d'],
+  ['--wall-conf-mid', '--canvas-2d'],
+  ['--wall-conf-low', '--canvas-2d'],
   ['--border-control', '--bg-surface'],
   ['--border-control', '--bg-app'],
   ['--bg-surface', '--border-control'],

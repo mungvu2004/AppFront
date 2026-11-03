@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MeshStandardMaterial, Texture, type EventDispatcher } from 'three';
+import { SCENE_PALETTE } from '@/lib/pascal/scenePalette';
 import { hasPendingTextures, libraryRefsIn, preloadSceneTextures } from './texturePreload';
 import { autoPatch, folderOf, itemKindOf, nameKind, tunedRoughness } from './itemLook';
 import { clearItemMaterialCache, specGlossPlugin, tuneItemMaterial } from './itemMaterials';
@@ -85,7 +86,7 @@ describe('tuneItemMaterial', () => {
     expect(ready).toHaveBeenCalledOnce();
   });
   it('preload: gom ref thư viện trong cảnh, đợi vật liệu nạp xong', async () => {
-    const scene = { nodes: { w: { material: 'library:oak', slots: ['library:oak', 'library:metal-steel', '#fff'] } } };
+    const scene = { nodes: { w: { material: 'library:oak', slots: ['library:oak', 'library:metal-steel', SCENE_PALETTE.plaster] } } };
     expect([...libraryRefsIn(scene)]).toEqual(['library:oak', 'library:metal-steel']);
     const mats = new Map<string, MeshStandardMaterial>();
     const create = (ref: string) => {

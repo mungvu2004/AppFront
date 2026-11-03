@@ -14,7 +14,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { AppHeader } from '@/components/shell/AppHeader';
-import { EditorChromeProvider, EditorFileMenu, EditorStepLabel, EditorStepList, type EditorChrome } from '@/components/shell/EditorChrome';
+import { EditorChromeProvider, type EditorChrome } from '@/components/shell/EditorChromeContext';
 import { rememberAppPath } from '@/pascal-page/bridge/backHref';
 import { useSession } from '@/hooks/useSession';
 import { LAST_PROJECT_KEY, lastFloorPathKey, signOut } from '@/lib/auth';
@@ -57,6 +57,12 @@ function readLastProject(): { readonly id: string; readonly name: string } | nul
 const LazyNotificationBell = lazy(() =>
   import('@/screens/system/NotificationCenter').then((m) => ({ default: m.NotificationBellContainer })),
 );
+
+/* Menu tệp + dòng vị trí chỉ bốn màn biên tập dùng: nạp lười, ngoài chunk vào (ngân sách màn hình đầu tiên). */
+const loadEditorChrome = () => import('@/components/shell/EditorChrome');
+const EditorFileMenu = lazy(() => loadEditorChrome().then((m) => ({ default: m.EditorFileMenu })));
+const EditorStepLabel = lazy(() => loadEditorChrome().then((m) => ({ default: m.EditorStepLabel })));
+const EditorStepList = lazy(() => loadEditorChrome().then((m) => ({ default: m.EditorStepList })));
 
 export function AppLayout() {
   const session = useSession();
@@ -198,19 +204,25 @@ export function AppLayout() {
     location !== null && editorProject !== null && isFloorEditorPath(routerLocation.pathname)
       ? {
           fileMenu: (floors) => (
-            <EditorFileMenu
-              projectId={location.projectId}
-              projectName={projectName}
-              showAdmin={showAdmin}
-              accountInitials={accountInitials}
-              accountLabel={accountLabel}
-              onSignOut={handleSignOut}
-              steps={<EditorStepList project={editorProject} />}
-              floors={floors}
-              bell={notificationBell}
-            />
+            <Suspense fallback={null}>
+              <EditorFileMenu
+                projectId={location.projectId}
+                projectName={projectName}
+                showAdmin={showAdmin}
+                accountInitials={accountInitials}
+                accountLabel={accountLabel}
+                onSignOut={handleSignOut}
+                steps={<EditorStepList project={editorProject} />}
+                floors={floors}
+                bell={notificationBell}
+              />
+            </Suspense>
           ),
-          stepLabel: <EditorStepLabel project={editorProject} />,
+          stepLabel: (
+            <Suspense fallback={null}>
+              <EditorStepLabel project={editorProject} />
+            </Suspense>
+          ),
         }
       : null;
 

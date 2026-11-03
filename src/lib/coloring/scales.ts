@@ -95,6 +95,12 @@ export const COLOR_TOKEN_NAMES = [
   '--wall-110-stroke',
   '--wall-330-stroke',
   '--state-attention-stroke',
+  // Tường theo độ tin cậy của máy (tầng duyệt tường) và mép khắc màu nền quanh
+  // tường chưa chắc / viền chọn — `materialMap.ts`.
+  '--wall-conf-high',
+  '--wall-conf-mid',
+  '--wall-conf-low',
+  '--wall-conf-cut',
   '--canvas-2d',
   '--canvas-2d-grid',
   '--canvas-3d',

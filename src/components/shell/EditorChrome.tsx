@@ -3,11 +3,12 @@
  * {@link AppHeader}, mà đưa hai mảnh qua context để đầu cột việc (QcFloorNav `stacked`) tự đặt — menu tệp
  * (tên dự án ▾: đổi tầng, sáu bước của dự án, màn phụ, thông báo, tài khoản; chuông không còn nút riêng, chỉ
  * còn chấm chưa đọc trên tên dự án) và dòng mờ vị trí ("Bước 3 · Duyệt tầng", chữ, không nút).
- * Ngoài bốn màn đó context là null.
+ * Ngoài bốn màn đó context là null. Context ở `EditorChromeContext.tsx`; các mảnh dưới đây `AppLayout` nạp lười
+ * (ngoài chunk vào — ngân sách màn hình đầu tiên).
  *
  * ponytail: menu dùng `<details>` gốc như header (Esc đóng, không đóng khi bấm ra ngoài); cần thì đổi sang Popover.
  */
-import { createContext, useContext, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -19,24 +20,6 @@ import { PROJECT_STEPS, stepPath, stepStateText, type ProjectStepState } from '@
 
 import { SignOutConfirm, StepMarker } from './AppHeader';
 import { ProjectNav } from './ProjectNav';
-
-export interface EditorChrome {
-  /** Menu tệp; `floors` = danh sách đổi tầng của màn (đặt trong menu, không thành nút riêng). */
-  readonly fileMenu: (floors?: ReactNode) => ReactNode;
-  readonly stepLabel: ReactNode;
-}
-
-const EditorChromeContext = createContext<EditorChrome | null>(null);
-
-export function EditorChromeProvider({ value, children }: { readonly value: EditorChrome | null; readonly children: ReactNode }) {
-  return <EditorChromeContext.Provider value={value}>{children}</EditorChromeContext.Provider>;
-}
-
-/** null ngoài bốn màn biên tập: thanh của màn giữ nguyên như khi có header chung. */
-// eslint-disable-next-line react-refresh/only-export-components -- hook đọc context đứng cạnh Provider của nó
-export function useEditorChrome(): EditorChrome | null {
-  return useContext(EditorChromeContext);
-}
 
 /** A12: Esc đóng menu đang mở và trả tiêu điểm về nút. */
 function closeOnEscape(event: KeyboardEvent<HTMLDetailsElement>): void {

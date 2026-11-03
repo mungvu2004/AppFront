@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EditorChromeProvider, type EditorChrome } from '@/components/shell/EditorChrome';
+import { EditorChromeProvider, type EditorChrome } from '@/components/shell/EditorChromeContext';
 import { ROUTES } from '@/routes/paths';
 
 import { SCALE_LOCK_REASON, type FloorScaleState } from './floorReviewGateModel';

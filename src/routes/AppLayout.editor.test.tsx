@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-import { useEditorChrome } from '@/components/shell/EditorChrome';
+import { useEditorChrome } from '@/components/shell/EditorChromeContext';
 import { renderWithProviders } from '@/lib/testing/render';
 
 import { AppLayout } from './AppLayout';
@@ -52,7 +52,8 @@ describe('AppLayout: chế độ biên tập', () => {
     expect(screen.queryByRole('banner')).toBeNull();
     expect(screen.getByRole('link', { name: 'Bỏ qua tới nội dung' })).toBeInTheDocument();
     const bar = screen.getByTestId('editor-bar');
-    expect(bar.querySelector('nav[aria-label="Các bước của dự án"]')).not.toBeNull();
+    /* Menu tệp nạp lười (ngoài chunk vào): đợi chunk về rồi mới soát. */
+    expect(await within(bar).findByRole('navigation', { name: 'Các bước của dự án' })).toBeInTheDocument();
     expect(within(bar).getByRole('list', { name: 'Tầng' })).toHaveTextContent('Tầng 1');
     expect(within(bar).getByRole('link', { name: /^Thông báo/u })).toHaveAttribute('href', ROUTES.notifications);
     /* Chuông vẫn gắn (đếm chưa đọc cho chấm trên tên dự án) nhưng không còn là nút thấy được. */
