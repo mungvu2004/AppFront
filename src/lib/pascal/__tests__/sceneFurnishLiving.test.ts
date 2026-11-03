@@ -52,7 +52,7 @@ const graphOf = (rooms: Room[], openings: Opening[] = []): SpatialGraph =>
     notes: [],
   }) as SpatialGraph;
 
-const door = (wallId: string, offsetMm: number, widthMm = 900): Opening =>
+const door = (wallId: string, offsetMm: number, widthMm = 900, swing: Opening['swing'] = 'left'): Opening =>
   ({
     ...META,
     id: `D-${wallId}-${offsetMm}`,
@@ -62,7 +62,7 @@ const door = (wallId: string, offsetMm: number, widthMm = 900): Opening =>
     widthMm,
     heightMm: 2100,
     sillHeightMm: 0,
-    swing: 'left',
+    swing,
   }) as Opening;
 
 /** Món chồng trên món khác: không xét chồng. */
@@ -208,6 +208,38 @@ describe('furnishEmptyRooms — phòng khách (bench-3d đợt 3)', () => {
     expect(byRole(items, 'armchairFill')).toEqual([]);
     for (const chair of chairs) {
       expect(Math.hypot(chair.centre.x - coffee.centre.x, chair.centre.y - coffee.centre.y), chair.id).toBeLessThan(1500);
+    }
+    expectValid(graph, items);
+  });
+
+  it('P1: phòng khách 18 m² — bộ sofa chiếm phần lớn tường → vẫn có dãy bếp ngắn (thử dãy ngắn dần, trượt dọc đoạn)', () => {
+    for (const doors of [[], [door('W-R-LV18-0', 300)]]) {
+      const graph = graphOf([square('R-LV18', 'livingRoom', 0, 4000, 4500)], doors);
+      const items = furnishEmptyRooms(graph, style);
+      expect(items.some((f) => f.variant === 'sofa')).toBe(true);
+      const [run] = byRole(items, 'baseRun');
+      expect(run, `cửa ${doors.length}`).toBeDefined();
+      expect(rectOfFurniture(run as Furniture).w).toBeGreaterThanOrEqual(1200);
+      expectValid(graph, items);
+    }
+  });
+
+  it('P4: sofa phải nới vùng chừa cửa → đồ phụ (bàn nước, đèn, ghế) vẫn tránh chỗ đứng trước mọi cửa', () => {
+    const graph = graphOf(
+      [square('R-KL', 'kitchen', 0, 4200, 4800)],
+      [door('W-R-KL-0', 1038, 900, 'sliding'), door('W-R-KL-2', 1371, 900, 'sliding'), door('W-R-KL-3', 1214)],
+    );
+    const items = furnishEmptyRooms(graph, style);
+    expect(items.some((f) => f.variant === 'sofa')).toBe(true);
+    // Chỗ đứng trước cửa: rộng 900 + 2 × 100, sâu 900 từ mặt tường (nửa dày 100).
+    const zones: Rect[] = [
+      { cx: 1488, cy: 550, w: 1100, d: 900, rotationDeg: 0 },
+      { cx: 4200 - 1371 - 450, cy: 4800 - 550, w: 1100, d: 900, rotationDeg: 0 },
+      { cx: 550, cy: 4800 - 1214 - 450, w: 900, d: 1100, rotationDeg: 0 },
+    ];
+    const extras = ['coffeeTable', 'floorLamp', 'sideTable', 'armchair'].flatMap((r) => byRole(items, r));
+    for (const item of extras) {
+      for (const zone of zones) expect(rectsOverlap(rectOfFurniture(item), zone), item.id).toBe(false);
     }
     expectValid(graph, items);
   });

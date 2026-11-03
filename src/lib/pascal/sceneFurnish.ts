@@ -498,7 +498,7 @@ const placeTv = (ctx: Ctx, sofa: Furniture, n: Point): boolean => {
  */
 const furnishLiving = (strict: Ctx, edges: readonly RankedEdge[]): void => {
   const fits = edges.filter(({ span }) => lengthOf(span) >= SOFA.w);
-  let found: { sofa: Furniture; t: number; rotationDeg: number; edge: RoomEdge; ctx: Ctx } | null = null;
+  let found: { sofa: Furniture; t: number; rotationDeg: number; edge: RoomEdge } | null = null;
   // Ngoài vùng chừa cửa trước; không chỗ nào thì nới dần (relaxedCtxs).
   for (const ctx of relaxedCtxs(strict)) {
     for (const { edge, span } of fits) {
@@ -506,7 +506,7 @@ const furnishLiving = (strict: Ctx, edges: readonly RankedEdge[]): void => {
       const s = sofaOn(ctx, edge, span);
       if (s === null) continue;
       if (placeTv(ctx, s.sofa, edge.inwardNormal)) {
-        found = { ...s, edge, ctx };
+        found = { ...s, edge };
         break;
       }
       while (ctx.out.length > mark) unplaceLast(ctx);
@@ -514,13 +514,15 @@ const furnishLiving = (strict: Ctx, edges: readonly RankedEdge[]): void => {
     for (const { edge, span } of found === null ? fits : []) {
       const s = sofaOn(ctx, edge, span);
       if (s === null) continue;
-      found = { ...s, edge, ctx };
+      found = { ...s, edge };
       break;
     }
     if (found !== null) break;
   }
   if (found === null) return;
-  const { sofa, t: sofaT, rotationDeg, edge, ctx } = found;
+  // Ngữ cảnh nới chỉ để có món chính (sofa, TV); đồ phụ dùng ngữ cảnh nghiêm, không vừa thì bỏ.
+  const { sofa, t: sofaT, rotationDeg, edge } = found;
+  const ctx = strict;
 
   const n = edge.inwardNormal;
   const e = directionOf(edge);
@@ -823,20 +825,17 @@ const openKitchenSpans = (ctx: Ctx, edges: readonly RankedEdge[]): RankedEdge[] 
 /**
  * Bếp chưa có tủ thật: dãy tủ dưới (≤ 3,6 m) dọc đoạn có tường, không cửa đi, dài nhất; tủ lạnh ở
  * đầu dãy nếu đủ chỗ; chậu (+ bếp nấu khi dãy ≥ 1,6 m) trên mặt đá; tủ treo phía trên khi đoạn đó
- * không có cửa sổ.
+ * không có cửa sổ. Dãy dài nhất ở đầu đoạn không vừa (đồ đã đặt chiếm một phần đoạn) thì thử dãy ngắn
+ * dần (bước 600 tới BASE_RUN_MIN_MM) trượt dọc đoạn; chỉ hết các lựa chọn đó mới bỏ bếp.
  */
 const kitchenRun = (ctx: Ctx, spans: readonly RankedEdge[]): boolean => {
   const end = END_CLEAR_MM + SLACK_MM;
-  for (const { edge, span } of spans) {
-    const usable = lengthOf(span) - 2 * end;
-    if (usable < BASE_RUN_MIN_MM) continue;
-    const withFridge = usable >= BASE_RUN_MIN_MM + GAP_MM + SLACK_MM + FRIDGE.w;
-    const runW = Math.min(BASE_RUN_MAX_MM, withFridge ? usable - GAP_MM - SLACK_MM - FRIDGE.w : usable);
-    const runT = span.from + end + runW / 2;
+  const fridgeGap = GAP_MM + SLACK_MM + FRIDGE.w;
+  const tryRun = (edge: RoomEdge, span: Span, runW: number, runT: number): boolean => {
     const run = { ...BASE_RUN, w: runW };
     const spot = againstEdge(edge, runT, run);
-    if (place(ctx, run, spot.at, spot.rotationDeg) === null) continue;
-    if (withFridge) {
+    if (place(ctx, run, spot.at, spot.rotationDeg) === null) return false;
+    if (runT + runW / 2 + fridgeGap <= span.to - end) {
       const f = againstEdge(edge, runT + runW / 2 + GAP_MM + SLACK_MM + FRIDGE.w / 2, FRIDGE);
       place(ctx, FRIDGE, f.at, f.rotationDeg);
     }
@@ -849,6 +848,23 @@ const kitchenRun = (ctx: Ctx, spans: readonly RankedEdge[]): boolean => {
     );
     if (clear) stack(ctx, { ...UPPER_RUN, w: runW }, edge, runT);
     return true;
+  };
+  const usable = spans.filter(({ span }) => lengthOf(span) - 2 * end >= BASE_RUN_MIN_MM);
+  // Lượt đầu như cũ: dãy dài nhất (chừa tủ lạnh nếu đủ) ở đầu mỗi đoạn.
+  for (const { edge, span } of usable) {
+    const room = lengthOf(span) - 2 * end;
+    const runW = Math.min(BASE_RUN_MAX_MM, room >= BASE_RUN_MIN_MM + fridgeGap ? room - fridgeGap : room);
+    if (tryRun(edge, span, runW, span.from + end + runW / 2)) return true;
+  }
+  for (const { edge, span } of usable) {
+    const top = Math.min(BASE_RUN_MAX_MM, lengthOf(span) - 2 * end);
+    const widths = [...new Set([...Array.from({ length: Math.floor((top - BASE_RUN_MIN_MM) / 600) + 1 }, (_, i) => top - 600 * i), BASE_RUN_MIN_MM])];
+    for (const runW of widths) {
+      const lo = span.from + end + runW / 2;
+      const hi = span.to - end - runW / 2;
+      const ts = [...Array.from({ length: Math.floor((hi - lo) / GRID_MM) + 1 }, (_, i) => lo + GRID_MM * i), hi];
+      if (ts.some((t) => tryRun(edge, span, runW, t))) return true;
+    }
   }
   return false;
 };
