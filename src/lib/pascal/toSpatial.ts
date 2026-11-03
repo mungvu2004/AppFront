@@ -584,6 +584,19 @@ interface Collector {
 
 const positionIsUsable = (position: PascalVec3): boolean => isUsable(...position);
 
+/**
+ * Hộp bao về lưới 1 mm. Kéo `scale` (kể cả "Giữ tỉ lệ" 1902 → 2102, k = 1,10515…), nửa cạnh lẻ hay
+ * quay hộp ¼ vòng đều ra phần lẻ — `FurnitureSchema` đòi số nguyên, bộ lưu chặn cả tầng trước khi gửi.
+ */
+const wholeBox = (box: BoundingBox): BoundingBox => {
+  const mm = (value: number): number => Math.round(value) + 0;
+
+  return {
+    min: { x: mm(box.min.x), y: mm(box.min.y) },
+    max: { x: mm(box.max.x), y: mm(box.max.y) },
+  };
+};
+
 /** Hộp bao dựng quanh tâm, cho đồ đạc mà Pascal vừa đặt và AppFront chưa biết. */
 const boxAround = (centre: Point, dimensions: PascalVec3, scale: PascalVec3): BoundingBox => {
   const halfWidth = (millimetresOf(dimensions[0]) * scale[0]) / 2;
@@ -777,7 +790,7 @@ const collectItem = (scene: PascalScene, item: PascalItemNode, levelId: LevelId,
       levelId,
       kind,
       centre,
-      boundingBox: autoKept ? worldBoxOf(box, rotationDeg) : box,
+      boundingBox: wholeBox(autoKept ? worldBoxOf(box, rotationDeg) : box),
       rotationDeg: autoKept ? asDegrees(0) : rotationDeg,
       ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
       ...itemFieldsOf(item, kind),
@@ -950,12 +963,14 @@ const collectLevelChildren = (
           levelId,
           kind: 'stair',
           centre,
-          boundingBox: stored
-            ? { min, max }
-            : {
-                min: { x: centre.x - sizeX / 2, y: centre.y - sizeY / 2 },
-                max: { x: centre.x + sizeX / 2, y: centre.y + sizeY / 2 },
-              },
+          boundingBox: wholeBox(
+            stored
+              ? { min, max }
+              : {
+                  min: { x: centre.x - sizeX / 2, y: centre.y - sizeY / 2 },
+                  max: { x: centre.x + sizeX / 2, y: centre.y + sizeY / 2 },
+                },
+          ),
           // Viết −(bù − yaw) chứ không phải yaw − bù: yaw 0 phải ra 0° chứ không phải −0° (diff so giá trị).
           rotationDeg: planDegreesOf(-((runAlongX ? Math.PI / 2 : 0) - child.rotation)),
           ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),

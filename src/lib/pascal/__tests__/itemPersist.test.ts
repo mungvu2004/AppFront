@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { FurnitureSchema } from '@/api/schemas/spatial';
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
@@ -148,6 +149,18 @@ describe('W3b — đồ đạc giữ khe, mẫu, độ cao', () => {
 
     expect(Math.abs((after.heightMm ?? 0) - Math.round(node.asset.dimensions[1] * node.scale[1] * 1000))).toBeLessThanOrEqual(1);
     // Nạp lại đọc ngược ra không lệnh nào: chiều cao về đúng `heightMm` đã ghi, không đoán từ tỷ lệ rộng.
+    expectStable(after);
+  });
+
+  it('kéo "Giữ tỉ lệ" (1902 → 2102): hộp bao về số nguyên mm, hợp `FurnitureSchema` (không khối lưu)', () => {
+    const k = 2102 / 1902;
+    const after = afterOf(
+      commit(graph, edit(sceneOf(graph), nodeId, (node) => ({ scale: [node.scale[0] * k, node.scale[1] * k, node.scale[2] * k] })), nodeId),
+    );
+    const { min, max } = after.boundingBox;
+
+    expect([min.x, min.y, max.x, max.y].every(Number.isInteger)).toBe(true);
+    expect(FurnitureSchema.safeParse(after).success).toBe(true);
     expectStable(after);
   });
 

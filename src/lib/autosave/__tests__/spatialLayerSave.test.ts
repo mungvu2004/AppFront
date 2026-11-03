@@ -26,9 +26,22 @@ import {
   createFloorLayerSaver,
   type FloorLayerSaver,
   type FloorLayerSaverPorts,
+  invalidWhereOf,
   LAYER_SAVE_MESSAGES,
   spatialLayerOf,
 } from '../spatialLayerSave';
+
+describe('invalidWhereOf', () => {
+  it('hộp bao đồ đạc lẻ mm (kéo "Giữ tỉ lệ") → nêu id món + trường, không câu chung', () => {
+    const furniture = { id: 'F-BED', boundingBox: { min: { x: 0, y: -1147.15 }, max: { x: 2102, y: 1147.15 } } };
+    const body = { layer: { furniture: [furniture], openings: [], rooms: [], walls: [] } } as never;
+    const parsed = FloorLayerWriteSchema.safeParse({ baseVersion: 1, body });
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.success ? '' : invalidWhereOf(parsed.error.issues, body)).toMatch(/^furniture F-BED › /);
+    expect(invalidWhereOf([], body)).toBe('thân lưu');
+  });
+});
 
 describe('spatialLayerOf', () => {
   it('chỉ lấy bốn danh sách của đúng một tầng — PUT không mang thực thể tầng khác', () => {
@@ -506,7 +519,7 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     await expect(second).resolves.toBeUndefined();
   });
 
-  it('thân không hợp FloorLayerWriteSchema → blocked câu chung, không gửi, ném 422 không tạm thời', async () => {
+  it('thân không hợp FloorLayerWriteSchema → blocked nêu chỗ sai, không gửi, ném 422 không tạm thời', async () => {
     const { layers, saver, writeLayer } = harness();
     const [wall] = wireLayer(4800).walls;
 
@@ -518,7 +531,10 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     expect(error).toMatchObject({ kind: 'http', retryable: false, status: 422 });
     expect(isTransientWireError(error)).toBe(false);
     expect(writeLayer).toHaveBeenCalledTimes(0);
-    expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown });
+    expect(saver.getBlock(FLOOR_A)).toStrictEqual({
+      kind: 'blocked',
+      message: LAYER_SAVE_MESSAGES.invalid(`walls ${wall?.id ?? ''} › thicknessMm`),
+    });
     expect(saver.hasDirty()).toBe(false);
   });
 
