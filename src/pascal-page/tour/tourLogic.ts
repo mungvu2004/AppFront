@@ -90,8 +90,14 @@ export function isSceneLoading(root: ParentNode = document): boolean {
 export const SCENE_WAIT_MAX_MS = 30_000;
 
 /** Cảnh đã sẵn sàng: hết màn chờ, đã có mô hình (`hasModel`, UX-R3 U10) và canvas đã có kích thước thật. */
+/** Tường/sàn đã vẽ xong lần đầu (`realism/warm.ts` → `__pascalWarm().structDrawnAt`): màn chờ đang mờ dần cũng thôi tính. */
+export function structureDrawn(win: Window = window): boolean {
+  const warm = (win as { __pascalWarm?: () => { structDrawnAt?: number } }).__pascalWarm;
+  return (warm?.().structDrawnAt ?? 0) > 0;
+}
+
 export function isSceneReady(root: ParentNode = document, hasModel: () => boolean = () => true): boolean {
-  if (isSceneLoading(root) || !hasModel()) return false;
+  if (!hasModel() || (isSceneLoading(root) && !structureDrawn())) return false;
   return Array.from(root.querySelectorAll('canvas')).some((c) => {
     const r = c.getBoundingClientRect();
     return r.width >= MIN_CANVAS.width && r.height >= MIN_CANVAS.height;

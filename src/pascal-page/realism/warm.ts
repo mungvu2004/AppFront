@@ -58,7 +58,7 @@ const OVERLAY_OFF = DISABLED.includes('loadoverlay');
  */
 export const BUILD_BUDGET_MS = Number(typeof location !== 'undefined' ? new URLSearchParams(location.search).get('buildbudget') : null) || 150;
 
-const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0, lastActivityAt: -Infinity, lazyDisposed: 0, texWaiting: 0, texStale: 0 };
+const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0, lastActivityAt: -Infinity, lazyDisposed: 0, texWaiting: 0, texStale: 0, structPending: 0, structDrawnAt: 0 };
 
 /**
  * Vật liệu còn ảnh đang nạp (`texturePreload.ts`: `userData.texPending`): ảnh về là gán mọi map một lượt
@@ -175,7 +175,13 @@ export function liveFrame(scene: unknown, draw: () => void, nowMs = performance.
     liveScene = null;
     rankFrame();
   }
+  // Kết cấu đã vẽ đủ lần đầu (không còn chờ dựng/pipeline): chữ "Đang dựng mô hình 3D…" (`PascalTour`) tắt theo mốc này.
+  if (stats.structDrawnAt === 0 && isFirstLoad(nowMs) && structSeen && structBacklog === 0 && stats.structPending === 0) {
+    stats.structDrawnAt = Math.round(nowMs);
+  }
 }
+/** Đã khởi động ít nhất một bản dựng/pipeline kết cấu trong lần nạp đầu. */
+let structSeen = false;
 
 /** Bọc `updateForRender` của `renderer._pipelines` một lần; gọi mỗi khung cũng rẻ. */
 export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
@@ -196,6 +202,7 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
   };
   const onStructDone = () => {
     structDirty = true;
+    stats.structPending--;
     onDone();
   };
   pipelines.updateForRender = (renderObject) => {
@@ -209,6 +216,10 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
     touch();
     // three luôn resolve (kể cả khi lỗi — pipeline hỏng thì vật không vẽ, đã báo lỗi ra console).
     const struct = isFirstLoad() && isStructure((renderObject as { object?: unknown }).object);
+    if (struct) {
+      structSeen = true;
+      stats.structPending += sink.length;
+    }
     for (const p of sink.splice(0)) p.then(struct ? onStructDone : onDone);
   };
 }
@@ -231,6 +242,7 @@ interface RendererLike {
   contextNode: unknown;
   getRenderTarget(): unknown;
   getMRT(): unknown;
+  _pipelines?: { isReady(renderObject: unknown): boolean };
   __asyncW2?: true;
 }
 
@@ -253,6 +265,8 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
   const objects = r._objects;
   if (off || !nodes || !objects || r.__asyncW2) return;
   r.__asyncW2 = true;
+  // Hệ gộp vẽ (vendor `node-batch/system.tsx`) chỉ ẩn vật gốc khi lưới gộp đã vẽ được (`userData.drawReady`).
+  (globalThis as { __pascalDrawReady?: boolean }).__pascalDrawReady = true;
   const create = nodes._createNodeBuilder.bind(nodes);
   nodes._createNodeBuilder = (renderObject, material) => {
     const builder = create(renderObject, material);
@@ -262,8 +276,9 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
   const direct = r._renderObjectDirect;
   r._renderObjectDirect = function (this: RendererLike, ...args: unknown[]) {
     const [object, material, scene, camera, lightsNode, , clippingContext, passId] = args;
+    let ro: unknown = null;
     if (liveScene !== null && scene === liveScene) {
-      const ro = objects.get(object, material, scene, camera, lightsNode, r._currentRenderContext, clippingContext, passId);
+      ro = objects.get(object, material, scene, camera, lightsNode, r._currentRenderContext, clippingContext, passId);
       const key = nodes.getForRenderCacheKey(ro);
       if (nodes.get(ro).nodeBuilderState === undefined && !nodes.nodeBuilderCache.has(key)) {
         stats.skipped++;
@@ -291,7 +306,19 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
       }
     }
     direct.apply(this, args);
+    if (ro !== null) markDrawReady(object, material, ro, r);
   };
+}
+
+/**
+ * Lưới gộp (BatchedMesh) mới có khoá shader riêng (nút batching): tới khi lượt chính vẽ được nó, vật gốc
+ * phải còn hiện — ẩn sớm là sàn/đồ đạc biến mất ~1–2 s lúc nạp đầu (sàn gỗ nháy trắng, đo 05/11).
+ */
+export function markDrawReady(object: unknown, material: unknown, ro: unknown, r: Pick<RendererLike, '_pipelines'>): void {
+  const o = object as { isBatchedMesh?: boolean; userData?: Record<string, unknown> } | null;
+  if (!o?.isBatchedMesh || !o.userData || o.userData.drawReady === true) return;
+  if ((material as { isShadowPassMaterial?: boolean } | null)?.isShadowPassMaterial === true) return;
+  if (r._pipelines?.isReady(ro)) o.userData.drawReady = true;
 }
 
 /** Cỡ trên màn hình của vật đục lượt chính chưa có shader gặp trong khung này, theo khoá. */
@@ -321,6 +348,10 @@ function rankFrame(): void {
 function startBuild(nodes: NodesLike, ro: unknown, key: string, snap: unknown, struct = false): void {
   pendingKeys.add(key);
   stats.builds++;
+  if (struct) {
+    structSeen = true;
+    stats.structPending++;
+  }
   touch();
   const t0 = performance.now();
   buildRenderer = snap;
@@ -338,7 +369,10 @@ function startBuild(nodes: NodesLike, ro: unknown, key: string, snap: unknown, s
     pendingKeys.delete(key);
     stats.buildsDone++;
     stats.lastBuildAt = Math.round(performance.now());
-    if (struct) structDirty = true;
+    if (struct) {
+      structDirty = true;
+      stats.structPending--;
+    }
     touch();
     markDirty('node-build');
   };

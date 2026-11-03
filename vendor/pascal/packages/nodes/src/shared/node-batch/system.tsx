@@ -154,7 +154,34 @@ function publishBatchStats() {
   })
 }
 
+/**
+ * Joined nodes whose batch has not drawn yet: their sources keep drawing until
+ * it has. A new BatchedMesh compiles its own shader/pipeline, and the host's
+ * async warm-up skips undrawable objects — hiding sources at join blanked
+ * floors and furniture for 1–2 s on first load. The warm-up sets
+ * `globalThis.__pascalDrawReady` and flags `userData.drawReady` on a batch once
+ * it draws; without that tracking, hide at once (old behaviour).
+ */
+const awaitingDraw = new Map<string, { candidate: BatchCandidate; at: number }>()
+/** Offscreen batches never draw: stop double-drawing after this. */
+const AWAIT_DRAW_MAX_MS = 5000
+
+function batchDrawn(nodeId: string): boolean {
+  if (!(globalThis as { __pascalDrawReady?: boolean }).__pascalDrawReady) return true
+  return store.meshesOf(nodeId).every((mesh) => mesh.userData.drawReady === true)
+}
+
+function flushAwaitingDraw(now: number, invalidate: () => void) {
+  for (const [nodeId, wait] of awaitingDraw) {
+    if (!batchDrawn(nodeId) && now - wait.at < AWAIT_DRAW_MAX_MS) continue
+    awaitingDraw.delete(nodeId)
+    if (store.has(nodeId)) hideBatchedNode(wait.candidate)
+  }
+  if (awaitingDraw.size > 0) invalidate()
+}
+
 function releaseNode(nodeId: string) {
+  awaitingDraw.delete(nodeId)
   partialNodes.delete(nodeId)
   leftoverNodes.delete(nodeId)
   store.release(nodeId)
@@ -225,6 +252,7 @@ export function runBatchFrame(
 ) {
   try {
     processBatchFrame(invalidate, wakeRef)
+    flushAwaitingDraw(performance.now(), invalidate)
   } finally {
     store.flushReleases()
     const emptyPending = store.pruneEmpty(
@@ -448,10 +476,9 @@ function processBatchFrame(
     const joinedEntries = joinedByNode.get(candidate.nodeId)
     if (!joinedEntries) continue
     leftoverNodes.delete(candidate.nodeId)
-    hideBatchedNode({
-      nodeId: candidate.nodeId,
-      levelId: candidate.levelId,
-      entries: joinedEntries,
+    awaitingDraw.set(candidate.nodeId, {
+      candidate: { nodeId: candidate.nodeId, levelId: candidate.levelId, entries: joinedEntries },
+      at: frameNow,
     })
     if (joinedEntries.length < candidate.entries.length) partialNodes.add(candidate.nodeId)
   }

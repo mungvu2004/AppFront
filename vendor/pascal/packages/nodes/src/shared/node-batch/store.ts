@@ -303,6 +303,10 @@ export class NodeBatchStore implements NodeBatchStoreApi {
   has(nodeId: string): boolean {
     return this.keysByNode.has(nodeId)
   }
+  /** Every BatchedMesh holding one of `nodeId`'s instances. */
+  meshesOf(nodeId: string): BatchedMesh[] {
+    return (this.instancesByNode.get(nodeId) ?? []).map((i) => i.record.batched)
+  }
   nodeIds(): ReadonlySet<string> {
     return new Set(this.keysByNode.keys())
   }

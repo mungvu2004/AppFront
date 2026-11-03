@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { coversScreen, screenSize } from './build-order';
 import { LOAD_CAP_MS } from './loadOverlay';
-import { beginFirstLoad, BUILD_BUDGET_MS, compileActiveSince, endFirstLoad, installAsyncNodeBuilds, installAsyncPipelines, installLazyDispose, isFirstLoad, isStructure, liveFrame, LOAD_DRAW_MS, warmStats } from './warm';
+import { beginFirstLoad, BUILD_BUDGET_MS, compileActiveSince, endFirstLoad, installAsyncNodeBuilds, installAsyncPipelines, installLazyDispose, isFirstLoad, isStructure, liveFrame, LOAD_DRAW_MS, markDrawReady, warmStats } from './warm';
 
 // Registry giả của vendor: chỉ gốc kết cấu `wall` (không nạp cả `@pascal-app/core` trong node).
 const registry = vi.hoisted(() => {
@@ -363,5 +363,22 @@ describe('installLazyDispose', () => {
     const built = { _bindings: [] };
     renderer._bindings.deleteForRender(built);
     expect(deleteForRender).toHaveBeenCalledWith(built);
+  });
+});
+
+describe('markDrawReady', () => {
+  it('chỉ lưới gộp, lượt chính, pipeline đã sẵn mới được đánh dấu vẽ được', () => {
+    const ready = { _pipelines: { isReady: () => true } };
+    const notReady = { _pipelines: { isReady: () => false } };
+    const batch = { isBatchedMesh: true, userData: {} as Record<string, unknown> };
+    markDrawReady(batch, {}, {}, notReady);
+    expect(batch.userData.drawReady).toBeUndefined();
+    markDrawReady(batch, { isShadowPassMaterial: true }, {}, ready);
+    expect(batch.userData.drawReady).toBeUndefined();
+    markDrawReady(batch, {}, {}, ready);
+    expect(batch.userData.drawReady).toBe(true);
+    const mesh = { userData: {} as Record<string, unknown> };
+    markDrawReady(mesh, {}, {}, ready);
+    expect(mesh.userData.drawReady).toBeUndefined();
   });
 });
