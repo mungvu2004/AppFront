@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { ASK_CARD_MARGIN, askCardWidthFor, type QcAskRect } from './qcAsk';
+import type { QcAskRect } from './qcAsk';
 
 /**
  * Hai chế độ nhìn của bố cục L23 (mock `v9-sua2`), chung cho Tường · Cửa và nội thất · Phòng:
@@ -41,14 +41,10 @@ export interface QcPin {
 }
 
 /**
- * Phần khung mà Từng việc canh mục vào giữa: bỏ dải phải nơi thẻ hỏi neo (rộng thẻ thật + hai lề,
- * `askCardPlacement`), để thẻ đứng cạnh vùng nhìn thay vì che nó. Giữ ít nhất nửa khung. Gốc toạ độ
- * vẫn là góc trên trái của khung.
+ * Phần khung mà Từng việc canh mục vào giữa. Panel chi tiết neo ngoài bản vẽ (bố cục hai panel, 04/11)
+ * nên không còn dải nào phải chừa: trả nguyên khung. Giữ export để màn không phải đổi chỗ gọi.
  */
-export const focusFrameOf = (frame: { readonly width: number; readonly height: number }) => ({
-  width: Math.max(frame.width / 2, frame.width - askCardWidthFor(frame.width) - 2 * ASK_CARD_MARGIN),
-  height: frame.height,
-});
+export const focusFrameOf = (frame: { readonly width: number; readonly height: number }) => ({ width: frame.width, height: frame.height });
 
 /** Lề ngữ cảnh quanh mục: nửa cạnh dài của nó — tường dài vẫn thấy hai chỗ nối ở hai đầu. */
 export const focusPadOf = (item: QcAskRect): number => Math.max(item.width, item.height) / 2;

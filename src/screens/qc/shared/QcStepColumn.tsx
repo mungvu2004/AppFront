@@ -43,6 +43,30 @@ export interface QcStepColumnProps {
   readonly children: ReactNode;
   /** Cổng ở đáy cột (nút đi tiếp của tầng). */
   readonly gate?: ReactNode;
+  /** Đầu tệp trên cùng cột, trên H1 (như "Tên tệp ▾ / Drafts" của Figma): thường là `QcFileHeader`. */
+  readonly fileHeader?: ReactNode;
+}
+
+export interface QcFileHeaderProps {
+  /** Tên dự án / tầng, cắt gọn một dòng. */
+  readonly title: ReactNode;
+  /** Dòng mờ dưới tên (tên tầng, trạng thái lưu…). */
+  readonly subtitle?: ReactNode;
+  /** Trigger menu (▾) ở cuối dòng tên. */
+  readonly menu?: ReactNode;
+}
+
+/** Khối đầu tệp ≈ 56 px, kẻ mảnh dưới: chỗ cho nội dung header app khi bố cục bỏ header (chỉ khung, chưa chuyển nội dung). */
+export function QcFileHeader({ title, subtitle, menu }: QcFileHeaderProps) {
+  return (
+    <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-border-default px-4 py-2.5">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-body font-semibold text-text-primary">{title}</div>
+        {subtitle == null ? null : <div className="truncate text-caption text-text-muted">{subtitle}</div>}
+      </div>
+      {menu == null ? null : <div className="flex shrink-0 items-center">{menu}</div>}
+    </div>
+  );
 }
 
 const STEP_KEYS: readonly QcStepKey[] = ['scale', 'walls', 'objects', 'rooms'];
@@ -107,10 +131,11 @@ function ColumnHead({ title, line, side }: ColumnHeadProps) {
   );
 }
 
-const COLUMN_CLASS = 'flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel';
+/* Không bóng: hai panel neo là khối phẳng cạnh bản vẽ (bố cục hai panel). */
+const COLUMN_CLASS = 'flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-bg-surface';
 const FOOTER_CLASS = 'shrink-0 border-t border-border-default px-4 py-3';
 
-export function QcStepColumn({ projectId, floorId, activeStep, task, title, hint, activeSummary, children, gate }: QcStepColumnProps) {
+export function QcStepColumn({ projectId, floorId, activeStep, task, title, hint, activeSummary, children, gate, fileHeader }: QcStepColumnProps) {
   const { graph, scale } = useFloorReview(projectId, floorId);
   const layer = useMemo(
     () =>
@@ -140,6 +165,7 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, title, hint
     const doneHead = floorDoneTexts(floorLabel);
     return (
       <div className={COLUMN_CLASS}>
+        {fileHeader}
         <ColumnHead
           line={doneHead.hint}
           side={
@@ -170,6 +196,7 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, title, hint
 
   return (
     <div className={COLUMN_CLASS}>
+      {fileHeader}
       <section aria-current="step" aria-label={stepTitle(activeStep)} className="flex min-h-0 flex-1 flex-col">
         <ColumnHead
           line={hint === undefined ? task : `${task} ${hint}`}

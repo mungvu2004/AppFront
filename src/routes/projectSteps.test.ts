@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ROUTES } from './paths';
-import { PROJECT_STEPS, projectLocationOf, projectScreenTitleOf, projectStepStates } from './projectSteps';
+import { isFloorEditorPath, PROJECT_STEPS, projectLocationOf, projectScreenTitleOf, projectStepStates } from './projectSteps';
 
 describe('projectLocationOf', () => {
   it.each([
@@ -61,5 +61,23 @@ describe('projectLocationOf', () => {
     expect(projectScreenTitleOf(ROUTES.project.pipelineGraph('p1'))).toBe('Sơ đồ xử lý');
     expect(projectScreenTitleOf(ROUTES.project.upload('p1'))).toBe('Tải bản vẽ');
     expect(projectScreenTitleOf(ROUTES.dashboard)).toBeNull();
+  });
+});
+
+describe('isFloorEditorPath', () => {
+  it('chỉ bốn màn duyệt tầng dạng trình biên tập', () => {
+    for (const path of [ROUTES.project.scale('p1', 'f1'), ROUTES.project.walls('p1', 'f1'), ROUTES.project.objects('p1', 'f1'), `${ROUTES.project.rooms('p1', 'f1')}/`]) {
+      expect(isFloorEditorPath(path)).toBe(true);
+    }
+    for (const path of [
+      ROUTES.project.floors('p1'),
+      ROUTES.project.grids('p1', 'f1'),
+      ROUTES.project.dimensions('p1', 'f1'),
+      ROUTES.project.thickness('p1', 'f1'),
+      ROUTES.project.overlay('p1', 'f1'),
+      ROUTES.dashboard,
+    ]) {
+      expect(isFloorEditorPath(path)).toBe(false);
+    }
   });
 });

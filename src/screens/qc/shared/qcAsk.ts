@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 
-/** Khe và phép tính của thẻ hỏi L23 (đợt 2); thành phần ở `QcAskCard.tsx`. */
+/** Phép tính của panel chi tiết phải (bố cục hai panel, 04/11); thành phần ở `QcAskCard.tsx`. */
 export interface QcAskRect {
   readonly x: number;
   readonly y: number;
@@ -9,7 +9,12 @@ export interface QcAskRect {
 }
 
 const QcAskSlotContext = createContext<ReactNode>(null);
+/**
+ * @deprecated Shim chuyển tiếp: truyền thẳng panel vào prop `inspector` của `QcWorkspace`. Trong lúc chờ,
+ * `QcWorkspace` (chế độ `column`, không có `inspector`) tự đọc khe này và neo nó ở panel phải.
+ */
 export const QcAskSlot = QcAskSlotContext.Provider;
+/** @deprecated Shim chuyển tiếp (xem `QcAskSlot`); bản vẽ không còn cần đọc khe này. */
 export const useQcAskSlot = (): ReactNode => useContext(QcAskSlotContext);
 
 /** Lớp nội dung `translate(offset) scale(scale)` quanh tâm khung `width × height`. */
@@ -30,31 +35,6 @@ export function pointInFrame<P extends { readonly x: number; readonly y: number 
 export function rectInFrame(rect: QcAskRect, view: QcContentView): QcAskRect {
   return { ...pointInFrame(rect, view), width: rect.width * view.scale, height: rect.height * view.scale };
 }
-
-export const ASK_CARD_WIDTH = 300;
-/** Lề giữa thẻ và mép khung bản vẽ; `focusFrameOf` chừa đúng rộng thẻ + hai lề này. */
-export const ASK_CARD_MARGIN = 12;
-/* Chừa chỗ cho chrome nổi: nút Hiển thị (trên phải, top 12 + cao 36) và cụm thu phóng (dưới phải). */
-const TOP_RESERVE = 60;
-const BOTTOM_RESERVE = 72;
-
-/**
- * Chỗ đặt thẻ trong khung bản vẽ: luôn neo mép phải, ngay dưới nút Hiển thị. Từng việc canh mục vào
- * phần khung bên trái dải này (`focusFrameOf`), nên thẻ không che mục và vùng quanh nó, và không nhảy
- * chỗ khi đi qua các mục (U12: nút duyệt luôn ở đúng một chỗ).
- */
-export function askCardPlacement(frame: { readonly width: number; readonly height: number }, width = ASK_CARD_WIDTH) {
-  return {
-    left: Math.max(ASK_CARD_MARGIN, frame.width - ASK_CARD_MARGIN - width),
-    top: TOP_RESERVE,
-    maxHeight: Math.max(160, frame.height - TOP_RESERVE - BOTTOM_RESERVE),
-  };
-}
-
-/* U20: khung bản vẽ hẹp — thẻ hẹp lại để không phủ nửa bản vẽ. */
-export const ASK_CARD_WIDTH_NARROW = 264;
-const NARROW_FRAME = 760;
-export const askCardWidthFor = (frameWidth: number): number => (frameWidth < NARROW_FRAME ? ASK_CARD_WIDTH_NARROW : ASK_CARD_WIDTH);
 
 /** Vị trí trong hàng đợi: "k trong N" của mục đang chọn và hai mục kề để ‹ K / › J. */
 export function askNavOf<Id extends string>(items: readonly { readonly id: Id; readonly pending: boolean }[], selectedId: Id | null) {

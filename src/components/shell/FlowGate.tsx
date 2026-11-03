@@ -38,6 +38,13 @@ export function FlowGate({ conditions = [], done = 0, total, progressLabel = 'Ti
     return () => flowGateStore.addOwner(-1);
   }, []);
 
+  // Màn biên tập (isFloorEditorPath) không có header nên không có khe: cổng gắn ở đó sẽ biến mất lặng lẽ.
+  useEffect(() => {
+    if (import.meta.env.DEV && import.meta.env.MODE !== 'test' && flowGateStore.getState().slot === null) {
+      console.warn('FlowGate: không có khe thanh bước (header bị ẩn?), cổng sẽ không hiện.');
+    }
+  }, []);
+
   if (slot === null) return null;
   const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
 

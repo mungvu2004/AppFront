@@ -1,60 +1,28 @@
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
+import { useMemo, type ReactNode } from 'react';
 
 import type { CommandItem } from '@/hooks/useCommandPalette';
 import { useScreenCommands } from '@/hooks/useScreenCommands';
 import { cn } from '@/lib/utils';
 
 import { QC_COMMAND_GROUP } from './qcLayout';
-import { askCardPlacement, askCardWidthFor, askNavOf, type QcAskRect } from './qcAsk';
+import { askNavOf } from './qcAsk';
+import { QcInspectorShell } from './QcInspectorSection';
 
 /**
- * Thẻ hỏi neo cạnh đối tượng (bố cục L23, đợt 2): thay panel chi tiết phải. Màn đặt nội dung thẻ
- * (thanh tra sẵn có) vào `QcAskSlot`; bản vẽ đọc khe đó và neo thẻ ở mép phải khung (`QcAskAnchor`),
- * trong dải mà Từng việc chừa ra khi phóng tới mục (`focusFrameOf`).
+ * Panel chi tiết phải của mục đang chọn (bố cục hai panel, `docs/figma-layout-spec.md`): neo cố định cạnh
+ * bản vẽ (`QcWorkspace` chế độ `column`), cao hết cột, không bóng. Thanh đầu mang trigger "Hiển thị";
+ * đầu dính 44 px: mã + huy hiệu + ‹ K › J × Esc; dòng mờ "Đoạn k trong N cần xem"; dải lý do (khi có);
+ * thân cuộn; chân ghim ngoài vùng cuộn.
  */
-/** Khung bản vẽ không nhận cú bấm/kéo/lăn bắt đầu trong thẻ (kéo nền, bỏ chọn, thu phóng). */
-const stop = (event: SyntheticEvent) => event.stopPropagation();
 
-/** Neo thẻ ở mép phải khung chứa (phần tử cha định vị, tự đo); `rect` = hộp mục đang chọn, `null` thì ẩn thẻ. */
-export function QcAskAnchor({ rect, children }: { readonly rect: QcAskRect | null; readonly children: ReactNode }) {
-  const probeRef = useRef<HTMLDivElement>(null);
-  const [frame, setFrame] = useState<{ width: number; height: number } | null>(null);
-  useEffect(() => {
-    const probe = probeRef.current;
-    if (probe === null || typeof ResizeObserver === 'undefined') return undefined;
-    const measure = () => setFrame({ width: probe.clientWidth, height: probe.clientHeight });
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(probe);
-    return () => observer.disconnect();
-  }, []);
-  const width = frame === null ? 0 : askCardWidthFor(frame.width);
-  /* Khung đo luôn được vẽ (kể cả khi chưa có thẻ), để lần chọn đầu đã có khổ khung. */
-  const place = children != null && rect !== null && frame !== null && frame.width > 0 ? askCardPlacement(frame, width) : null;
-
-  return (
-    <>
-      <div ref={probeRef} aria-hidden="true" className="pointer-events-none absolute inset-0" />
-      {place === null ? null : (
-        <div
-          /* U20: cửa sổ dưới 1024 px — thẻ thành tấm đáy (rộng hết khung, cao tối đa 45 %), phần trên bản vẽ để trống.
-             `!` thắng toạ độ nổi đặt bằng style; thân cuộn bên trong, hàng nút đáy vẫn thấy. */
-          className="absolute z-20 flex max-lg:inset-x-2! max-lg:top-auto! max-lg:bottom-2! max-lg:w-auto! max-lg:max-h-[45%]!"
-          data-testid="qc-ask-anchor"
-          data-wheel-scroll=""
-          onClick={stop}
-          onContextMenu={stop}
-          onDoubleClick={stop}
-          onPointerDown={stop}
-          onWheel={stop}
-          style={{ left: place.left, top: place.top, width, maxHeight: place.maxHeight }}
-        >
-          {children}
-        </div>
-      )}
-    </>
-  );
+/**
+ * @deprecated Shim chuyển tiếp: panel đã neo ở `QcWorkspace` (prop `inspector`, hoặc khe `QcAskSlot`),
+ * không còn nổi trên bản vẽ. Không vẽ gì; gỡ khỏi bản vẽ rồi xoá.
+ */
+export function QcAskAnchor(props: { readonly rect: unknown; readonly children?: ReactNode }) {
+  void props;
+  return null;
 }
 
 export interface QcAskCardProps {
@@ -65,18 +33,24 @@ export interface QcAskCardProps {
   readonly code?: string | undefined;
   readonly onPrev?: (() => void) | undefined;
   readonly onNext?: (() => void) | undefined;
-  /** Đóng thẻ = bỏ chọn mục (như Esc). */
+  /** × = bỏ chọn mục (như Esc). */
   readonly onClose?: (() => void) | undefined;
-  /** Nội dung thẻ: thanh tra của màn. Khung thẻ của nó được bỏ để chỉ còn một thẻ. */
+  /** Huy hiệu trạng thái cạnh mã ("Cần xem", "Đã duyệt"). */
+  readonly badge?: ReactNode;
+  /** Trigger "Hiển thị" ở thanh đầu panel. */
+  readonly display?: ReactNode;
+  /** Chân ghim ngoài vùng cuộn: Duyệt (A) · Để sau (S) · Xoá, hoặc thông báo khoá tỷ lệ. */
+  readonly footer?: ReactNode;
+  /** Thân: các `QcInspectorSection`. Thanh tra cũ (một thẻ) vẫn nhận được: khung thẻ của nó bị bỏ. */
   readonly children: ReactNode;
 }
 
 const PREV_LABEL = 'Mục trước';
 const NEXT_LABEL = 'Mục kế tiếp';
-const CARD_LABEL = 'Thẻ hỏi của mục đang chọn';
-const CLOSE_LABEL = 'Đóng thẻ';
+export const QC_INSPECTOR_LABEL = 'Chi tiết mục đang chọn';
+const CLOSE_LABEL = 'Bỏ chọn';
 
-/* Nút vuông chỉ có biểu tượng: thẻ 300 px còn chỗ cho dòng "Đoạn 12 trong 30 cần xem"; phím ở `title` + `aria-keyshortcuts`. */
+/* Nút vuông chỉ có biểu tượng: panel 260 px vẫn đủ chỗ cho mã + huy hiệu; phím ở `title` + `aria-keyshortcuts`. */
 function NavButton({ label, kbd, onClick, children }: { readonly label: string; readonly kbd: string; readonly onClick: (() => void) | undefined; readonly children: ReactNode }) {
   return (
     <button
@@ -93,41 +67,54 @@ function NavButton({ label, kbd, onClick, children }: { readonly label: string; 
   );
 }
 
-export function QcAskCard({ eyebrow, reason, code, onPrev, onNext, onClose, children }: QcAskCardProps) {
+export function QcAskCard({ eyebrow, reason, code, badge, display, footer, onPrev, onNext, onClose, children }: QcAskCardProps) {
+  /* Không có mã thì vị trí trong hàng đợi lên đầu, không lặp ở dòng phụ. */
+  const head = code ?? eyebrow;
   return (
-    <section
-      aria-label={CARD_LABEL}
+    <QcInspectorShell
       className={cn(
-        'flex min-h-0 w-full flex-col overflow-hidden rounded-xl border border-border-default bg-bg-surface shadow-overlay',
-        /* Thanh tra vốn là một thẻ (bo, bóng, cao hết cột): trong thẻ hỏi nó chỉ là thân.
-           U20: nó co theo thẻ (min-h-0 + shrink) để thân của nó tự cuộn, hàng nút đáy luôn thấy. */
-        '[&>div:last-child>div]:h-auto [&>div:last-child>div]:min-h-0 [&>div:last-child>div]:shrink [&>div:last-child>div]:rounded-none [&>div:last-child>div]:shadow-none',
+        /* Chuyển tiếp: thanh tra cũ là một thẻ (bo, bóng, cao hết cột) — ở đây chỉ là thân, co theo panel để
+           thân của nó tự cuộn và hàng nút đáy của nó luôn thấy. Gỡ khi màn đã dùng `QcInspectorSection` + `footer`. */
+        '[&>[data-qc-body]>div]:h-auto [&>[data-qc-body]>div]:min-h-0 [&>[data-qc-body]>div]:shrink [&>[data-qc-body]>div]:rounded-none [&>[data-qc-body]>div]:shadow-none',
       )}
+      display={display}
+      label={QC_INSPECTOR_LABEL}
     >
-      <div className="flex shrink-0 items-center gap-1.5 border-b border-border-default py-2 pl-4 pr-2">
-        <p className="min-w-0 flex-1 truncate text-body-sm text-text-secondary" title={eyebrow}>
-          {eyebrow}
-          {code === undefined ? null : <span className="ml-2 rounded-sm bg-bg-sunken px-1.5 py-0.5 font-mono text-[12px] text-text-primary">{code}</span>}
-        </p>
-        <NavButton kbd="K" label={PREV_LABEL} onClick={onPrev}>
-          <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />
-        </NavButton>
-        <NavButton kbd="J" label={NEXT_LABEL} onClick={onNext}>
-          <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
-        </NavButton>
-        {onClose === undefined ? null : (
-          <NavButton kbd="Esc" label={CLOSE_LABEL} onClick={onClose}>
-            <X aria-hidden="true" className="h-3.5 w-3.5" />
+      <header className="shrink-0 border-b border-border-default pb-2">
+        <div className="flex h-11 items-center gap-1 pl-4 pr-2">
+          <p
+            className={cn('min-w-0 truncate', code === undefined ? 'text-body-sm font-semibold text-text-primary' : 'font-mono text-body-sm font-semibold text-text-primary')}
+            title={head}
+          >
+            {head}
+          </p>
+          {badge == null ? null : <span className="ml-1 flex shrink-0 items-center">{badge}</span>}
+          <span className="flex-1" />
+          <NavButton kbd="K" label={PREV_LABEL} onClick={onPrev}>
+            <ChevronLeft aria-hidden="true" className="h-4 w-4" />
           </NavButton>
+          <NavButton kbd="J" label={NEXT_LABEL} onClick={onNext}>
+            <ChevronRight aria-hidden="true" className="h-4 w-4" />
+          </NavButton>
+          {onClose === undefined ? null : (
+            <NavButton kbd="Esc" label={CLOSE_LABEL} onClick={onClose}>
+              <X aria-hidden="true" className="h-4 w-4" />
+            </NavButton>
+          )}
+        </div>
+        {code === undefined ? null : (
+          <p className="-mt-1 truncate px-4 text-caption text-text-muted" title={eyebrow}>
+            {eyebrow}
+          </p>
         )}
-      </div>
-      {/* Dòng lý do chỉ có khi máy nêu lý do; thẻ neo mép phải nên nút duyệt không còn đổi chỗ theo mục. */}
+      </header>
+      {/* Dải lý do chỉ có khi máy nêu lý do. */}
       {reason == null ? null : (
-        <p className="shrink-0 truncate border-b border-border-default bg-state-attention-tint px-4 py-2 text-body-sm font-medium text-state-attention-text" title={reason}>{reason}</p>
+        <p className="shrink-0 border-b border-border-default bg-state-attention-tint px-4 py-2 text-body-sm font-medium text-state-attention-text" title={reason}>{reason}</p>
       )}
-      {/* U20: thân không tự cuộn — thanh tra bên trong cuộn phần giữa, giữ hàng nút đáy trong thẻ. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
-    </section>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto" data-qc-body="">{children}</div>
+      {footer == null ? null : <footer className="shrink-0 border-t border-border-default px-4 py-3">{footer}</footer>}
+    </QcInspectorShell>
   );
 }
 
@@ -140,11 +127,16 @@ export interface QcQueueAskCardProps<Id extends string> {
   /** `null` = bỏ chọn (nút đóng thẻ). */
   readonly onSelect: (id: Id | null) => void;
   readonly reason?: string | null | undefined;
+  /** Chuyển thẳng xuống `QcAskCard`. */
+  readonly code?: string | undefined;
+  readonly badge?: ReactNode;
+  readonly display?: ReactNode;
+  readonly footer?: ReactNode;
   readonly children: ReactNode;
 }
 
-/** Thẻ hỏi của một hàng đợi: tự tính "k trong N" và ‹ K / › J từ thứ tự danh sách. */
-export function QcQueueAskCard<Id extends string>({ items, selectedId, unit, onSelect, reason, children }: QcQueueAskCardProps<Id>) {
+/** Panel chi tiết của một hàng đợi: tự tính "k trong N" và ‹ K / › J từ thứ tự danh sách. */
+export function QcQueueAskCard<Id extends string>({ items, selectedId, unit, onSelect, reason, children, ...card }: QcQueueAskCardProps<Id>) {
   const { position, total, prevId, nextId } = askNavOf(items, selectedId);
   const lower = unit.toLowerCase();
   const commands = useMemo<CommandItem[]>(
@@ -158,6 +150,7 @@ export function QcQueueAskCard<Id extends string>({ items, selectedId, unit, onS
   const eyebrow = position !== null ? `${unit} ${position} trong ${total} cần xem` : total > 0 ? `Đã duyệt · còn ${total} cần xem` : 'Đã duyệt hết';
   return (
     <QcAskCard
+      {...card}
       eyebrow={eyebrow}
       reason={reason}
       onClose={() => onSelect(null)}

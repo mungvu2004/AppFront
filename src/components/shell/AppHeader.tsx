@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/Button';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/routes/paths';
-import { FLOOR_LAYERS, PROJECT_STEPS, type ProjectStepState } from '@/routes/projectSteps';
+import { PROJECT_STEPS, stepPath, stepStateText, type ProjectStepState } from '@/routes/projectSteps';
 import { BrandMark } from './BrandMark';
 import { setFlowGateSlot, useFlowGateOwned } from './flowGateStore';
 import { ProjectNav } from './ProjectNav';
@@ -62,22 +62,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }): string =>
     isActive ? 'bg-accent-wash text-accent' : 'text-text-secondary hover:bg-bg-sunken hover:text-text-primary',
   );
 
-const STEP_STATE_TEXT: Readonly<Record<ProjectStepState, string>> = {
-  done: 'đã xong',
-  attention: 'còn việc',
-  todo: 'chưa xong',
-};
-
-/**
- * Bước đang đứng là "đang mở"; còn lại chỉ nói điều dữ liệu xác nhận. Không suy "đã qua" từ vị trí URL:
- * dán thẳng /export không có nghĩa bước 3–5 đã làm (UX-19).
- */
-function stepStateText(state: ProjectStepState, index: number, currentIndex: number): string {
-  if (state !== 'todo') return STEP_STATE_TEXT[state];
-  return index === currentIndex ? 'đang mở' : STEP_STATE_TEXT.todo;
-}
-
-function StepMarker({ index, isCurrent, state }: { readonly index: number; readonly isCurrent: boolean; readonly state: ProjectStepState }) {
+export function StepMarker({ index, isCurrent, state }: { readonly index: number; readonly isCurrent: boolean; readonly state: ProjectStepState }) {
   return (
     <span
       aria-hidden="true"
@@ -91,6 +76,22 @@ function StepMarker({ index, isCurrent, state }: { readonly index: number; reado
         <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-state-attention ring-2 ring-bg-surface" />
       )}
     </span>
+  );
+}
+
+/** Hộp hỏi lại trước khi đăng xuất, dùng chung cho header và menu tệp của màn biên tập. */
+export function SignOutConfirm({ isOpen, onClose, onSignOut }: { readonly isOpen: boolean; readonly onClose: () => void; readonly onSignOut: () => void }) {
+  return (
+    <Modal.Root isOpen={isOpen} onClose={onClose} width={480}>
+      <Modal.Header>Đăng xuất?</Modal.Header>
+      <Modal.Body>
+        <p>Bạn sẽ phải đăng nhập lại để tiếp tục làm việc.</p>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="ghost" onClick={onClose}>Huỷ</Button>
+        <Button variant="primary" onClick={onSignOut}>Đăng xuất</Button>
+      </Modal.Footer>
+    </Modal.Root>
   );
 }
 
@@ -109,12 +110,6 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
   // Màn ngoài bước: quay lại bước đầu tiên chưa xong (hết bước thì về bước cuối).
   const firstOpen = PROJECT_STEPS.findIndex((_, index) => project.stepStates?.[index] !== 'done');
   const resumeIndex = firstOpen === -1 ? PROJECT_STEPS.length - 1 : firstOpen;
-  const stepPath = (index: number): string =>
-    index === 2 && project.floorId !== undefined
-      ? (FLOOR_LAYERS[0]?.path(project.id, project.floorId) ?? ROUTES.project.floors(project.id))
-      : index === 2 && project.lastFloorPath !== undefined
-        ? project.lastFloorPath
-        : (PROJECT_STEPS[index]?.path(project.id) ?? ROUTES.dashboard);
 
   // Màn Tải bản vẽ tự có nút chính "Bắt đầu xử lý": nút đi tiếp của thanh bước luôn kiểu phụ (A2 #4).
   const nextClass = cn(getButtonStyles({ variant: skipToReview || (currentDone && project.stepIndex !== 0) ? 'primary' : 'secondary', size: 'sm' }), 'shrink-0 gap-2 whitespace-nowrap');
@@ -129,7 +124,7 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
             <li key={step.id} className="flex shrink-0 items-center gap-1">
               {index > 0 && <ChevronRight size={14} aria-hidden="true" className="text-text-muted" />}
               <Link
-                to={stepPath(index)}
+                to={stepPath(project, index)}
                 aria-current={isCurrent ? 'step' : undefined}
                 aria-label={`Bước ${index + 1}: ${step.label}, ${stepStateText(state, index, project.stepIndex)}`}
                 title={step.label}
@@ -161,13 +156,13 @@ function ProjectStepBar({ project }: { readonly project: AppHeaderProject }) {
       ) : project.stepIndex === 1 && project.blocker === 'pipeline-error' ? (
         <span className="shrink-0 text-[13px] text-text-secondary">Xử lý gặp lỗi: xem chi tiết bên dưới trước khi đi tiếp</span>
       ) : project.stepIndex === -1 ? (
-        <Link to={stepPath(resumeIndex)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0 gap-2 whitespace-nowrap')}>
+        <Link to={stepPath(project, resumeIndex)} className={cn(getButtonStyles({ variant: 'secondary', size: 'sm' }), 'shrink-0 gap-2 whitespace-nowrap')}>
           Tiếp tục: {PROJECT_STEPS[resumeIndex]?.label}
           <ArrowRight size={16} aria-hidden="true" />
         </Link>
       ) : onPipelineScreen ? null : (
         next !== undefined && (
-          <Link to={skipToReview ? stepPath(nextIndex) : next.path(project.id)} className={nextClass}>
+          <Link to={skipToReview ? stepPath(project, nextIndex) : next.path(project.id)} className={nextClass}>
             Tiếp: {next.label}
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
@@ -268,16 +263,7 @@ export function AppHeader({ accountInitials, accountLabel, showAdmin, notificati
         </div>
       </div>
       {project !== null && <ProjectStepBar project={project} />}
-      <Modal.Root isOpen={confirmOut} onClose={() => setConfirmOut(false)} width={480}>
-        <Modal.Header>Đăng xuất?</Modal.Header>
-        <Modal.Body>
-          <p>Bạn sẽ phải đăng nhập lại để tiếp tục làm việc.</p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="ghost" onClick={() => setConfirmOut(false)}>Huỷ</Button>
-          <Button variant="primary" onClick={onSignOut}>Đăng xuất</Button>
-        </Modal.Footer>
-      </Modal.Root>
+      <SignOutConfirm isOpen={confirmOut} onClose={() => setConfirmOut(false)} onSignOut={onSignOut} />
     </header>
   );
 }

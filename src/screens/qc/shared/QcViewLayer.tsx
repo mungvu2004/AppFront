@@ -13,12 +13,14 @@ import { focusPadOf, setQcViewMode, toggleQcViewMode, useQcViewMode, type QcPin,
  * ghim số trên các mục còn cần xem (Tổng thể). Màn tự lo phóng/vừa khung theo chế độ.
  */
 export interface QcViewLayerProps {
-  /** Hộp của mục đang chọn, pixel khung — cùng hộp đưa cho `QcAskAnchor`. */
+  /** Hộp của mục đang chọn, pixel khung. */
   readonly focus: QcAskRect | null;
   /** Mục còn cần xem; số trên ghim là `pin.n` (cùng số với dòng hàng đợi). */
   readonly pins: readonly QcPin[];
   readonly selectedId: string | null;
   readonly onPick: (id: string) => void;
+  /** `false` khi đang dùng công cụ vẽ/đo: ghim số không chặn con trỏ (pointer-events none). Mặc định `true`. */
+  readonly pinsInteractive?: boolean;
 }
 
 const MODES: readonly { readonly key: QcViewMode; readonly label: string }[] = [
@@ -34,7 +36,7 @@ const FOCUS_PAD = 12;
 /** Khung bản vẽ không nhận cú bấm/kéo bắt đầu trên chrome này (kéo nền, bỏ chọn). */
 const stop = (event: SyntheticEvent) => event.stopPropagation();
 
-export function QcViewLayer({ focus, pins, selectedId, onPick }: QcViewLayerProps) {
+export function QcViewLayer({ focus, pins, selectedId, onPick, pinsInteractive = true }: QcViewLayerProps) {
   const mode = useQcViewMode();
   const maskId = useId();
   const pad = focus === null ? FOCUS_PAD : Math.max(FOCUS_PAD, focusPadOf(focus));
@@ -68,6 +70,7 @@ export function QcViewLayer({ focus, pins, selectedId, onPick }: QcViewLayerProp
                 'absolute z-10 -ml-3 -mt-3 grid h-6 w-6 place-items-center rounded-full border-2 text-[12px] font-bold tabular-nums shadow-float',
                 'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                 pin.id === selectedId ? 'border-bg-surface bg-accent text-white' : 'border-state-attention bg-bg-surface text-state-attention-text',
+                !pinsInteractive && 'pointer-events-none',
               )}
               key={pin.id}
               onClick={(event) => {

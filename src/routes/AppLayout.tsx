@@ -1,6 +1,8 @@
 /**
  * Khung của mọi màn sau đăng nhập: {@link AppHeader} ở trên, màn con lấp phần
- * còn lại. Màn con nào tự đặt `h-dvh`/`h-screen`/`min-h-screen` được
+ * còn lại. Bốn màn duyệt tầng dạng trình biên tập (`isFloorEditorPath`) bỏ header,
+ * nhận menu tệp/chip bước/chuông qua `EditorChromeProvider` để màn tự đặt.
+ * Màn con nào tự đặt `h-dvh`/`h-screen`/`min-h-screen` được
  * `[data-app-content]` (globals.css) thu về 100% vùng dưới header, nên không màn
  * nào phải sửa để chừa chỗ cho header.
  *
@@ -12,6 +14,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { AppHeader } from '@/components/shell/AppHeader';
+import { EditorChromeProvider, EditorFileMenu, EditorStepChip, type EditorChrome } from '@/components/shell/EditorChrome';
 import { rememberAppPath } from '@/pascal-page/bridge/backHref';
 import { useSession } from '@/hooks/useSession';
 import { LAST_PROJECT_KEY, lastFloorPathKey, signOut } from '@/lib/auth';
@@ -22,7 +25,7 @@ import { queryKeys } from '@/lib/query/queryKeys';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 import { ROUTES } from './paths';
-import { projectLocationOf, projectScreenTitleOf, projectStepStates } from './projectSteps';
+import { isFloorEditorPath, projectLocationOf, projectScreenTitleOf, projectStepStates } from './projectSteps';
 
 /** Đích của skip link "Bỏ qua tới nội dung": vùng chứa màn con dưới header. */
 const MAIN_CONTENT_ID = 'noi-dung';
@@ -180,6 +183,33 @@ export function AppLayout() {
     void signOut().finally(() => navigate(ROUTES.login));
   }, [navigate]);
 
+  const accountInitials = initialsOf(session.user?.name ?? '', session.user?.email ?? '');
+  const accountLabel = session.user?.name || session.user?.email || 'Tài khoản';
+  const showAdmin = session.roles.includes('admin');
+  const notificationBell = (
+    <Suspense fallback={null}>
+      <LazyNotificationBell />
+    </Suspense>
+  );
+  // Bốn màn duyệt tầng dạng trình biên tập: không header chung, màn tự đặt menu tệp + chip bước + chuông.
+  const editorChrome: EditorChrome | null =
+    location !== null && isFloorEditorPath(routerLocation.pathname)
+      ? {
+          fileMenu: (
+            <EditorFileMenu
+              projectId={location.projectId}
+              projectName={projectName}
+              showAdmin={showAdmin}
+              accountInitials={accountInitials}
+              accountLabel={accountLabel}
+              onSignOut={handleSignOut}
+            />
+          ),
+          stepChip: <EditorStepChip project={{ id: location.projectId, stepIndex: location.stepIndex, floorId: location.floorId, lastFloorPath, stepStates }} />,
+          bell: notificationBell,
+        }
+      : null;
+
   return (
     <div className="flex h-dvh flex-col bg-bg-app">
       <a
@@ -193,25 +223,25 @@ export function AppLayout() {
       >
         Bỏ qua tới nội dung
       </a>
-      <AppHeader
-        accountInitials={initialsOf(session.user?.name ?? '', session.user?.email ?? '')}
-        accountLabel={session.user?.name || session.user?.email || 'Tài khoản'}
-        showAdmin={session.roles.includes('admin')}
-        notificationBell={
-          <Suspense fallback={null}>
-            <LazyNotificationBell />
-          </Suspense>
-        }
-        project={
-          location === null
-            ? null
-            : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex, blocker, lastFloorPath, stepStates }
-        }
-        returnProject={lastProject}
-        onSignOut={handleSignOut}
-      />
+      {editorChrome === null && (
+        <AppHeader
+          accountInitials={accountInitials}
+          accountLabel={accountLabel}
+          showAdmin={showAdmin}
+          notificationBell={notificationBell}
+          project={
+            location === null
+              ? null
+              : { id: location.projectId, name: projectName, stepIndex: location.stepIndex, floorId: location.floorId, layerIndex: location.layerIndex, blocker, lastFloorPath, stepStates }
+          }
+          returnProject={lastProject}
+          onSignOut={handleSignOut}
+        />
+      )}
       <div data-app-content id={MAIN_CONTENT_ID} tabIndex={-1} className="relative flex min-h-0 flex-1 flex-col overflow-auto outline-hidden">
-        <Outlet />
+        <EditorChromeProvider value={editorChrome}>
+          <Outlet />
+        </EditorChromeProvider>
       </div>
     </div>
   );

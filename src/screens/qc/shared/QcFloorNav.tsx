@@ -2,6 +2,7 @@ import { useMemo, type KeyboardEvent, type ReactNode } from 'react';
 import { Check, ChevronDown, Lock } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { useEditorChrome } from '@/components/shell/EditorChrome';
 import { useShortcut } from '@/hooks/useShortcut';
 
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ import {
   type FloorReviewLayerState,
   type FloorScaleState,
 } from './floorReviewGateModel';
+import { FloorReviewGate } from './FloorReviewGate.container';
 import { QC_LAYERS, qcLayerTitle, qcStepOf, type QcLayerKey } from './qcLayers';
 import { useFloorReview } from './useFloorReview';
 
@@ -27,6 +29,10 @@ import { useFloorReview } from './useFloorReview';
  * Nút đi tiếp của tầng nằm ở khe cổng của header (`FloorReviewGate`), không lặp ở đây.
  * Tầng chưa có tỷ lệ: các bước sau Tỷ lệ (và Độ dày tường) bị khoá, kèm lý do.
  * Phím `]` / `[` sang bước sau / về bước trước của tầng (U19), hiện trong bảng `?`.
+ * Trong khung soạn thảo (`useEditorChrome()` khác null — 4 màn duyệt tầng không còn header và thanh
+ * bước dự án): đây là HÀNG DUY NHẤT, h-10: menu Tệp, chip bước dự án | tầng ▾ | bốn bước (dưới xl chỉ
+ * bước đang mở còn chữ, các bước khác giữ số đếm) | … | nút đi tiếp (chỉ dưới lg, khi cột trái thành
+ * ngăn kéo) | chuông.
  * Gắn: `<QcFloorNav floorId={floorId} layer="rooms" projectId={projectId} />` (cần nằm trong Router).
  */
 export interface QcFloorNavFloor {
@@ -182,6 +188,7 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
   const floorLabel = floors.find((floor) => floor.id === floorId)?.label ?? FLOOR_FALLBACK;
   const screenTitle = qcLayerTitle(layer);
   const { graph, scale } = useFloorReview(projectId, floorId);
+  const chrome = useEditorChrome();
   /* Tiến độ từng lớp bắt buộc; chưa đọc được tầng thì chỉ đánh số. */
   const layerStates = useMemo(
     () =>
@@ -212,64 +219,93 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
     return key === activeStep ? 'step' : undefined;
   };
 
+  const floorMenu = (
+    /* key: đổi tầng/màn thì menu đóng lại. */
+    <NavMenu
+      key={`floor:${floorId}:${layer}`}
+      label={`Đổi tầng: đang ở ${floorLabel}`}
+      summary={<span className="font-medium text-text-primary">{floorLabel}</span>}
+    >
+      {floors.map((floor) => (
+        <FloorMenuItem key={floor.id} floor={floor} isCurrent={floor.id === floorId} layer={current.key} projectId={projectId} />
+      ))}
+      <li className={cn(floors.length > 0 && 'mt-1 border-t border-border-default pt-1')}>
+        <Link className={cn(MENU_ITEM_CLASS, IDLE_CLASS)} to={ROUTES.project.floors(projectId)}>
+          {ALL_FLOORS_LABEL}
+        </Link>
+      </li>
+    </NavMenu>
+  );
+  const stepNav = (
+    <nav aria-label={STEP_BAR_LABEL} className={cn('flex min-w-0 items-center gap-1 border-l border-border-default pl-3', chrome === null && 'flex-1')}>
+      {steps.map((item, index) => {
+        const state = layerStates.get(item.key);
+        const isScale = item.key === 'scale';
+        const isDone = isScale ? scale === 'confirmed' : state?.done === true;
+        const scaleView = isScale && scale !== null ? SCALE_STATE_VIEWS[scale] : null;
+        /* Tỷ lệ chưa xác nhận: bước mang đúng tên trạng thái ("Chưa có tỷ lệ", "Tỷ lệ cần kiểm"). */
+        const label = scaleView !== null && scale !== 'confirmed' ? scaleView.name : item.label;
+        /* Khung soạn thảo, dưới xl: bước không mở chỉ còn số + chấm + đếm; chữ vẫn đọc được cho trình đọc màn hình. */
+        const compact = chrome !== null && currentOf(item.key) === undefined;
+        return (
+          <Step
+            key={item.key}
+            className={TAB_CLASS}
+            current={currentOf(item.key)}
+            locked={isLocked(item.key)}
+            to={item.route(projectId, floorId)}
+          >
+            <span aria-hidden="true" className="tabular-nums text-text-muted">{index + 1}</span>
+            {isLocked(item.key) ? null : <StatusDot tone={scaleView?.statusCode ?? (isDone ? 'verified' : 'neutral')} />}
+            <span className={cn(isScale && scale !== null && SCALE_TEXT_CLASS[scale], compact && 'max-xl:sr-only')}>{label}</span>
+            {isDone && <span className="sr-only">: đã xong</span>}
+            {state !== undefined && !isDone && (
+              <>
+                <span aria-hidden="true" className="tabular-nums text-text-muted">{`${state.reviewed}/${state.total}`}</span>
+                <span className="sr-only">{`: đã duyệt ${state.reviewed} trên ${state.total}`}</span>
+              </>
+            )}
+          </Step>
+        );
+      })}
+      {subLinks.length === 0 ? null : (
+        <>
+          <span aria-hidden="true" className="mx-2 h-5 w-px shrink-0 bg-border-control" />
+          {subLinks.map((item) => (
+            <Step key={item.key} className={TAB_CLASS} current={currentOf(item.key)} locked={isLocked(item.key)} to={item.route(projectId, floorId)}>
+              {item.label}
+            </Step>
+          ))}
+        </>
+      )}
+    </nav>
+  );
+  const heading = titled ? null : <h1 className="sr-only">{`${screenTitle} · ${floorLabel}`}</h1>;
+
+  if (chrome !== null) {
+    return (
+      <div className="flex h-10 shrink-0 items-center gap-3 border-b border-border-default px-3" data-testid="qc-editor-row">
+        {heading}
+        {chrome.fileMenu}
+        {chrome.stepChip}
+        <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border-control" />
+        {floorMenu}
+        {stepNav}
+        <span aria-hidden="true" className="flex-1" />
+        {/* Dưới lg cột trái là ngăn kéo: nút đi tiếp của tầng phải còn trên hàng. */}
+        <div className="shrink-0 lg:hidden">
+          <FloorReviewGate floorId={floorId} inline projectId={projectId} />
+        </div>
+        {chrome.bell}
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-8 shrink-0 items-center gap-3 px-4">
-      {titled ? null : <h1 className="sr-only">{`${screenTitle} · ${floorLabel}`}</h1>}
-      {/* key: đổi tầng/màn thì menu đóng lại. */}
-      <NavMenu
-        key={`floor:${floorId}:${layer}`}
-        label={`Đổi tầng: đang ở ${floorLabel}`}
-        summary={<span className="font-medium text-text-primary">{floorLabel}</span>}
-      >
-        {floors.map((floor) => (
-          <FloorMenuItem key={floor.id} floor={floor} isCurrent={floor.id === floorId} layer={current.key} projectId={projectId} />
-        ))}
-        <li className={cn(floors.length > 0 && 'mt-1 border-t border-border-default pt-1')}>
-          <Link className={cn(MENU_ITEM_CLASS, IDLE_CLASS)} to={ROUTES.project.floors(projectId)}>
-            {ALL_FLOORS_LABEL}
-          </Link>
-        </li>
-      </NavMenu>
-      <nav aria-label={STEP_BAR_LABEL} className="flex min-w-0 flex-1 items-center gap-1 border-l border-border-default pl-3">
-        {steps.map((item, index) => {
-          const state = layerStates.get(item.key);
-          const isScale = item.key === 'scale';
-          const isDone = isScale ? scale === 'confirmed' : state?.done === true;
-          const scaleView = isScale && scale !== null ? SCALE_STATE_VIEWS[scale] : null;
-          /* Tỷ lệ chưa xác nhận: bước mang đúng tên trạng thái ("Chưa có tỷ lệ", "Tỷ lệ cần kiểm"). */
-          const label = scaleView !== null && scale !== 'confirmed' ? scaleView.name : item.label;
-          return (
-            <Step
-              key={item.key}
-              className={TAB_CLASS}
-              current={currentOf(item.key)}
-              locked={isLocked(item.key)}
-              to={item.route(projectId, floorId)}
-            >
-              <span aria-hidden="true" className="tabular-nums text-text-muted">{index + 1}</span>
-              {isLocked(item.key) ? null : <StatusDot tone={scaleView?.statusCode ?? (isDone ? 'verified' : 'neutral')} />}
-              <span className={isScale && scale !== null ? SCALE_TEXT_CLASS[scale] : undefined}>{label}</span>
-              {isDone && <span className="sr-only">: đã xong</span>}
-              {state !== undefined && !isDone && (
-                <>
-                  <span aria-hidden="true" className="tabular-nums text-text-muted">{`${state.reviewed}/${state.total}`}</span>
-                  <span className="sr-only">{`: đã duyệt ${state.reviewed} trên ${state.total}`}</span>
-                </>
-              )}
-            </Step>
-          );
-        })}
-        {subLinks.length === 0 ? null : (
-          <>
-            <span aria-hidden="true" className="mx-2 h-5 w-px shrink-0 bg-border-control" />
-            {subLinks.map((item) => (
-              <Step key={item.key} className={TAB_CLASS} current={currentOf(item.key)} locked={isLocked(item.key)} to={item.route(projectId, floorId)}>
-                {item.label}
-              </Step>
-            ))}
-          </>
-        )}
-      </nav>
+      {heading}
+      {floorMenu}
+      {stepNav}
       {/* Tiến độ của lớp (Impeccable A3), cuối cùng hàng 32 px — không thêm hàng (V-16). */}
       {progress == null || minimal ? null : (
         <p className="shrink-0 whitespace-nowrap text-[12px] tabular-nums text-text-secondary" data-testid="qc-progress">

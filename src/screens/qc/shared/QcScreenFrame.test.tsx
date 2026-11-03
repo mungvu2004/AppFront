@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { QcAskSlot } from './qcAsk';
 import { QC_BODY_CLASS, QC_NO_CHANGES_LABEL, QC_UNDO_LABEL, QcCanvasFrame, QcScreenFrame, QcStatusBar, QcWorkspace } from './QcScreenFrame';
 
 describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
@@ -87,6 +88,40 @@ describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
       expect(drawer()?.className).toContain('xl:w-[240px]');
       expect(drawer()?.className.split(' ')).not.toContain('hidden');
     });
+  });
+});
+
+describe('[figma-layout] QcWorkspace column: hai panel neo cùng cỡ', () => {
+  const dock = () => screen.getByTestId('qc-inspector-dock');
+
+  it('cột trái và panel phải cùng 260/280/320; không còn nút "Hiện/Ẩn chi tiết"', () => {
+    render(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>chi tiết</p>} left={<p>trái</p>} selectionKey="a" />);
+    for (const element of [screen.getByText('trái').parentElement, dock()]) {
+      expect(element?.className).toContain('lg:w-[260px] xl:w-[280px] 2xl:w-[320px]');
+    }
+    expect(dock().className).not.toContain('lg:max-xl:hidden');
+    expect(screen.queryByRole('button', { name: 'Hiện chi tiết' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ẩn chi tiết' })).toBeNull();
+  });
+
+  it('dưới 1024: tấm đáy ≤ 45 %, ẩn khi chưa chọn gì', () => {
+    const { rerender } = render(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>chi tiết</p>} selectionKey={null} />);
+    expect(dock()).toHaveClass('max-lg:absolute', 'max-lg:bottom-2', 'max-lg:max-h-[45%]', 'max-lg:hidden');
+    rerender(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>chi tiết</p>} selectionKey="a" />);
+    expect(dock()).not.toHaveClass('max-lg:hidden');
+  });
+
+  it('shim: không có `inspector` thì lấy khe QcAskSlot; thu gọn ẩn cả hai panel', () => {
+    const tree = (collapsed: boolean) => (
+      <QcAskSlot value={<p>thẻ từ khe</p>}>
+        <QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" collapsed={collapsed} column left={<p>trái</p>} selectionKey="a" />
+      </QcAskSlot>
+    );
+    const { rerender } = render(tree(false));
+    expect(screen.getByText('thẻ từ khe').parentElement).toBe(dock());
+    rerender(tree(true));
+    expect(screen.queryByText('thẻ từ khe')).toBeNull();
+    expect(screen.queryByText('trái')).toBeNull();
   });
 });
 

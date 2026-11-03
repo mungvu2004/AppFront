@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { EditorChromeProvider, type EditorChrome } from '@/components/shell/EditorChrome';
 import { ROUTES } from '@/routes/paths';
 
 import { SCALE_LOCK_REASON, type FloorScaleState } from './floorReviewGateModel';
@@ -18,21 +19,25 @@ vi.mock('./useFloorReview', () => ({
     storeSpatial: null,
     scale: floorId in review.byFloor ? review.byFloor[floorId] : review.scale,
   }),
+  useNextFloor: () => null,
 }));
 
-function renderNav(layer: QcLayerKey = 'walls') {
+/* `chrome` null = màn ngoài 4 màn duyệt tầng (header cũ còn nguyên). */
+function renderNav(layer: QcLayerKey = 'walls', chrome: EditorChrome | null = null) {
   render(
     <MemoryRouter>
-      <QcFloorNav
-        floorId="f1"
-        floors={[
-          { id: 'f1', label: 'Tầng 1' },
-          { id: 'f2', label: 'Tầng 2' },
-        ]}
-        layer={layer}
-        projectId="p1"
-        projectName="Nhà A"
-      />
+      <EditorChromeProvider value={chrome}>
+        <QcFloorNav
+          floorId="f1"
+          floors={[
+            { id: 'f1', label: 'Tầng 1' },
+            { id: 'f2', label: 'Tầng 2' },
+          ]}
+          layer={layer}
+          projectId="p1"
+          projectName="Nhà A"
+        />
+      </EditorChromeProvider>
     </MemoryRouter>,
   );
   return screen.getByRole('navigation', { name: 'Các bước duyệt tầng' });
@@ -53,6 +58,30 @@ describe('QcFloorNav (UX-R1 K25, UX-R2 K04)', () => {
     expect(within(steps).queryByText(/Nâng cao/u)).toBeNull();
     expect(within(steps).getByRole('link', { name: /Tường/u })).toHaveAttribute('aria-current', 'page');
     expect(within(steps).queryByRole('link', { name: 'Trục' })).toBeNull();
+    expect(screen.queryByTestId('qc-editor-row')).toBeNull();
+  });
+
+  it('trong khung soạn thảo: một hàng h-10 gồm Tệp, chip bước, tầng ▾, bốn bước, nút đi tiếp (dưới lg), chuông', () => {
+    review.scale = 'confirmed';
+    const steps = renderNav('walls', {
+      fileMenu: <button type="button">Tệp</button>,
+      stepChip: <span>Bước 3/5</span>,
+      bell: <button type="button">Thông báo</button>,
+    });
+    const row = screen.getByTestId('qc-editor-row');
+    const order = [...row.children].filter((el) => el.tagName !== 'H1').map((el) => el.textContent ?? '');
+
+    expect(row).toHaveClass('h-10');
+    expect(steps.parentElement).toBe(row);
+    expect(screen.getByLabelText('Đổi tầng: đang ở Tầng 1').closest('[data-testid="qc-editor-row"]')).toBe(row);
+    expect(order.slice(0, 2)).toEqual(['Tệp', 'Bước 3/5']);
+    expect(order.at(-1)).toBe('Thông báo');
+    expect(steps.textContent).toMatch(/^1Tỷ lệ.*2Tường3Cửa và nội thất4Phòng/u);
+    /* Bước không mở: chữ chỉ ẩn dưới xl, vẫn đọc được; bước đang mở giữ chữ. */
+    expect(within(steps).getByText('Phòng')).toHaveClass('max-xl:sr-only');
+    expect(within(steps).getByText('Tường')).not.toHaveClass('max-xl:sr-only');
+    const gate = row.querySelector<HTMLElement>('[class~="lg:hidden"]')!;
+    expect(within(gate).getByRole('link')).toBeInTheDocument();
   });
 
   it('bước Tỷ lệ có link Kích thước và So với bản vẽ; đứng ở mục con thì bước Tỷ lệ sáng', () => {
