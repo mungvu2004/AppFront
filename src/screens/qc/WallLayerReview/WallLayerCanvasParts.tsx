@@ -13,6 +13,7 @@ import { backgroundFrameRect } from '../shared/canvasFit';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 import { BACKGROUND_IMAGE_OPACITY, toSvgPoints, wallThicknessFillToken } from './wallLayerHatch';
 import { WallLayerLegendTray } from './WallLayerLegendTray';
+import type { WallDrawSnapKind } from './wallDrawSnap';
 
 type Props = WallLayerCanvasViewProps;
 
@@ -68,38 +69,59 @@ export function WallDrawingBackground({
   );
 }
 
-/** G4a-23: nét xem trước của Vẽ tường / dấu cắt của Tách đoạn — accent, nét đứt. */
+/** G4a-23: nét xem trước của Vẽ tường / dấu cắt của Tách đoạn — accent, nét đứt; vòng nam châm khi bắt vào tường. */
 export function WallDraftGuide({
   draftGuidePx,
   unitPx,
 }: {
-  readonly draftGuidePx: NonNullable<Props['draftGuidePx']>;
+  /* `snapKind` do hook gắn thêm (`wallDrawSnap.ts`); kiểu gốc ở `wallLayerHatch.ts` chưa khai. */
+  readonly draftGuidePx: NonNullable<Props['draftGuidePx']> & { readonly snapKind?: WallDrawSnapKind | null };
   readonly unitPx: number;
 }) {
-  return draftGuidePx.fromPx === null ? (
-    <circle
-      cx={draftGuidePx.toPx.x}
-      cy={draftGuidePx.toPx.y}
-      data-testid="wall-draft-guide"
-      fill="none"
-      pointerEvents="none"
-      r={6 * unitPx}
-      stroke="var(--accent)"
-      strokeDasharray={`${3 * unitPx} ${2 * unitPx}`}
-      strokeWidth={2 * unitPx}
-    />
-  ) : (
-    <line
-      data-testid="wall-draft-guide"
-      pointerEvents="none"
-      stroke="var(--accent)"
-      strokeDasharray={`${6 * unitPx} ${4 * unitPx}`}
-      strokeWidth={2 * unitPx}
-      x1={draftGuidePx.fromPx.x}
-      x2={draftGuidePx.toPx.x}
-      y1={draftGuidePx.fromPx.y}
-      y2={draftGuidePx.toPx.y}
-    />
+  const { fromPx, toPx, snapKind = null } = draftGuidePx;
+
+  if (fromPx === null && snapKind === null) {
+    return (
+      <circle
+        cx={toPx.x}
+        cy={toPx.y}
+        data-testid="wall-draft-guide"
+        fill="none"
+        pointerEvents="none"
+        r={6 * unitPx}
+        stroke="var(--accent)"
+        strokeDasharray={`${3 * unitPx} ${2 * unitPx}`}
+        strokeWidth={2 * unitPx}
+      />
+    );
+  }
+
+  return (
+    <g data-testid="wall-draft-guide" pointerEvents="none">
+      {fromPx === null ? null : (
+        <line
+          stroke="var(--accent)"
+          strokeDasharray={`${6 * unitPx} ${4 * unitPx}`}
+          strokeWidth={2 * unitPx}
+          x1={fromPx.x}
+          x2={toPx.x}
+          y1={fromPx.y}
+          y2={toPx.y}
+        />
+      )}
+      {snapKind === null ? null : (
+        <circle
+          cx={toPx.x}
+          cy={toPx.y}
+          data-snap-kind={snapKind}
+          data-testid="wall-draft-snap"
+          fill="none"
+          r={(snapKind === 'wallVertex' ? 7 : 5) * unitPx}
+          stroke="var(--accent)"
+          strokeWidth={2.5 * unitPx}
+        />
+      )}
+    </g>
   );
 }
 

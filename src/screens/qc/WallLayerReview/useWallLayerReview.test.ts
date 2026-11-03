@@ -1537,7 +1537,7 @@ describe('G4a-12: nối đoạn không được thì báo', () => {
 
     expect(wallCount()).toBe(before);
     expect(bus.list().map((item) => item.title)).toContain(
-      'Không nối được: hai đoạn phải thẳng hàng và chạm đầu nhau.',
+      'Chỉ nối được hai đoạn thẳng hàng, cùng độ dày và cùng loại.',
     );
 
     mounted.unmount();
@@ -2065,5 +2065,100 @@ describe('deleteToastDescription (U36, U57)', () => {
     expect(deleteToastDescription(wallId, codes, { openingCount: 1, queueNumber: 2 })).toBe(
       'Đã xoá tường số 2 (#W-021) và 1 cửa gắn trên tường.',
     );
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Vẽ tường: Esc rời công cụ, bắt điểm vào tường có sẵn, lấy độ dày của tường đó. */
+/* -------------------------------------------------------------------------- */
+
+describe('vẽ tường nối vào tường có sẵn', () => {
+  const newWalls = (): Wall[] => {
+    const spatial = useStore.getState().spatial;
+    const fixtureIds = new Set<string>(FIXTURE_WALLS.map((wall) => wall.id));
+
+    return (spatial?.byKind.wall ?? [])
+      .filter((id) => !fixtureIds.has(id))
+      .map((id) => spatial?.byId[id] as Wall);
+  };
+
+  it('Esc lần đầu bỏ nét dở, Esc lần nữa về công cụ Chọn', async () => {
+    const mounted = await mountSettled();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000, y: 20000 }));
+      await Promise.resolve();
+    });
+    await pressKey(mounted.registry, 'Escape');
+    expect(mounted.result.current.toolRail.activeTool).toBe('drawWall');
+    expect(mounted.result.current.statusBar.toolHint).toContain('Bấm điểm đầu của tường');
+
+    await pressKey(mounted.registry, 'Escape');
+    expect(mounted.result.current.toolRail.activeTool).toBe('select');
+    expect(mounted.result.current.statusBar.toolHint).toBe('');
+
+    mounted.unmount();
+  });
+
+  it('hai lần bấm gần thân/đầu tường bắt đúng toạ độ, tường mới lấy dày + loại của tường ở điểm đầu', async () => {
+    const bus: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
+    /* W-006: (0, 2200) → (2500, 2200), dày 175, vách ngăn. */
+    const source = FIXTURE_WALLS.find((wall) => wall.centreline.start.x === 0 && wall.centreline.start.y === 2200 && wall.centreline.end.y === 2200) as Wall;
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      /* Lệch 2 mm khỏi thân W-006 → chân vuông góc (1250, 2200). */
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 1250, y: 2202 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      /* Lệch ~2 mm khỏi đầu tường (2500, 4400). */
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 2501.6, y: 4401.3 }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(newWalls()).toHaveLength(1);
+    });
+
+    const drawn = newWalls()[0] as Wall;
+
+    expect(drawn.centreline.start).toEqual({ x: 1250, y: 2200 });
+    expect(drawn.centreline.end).toEqual({ x: 2500, y: 4400 });
+    expect(drawn.thicknessMm).toBe(source.thicknessMm);
+    expect(drawn.kind).toBe(source.kind);
+    expect(drawn.heightMm).toBe(source.heightMm);
+    /* Nối được thì không có toast "không nối với tường nào". */
+    expect(bus.list().map((item) => item.title)).not.toContain(
+      'Tường mới không nối với tường nào — có thể bị ẩn ở mô hình 3D',
+    );
+
+    mounted.unmount();
+  });
+
+  it('tường đứng trơ vẫn được vẽ nhưng có toast cảnh báo', async () => {
+    const bus: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000, y: 20000 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400, y: 20000 }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(newWalls()).toHaveLength(1);
+    });
+    await waitFor(() => {
+      expect(bus.list().map((item) => item.title)).toContain(
+        'Tường mới không nối với tường nào — có thể bị ẩn ở mô hình 3D',
+      );
+    });
+
+    mounted.unmount();
   });
 });
