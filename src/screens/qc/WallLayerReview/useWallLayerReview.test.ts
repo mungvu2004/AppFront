@@ -2139,10 +2139,11 @@ describe('vẽ tường nối vào tường có sẵn', () => {
     mounted.unmount();
   });
 
-  it('bấm lên tường khi đang vẽ không chọn tường (chọn sẽ kéo khung nhìn đi giữa hai lần bấm)', async () => {
+  it.each(['drawWall', 'measure', 'splitWall'] as const)('bấm lên tường khi đang dùng %s không chọn tường (chọn sẽ kéo khung nhìn đi giữa hai lần bấm)', async (tool) => {
     const mounted = await mountSettled();
 
-    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await pressKey(mounted.registry, shortcutForTool(tool));
+    expect(mounted.result.current.toolRail.activeTool).toBe(tool);
     await act(async () => {
       mounted.result.current.canvas.onSelect(wallAt(5).id);
       await Promise.resolve();

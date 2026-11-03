@@ -944,16 +944,16 @@ export function useWallLayerReview(
        */
       const toolNow = toolStateRef.current;
 
-      /* Vẽ tường: bấm lên tường là một ĐIỂM của nét (onCanvasPoint), không chọn — chọn kéo khung nhìn tới tường đó, điểm cuối lệch. */
-      if (toolNow.tool === 'drawWall') {
-        return;
-      }
-
       if (
         toolNow.tool === 'splitWall' &&
         TOOLS[toolNow.tool].steps[toolNow.values.length]?.kind === 'entity'
       ) {
         sendToolInputRef.current?.({ kind: 'entity', id: wallId });
+      }
+
+      /* Vẽ/đo/tách: bấm lên tường là một ĐIỂM (onCanvasPoint), không chọn — chọn kéo khung nhìn tới tường đó (~248 %), lần bấm sau lệch. */
+      if (toolNow.tool === 'drawWall' || toolNow.tool === 'measure' || toolNow.tool === 'splitWall') {
+        return;
       }
 
       const context = selectionContext;
