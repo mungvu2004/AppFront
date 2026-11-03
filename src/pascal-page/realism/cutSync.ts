@@ -37,6 +37,16 @@ const clipped = new Set<Object3D & ClipGroupFields>();
 const worldPos = new Vector3();
 const NO_IDS: ReadonlySet<string> = new Set();
 let frame = 0;
+let lowCut = false;
+
+/**
+ * Cắt thấp đang bật (khung gần nhất). Trần + đồ treo trần của tầng bị cắt theo nhóm tầng, nhưng phần
+ * vẽ thêm nằm ngoài nhóm tầng (quầng đèn âm trần `halo.ts`) phải tự tắt theo, không thì thành đĩa
+ * lơ lửng ở cao độ trần trên tường cắt 1 m (bench-3d P6, ảnh ngang mắt).
+ */
+export function lowCutOn(): boolean {
+  return lowCut;
+}
 
 function patchMaterial(material: Material): void {
   const nodeMaterial = material as unknown as ColorMaterial;
@@ -91,7 +101,8 @@ function clipLevel(level: Object3D & ClipGroupFields): void {
 }
 
 export function syncLowCut(registry: CutRegistry, wallMode: string): void {
-  if (!lowCutActive(wallMode)) {
+  lowCut = lowCutActive(wallMode);
+  if (!lowCut) {
     if (clipped.size > 0 || patched.size > 0) restore();
     return;
   }

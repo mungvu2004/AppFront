@@ -27,7 +27,9 @@ const pick = (node: unknown, keys: readonly string[]) =>
 const DOOR_KEYS = ['openingKind', 'doorType', 'leafCount', 'hingesSide', 'swingAngle', 'operationState'];
 const WINDOW_KEYS = ['openingKind', 'windowType', 'casementStyle', 'hingesSide'];
 
-const hinged = { openingKind: 'door', doorType: 'hinged', leafCount: 1, hingesSide: 'left', swingAngle: 1.22, operationState: 0 };
+// Hé 30° (bench-3d r3): cánh chìa vào phòng ≤ nửa bề rộng cửa, không thành tấm đứng chéo giữa phòng khi cắt tường 1 m.
+const DOOR_SWING_ANGLE = Math.PI / 6;
+const hinged = { openingKind: 'door', doorType: 'hinged', leafCount: 1, hingesSide: 'left', swingAngle: DOOR_SWING_ANGLE, operationState: 0 };
 const DOOR: Record<SwingDirection, object> = {
   left: hinged,
   right: { ...hinged, hingesSide: 'right' },
@@ -58,6 +60,16 @@ describe('ô mở → Pascal (T11)', () => {
     expect(node?.type).toBe(kind);
     expect(pick(node, kind === 'door' ? DOOR_KEYS : WINDOW_KEYS)).toEqual(kind === 'door' ? DOOR[swing] : WINDOW[swing]);
     if (kind === 'window') expect((node as { slots?: unknown }).slots).toEqual({ frame: 'library:preset-white', glass: 'scene:mat_appfront_glass' });
+  });
+
+  it('cánh bản lề chỉ hé: chìa vào phòng ≤ nửa bề rộng cửa, vẫn khác 0 để đọc ra là cửa', () => {
+    const doors = graph.openings.filter((o) => o.kind === 'door' && (o.swing === 'left' || o.swing === 'right' || o.swing === 'double'));
+    expect(doors.length).toBeGreaterThan(0);
+    for (const door of doors) {
+      const angle = (nodes[toPascalId('door', door.id)] as { swingAngle?: number }).swingAngle ?? 0;
+      expect(angle).toBeGreaterThan(0);
+      expect(Math.sin(angle)).toBeLessThanOrEqual(0.5 + 1e-9);
+    }
   });
 });
 

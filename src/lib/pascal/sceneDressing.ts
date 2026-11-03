@@ -90,17 +90,23 @@ const BARK = 'scene:mat_appfront_bark';
 /** Phong cách mặc định — tham số mặc định của mọi hàm dưới đây (J8). */
 const DEFAULT_STYLE = sceneStyleOf(undefined);
 
-/** Phòng chưa khai `finish`: đoán theo công năng, như nhà mẫu ở trang đăng nhập. */
+/**
+ * Phòng chưa khai `finish`: đoán theo công năng, như căn hộ Việt Nam điển hình (bench-3d P2) —
+ * khu sinh hoạt chung (khách, bếp, hành lang) gạch khổ lớn của phong cách nên khách + bếp mở
+ * chung một mặt sàn; phòng ngủ và phòng chưa rõ công năng gỗ; WC và lô gia gạch nhỏ chống trơn
+ * (`mosaic`). Lô gia KHÔNG đoán `decking`: `decking` khai tường minh mới là sân ngoài trời
+ * (không trần, không bày đồ — `ceilingNodesOf`, `sceneFurnish.isOutdoor`).
+ */
 const USAGE_FINISH: Readonly<Record<RoomUsage, RoomFinish>> = {
-  livingRoom: 'wood',
+  livingRoom: 'tile',
   bedroom: 'wood',
-  corridor: 'wood',
+  corridor: 'tile',
   other: 'wood',
   kitchen: 'tile',
   utility: 'tile',
   bathroom: 'mosaic',
   stairwell: 'concrete',
-  loggia: 'decking',
+  loggia: 'mosaic',
 };
 
 /** Tham chiếu vật liệu mặt sàn của một phòng: `floorMaterial` (W3a) trước, rồi `finish`, rồi công năng. */
@@ -178,6 +184,8 @@ const SLOT_FAMILY: Readonly<Record<string, Readonly<Record<string, SlotFamily | 
   toilet: { toilet: 'ceramic' },
   'throw-blanket': { fabric: 'fabric' },
   'tv-stand': { body: 'wood' },
+  // Chân đèn cây GLB `preset-espresso` đen → kim loại của phong cách (bench-3d P5); chao be giữ nguyên.
+  'floor-lamp': { legs: 'metal' },
   'wall-sconce': { metal: 'metal' },
 };
 
@@ -259,6 +267,13 @@ const lightInteractiveOf = (interactive: unknown, style: SceneStyle): unknown =>
 
 /** Đèn bàn: catalog không khai `interactive` — mượn khối của đèn cây, nguồn sáng ở chụp đèn. */
 const TABLE_LAMP_LIGHT_Y_M = 0.55;
+/**
+ * Đèn bàn/đèn ngủ là đèn hắt dịu, không phải đèn chính (bench-3d P8): cùng cường độ đèn trần
+ * và tầm 6 m mà đặt cách tường ~0,3 m thì cháy trắng mảng tường đầu giường. Phần của đèn trần
+ * và tầm riêng (m) — núm chỉnh tay.
+ */
+export const TABLE_LAMP_INTENSITY_SHARE = 0.25;
+export const TABLE_LAMP_DISTANCE_M = 2.5;
 
 /**
  * Khối `interactive` (đèn bật sẵn, sáng theo phong cách) cho đồ đạc là đèn; `undefined` = không
@@ -270,7 +285,14 @@ export const lampInteractiveOf = (folder: string, style: SceneStyle = DEFAULT_ST
       | { effects?: { kind: string; offset?: number[] }[] }
       | undefined;
     for (const effect of base?.effects ?? []) if (effect.kind === 'light') effect.offset = [0, TABLE_LAMP_LIGHT_Y_M, 0];
-    return base === undefined ? undefined : lightInteractiveOf(base, style);
+    if (base === undefined) return undefined;
+    const lamp = lightInteractiveOf(base, style) as { effects?: { kind: string; intensityRange?: number[]; distance?: number }[] };
+    for (const effect of lamp.effects ?? []) {
+      if (effect.kind !== 'light') continue;
+      effect.intensityRange = [0, style.lampIntensity * TABLE_LAMP_INTENSITY_SHARE];
+      effect.distance = TABLE_LAMP_DISTANCE_M;
+    }
+    return lamp;
   }
   const interactive = CATALOG_MODELS[folder]?.interactive;
   return interactive === undefined ? undefined : lightInteractiveOf(interactive, style);
