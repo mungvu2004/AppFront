@@ -46,7 +46,6 @@ import { BuildTab } from './components/build-tab'
 import { CanvasHelp, MeasureClearButton } from './components/canvas-help'
 import {
   BottomDock,
-  CommunityViewerToolbarLeft,
   CommunityViewerToolbarRight,
 } from './components/viewer-toolbar'
 import { installDragNotSelect } from './lib/drag-not-select'
@@ -121,7 +120,10 @@ export interface HomeProps {
   onLoad: NonNullable<EditorProps['onLoad']>
   onSave?: EditorProps['onSave']
   readOnly: boolean
+  /** Head of the left panel (back link, steps, sidebar toggle) — the editor has no top bar. */
   backCard?: ReactNode
+  /** Extra controls of the right "Xem" panel (style/lighting menu, placement chip, selection cards). */
+  viewPanel?: ReactNode
   /** Shown in the Preview header (G5-15); from the bridge. */
   projectName?: string | undefined
 }
@@ -301,14 +303,19 @@ const NARROW_PX = 1100
  * AppFront edit (R3d, G5-11): under 1100 px the 344 px sidebar pushes the toolbars off screen.
  * Collapse it once the saved state is loaded and whenever the window narrows past 1100 px.
  * Never re-opens it: a user who opens it again on a tablet keeps it open.
- * UX-R2 K35: the page opens to LOOK at the model, so the build panel starts collapsed at every
- * width; the rail's "Dựng" or the "Sửa mô hình" button (../EditModelButton.tsx) opens it.
+ * UX-R2 K35: the page opens to LOOK at the model, so it never opens on the build panel.
+ * wall-review-ux (no top bar): the panel's head holds the back link and steps, so from 1100 px it
+ * opens on "Cảnh" (the scene tree, Figma's layers); narrower it starts collapsed (head floats by the rail).
  */
 function useAutoCollapseSidebar() {
   useEffect(() => {
     const collapse = () => useSidebarStore.getState().setIsCollapsed(true)
     let wasNarrow = window.innerWidth < NARROW_PX
-    const onHydrated = collapse
+    const onHydrated = () => {
+      if (window.innerWidth < NARROW_PX) return collapse()
+      useEditor.getState().setActiveSidebarPanel('site')
+      useSidebarStore.getState().setIsCollapsed(false)
+    }
     const onResize = () => {
       const narrow = window.innerWidth < NARROW_PX
       if (narrow && !wasNarrow) collapse()
@@ -349,7 +356,7 @@ function PreviewHeader({ projectName }: { projectName?: string | undefined }) {
 /** V1 (viewer-measure): người xem không dựng/đặt đồ — bỏ tab Dựng + Đồ vật; đo nằm ở thanh hành động. */
 const READ_ONLY_SIDEBAR_TABS = SIDEBAR_TABS.filter((tab) => tab.id !== 'build' && tab.id !== 'items')
 
-export default function Home({ projectId, onLoad, onSave, readOnly, backCard, projectName }: HomeProps) {
+export default function Home({ projectId, onLoad, onSave, readOnly, backCard, viewPanel, projectName }: HomeProps) {
   useEditorPreferencesPersistence()
   usePascalVi()
   useEscapeExits()
@@ -390,13 +397,12 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
         }}
         projectId={projectId}
         sidebarTabs={readOnly ? READ_ONLY_SIDEBAR_TABS : SIDEBAR_TABS}
-        viewerToolbarLeft={
-          <>
-            {backCard}
-            <CommunityViewerToolbarLeft />
-          </>
+        viewerToolbarLeft={backCard}
+        viewerToolbarRight={
+          <CommunityViewerToolbarRight vrButton={null} vrLabel="Enter VR">
+            {viewPanel}
+          </CommunityViewerToolbarRight>
         }
-        viewerToolbarRight={<CommunityViewerToolbarRight vrButton={null} vrLabel="Enter VR" />}
       />
       <PreviewHeader projectName={projectName} />
       <CanvasHelp banner={<ScaleBanner projectId={projectId} readOnly={readOnly} />} />

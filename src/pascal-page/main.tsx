@@ -36,6 +36,7 @@ import { useSceneLoader } from './sceneLoader';
 import { SwapModelCard } from './SwapModelCard';
 import { PascalTour } from './tour/PascalTour';
 import { openBuildTabWithoutArming } from './upstream/components/build-tab';
+import { CommunityViewerToolbarLeft } from './upstream/components/viewer-toolbar';
 import Home from './upstream/page';
 import { ViewMenu } from './ViewMenu';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
@@ -207,11 +208,22 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
   return (
     <>
     <Home
+      // Không thanh trên (kiểu Figma): đầu bảng trái = về dự án + lưu + thu gọn, rồi bước của dự án.
       backCard={
         <>
-          <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
-          <ProjectStepsCard projectId={projectId} readOnly={readOnly} />
-          {readOnly ? null : <EditModel />}
+          <div className="flex w-full min-w-0 items-center gap-2 [&>a:first-child]:mr-auto">
+            <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
+            <CommunityViewerToolbarLeft />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ProjectStepsCard projectId={projectId} readOnly={readOnly} />
+            {readOnly ? null : <EditModel />}
+          </div>
+        </>
+      }
+      // Bảng Xem góc phải: menu Xem (phong cách, ánh sáng, chất lượng, nướng), lỗi đặt đồ, thẻ của món đang chọn.
+      viewPanel={
+        <>
           {/* UI-1023 V-01: các chỉnh cảnh là một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). */}
           <div aria-label="Cảnh" className="inline-flex shrink-0 items-center" data-appfront-cluster="" role="group">
             <ViewMenu

@@ -64,6 +64,15 @@ describe('pascal-vi', () => {
     expect(calls(out)).toBe(calls(src.replaceAll('\r\n', '\n')) - 1);
   });
 
+  it('không thanh trên: cụm trái vào đầu bảng trái (nổi cạnh rail khi thu gọn), canvas chỉ còn cụm phải', () => {
+    const file = 'editor/src/components/editor/editor-layout-v2.tsx';
+    const out = applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]);
+    expect(out).toContain('header={viewerToolbarLeft}');
+    expect(out).toContain('data-appfront-panel-head="docked"');
+    expect(out).toContain('data-appfront-panel-head="floating"');
+    expect(out).not.toContain('toolbarLeft={isCaptureMode');
+  });
+
   it('U16: bảng Cấu tạo tường và tên mẫu cấu tạo không còn chữ Anh', () => {
     const tr = (file) => applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]);
     const panel = tr('nodes/src/wall/panel.tsx');

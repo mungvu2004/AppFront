@@ -49,5 +49,21 @@ export const BEHAVIOUR_PATCHES = {
       '      if (id === activePanel) {\n        setIsCollapsed(true)\n        return\n      }\n',
       '      if (id === activePanel) return\n',
     ],
+    // Không thanh trên (kiểu Figma): cụm trái của thanh trên canvas (về dự án, bước, thu gọn — main.tsx) thành
+    // đầu bảng trái; bảng thu gọn thì nổi cạnh rail. Cụm phải giữ chỗ cũ, giờ là bảng Xem (viewer-toolbar.tsx).
+    [
+      '  sidebarOverlay,\n}: {\n  tabs: SidebarTab[]\n  renderTabContent: (tabId: string) => ReactNode\n  sidebarOverlay?: ReactNode\n}) {',
+      '  sidebarOverlay,\n  header,\n}: {\n  tabs: SidebarTab[]\n  renderTabContent: (tabId: string) => ReactNode\n  sidebarOverlay?: ReactNode\n  header?: ReactNode\n}) {',
+    ],
+    [
+      '        tabs={tabs}\n      />\n      {!isCollapsed',
+      '        tabs={tabs}\n      />\n      {isCollapsed && header && (\n        <div className="absolute top-3 left-full ml-3 flex flex-col items-start gap-2" data-appfront-panel-head="floating">{header}</div>\n      )}\n      {!isCollapsed',
+    ],
+    [
+      '          <div className="relative flex flex-1 flex-col overflow-hidden">\n            {renderTabContent(activePanel)}',
+      '          {header && (\n            <div className="flex shrink-0 flex-col gap-2 border-b border-[var(--pa-border)] p-3" data-appfront-panel-head="docked">{header}</div>\n          )}\n          <div className="relative flex flex-1 flex-col overflow-hidden">\n            {renderTabContent(activePanel)}',
+    ],
+    ['            tabs={sidebarTabs}\n          />', '            tabs={sidebarTabs}\n            header={viewerToolbarLeft}\n          />'],
+    ['          toolbarLeft={isCaptureMode ? undefined : viewerToolbarLeft}\n', ''],
   ],
 };

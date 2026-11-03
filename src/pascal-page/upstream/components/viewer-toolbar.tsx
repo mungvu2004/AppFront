@@ -1052,13 +1052,9 @@ function VRButton({
   )
 }
 
+/** wall-review-ux (no top bar): only the sidebar toggle is left; it sits in the left panel's head (main.tsx). */
 export function CommunityViewerToolbarLeft() {
-  return (
-    <>
-      <CollapseSidebarButton />
-      <ViewModeControl />
-    </>
-  )
+  return <CollapseSidebarButton />
 }
 
 // ponytail: the vendor action menu has no hook to add buttons, so the dock finds it by its classes and
@@ -1222,13 +1218,20 @@ export function BottomDock({ projectId, readOnly = false }: { projectId: string;
   )
 }
 
+/**
+ * wall-review-ux (no top bar, Figma-style): the right group is a "Xem" panel at the canvas's top right —
+ * 3D/2D/Chia đôi + Xem trước, then the wall modes, then `children` (the page's Xem menu, placement chip and
+ * the selection cards, main.tsx) beside Tầng/Hiển thị. The left group moved into the left panel's head.
+ */
 export function CommunityViewerToolbarRight({
+  children,
   onVRToggle,
   vrButton,
   vrActive = false,
   vrDisabled = false,
   vrLabel = vrActive ? 'Exit VR' : 'Enter VR',
 }: {
+  children?: ReactNode
   onVRToggle?: () => void
   vrButton?: ReactNode
   vrActive?: boolean
@@ -1236,23 +1239,38 @@ export function CommunityViewerToolbarRight({
   vrLabel?: string
 }) {
   return (
-    <div className={TOOLBAR_CONTAINER} data-appfront-bar="">
-      <LevelModeToggle />
-      <WallModeToggle />
-      <div className="my-1.5 w-px bg-[var(--pa-border)]" />
-      <DisplayMenu />
-      {onVRToggle || vrButton
-        ? (vrButton ??
-          (onVRToggle ? (
-            <VRButton
-              active={vrActive}
-              disabled={vrDisabled}
-              label={vrLabel}
-              onToggle={onVRToggle}
-            />
-          ) : null))
-        : null}
-      <PreviewButton />
-    </div>
+    <section
+      aria-label="Xem"
+      className="flex w-max max-w-[calc(100vw-2rem)] flex-col items-end gap-1.5 rounded-2xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1.5 shadow-[var(--pa-shadow-float)]"
+      data-appfront-bar=""
+    >
+      <div className="flex items-center gap-1.5">
+        <ViewModeControl />
+        <div className={TOOLBAR_CONTAINER}>
+          <PreviewButton />
+        </div>
+      </div>
+      <div className={TOOLBAR_CONTAINER}>
+        <WallModeToggle />
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-1.5" data-appfront-viewpanel="">
+        {children}
+        <div className={TOOLBAR_CONTAINER}>
+          <LevelModeToggle />
+          <DisplayMenu />
+          {onVRToggle || vrButton
+            ? (vrButton ??
+              (onVRToggle ? (
+                <VRButton
+                  active={vrActive}
+                  disabled={vrDisabled}
+                  label={vrLabel}
+                  onToggle={onVRToggle}
+                />
+              ) : null))
+            : null}
+        </div>
+      </div>
+    </section>
   )
 }

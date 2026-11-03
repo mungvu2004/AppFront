@@ -312,3 +312,24 @@ button[data-slot="button"]:has(> svg.lucide-volume-x) {
   clip-path: inset(50%) !important;
   white-space: nowrap !important;
 }
+
+/* wall-review-ux — không thanh trên (kiểu Figma). Cụm trái là đầu bảng trái (behaviour.mjs `data-appfront-panel-head`),
+ * cụm phải là bảng Xem góc phải canvas (viewer-toolbar.tsx `data-appfront-viewpanel`).
+ * - đầu bảng hẹp (288 px): cụm bước được xuống dòng thay vì tràn;
+ * - menu thả trong bảng Xem mở về bên trái (bảng sát mép phải màn);
+ * - chip tầng của Pascal lên sát mép trên khi không còn thanh trên; bảng trái thu gọn thì đầu bảng nổi ở đó,
+ *   chip tầng xuống dưới nó. */
+[data-appfront-panel-head] nav {
+  flex-wrap: wrap;
+}
+[data-appfront-viewpanel] details > div,
+[data-appfront-viewpanel] details > ol {
+  left: auto;
+  right: 0;
+}
+.absolute.top-14.left-3.z-20 {
+  top: 0.75rem;
+}
+html:has([data-appfront-panel-head="floating"]) .absolute.top-14.left-3.z-20 {
+  top: 6rem;
+}
