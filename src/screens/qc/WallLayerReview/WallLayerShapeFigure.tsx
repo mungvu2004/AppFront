@@ -16,7 +16,7 @@
 import { memo } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 
-import { selectionBorderToken } from '@/components/canvas/materialMap';
+import { selectionBorderToken, wallConfidenceToken, type WallConfidenceTier } from '@/components/canvas/materialMap';
 import { cn } from '@/lib/utils';
 
 import type { WallLayerCanvasShape, WallLayerCanvasViewProps } from './wallLayerHatch';
@@ -80,7 +80,7 @@ export function WallHatchDefs({ unitPx }: { readonly unitPx: number }) {
           y2={WALL_HATCH_TILE_PX}
         />
       </pattern>
-      {/* Không chuẩn: gạch chéo mảnh THẤY ĐƯỢC (khác gạch 6% của tin cậy thấp) — mã hoá bằng hình. */}
+      {/* Không chuẩn: sọc giấy mảnh trên nền màu tin cậy (khác gạch vàng của tin cậy thấp) — mã hoá bằng hình. */}
       <pattern
         height={NON_STANDARD_HATCH_TILE_PX}
         id={NON_STANDARD_HATCH_PATTERN_ID}
@@ -88,62 +88,48 @@ export function WallHatchDefs({ unitPx }: { readonly unitPx: number }) {
         patternUnits="userSpaceOnUse"
         width={NON_STANDARD_HATCH_TILE_PX}
       >
-        <line stroke={ATTENTION_TOKEN} strokeWidth={1} x1={0} x2={0} y1={0} y2={NON_STANDARD_HATCH_TILE_PX} />
+        <line stroke={NON_STANDARD_STRIPE_TOKEN} strokeWidth={1.5} x1={0} x2={0} y1={0} y2={NON_STANDARD_HATCH_TILE_PX} />
       </pattern>
     </defs>
   );
 }
 
 const NON_STANDARD_HATCH_TILE_PX = 6;
-const STROKE_110 = 'var(--wall-330-stroke)';
-const PAPER = 'var(--bg-surface)';
+/** Viền + sọc giấy của tường không chuẩn — đọc được trên cả ba màu tin cậy (sọc vàng thì chìm trong nền vàng). */
+const NON_STANDARD_OUTLINE_TOKEN = 'var(--text-primary)';
+const NON_STANDARD_STRIPE_TOKEN = 'var(--bg-surface)';
 
 /**
- * Ruột + viền theo MÃ HÌNH (demo Z/S-15 vòng 7, che chữ và đen trắng vẫn đọc được):
- * theo ba dải màu của `wallThicknessColorBand`: 100/150 rỗng (ruột giấy, viền mảnh) · 200/220 đặc ·
- * 300/400 đặc + viền đôi · không chuẩn gạch chéo + viền
- * đậm `--state-attention-stroke` (≥3:1 trên giấy) · đã duyệt nền xanh nhạt + viền xanh (A5: chỉ
- * việc của người duyệt). Cùng hình với `WallThicknessSwatch` của chú giải và danh sách.
+ * Ruột tô theo BẬC TIN CẬY (WRU-B): chắc chắn xám đậm · khá chắc vàng · chưa chắc gỉ sắt · đã duyệt
+ * nền xanh nhạt + viền xanh (A5: chỉ việc của người duyệt). Độ dày đọc từ bề rộng thật của đa giác;
+ * độ dày không chuẩn thêm sọc giấy + viền đậm làm tín hiệu phụ. Cùng màu với `WallThicknessSwatch`.
  */
-function WallBody({ points, thicknessMm, isReviewed }: { readonly points: string; readonly thicknessMm: number; readonly isReviewed: boolean }) {
-  const band = wallThicknessColorGroupOf(thicknessMm);
+function WallBody({ points, thicknessMm, tier }: { readonly points: string; readonly thicknessMm: number; readonly tier: WallConfidenceTier }) {
   const colour = 'transition-colors duration-260 motion-reduce:transition-none';
   const line = { vectorEffect: 'non-scaling-stroke' as const, strokeLinejoin: 'round' as const };
 
-  if (isReviewed) {
+  if (tier === 'reviewed') {
     return <polygon className={colour} fill="var(--state-verified-tint)" points={points} stroke="var(--state-verified)" strokeWidth={1.5} {...line} />;
   }
 
-  if (band === null) {
-    return (
-      <>
-        <polygon fill="var(--state-attention-tint)" points={points} />
-        <polygon fill={`url(#${NON_STANDARD_HATCH_PATTERN_ID})`} points={points} />
-        <polygon fill="none" points={points} stroke={ATTENTION_TOKEN} strokeWidth={2.5} {...line} />
-      </>
-    );
+  const body = <polygon className={colour} fill={wallConfidenceToken(tier)} points={points} />;
+
+  if (wallThicknessColorGroupOf(thicknessMm) !== null) {
+    return body;
   }
 
-  if (band === 110) {
-    return <polygon className={colour} fill={PAPER} points={points} stroke={STROKE_110} strokeWidth={1.5} {...line} />;
-  }
-
-  if (band === 330) {
-    return (
-      <>
-        <polygon fill="none" points={points} stroke="var(--wall-330-stroke)" strokeWidth={6} {...line} />
-        <polygon fill="none" points={points} stroke={PAPER} strokeWidth={3} {...line} />
-        <polygon className={colour} fill="var(--wall-330)" points={points} />
-      </>
-    );
-  }
-
-  return <polygon className={colour} fill="var(--wall-220)" points={points} />;
+  return (
+    <>
+      {body}
+      <polygon fill={`url(#${NON_STANDARD_HATCH_PATTERN_ID})`} points={points} />
+      <polygon fill="none" points={points} stroke={NON_STANDARD_OUTLINE_TOKEN} strokeWidth={2} {...line} />
+    </>
+  );
 }
 
 /**
- * Bốn lớp chồng lên nhau: đa giác tô theo màu độ dày (màu CHẠY 260 ms khi đổi
- * độ dày — đặc tả ghi 240, thang chuyển động chỉ có 120/180/260/340/700); gạch
+ * Bốn lớp chồng lên nhau: đa giác tô theo màu tin cậy (màu CHẠY 260 ms khi đổi
+ * bậc — đặc tả ghi 240, thang chuyển động chỉ có 120/180/260/340/700); gạch
  * chéo cộng chấm cần chú ý khi dưới ngưỡng tin cậy; tim tường khi cờ bật; viền
  * tô sáng chọn/trỏ ở nhịp 180 ms, tách khỏi lớp một để hai nhịp không phải chia
  * nhau một thuộc tính. Viền LUÔN nằm trong cây và chỉ đổi độ mờ, nên nó mờ dần
@@ -193,7 +179,7 @@ export const WallShapeFigure = memo(function WallShapeFigure({
       onMouseLeave={isInteractive ? () => onHover(null) : undefined}
       role="presentation"
     >
-      <WallBody isReviewed={shape.isReviewed} points={points} thicknessMm={shape.thicknessMm} />
+      <WallBody points={points} thicknessMm={shape.thicknessMm} tier={shape.confidenceTier} />
 
       {shape.isLowConfidence ? <polygon fill={`url(#${WALL_HATCH_PATTERN_ID})`} points={points} /> : null}
 

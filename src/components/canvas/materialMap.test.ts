@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CONFIDENCE_CERTAIN_THRESHOLD, CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 
-import { isLowConfidence } from './materialMap';
+import { isLowConfidence, wallConfidenceToken } from './materialMap';
 
 describe('isLowConfidence', () => {
   it('hatches only below the "cần kiểm tra" boundary', () => {
@@ -42,5 +42,14 @@ describe('isLowConfidence', () => {
     for (const confidence of [undefined, null, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(isLowConfidence(confidence)).toBe(false);
     }
+  });
+});
+
+describe('wallConfidenceToken', () => {
+  it('gives each confidence tier its own token; reviewed stays the human green (A5)', () => {
+    const tokens = (['certain', 'suggested', 'needsReview', 'reviewed'] as const).map(wallConfidenceToken);
+
+    expect(new Set(tokens).size).toBe(4);
+    expect(tokens).toEqual(['var(--wall-conf-high)', 'var(--wall-conf-mid)', 'var(--wall-conf-low)', 'var(--state-verified)']);
   });
 });

@@ -338,6 +338,11 @@
     --wall-110-stroke: #B3ACA1;
     --wall-330-stroke: #706A60;
     --state-attention-stroke: #d4b46a;
+
+    /* Màu tường theo ĐỘ TIN CẬY của máy (chắc / khá chắc / chưa chắc) — ≥3:1 trên --canvas-2d tối. */
+    --wall-conf-high: #B3ACA1;
+    --wall-conf-mid: #d4b46a;
+    --wall-conf-low: #d68577;
   }
 
   :root {
@@ -412,6 +417,11 @@
     --wall-110-stroke: #969083;
     --wall-330-stroke: #5C564D;
     --state-attention-stroke: #a8873f;
+
+    /* Màu tường theo ĐỘ TIN CẬY của máy (chắc / khá chắc / chưa chắc) — ≥3:1 trên nền trắng. */
+    --wall-conf-high: #5C564D;
+    --wall-conf-mid: #a8873f;
+    --wall-conf-low: #c0685a;
 
     --canvas-2d: #FFFFFF;
     --canvas-2d-grid: #F2EFEA;

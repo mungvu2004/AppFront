@@ -7,7 +7,7 @@
  * Cấm gọi `color=` tự do ngoài file này.
  */
 
-import { confidenceLevel } from '@/lib/format/semantic';
+import { confidenceLevel, type ConfidenceLevel } from '@/lib/format/semantic';
 import type { MaybeNumber } from '@/lib/format/number';
 
 import type { WallThickness } from '../../types/spatial';
@@ -150,4 +150,26 @@ export function selectionFillToken(): string {
  */
 export function isLowConfidence(confidence: MaybeNumber): boolean {
   return confidenceLevel(confidence) === 'needsReview';
+}
+
+/** Bậc tin cậy của một tường trên canvas: bốn mức của máy, cộng "đã duyệt" (chỉ người duyệt — A5). */
+export type WallConfidenceTier = ConfidenceLevel | 'reviewed';
+
+/**
+ * Màu tô tường theo bậc tin cậy (thay cho màu theo độ dày — độ dày đã đọc được từ bề rộng thật của
+ * đa giác). Không đổi nghĩa `wallStrokeToken`. Thiếu điểm (`unknown`) giữ xám trung tính.
+ */
+export function wallConfidenceToken(tier: WallConfidenceTier): string {
+  switch (tier) {
+    case 'certain':
+      return 'var(--wall-conf-high)';
+    case 'suggested':
+      return 'var(--wall-conf-mid)';
+    case 'needsReview':
+      return 'var(--wall-conf-low)';
+    case 'reviewed':
+      return 'var(--state-verified)';
+    default:
+      return 'var(--wall-220)';
+  }
 }
