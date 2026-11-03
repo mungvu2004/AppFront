@@ -385,6 +385,8 @@ function queueTextureAssignment(
 ) {
   const textureMaterial = material as TextureMaterial
 
+  supersedePendingSlot(material, slot)
+
   if (!path) {
     if (textureMaterial[slot] != null) {
       // Rebuild the node graph: a cached WebGPU material keeps a TextureNode
@@ -423,12 +425,68 @@ function queueTextureAssignment(
     materialTextureVersion++
   }
 
+  const pending = pendingTexturesOf(material)
+  pending.want.set(slot, cacheKey)
+  pending.count++
+  material.userData.texPending = pending.count
   loadPresetTexture(path, props, slot).then((texture) => {
-    if (!texture) return
-    textureMaterial[slot] = createAssignedTexture(texture, props, slot)
+    // A later assignment for this slot (sync hit, clear, newer path) wins.
+    if (texture && pending.want.get(slot) === cacheKey) {
+      pending.apply.set(slot, () => {
+        textureMaterial[slot] = createAssignedTexture(texture, props, slot)
+      })
+    }
+    settleTextureLoad(material, pending)
+  })
+}
+
+/**
+ * Cold loads of one material, assigned together when the last one settles.
+ * three r186 keys the node build on which slots hold a texture, so assigning
+ * maps one by one compiled up to one pipeline per partial set (and discarded
+ * builds still in flight). `userData.texPending` mirrors `count` for callers
+ * (warm-up, item clones); `texturesready` fires on the material when it hits 0.
+ */
+type PendingTextures = {
+  count: number
+  want: Map<TextureSlot, string>
+  apply: Map<TextureSlot, () => void>
+}
+const pendingTextures = new WeakMap<THREE.Material, PendingTextures>()
+
+function pendingTexturesOf(material: THREE.Material): PendingTextures {
+  let pending = pendingTextures.get(material)
+  if (!pending) {
+    pending = { count: 0, want: new Map(), apply: new Map() }
+    pendingTextures.set(material, pending)
+  }
+  return pending
+}
+
+function settleTextureLoad(material: THREE.Material, pending: PendingTextures) {
+  pending.count--
+  if (pending.count > 0) {
+    material.userData.texPending = pending.count
+    return
+  }
+  pendingTextures.delete(material)
+  delete material.userData.texPending
+  if (pending.apply.size > 0) {
+    for (const apply of pending.apply.values()) apply()
     material.needsUpdate = true
     materialTextureVersion++
+  }
+  ;(material as unknown as THREE.EventDispatcher<{ texturesready: object }>).dispatchEvent({
+    type: 'texturesready',
   })
+}
+
+/** Drop a deferred cold-load result for `slot` (it was just assigned directly). */
+function supersedePendingSlot(material: THREE.Material, slot: TextureSlot) {
+  const pending = pendingTextures.get(material)
+  if (!pending) return
+  pending.want.delete(slot)
+  pending.apply.delete(slot)
 }
 
 function applyMaterialMapProperties(
