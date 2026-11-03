@@ -204,6 +204,7 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
           <RoomLabelMeasureRows
             areaCaption={extras.areaCaption}
             areaText={room.areaText}
+            centerlineAreaText={room.centerlineAreaText}
             clearHeightText={room.clearHeightText}
             perimeterText={room.perimeterText}
           />

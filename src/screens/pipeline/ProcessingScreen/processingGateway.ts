@@ -97,7 +97,7 @@ import { createProgressStream } from '@/lib/realtime/progressStream';
 import type { ProgressStreamSource, ProgressStreamState } from '@/lib/realtime/progressStream';
 import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
 import type { TelemetrySender } from '@/lib/telemetry/sender';
-import { isScaleMissing } from '@/lib/viewmodel/provisionalScale';
+import { isScaleEstimated, isScaleMissing } from '@/lib/viewmodel/provisionalScale';
 import { noteRatioOf } from '@/screens/pipeline/ScaleCalibration/scaleCheck';
 
 /** Số lượt gần nhất tab "Nhật ký" liệt kê (N5-08). */
@@ -256,6 +256,8 @@ export interface ProcessingExtractionSummary {
    * `scaleStatus: unresolved` — có kích thước mà tỷ lệ tạm không được báo "Sẵn sàng".
    */
   readonly readiness?: FloorReadiness;
+  /** N16 `scaleBasis` là cửa / độ dày tường / mặc định: tỷ lệ máy ước lượng, nên hiệu chỉnh. */
+  readonly scaleEstimated?: true;
   readonly roomCount: number;
   /**
    * Đường bao các phòng của tầng (mm). Hook cộng mọi tầng bằng `totalArea` — cộng mm² rồi
@@ -854,6 +856,7 @@ export function toExtractionSummary(
     hasScale:
       document.level.scaleMillimetresPerPixel !== undefined && document.scaleStatus === undefined,
     ...(readiness !== undefined ? { readiness } : {}),
+    ...(isScaleEstimated(document.scaleBasis) ? { scaleEstimated: true } : {}),
     ...(isScaleMissing(document.scaleSource) ? { scaleMissing: true } : {}),
     ...(isProposed ? { scaleProposed: true } : {}),
     ...(noteRatio !== null ? { scaleNoteRatio: noteRatio } : {}),

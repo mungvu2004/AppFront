@@ -56,6 +56,8 @@ const NOTICE_LINK_LABEL = 'Xem luật không gian';
 
 export interface RoomLabelMeasureRowsProps {
   readonly areaText: string;
+  /** Số phụ theo tim tường khi `areaText` là thông thuỷ. */
+  readonly centerlineAreaText?: string | undefined;
   readonly perimeterText: string;
   readonly clearHeightText: string | null;
   /** Chú giải cách tính diện tích, ví dụ "tính theo mép trong tường" — do hook sinh. */
@@ -65,6 +67,7 @@ export interface RoomLabelMeasureRowsProps {
 /** K08: panel phải hẹp — nhãn nằm trên, giá trị nằm dưới, không bẻ "Diện tích" thành năm dòng. */
 export function RoomLabelMeasureRows({
   areaText,
+  centerlineAreaText,
   perimeterText,
   clearHeightText,
   areaCaption,
@@ -74,6 +77,9 @@ export function RoomLabelMeasureRows({
       <FieldRow isStacked isText label={AREA_LABEL}>
         <span className="flex flex-col justify-center">
           <span className="font-mono text-[14px] text-text-primary">{areaText}</span>
+          {centerlineAreaText !== undefined ? (
+            <span className="font-mono text-[12px] text-text-secondary">{centerlineAreaText}</span>
+          ) : null}
           <small className="text-[12px] text-text-secondary">{areaCaption}</small>
         </span>
       </FieldRow>

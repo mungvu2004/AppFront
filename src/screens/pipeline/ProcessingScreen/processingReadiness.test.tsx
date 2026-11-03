@@ -9,7 +9,15 @@ import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 
 import { ProcessingFloorChips } from './ProcessingFloorChips';
 import { SAMPLE_SUMMARY, scenarioFor } from './ProcessingScreen.stories';
-import { CALIBRATE_LABEL, deriveProcessingGate, GO_REVIEW_LABEL, REVIEW_REASON_SENTENCE } from './processingGate';
+import { SCALE_ESTIMATED_NOTE } from '@/lib/viewmodel/provisionalScale';
+
+import {
+  CALIBRATE_LABEL,
+  deriveProcessingGate,
+  GEOMETRY_CHECK_SENTENCE,
+  GO_REVIEW_LABEL,
+  REVIEW_REASON_SENTENCE,
+} from './processingGate';
 import { toExtractionSummary } from './processingGateway';
 import type { ProcessingReviewReason } from './types';
 
@@ -75,13 +83,14 @@ describe('deriveProcessingGate — readiness', () => {
   it.each([
     ['scaleUnresolved', 'scale'],
     ['criticalIssues', 'review'],
+    ['geometrySuspect', 'review'],
     ['fallbackWallModel', 'review'],
     ['fallbackObjectModel', 'review'],
     ['fallbackTextModel', 'review'],
   ] as const)('%s: đúng câu và đúng đích nút (%s)', (reason, target) => {
     const { gate, onCalibrateScale, onReviewWalls } = gateWith([reason]);
 
-    expect(gate.reviewRows).toEqual([{ reason, sentence: REVIEW_REASON_SENTENCE[reason], target }]);
+    expect(gate.reviewRows).toEqual([{ key: reason, reason, sentence: REVIEW_REASON_SENTENCE[reason], target }]);
     gate.action?.onClick();
     expect(onCalibrateScale).toHaveBeenCalledTimes(target === 'scale' ? 1 : 0);
     expect(onReviewWalls).toHaveBeenCalledTimes(target === 'review' ? 1 : 0);
@@ -92,6 +101,52 @@ describe('deriveProcessingGate — readiness', () => {
     const { gate } = gateWith(['scaleUnresolved', 'criticalIssues']);
     expect(gate.reviewRows?.map((row) => row.target)).toEqual(['scale', 'review']);
     expect(gate.title).toBe('Còn 2 việc cần xem lại');
+  });
+
+  it('BENCH3D-11: geometrySuspect tách một dòng cho mỗi mã kiểm; mã lạ dùng câu chung', () => {
+    const gate = deriveProcessingGate({
+      ...scenarioFor('success'),
+      summary: {
+        ...SAMPLE_SUMMARY,
+        reviewReasons: ['scaleUnresolved', 'geometrySuspect'],
+        reviewChecks: ['MULTIPLE_PLANS', 'NEW_CHECK'],
+      },
+    });
+
+    expect(gate.reviewRows?.map((row) => [row.key, row.sentence])).toEqual([
+      ['scaleUnresolved', REVIEW_REASON_SENTENCE.scaleUnresolved],
+      ['MULTIPLE_PLANS', GEOMETRY_CHECK_SENTENCE.MULTIPLE_PLANS],
+      ['NEW_CHECK', REVIEW_REASON_SENTENCE.geometrySuspect],
+    ]);
+    expect(GEOMETRY_CHECK_SENTENCE.MULTIPLE_PLANS).toMatch(/^Tờ có nhiều mặt bằng: hãy cắt từng căn/u);
+    expect(gate.title).toBe('Còn 3 việc cần xem lại');
+  });
+
+  it('BENCH3D-11: tỷ lệ ước lượng (scaleBasis cửa/tường/mặc định) ghi nhãn cạnh tỷ lệ', () => {
+    const gate = deriveProcessingGate({
+      ...scenarioFor('success'),
+      summary: { ...SAMPLE_SUMMARY, reviewReasons: ['scaleUnresolved'], scaleEstimated: true },
+    });
+
+    expect(gate.scaleNote).toBe(SCALE_ESTIMATED_NOTE);
+    expect(SCALE_ESTIMATED_NOTE).toBe('Tỷ lệ ước lượng — nên hiệu chỉnh');
+  });
+});
+
+describe('toExtractionSummary — BENCH3D-11', () => {
+  it.each([
+    ['door', true],
+    ['wallThickness', true],
+    ['default', true],
+    ['chain', false],
+    ['human', false],
+  ] as const)('scaleBasis %s → scaleEstimated %s', (scaleBasis, estimated) => {
+    expect(toExtractionSummary(documentWith({ scaleBasis }), 0.75).scaleEstimated === true).toBe(estimated);
+  });
+
+  it('readiness.checks đi kèm readiness tới hook', () => {
+    const readiness = { state: 'needsReview', reasons: ['geometrySuspect'], checks: ['OPEN_ENVELOPE'] };
+    expect(toExtractionSummary(documentWith({ readiness }), 0.75).readiness).toEqual(readiness);
   });
 });
 

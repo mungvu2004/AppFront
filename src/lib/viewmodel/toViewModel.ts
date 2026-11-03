@@ -430,7 +430,10 @@ export function toRoomViewModel(room: Room): ViewModel {
     label: name === '' ? UNNAMED_ROOM_LABEL : name,
     secondaryLine: ROOM_USAGE_LABELS[room.usage],
     attributes: [
-      areaAttribute('Diện tích', room.areaM2),
+      // Có thông thuỷ (máy chủ tính) thì nó là số chính, tim tường là số phụ.
+      ...(room.clearAreaM2 === undefined
+        ? [areaAttribute('Diện tích', room.areaM2)]
+        : [areaAttribute('Diện tích thông thuỷ', room.clearAreaM2), areaAttribute('Diện tích tim tường', room.areaM2)]),
       lengthAttribute('Chu vi', outlinePerimeterMm(room.outline)),
       countAttribute('Tường bao', room.wallIds.length),
       confidenceAttribute(room),
