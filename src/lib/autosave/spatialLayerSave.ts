@@ -157,7 +157,13 @@ export const LAYER_SAVE_MESSAGES = {
   unknown: 'Không lưu được thay đổi của tầng này.',
 } as const;
 
-/** 409 và 422 `baseVersion` → tải lại (R6); lỗi tạm (mạng, timeout, 503) → thử lại; còn lại → khối. */
+/**
+ * 409 và 422 `baseVersion` → tải lại (R6); lỗi tạm → thử lại; còn lại → khối.
+ *
+ * Tạm gồm mọi 5xx và lượt bị cắt giữa chừng (`aborted`), không chỉ 502/503/504: máy chủ sập
+ * hay mạng đứt không nói gì về thân gửi, còn khối thì bày "Tải lại tầng" — nút BỎ sửa của
+ * người dùng — cho một sự cố hạ tầng tự hết sau vài giây (worker api sập → 503 rồi 200).
+ */
 export function classifyLayerSaveError(error: unknown): LayerSaveErrorClass {
   const wire = readWireError(error);
 
@@ -165,7 +171,9 @@ export function classifyLayerSaveError(error: unknown): LayerSaveErrorClass {
     return 'reload';
   }
 
-  return isTransientWireError(error) ? 'temporary' : 'blocked';
+  const aborted = typeof error === 'object' && error !== null && 'kind' in error && error.kind === 'aborted';
+
+  return isTransientWireError(error) || (wire?.status ?? 0) >= 500 || aborted ? 'temporary' : 'blocked';
 }
 
 /** `raw` của lỗi 422 tại chỗ (`issues` của zod): có lỗi ở `rooms.<n>.name` — phòng chưa đặt tên. */

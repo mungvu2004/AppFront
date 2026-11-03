@@ -834,6 +834,30 @@ describe('saveScale — F-04x-2 bước 5', () => {
   });
 });
 
+describe('createFloorLayerSaver — sự cố hạ tầng không khoá tầng', () => {
+  it('503 DEPENDENCY_UNAVAILABLE rồi 200: không khối, thân giữ được gửi lại, hết chưa lưu', async () => {
+    const { saver, writeLayer } = harness();
+    const unsaved: (readonly string[])[] = [];
+    const unavailable = httpError(503, { code: 'DEPENDENCY_UNAVAILABLE', requestId: 'req-1' });
+
+    saver.subscribe((ids) => unsaved.push(ids));
+    writeLayer.mockResolvedValueOnce(failed(unavailable)).mockResolvedValueOnce(savedAt(4));
+    saver.markDirty([FLOOR_A]);
+
+    await expect(saver.flush()).rejects.toBe(unavailable);
+    expect(saver.getBlock(FLOOR_A)).toBeNull();
+    expect(saver.hasDirty()).toBe(true);
+
+    await saver.flush();
+
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(sentWrite(writeLayer, 1)).toStrictEqual(sentWrite(writeLayer, 0));
+    expect(saver.blockedFloorIds()).toStrictEqual([]);
+    expect(saver.hasDirty()).toBe(false);
+    expect(unsaved.at(-1)).toStrictEqual([]);
+  });
+});
+
 describe('classifyLayerSaveError', () => {
   it.each([
     [httpError(409, { code: 'VERSION_CONFLICT', requestId: 'r' }), 'reload'],
@@ -843,6 +867,8 @@ describe('classifyLayerSaveError', () => {
     [httpError(428, { code: 'PRECONDITION_REQUIRED', requestId: 'r' }), 'blocked'],
     [httpError(404, { code: 'NOT_FOUND', requestId: 'r', resource: 'floor' }), 'blocked'],
     [httpError(503, { code: 'DEPENDENCY_UNAVAILABLE', requestId: 'r' }), 'temporary'],
+    [httpError(500, { code: 'INTERNAL', requestId: 'r' }), 'temporary'],
+    [{ kind: 'aborted', raw: undefined, requestId: 'r', retryable: false }, 'temporary'],
     [TIMEOUT, 'temporary'],
     [{ kind: 'network', raw: undefined, requestId: 'r', retryable: true }, 'temporary'],
   ] as const)('%# → %s', (error, expected) => {

@@ -72,7 +72,7 @@ const isUnauthenticatedError = (error: unknown): boolean => {
  * ấy khi phiên đã `anonymous` thì không lần thử nào cứu được: người dùng phải
  * đăng nhập lại, nên dừng ngay và giữ `lastError` cho màn đọc.
  */
-const isTransientAutosaveError = (error: unknown): boolean => {
+export const isTransientAutosaveError = (error: unknown): boolean => {
   if (isUnauthenticatedError(error)) {
     return getSession().status === 'authenticated';
   }

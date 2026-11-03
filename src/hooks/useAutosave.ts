@@ -7,7 +7,7 @@ import { guardBeforeUnload } from '@/lib/autosave/beforeUnload';
 import { clearPendingEdits, notePendingEdit } from '@/lib/autosave/pendingEdits';
 import { queryClient } from '@/lib/query/queryClient';
 
-import { createAutosave, type Autosave, type AutosaveEngine } from '../lib/autosave/createAutosave';
+import { createAutosave, isTransientAutosaveError, type Autosave, type AutosaveEngine } from '../lib/autosave/createAutosave';
 import { formatClockTime } from '../lib/format/datetime';
 import { appNotificationBus } from './useNotifications';
 import type { RootState } from '../store';
@@ -228,6 +228,7 @@ const loadPipes = () =>
     applyInvalidation: invalidation.applyInvalidation,
     changedDimensionLevelIds: save.changedDimensionLevelIds,
     changedLevelIds: save.changedLevelIds,
+    classifyLayerSaveError: save.classifyLayerSaveError,
     dimensionsOf: save.dimensionsOf,
     createFloorLayerSaver: save.createFloorLayerSaver,
     applyFloorLayerRead: commitModule.applyFloorLayerRead,
@@ -434,6 +435,10 @@ function openBook(projectId: string): SaverBook {
     disposed: false,
     engine: createAutosave<true>({
       getChanges: () => (created.saver?.hasDirty() || pendingBeforeAttach() ? true : undefined),
+      // Cùng luật với saver: lỗi saver giữ thân để gửi lại (mọi 5xx, `aborted`) thì engine cũng hẹn
+      // lại, không thì chấm đỏ đứng im tới lượt sửa sau dù thân đang chờ.
+      isTransientError: (error) =>
+        isTransientAutosaveError(error) || pipes?.classifyLayerSaveError(error) === 'temporary',
       // Nit-1: `import()` của ống hỏng thì lượt lưu ném (engine thử lại, rồi "Lưu thất bại"),
       // và mỗi lượt sau nạp lại ống — không im lặng bỏ sửa.
       save: async () => {
