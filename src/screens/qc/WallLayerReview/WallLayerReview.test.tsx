@@ -107,11 +107,31 @@ const [THIN, MEDIUM, THICK] = THICKNESS_BANDS as readonly [
 /* Bộ dựng.                                                                    */
 /* -------------------------------------------------------------------------- */
 
-const TASK_HEADING = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì giữ, nét thừa thì xoá.';
-const LIST_READY = 'Chỉ hiện chưa duyệt';
+const TASK_HEADING = 'Duyệt tường';
+const TASK_LINE = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì giữ, nét thừa thì xoá.';
+/** Nút "Lọc" ở thanh công cụ của danh sách (tên có thể kèm ": n đang bật"). */
+const LIST_READY = /^Lọc/u;
 
-/** Ô lọc đầu tiên của danh sách: có nó là cột việc đã dựng xong (và mất khi thu gọn). */
-const findListReady = () => screen.findByRole('checkbox', { name: LIST_READY });
+/** Nút "Lọc" của danh sách: có nó là cột việc đã dựng xong (và mất khi thu gọn). */
+const findListReady = () => screen.findByRole('button', { name: LIST_READY });
+
+/** Ô lọc của danh sách nằm trong popover "Lọc"; popover đóng thì mở nó trước. */
+async function findFilter(name: string): Promise<HTMLElement> {
+  const open = screen.queryByRole('checkbox', { name });
+
+  if (open !== null) {
+    return open;
+  }
+
+  const button = await findListReady();
+
+  await act(async () => {
+    button.click();
+    await Promise.resolve();
+  });
+
+  return screen.findByRole('checkbox', { name });
+}
 
 /** Công tắc lớp ở popover "Hiển thị" trên bản vẽ; popover đóng thì mở nó trước. */
 async function findDisplayToggle(name: 'Lớp tường' | 'Tim tường'): Promise<HTMLElement> {
@@ -676,7 +696,7 @@ describe('thu gọn hai panel (BT-16)', () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('checkbox', { name: LIST_READY })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: LIST_READY })).not.toBeInTheDocument();
     });
 
     /* Canvas và thanh trạng thái vẫn còn — thu gọn không phải màn trắng (A11). */
@@ -690,7 +710,7 @@ describe('thu gọn hai panel (BT-16)', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: LIST_READY })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: LIST_READY })).toBeInTheDocument();
     });
   });
 });
@@ -842,7 +862,7 @@ describe('đợt sửa P04 — SCR-16', () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('checkbox', { name: LIST_READY })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: LIST_READY })).not.toBeInTheDocument();
     });
   });
 
@@ -863,7 +883,7 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(panel?.className).not.toContain('h-[560px]');
   });
 
-  it('[BUG-621] dưới 1024 panel trái không cắt đáy', async () => {
+  it('[BUG-621] panel trái không cắt đáy: danh sách là vùng cuộn duy nhất', async () => {
     renderState('partial');
 
     const tree = await findListReady();
@@ -871,9 +891,9 @@ describe('đợt sửa P04 — SCR-16', () => {
     const panel = tree.closest('.lg\\:order-0');
     const listRegion = panel?.lastElementChild;
 
-    expect(panel?.className.split(' ')).not.toContain('overflow-hidden');
-    expect(listRegion?.className.split(' ')).not.toContain('flex-1');
-    expect(listRegion?.className.split(' ')).toContain('lg:flex-1');
+    /* Kiểu Figma: con cuối là vùng cuộn DUY NHẤT, lấp phần còn lại của cột (ngăn kéo dưới 1024 cao cố định). */
+    expect(listRegion?.className.split(' ')).toEqual(expect.arrayContaining(['flex-1', 'min-h-0', 'overflow-y-auto']));
+    expect(listRegion?.querySelector('[role="listbox"]')).not.toBeNull();
   });
 
   it('[BUG-396] hàng danh sách không tràn mép phải: không huy hiệu chữ 70 px, hàng cắt tràn', async () => {
@@ -921,10 +941,11 @@ describe('đợt sửa P04 — SCR-16', () => {
     }
   });
 
-  it('[BUG-614] bộ lọc panel trái: nhãn 13 px', async () => {
+  it('[BUG-614] bộ lọc panel trái: nằm trong popover "Lọc", nhãn 13 px', async () => {
     renderState('partial');
 
-    expect(await screen.findByText(LIST_READY)).toHaveClass('text-[13px]');
+    await findFilter('Chỉ hiện chưa duyệt');
+    expect(screen.getByText('Chỉ hiện chưa duyệt')).toHaveClass('text-[13px]');
   });
 
   it('[BUG-612][BUG-616] thanh trạng thái: câu không mono; lưu thất bại dùng màu vi phạm kèm biểu tượng', () => {
@@ -1087,11 +1108,12 @@ describe('[G74 16-E-010] mở menu tường bằng bàn phím', () => {
 });
 
 describe('câu 1 ở đầu cột việc (QcStepColumn)', () => {
-  it('đúng một H1, là câu việc của bước Tường', async () => {
+  it('đúng một H1 ngắn "Duyệt tường"; câu việc là dòng phụ dưới nó', async () => {
     renderState('partial');
 
     expect(await screen.findByRole('heading', { level: 1, name: TASK_HEADING })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByText(TASK_LINE)).toBeInTheDocument();
   });
 
   it('người xem đọc câu xem, không bị bảo giữ/xoá (UX-46)', async () => {
@@ -1101,7 +1123,8 @@ describe('câu 1 ở đầu cột việc (QcStepColumn)', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Xem từng đoạn tường máy tìm thấy.' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Xem tường' })).toBeInTheDocument();
+    expect(screen.getByText('Xem từng đoạn tường máy tìm thấy.')).toBeInTheDocument();
     expect(screen.queryByText(/nét thừa thì xoá/u)).not.toBeInTheDocument();
   });
 });

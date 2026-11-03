@@ -47,7 +47,7 @@ export interface QcFloorNavProps {
   readonly progress?: string | null | undefined;
   /** Màn đã có H1 thấy được (QcPanelHead): bỏ H1 ẩn ở đây để trang chỉ có một H1. */
   readonly titled?: boolean;
-  /** Bố cục L23: bước chỉ mang trạng thái (✓ / ổ khoá / chấm), số nằm ở cột việc. */
+  /** Bố cục L23: bỏ dòng `progress` (chip ở đầu cột việc đã nói); số đã duyệt/tổng của từng bước vẫn hiện. */
   readonly minimal?: boolean;
 }
 
@@ -250,7 +250,7 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
               {isLocked(item.key) ? null : <StatusDot tone={scaleView?.statusCode ?? (isDone ? 'verified' : 'neutral')} />}
               <span className={isScale && scale !== null ? SCALE_TEXT_CLASS[scale] : undefined}>{label}</span>
               {isDone && <span className="sr-only">: đã xong</span>}
-              {state !== undefined && !isDone && !minimal && (
+              {state !== undefined && !isDone && (
                 <>
                   <span aria-hidden="true" className="tabular-nums text-text-muted">{`${state.reviewed}/${state.total}`}</span>
                   <span className="sr-only">{`: đã duyệt ${state.reviewed} trên ${state.total}`}</span>

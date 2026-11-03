@@ -34,7 +34,7 @@ function renderColumn() {
       </QcStepColumn>
     </MemoryRouter>,
   );
-  return screen.getByRole('navigation', { name: 'Việc của từng bước' });
+  return screen.getByRole('region', { name: 'Tường' });
 }
 
 beforeEach(() => {
@@ -46,35 +46,37 @@ beforeEach(() => {
   };
 });
 
-describe('QcStepColumn (bố cục L23, đợt 1)', () => {
-  it('đầu cột: bước đang làm + câu việc là H1; thân bước và cổng nằm trong cột', () => {
-    const tree = renderColumn();
+describe('QcStepColumn (bố cục L23, kiểu bảng lớp Figma)', () => {
+  it('đầu cột một dòng: H1 ngắn + chip "N cần xem"; câu việc là dòng phụ; thân và cổng nằm trong cột', () => {
+    const active = renderColumn();
 
-    expect(screen.getByText('Bước 2 · Tường')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Duyệt từng đoạn tường.' })).toBeInTheDocument();
-    const active = within(tree).getByRole('region', { name: 'Tường' });
     expect(active).toHaveAttribute('aria-current', 'step');
-    expect(within(active).getByText('Hàng đợi tường')).toBeInTheDocument();
+    expect(within(active).getByRole('heading', { level: 1, name: 'Duyệt tường' })).toBeInTheDocument();
     expect(within(active).getByText('7 cần xem')).toBeInTheDocument();
+    expect(within(active).getByText('Duyệt từng đoạn tường.')).toBeInTheDocument();
+    expect(within(active).getByText('Hàng đợi tường')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tiếp: Cửa và nội thất' })).toBeInTheDocument();
   });
 
-  it('bước khác thu một dòng có tóm tắt và là link sang bước đó', () => {
-    const tree = renderColumn();
+  it('không còn cây 4 bước trong cột (tiến độ các bước ở thanh bước QcFloorNav)', () => {
+    renderColumn();
 
-    expect(within(tree).getByRole('link', { name: /Cửa và nội thất.*39 cần xem/u })).toHaveAttribute('href', expect.stringContaining('/layers/objects'));
-    expect(within(tree).getByRole('link', { name: /Phòng.*7 phòng · đã duyệt/u })).toBeInTheDocument();
-    expect(within(tree).getByRole('link', { name: /Tỷ lệ.*Tỷ lệ cần kiểm/u })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Việc của từng bước' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Cửa và nội thất/u })).toBeNull();
   });
 
-  it('tầng chưa có tỷ lệ: các bước sau Tỷ lệ khoá kèm lý do, không là link', () => {
-    review.scale = 'missing';
-    const tree = renderColumn();
+  it('H1 lấy từ `title` khi màn truyền; bước xong thì chip "N đoạn · đã duyệt"', () => {
+    review.counts = { ...review.counts!, walls: { reviewed: 30, total: 30 } };
+    render(
+      <MemoryRouter>
+        <QcStepColumn activeStep="walls" floorId="f1" projectId="p1" task="Xem từng đoạn tường." title="Xem tường">
+          <p>Hàng đợi tường</p>
+        </QcStepColumn>
+      </MemoryRouter>,
+    );
 
-    const objects = within(tree).getByText('Cửa và nội thất').closest('[aria-disabled="true"]');
-    expect(objects).not.toBeNull();
-    expect(objects).toHaveTextContent('chờ tỷ lệ');
-    expect(within(tree).queryByRole('link', { name: /Cửa và nội thất/u })).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Xem tường' })).toBeInTheDocument();
+    expect(screen.getByText('30 đoạn · đã duyệt')).toBeInTheDocument();
   });
 });
 
@@ -111,7 +113,7 @@ describe('QcDisplayPopover', () => {
 });
 
 describe('QcStepColumn: màn Xong tầng', () => {
-  it('bước Phòng của tầng đã xong: tổng kết + Dựng mô hình 3D; bấm dòng Phòng thì mở lại hàng đợi', () => {
+  it('bước Phòng của tầng đã xong: tổng kết + Dựng mô hình 3D; nút nhỏ ở đầu cột mở lại hàng đợi', () => {
     review.scale = 'confirmed';
     review.counts = { walls: { reviewed: 3, total: 3 }, objects: { reviewed: 0, total: 0 }, rooms: { reviewed: 2, total: 2 } };
     render(
@@ -127,8 +129,26 @@ describe('QcStepColumn: màn Xong tầng', () => {
     expect(screen.getByRole('link', { name: /Dựng mô hình 3D/u }).getAttribute('href')).toBe('/projects/p1/3d');
     expect(screen.queryByText('Hàng đợi phòng')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /Phòng/u }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mở lại bước Phòng' }));
     expect(screen.getByText('Hàng đợi phòng')).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Đặt tên cho từng phòng.');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Đặt tên phòng');
+    expect(screen.getByText('Đặt tên cho từng phòng.')).toBeTruthy();
+  });
+});
+
+describe('QcDisplayPopover: bản "Lọc" của cột việc', () => {
+  it('nhãn riêng + đếm công tắc đang bật trong tên nút', () => {
+    render(
+      <QcDisplayPopover
+        groups={[{ title: 'Lọc danh sách', items: [{ key: 'u', label: 'Chỉ hiện chưa duyệt', checked: true, onToggle: vi.fn() }] }]}
+        label="Lọc"
+        popoverLabel="Lọc danh sách"
+        showActiveCount
+        variant="flat"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^Lọc.*1 đang bật$/u }));
+    expect(within(screen.getByRole('dialog', { name: 'Lọc danh sách' })).getByRole('checkbox', { name: 'Chỉ hiện chưa duyệt' })).toBeChecked();
   });
 });

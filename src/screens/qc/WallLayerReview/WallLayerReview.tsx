@@ -1,6 +1,6 @@
 /**
  * Màn S-12 "Duyệt lớp tường" (`WallLayerReview`) — view THUẦN, bố cục L23: ray công cụ (56),
- * cột việc 360 (`QcStepColumn`: câu việc · cây bước · danh sách · cổng ở đáy), bản vẽ chiếm phần
+ * cột việc 360 (`QcStepColumn`: "Duyệt tường" + chip · thanh Lọc/⚠ · danh sách · cổng ở đáy), bản vẽ chiếm phần
  * còn lại với thẻ hỏi neo trên bản vẽ (thanh tra của đoạn đang chọn), thanh trạng thái (32) dính đáy.
  *
  * Chỉ nhận {@link WallLayerReviewViewProps} và vẽ. Không `@/api`, không
@@ -50,6 +50,7 @@
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { Button } from '@/components/ui/Button';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 
 import { FloorLayerSaveBanner } from './FloorLayerSaveBanner';
@@ -73,7 +74,7 @@ import {
 import { WallLayerStatusBar, type WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { WallLayerToolRail, type WallLayerToolRailProps } from './WallLayerToolRail';
 import type { WallLayerCanvasProps, WallLayerReviewProps } from './types';
-import { WALL_REASON_TITLE, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
+import { approveAllLabelOf, WALL_REASON_TITLE, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
 
 export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly toolRail: WallLayerToolRailProps;
@@ -96,8 +97,11 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
 }
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
+/** H1 ngắn ở đầu cột việc; câu việc dài là dòng mờ dưới nó. */
+const TITLE = 'Duyệt tường';
 const TASK = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì giữ, nét thừa thì xoá.';
 /** UX-46: người xem không sửa được — tiêu đề không bảo họ giữ/xoá. */
+const VIEWER_TITLE = 'Xem tường';
 const VIEWER_TASK = 'Xem từng đoạn tường máy tìm thấy.';
 const LAYER_GROUP = 'Lớp của bước';
 const WALL_LAYER = 'Lớp tường';
@@ -155,6 +159,15 @@ export function WallLayerReview({
         <WallLayerInspector panel={panel} queue={queue} />
       </QcQueueAskCard>
     ) : null;
+  /* U17/U32: duyệt hết đoạn máy chắc chắn — nút phụ ở đáy cột, ngay trên cổng (cổng vẫn là nút chính duy nhất). */
+  const onApproveConfident = panel.isViewerRole || panel.scaleLock != null ? undefined : queue?.onApproveConfident;
+  const confidentCount = queue?.confidentCount ?? 0;
+  const approveConfident =
+    onApproveConfident !== undefined && confidentCount > 0 ? (
+      <Button fullWidth onClick={onApproveConfident} size="sm" variant="secondary">
+        {approveAllLabelOf(confidentCount)}
+      </Button>
+    ) : null;
   const left = isCollapsed ? null : (
     <WallLayerLeftPanel
       extras={leftPanel}
@@ -179,6 +192,7 @@ export function WallLayerReview({
   return (
     <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {/* H1 thấy được ở đầu cột việc (`QcStepColumn`); tiến độ ở dòng trạng thái + cổng, không lặp ở đây. */}
+      {/* Thanh bước mang số đã duyệt/tổng của cả bốn bước (cột việc chỉ nói bước đang làm). */}
       {floorNav != null && <QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" minimal titled />}
       {saveBlock != null && (
         <div className="px-2 pt-2">
@@ -215,14 +229,23 @@ export function WallLayerReview({
             <QcStepColumn
               activeStep="walls"
               floorId={floorNav.floorId}
-              gate={<WallLayerGate floorNav={floorNav} panel={panel} queue={queue} />}
+              gate={
+                <div className="flex flex-col gap-2">
+                  {approveConfident}
+                  <WallLayerGate floorNav={floorNav} panel={panel} queue={queue} />
+                </div>
+              }
               projectId={floorNav.projectId}
               task={panel.isViewerRole ? VIEWER_TASK : TASK}
+              title={panel.isViewerRole ? VIEWER_TITLE : TITLE}
             >
               {left}
             </QcStepColumn>
-          ) : (
-            left
+          ) : left === null ? null : (
+            <>
+              {left}
+              {approveConfident}
+            </>
           )
         }
         /* Tầng khoá vì thiếu tỷ lệ: không bày Vẽ/Tách/Nối/Đo — sửa đều bị từ chối (UX-R2 K23). */

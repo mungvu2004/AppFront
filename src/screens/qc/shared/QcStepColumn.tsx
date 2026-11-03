@@ -1,6 +1,6 @@
-import { Check, Lock } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import { CommandPalette } from '@/components/overlay/CommandPalette';
 import type { CommandItem } from '@/hooks/useCommandPalette';
@@ -9,14 +9,7 @@ import { useScreenCommands } from '@/hooks/useScreenCommands';
 import { cn } from '@/lib/utils';
 import { SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
 
-import {
-  floorReviewCountsOf,
-  floorReviewGateOf,
-  SCALE_LOCK_REASON,
-  type FloorReviewLayerState,
-  type FloorScaleState,
-  type RequiredLayerKey,
-} from './floorReviewGateModel';
+import { floorReviewCountsOf, floorReviewGateOf, type FloorReviewLayerState, type RequiredLayerKey } from './floorReviewGateModel';
 import { QcFloorDoneGate, QcFloorDoneSummary } from './QcFloorDone';
 import { floorDoneTexts, reopenFloor, useFloorDone, useFloorLabel } from './floorDoneModel';
 import { QC_COMMAND_GROUP } from './qcLayout';
@@ -24,14 +17,14 @@ import { QC_LAYERS } from './qcLayers';
 import { useFloorReview } from './useFloorReview';
 
 /**
- * Cột việc 360 px của bố cục L23 (đợt 1, `qcLayout.ts`): một khối trắng từ trên xuống
- *   1. đầu cột: "Bước n · Tên" + câu việc (H1) + câu phụ;
- *   2. cây 4 bước: bước đang làm mở rộng (thân = hàng đợi của màn, truyền qua `children`),
- *      bước khác thu một dòng kèm tóm tắt ("Cửa và nội thất · 11 cần xem");
- *   3. cổng ở đáy cột (`gate`), thay cho nút ở header.
- * Bước Phòng của tầng đã xong (`useFloorDone`) đổi thành màn Xong tầng: cây thu hết, tổng kết
- * "Bạn đã duyệt những gì" thay hàng đợi, cổng là "Dựng mô hình 3D". Bấm dòng Phòng thì mở lại hàng đợi.
- * Số "còn N" của bước đang làm do màn truyền (`activeSummary`) để chỉ có một nguồn số trên màn.
+ * Cột việc 360 px của bố cục L23, kiểu bảng lớp của Figma — gọn, một vùng cuộn:
+ *   1. đầu cột MỘT dòng: H1 ngắn ("Duyệt tường") + chip "30 cần xem"; câu việc dài là dòng mờ một
+ *      dòng (đủ chữ ở `title`). Tiến độ các bước khác ở thanh bước `QcFloorNav`, không lặp ở đây;
+ *   2. thân bước (`children`) lấp phần còn lại — màn tự đặt vùng cuộn duy nhất của nó;
+ *   3. cổng ở đáy cột (`gate`).
+ * Đầu cột + thân nằm trong `<section aria-label={bước} aria-current="step">` (qa tìm chip qua đó).
+ * Bước Phòng của tầng đã xong (`useFloorDone`) đổi thành màn Xong tầng: tổng kết thay hàng đợi, cổng
+ * là "Dựng mô hình 3D"; nút nhỏ ở đầu cột mở lại hàng đợi.
  */
 export type QcStepKey = 'scale' | RequiredLayerKey;
 
@@ -39,10 +32,12 @@ export interface QcStepColumnProps {
   readonly projectId: string;
   readonly floorId: string;
   readonly activeStep: QcStepKey;
-  /** Câu việc của bước, là H1 của màn ("Duyệt từng đoạn tường. Đúng thì giữ, nét thừa thì xoá."). */
+  /** Câu việc của bước ("Duyệt từng đoạn tường. Đúng thì giữ, nét thừa thì xoá."): dòng mờ dưới H1. */
   readonly task: string;
+  /** H1 ngắn, động từ + đối tượng. Vắng = tên mặc định của bước ("Duyệt tường"). */
+  readonly title?: string | undefined;
   readonly hint?: string | undefined;
-  /** Tóm tắt ở dòng bước đang làm; vắng thì dùng cùng số của cây ("7 cần xem", "30 đoạn · đã duyệt"). */
+  /** Chip ở đầu cột; vắng thì dùng số của tầng ("7 cần xem", "30 đoạn · đã duyệt"). */
   readonly activeSummary?: ReactNode;
   /** Thân bước đang làm: bộ lọc + hàng đợi của màn. */
   readonly children: ReactNode;
@@ -52,42 +47,27 @@ export interface QcStepColumnProps {
 
 const STEP_KEYS: readonly QcStepKey[] = ['scale', 'walls', 'objects', 'rooms'];
 const UNIT: Readonly<Record<RequiredLayerKey, string>> = { walls: 'đoạn', objects: 'mục', rooms: 'phòng' };
-const STEPS_LABEL = 'Việc của từng bước';
-const SCALE_WAIT = 'chờ tỷ lệ';
+const STEP_H1: Readonly<Record<QcStepKey, string>> = {
+  scale: 'Kiểm tỷ lệ',
+  walls: 'Duyệt tường',
+  objects: 'Duyệt cửa và nội thất',
+  rooms: 'Đặt tên phòng',
+};
+const REOPEN_LABEL = 'Mở lại bước Phòng';
 /** Bảng lệnh của khung L23 chỉ mang lệnh màn đăng ký (`useScreenCommands`), không mang lệnh mẫu của `CommandPalette`. */
 const NO_SHARED_COMMANDS: CommandItem[] = [];
 
 const stepTitle = (key: QcStepKey): string => QC_LAYERS.find((item) => item.key === key)?.label ?? key;
 const stepRoute = (key: QcStepKey) => (QC_LAYERS.find((item) => item.key === key) ?? QC_LAYERS[0]!).route;
 
-/** Tóm tắt một dòng của bước đang thu gọn. */
-function summaryOf(key: QcStepKey, scale: FloorScaleState | null, layer: FloorReviewLayerState | undefined): string {
-  if (key === 'scale') return scale === null ? '' : SCALE_STATE_VIEWS[scale].name;
+/** Chữ chip của bước lớp: số còn phải xem, xong thì tổng số. */
+function summaryOf(layer: FloorReviewLayerState | undefined): string {
   if (layer === undefined) return '';
   if (layer.done) return `${layer.total} ${UNIT[layer.key]} · đã duyệt`;
   return `${layer.total - layer.reviewed} cần xem`;
 }
 
-function StepIcon({ done, locked, active }: { readonly done: boolean; readonly locked: boolean; readonly active: boolean }) {
-  if (locked) return <Lock aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" />;
-  if (done) {
-    return (
-      <span aria-hidden="true" className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-state-verified text-white">
-        <Check className="h-3 w-3" strokeWidth={3} />
-      </span>
-    );
-  }
-  return (
-    <span
-      aria-hidden="true"
-      className={cn('grid h-4 w-4 shrink-0 place-items-center rounded-full border-[1.5px]', active ? 'border-accent' : 'border-border-control')}
-    >
-      {active ? <span className="h-2 w-2 rounded-full bg-accent" /> : null}
-    </span>
-  );
-}
-
-/** Tóm tắt của bước đang làm: chip vàng khi còn việc, xanh khi xong. */
+/** Chip của bước đang làm: vàng khi còn việc, xanh khi xong. */
 function ActiveChip({ done, text }: { readonly done: boolean; readonly text: string }) {
   if (text === '') return null;
   return (
@@ -102,17 +82,46 @@ function ActiveChip({ done, text }: { readonly done: boolean; readonly text: str
   );
 }
 
-export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activeSummary, children, gate }: QcStepColumnProps) {
-  const { graph, scale } = useFloorReview(projectId, floorId);
-  const layers = useMemo(
-    () => new Map(graph === null ? [] : floorReviewGateOf(floorReviewCountsOf(graph, floorId)).layers.map((item) => [item.key, item])),
-    [floorId, graph],
+interface ColumnHeadProps {
+  readonly title: string;
+  readonly line: string | undefined;
+  readonly side: ReactNode;
+}
+
+/** Đầu cột một dòng: H1 + chip/nút; câu việc là dòng mờ cắt gọn, đủ chữ khi rê chuột. */
+function ColumnHead({ title, line, side }: ColumnHeadProps) {
+  return (
+    <header className="shrink-0 border-b border-border-default px-4 py-2.5">
+      <div className="flex min-h-8 items-center gap-2">
+        <h1 className="min-w-0 flex-1 truncate text-[15px] font-medium text-text-primary" title={title}>
+          {title}
+        </h1>
+        {side}
+      </div>
+      {line === undefined || line === '' ? null : (
+        <p className="truncate text-caption text-text-muted" title={line}>
+          {line}
+        </p>
+      )}
+    </header>
   );
-  const index = STEP_KEYS.indexOf(activeStep);
+}
+
+const COLUMN_CLASS = 'flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel';
+const FOOTER_CLASS = 'shrink-0 border-t border-border-default px-4 py-3';
+
+export function QcStepColumn({ projectId, floorId, activeStep, task, title, hint, activeSummary, children, gate }: QcStepColumnProps) {
+  const { graph, scale } = useFloorReview(projectId, floorId);
+  const layer = useMemo(
+    () =>
+      activeStep === 'scale' || graph === null
+        ? undefined
+        : floorReviewGateOf(floorReviewCountsOf(graph, floorId)).layers.find((item) => item.key === activeStep),
+    [activeStep, floorId, graph],
+  );
   const { done: floorDone, graph: doneGraph } = useFloorDone(projectId, floorId);
   const isDoneScreen = activeStep === 'rooms' && floorDone && doneGraph !== null;
   const floorLabel = useFloorLabel(projectId, floorId);
-  const head = isDoneScreen ? floorDoneTexts(floorLabel) : { eyebrow: `Bước ${index + 1} · ${stepTitle(activeStep)}`, task, hint };
   const navigate = useNavigate();
   const commands = useMemo<CommandItem[]>(
     () =>
@@ -127,69 +136,53 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, hint, activ
   );
   useScreenCommands(commands);
 
-  return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel">
-      <header className="shrink-0 border-b border-border-default px-5 pb-4 pt-4">
-        <p className="text-caption font-medium uppercase tracking-[0.06em] text-text-muted">{head.eyebrow}</p>
-        <h1 className="mt-1 text-[18px] font-medium leading-snug text-text-primary [text-wrap:balance]">{head.task}</h1>
-        {head.hint === undefined ? null : <p className="mt-1.5 text-body-sm text-text-secondary [text-wrap:pretty]">{head.hint}</p>}
-      </header>
-      {/* Màn thấp (≤ 768 px cao): bước đang mở giữ chỗ tối thiểu cho hàng đợi, cả cây bước cuộn thay vì ép danh sách còn vài px. */}
-      <nav aria-label={STEPS_LABEL} className={cn('flex min-h-0 flex-col', !isDoneScreen && 'flex-1 overflow-y-auto')}>
-        {STEP_KEYS.map((key) => {
-          const isActive = key === activeStep && !isDoneScreen;
-          const locked = key !== 'scale' && scale === 'missing';
-          const layer = key === 'scale' ? undefined : layers.get(key);
-          const done = key === 'scale' ? scale === 'confirmed' : layer?.done === true;
-          const summary = locked ? SCALE_WAIT : summaryOf(key, scale, layer);
-          const row = (
-            <>
-              <StepIcon active={isActive} done={done && !isActive} locked={locked} />
-              <span className={cn('min-w-0 flex-1 truncate', isActive ? 'text-[15px] font-medium text-text-primary' : 'text-text-primary')}>
-                {stepTitle(key)}
-              </span>
-              {isActive ? (activeSummary ?? <ActiveChip done={done} text={summary} />) : <span className="shrink-0 text-body-sm tabular-nums text-text-secondary">{summary}</span>}
-            </>
-          );
-          const rowClass = cn('flex shrink-0 items-center gap-3 px-5 text-body-sm', isActive ? 'min-h-12 bg-bg-sunken' : 'min-h-10 border-b border-border-default');
-          /* Màn Xong tầng: dòng của bước đang mở là nút mở lại hàng đợi (cùng route). */
-          if (isDoneScreen && key === activeStep) {
-            return (
-              <button key={key} className={cn(rowClass, 'w-full text-left hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent')} onClick={() => reopenFloor(floorId)} type="button">
-                {row}
-              </button>
-            );
+  if (isDoneScreen) {
+    const doneHead = floorDoneTexts(floorLabel);
+    return (
+      <div className={COLUMN_CLASS}>
+        <ColumnHead
+          line={doneHead.hint}
+          side={
+            <button
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-body-sm text-text-secondary transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent"
+              onClick={() => reopenFloor(floorId)}
+              type="button"
+            >
+              <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
+              {REOPEN_LABEL}
+            </button>
           }
-          if (isActive) {
-            return (
-              <section key={key} aria-current="step" aria-label={stepTitle(key)} className="flex min-h-[360px] flex-1 flex-col border-b border-border-default">
-                <div className={rowClass}>{row}</div>
-                <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-              </section>
-            );
-          }
-          if (locked) {
-            return (
-              <span key={key} aria-disabled="true" className={cn(rowClass, 'cursor-not-allowed text-text-muted')} title={SCALE_LOCK_REASON}>
-                {row}
-                <span className="sr-only">{`: ${SCALE_LOCK_REASON}`}</span>
-              </span>
-            );
-          }
-          return (
-            <Link key={key} className={cn(rowClass, 'hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent')} to={stepRoute(key)(projectId, floorId)}>
-              {row}
-            </Link>
-          );
-        })}
-      </nav>
-      {isDoneScreen ? <QcFloorDoneSummary floorId={floorId} graph={doneGraph} /> : null}
-      <CommandPalette commands={NO_SHARED_COMMANDS} />
-      {isDoneScreen ? (
-        <footer className="shrink-0 border-t border-border-default px-5 py-3">
+          title={doneHead.task}
+        />
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <QcFloorDoneSummary floorId={floorId} graph={doneGraph} />
+        </div>
+        <CommandPalette commands={NO_SHARED_COMMANDS} />
+        <footer className={FOOTER_CLASS}>
           <QcFloorDoneGate projectId={projectId} />
         </footer>
-      ) : gate == null ? null : <footer className="shrink-0 border-t border-border-default px-5 py-3 [&_a]:w-full [&_a]:justify-between [&_button]:w-full [&_button]:justify-between">{gate}</footer>}
+      </div>
+    );
+  }
+
+  const done = activeStep === 'scale' ? scale === 'confirmed' : layer?.done === true;
+  const chipText = activeStep === 'scale' ? (scale === null ? '' : SCALE_STATE_VIEWS[scale].name) : summaryOf(layer);
+
+  return (
+    <div className={COLUMN_CLASS}>
+      <section aria-current="step" aria-label={stepTitle(activeStep)} className="flex min-h-0 flex-1 flex-col">
+        <ColumnHead
+          line={hint === undefined ? task : `${task} ${hint}`}
+          side={activeSummary ?? <ActiveChip done={done} text={chipText} />}
+          title={title ?? STEP_H1[activeStep]}
+        />
+        {/* Thân lấp phần còn lại; màn chưa tự cuộn (Phòng, Tỷ lệ) thì cuộn ở đây, danh sách tường tự cuộn bên trong. */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
+      </section>
+      <CommandPalette commands={NO_SHARED_COMMANDS} />
+      {gate == null ? null : (
+        <footer className={cn(FOOTER_CLASS, '[&_a]:w-full [&_a]:justify-between [&_button]:w-full [&_button]:justify-between')}>{gate}</footer>
+      )}
     </div>
   );
 }

@@ -88,20 +88,27 @@ describe('U17 + U37: duyệt hết, một điểm Tab', () => {
   const rows = [sureRow('W-001'), sureRow('W-002'), sureRow('W-003')];
   const panel = { ...panelOf(null), rows, selectedWallId: 'W-002' } as unknown as WallLayerViewProps;
 
-  it('nút "Duyệt N đoạn máy chắc chắn" gọi duyệt hàng loạt', async () => {
-    const onApproveConfident = vi.fn();
-
+  it('nút "Duyệt N đoạn máy chắc chắn" không còn trong danh sách (đã ra đáy cột việc, trên cổng)', async () => {
     render(
       <WallLayerList
         flashingWallId={null}
         onToggleSelect={vi.fn()}
         panel={panel}
-        queue={{ ...queue, confidentCount: 3, onApproveConfident } as unknown as WallReviewQueue}
+        queue={{ ...queue, confidentCount: 3, onApproveConfident: vi.fn() } as unknown as WallReviewQueue}
       />,
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Duyệt 3 đoạn máy chắc chắn' }));
-    expect(onApproveConfident).toHaveBeenCalledTimes(1);
+    expect(await screen.findAllByRole('option')).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Duyệt 3 đoạn máy chắc chắn' })).toBeNull();
+  });
+
+  it('tiêu đề nhóm đang ở đỉnh dính lại khi cuộn (sticky), không trôi theo transform', async () => {
+    render(<WallLayerList flashingWallId={null} onToggleSelect={vi.fn()} panel={panel} queue={queue} />);
+
+    await screen.findAllByRole('option');
+    const header = screen.getByText(/^Độ dày đúng chuẩn: 3$/u).closest('[role="presentation"]');
+    expect(header).toHaveClass('sticky');
+    expect(header).not.toHaveClass('absolute');
   });
 
   it('chỉ hàng đang chọn nhận Tab, các hàng khác tabIndex -1', async () => {

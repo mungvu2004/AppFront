@@ -1,16 +1,17 @@
 /**
  * Hàng đợi tường của panel trái — ảo hoá (`@tanstack/react-virtual`), chia nhóm theo đúng thứ tự
  * hook đã xếp (demo Z/S-15): Không chuẩn (kèm nút "Đưa N tường về chuẩn" mở màn Độ dày) → Đúng chuẩn →
- * Đã duyệt (thu gọn, tự mở khi đang chọn một hàng trong đó hoặc không còn hàng nào khác).
+ * Đã duyệt (thu gọn, tự mở khi đang chọn một hàng trong đó hoặc không còn hàng nào khác). Tiêu đề nhóm
+ * đang ở đỉnh dính lại khi cuộn. Nút "Duyệt N đoạn máy chắc chắn" ở đáy cột (`WallLayerApproveConfident`).
  *
  * View THUẦN (R-60). `rows` đã xếp theo hàng đợi ở hook, nên danh sách, J/K, "Duyệt tiếp" và tự
  * chuyển sau "Duyệt" đi cùng một thứ tự. Hàng dùng `role="option"` + `focus-visible:` dạng class
  * (cảnh báo H1 của `docs/contracts/ui.md`).
  */
 
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { defaultRangeExtractor, useVirtualizer, type Range } from '@tanstack/react-virtual';
 import { ChevronDown, Inbox } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -19,7 +20,7 @@ import { cn } from '@/lib/utils';
 
 import type { WallLayerViewProps, WallRowViewModel } from './types';
 import { LIST_ROW_HEIGHT_PX, WallLayerListRow } from './WallLayerListRow';
-import { approveAllLabelOf, WALL_REASON_ORDER, WALL_REASON_TITLE, type WallQueueGroup, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
+import { WALL_REASON_ORDER, WALL_REASON_TITLE, type WallQueueGroup, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
 
 export interface WallLayerListProps {
   readonly panel: WallLayerViewProps;
@@ -129,6 +130,12 @@ function buildItems(
   return items;
 }
 
+/** Tiêu đề nhóm gần nhất ở trên hàng đầu đang thấy (`-1` = không có). `headerKey` = chỉ số tiêu đề, nối dấu phẩy. */
+function activeHeaderOf(headerKey: string, firstVisible: number): number {
+  if (headerKey === '') return -1;
+  return headerKey.split(',').map(Number).reverse().find((index) => firstVisible >= index) ?? -1;
+}
+
 const keyOf = (item: ListItem | undefined): string =>
   item === undefined ? '' : item.kind === 'row' ? item.row.id : item.kind === 'header' ? `h-${item.group}` : item.kind;
 
@@ -143,8 +150,6 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
   const hasOthers = rows.some((row) => groupOf(row, queue) !== 'reviewed');
   const showReviewedRows = reviewedOpen || selectedIsReviewed || !hasOthers;
   const isScaleLocked = panel.scaleLock != null;
-  const onApproveConfident = panel.isViewerRole || isScaleLocked ? undefined : queue?.onApproveConfident;
-  const confidentCount = queue?.confidentCount ?? 0;
   const items = buildItems(
     rows,
     queue,
@@ -152,8 +157,6 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
     onOpenBulk !== undefined && queue !== undefined,
     isScaleLocked,
   );
-  /* U17/U32: nút duyệt hết đoạn máy chắc chắn đứng dính trên đầu danh sách, không chen giữa các hàng cuộn. */
-  const showApproveAll = onApproveConfident !== undefined && confidentCount > 0;
   // Thiếu tỷ lệ (hoặc tường mỏng < 50 mm): ép về chuẩn chỉ che lỗi, nên thay nút bằng câu dẫn đi đặt tỷ lệ (K09).
   const bulkLockText = queue?.lockText ?? null;
   // Vai Người xem luôn ở `forbidden`; "đang tải" của họ đọc từ dữ liệu (bất biến 7), không từ vai (16-D-008).
@@ -167,8 +170,21 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
     scrollParentRef.current = findScrollParent(containerRef.current);
   }, []);
 
+  /* Tiêu đề nhóm dính đầu vùng cuộn (kiểu Figma): luôn dựng tiêu đề của nhóm đang ở đỉnh, vẽ nó `sticky`. */
+  const headerKey = items.flatMap((item, index) => (item.kind === 'header' ? [index] : [])).join(',');
+  const rangeExtractor = useCallback(
+    (range: Range) => {
+      const next = new Set(defaultRangeExtractor(range));
+      const active = activeHeaderOf(headerKey, range.startIndex);
+      if (active !== -1) next.add(active);
+      return [...next].sort((a, b) => a - b);
+    },
+    [headerKey],
+  );
+
   const rowVirtualizer = useVirtualizer({
     count: items.length,
+    rangeExtractor,
     estimateSize: (index) => heightOf(items[index]),
     getItemKey: (index) => keyOf(items[index]),
     getScrollElement: () => scrollParentRef.current,
@@ -244,6 +260,8 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
     return WALL_REASON_TITLE[group];
   };
 
+  const activeHeader = activeHeaderOf(headerKey, rowVirtualizer.range?.startIndex ?? 0);
+
   /* U37: một điểm Tab cho cả danh sách — hàng đang chọn nếu đang vẽ, không thì hàng đầu đang vẽ (ảo hoá). */
   const renderedRowIds = rowVirtualizer
     .getVirtualItems()
@@ -255,86 +273,83 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
     selectedWallId !== null && renderedRowIds.includes(selectedWallId) ? selectedWallId : (renderedRowIds[0] ?? null);
 
   return (
-    <>
-      {showApproveAll ? (
-        <div className="sticky top-0 z-10 bg-bg-surface px-1 py-1.5">
-          <Button fullWidth onClick={onApproveConfident} size="sm" variant="secondary">
-            {approveAllLabelOf(confidentCount)}
-          </Button>
-        </div>
-      ) : null}
-      <div aria-label={LIST_ARIA_LABEL} className="relative" ref={containerRef} role="listbox" style={{ height: rowVirtualizer.getTotalSize() }}>
-        {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-          const item = items[virtualItem.index];
-          const style = { transform: `translateY(${virtualItem.start}px)` };
+    <div aria-label={LIST_ARIA_LABEL} className="relative" ref={containerRef} role="listbox" style={{ height: rowVirtualizer.getTotalSize() }}>
+      {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+        const item = items[virtualItem.index];
+        const style = { transform: `translateY(${virtualItem.start}px)` };
 
-          if (item === undefined) {
-            return null;
-          }
+        if (item === undefined) {
+          return null;
+        }
 
-          if (item.kind === 'header') {
-            const isReviewed = item.group === 'reviewed';
-            const isOpen = showReviewedRows;
-
-            return (
-              <div className="absolute inset-x-0 top-0 flex h-9 items-end px-2 pb-1" key={keyOf(item)} role="presentation" style={style}>
-                {isReviewed ? (
-                  <button
-                    aria-expanded={isOpen}
-                    className="flex items-center gap-1 rounded-md text-caption font-medium text-text-secondary hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    onClick={() => setReviewedOpen(!isOpen)}
-                    type="button"
-                  >
-                    <ChevronDown aria-hidden="true" className={cn('h-3.5 w-3.5 transition-transform duration-180', !isOpen && '-rotate-90')} />
-                    {`${groupTitleOf(item.group)}: ${item.count}`}
-                  </button>
-                ) : (
-                  <span className="text-caption font-medium text-text-secondary">
-                    {`${groupTitleOf(item.group)}: ${item.count}`}
-                  </span>
-                )}
-              </div>
-            );
-          }
-
-          if (item.kind === 'bulk') {
-            return (
-              <div className="absolute inset-x-0 top-0 flex h-11 items-center px-1" key="bulk" role="presentation" style={style}>
-                {bulkLockText === null ? (
-                  <Button fullWidth onClick={onOpenBulk} size="sm" variant="secondary">
-                    {`Đưa ${queue?.bulk.changeCount ?? 0} tường về chuẩn`}
-                  </Button>
-                ) : (
-                  <p className="px-1 text-caption leading-snug text-state-violation">{bulkLockText}</p>
-                )}
-              </div>
-            );
-          }
-
-          const { row } = item;
+        if (item.kind === 'header') {
+          const isReviewed = item.group === 'reviewed';
+          const isOpen = showReviewedRows;
+          const isSticky = virtualItem.index === activeHeader;
 
           return (
-            <WallLayerListRow
-              extra={queue?.extras.get(row.id)}
-              isFlashing={row.id === flashingWallId}
-              isHovered={row.id === hoveredWallId}
-              isSelected={selectedWallIds.includes(row.id)}
-              isTabStop={row.id === tabStopId}
-              key={row.id}
-              onHover={onHover}
-              onOpenMenu={onOpenRowMenu}
-              onSelect={onSelect}
-              onToggleSelect={onToggleSelect}
-              queueNumber={queueNumbers?.get(row.id)}
-              onUnapprove={panel.isViewerRole || isScaleLocked ? undefined : panel.onUnapprove}
-              row={row}
-              showThickness={!isScaleLocked}
-              showConfidence={queue?.showConfidence ?? true}
-              style={style}
-            />
+            <div
+              className={cn('inset-x-0 top-0 z-10 flex h-9 items-end bg-bg-surface px-2 pb-1', isSticky ? 'sticky' : 'absolute')}
+              key={keyOf(item)}
+              role="presentation"
+              style={isSticky ? undefined : style}
+            >
+              {isReviewed ? (
+                <button
+                  aria-expanded={isOpen}
+                  className="flex items-center gap-1 rounded-md text-caption font-medium text-text-secondary hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  onClick={() => setReviewedOpen(!isOpen)}
+                  type="button"
+                >
+                  <ChevronDown aria-hidden="true" className={cn('h-3.5 w-3.5 transition-transform duration-180', !isOpen && '-rotate-90')} />
+                  {`${groupTitleOf(item.group)}: ${item.count}`}
+                </button>
+              ) : (
+                <span className="text-caption font-medium text-text-secondary">
+                  {`${groupTitleOf(item.group)}: ${item.count}`}
+                </span>
+              )}
+            </div>
           );
-        })}
-      </div>
-    </>
+        }
+
+        if (item.kind === 'bulk') {
+          return (
+            <div className="absolute inset-x-0 top-0 flex h-11 items-center px-1" key="bulk" role="presentation" style={style}>
+              {bulkLockText === null ? (
+                <Button fullWidth onClick={onOpenBulk} size="sm" variant="secondary">
+                  {`Đưa ${queue?.bulk.changeCount ?? 0} tường về chuẩn`}
+                </Button>
+              ) : (
+                <p className="px-1 text-caption leading-snug text-state-violation">{bulkLockText}</p>
+              )}
+            </div>
+          );
+        }
+
+        const { row } = item;
+
+        return (
+          <WallLayerListRow
+            extra={queue?.extras.get(row.id)}
+            isFlashing={row.id === flashingWallId}
+            isHovered={row.id === hoveredWallId}
+            isSelected={selectedWallIds.includes(row.id)}
+            isTabStop={row.id === tabStopId}
+            key={row.id}
+            onHover={onHover}
+            onOpenMenu={onOpenRowMenu}
+            onSelect={onSelect}
+            onToggleSelect={onToggleSelect}
+            queueNumber={queueNumbers?.get(row.id)}
+            onUnapprove={panel.isViewerRole || isScaleLocked ? undefined : panel.onUnapprove}
+            row={row}
+            showThickness={!isScaleLocked}
+            showConfidence={queue?.showConfidence ?? true}
+            style={style}
+          />
+        );
+      })}
+    </div>
   );
 }
