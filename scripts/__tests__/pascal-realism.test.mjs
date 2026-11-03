@@ -132,3 +132,25 @@ describe('u43 + r10-ao: post-processing khong dung lai khi doi co canvas; GTAO c
     assert.match(out, /const gtaoEnabled = gtaoOn\(shading, ssgiEnabled, transparentBackground\)/);
   });
 });
+
+describe('r9y-cut-cap: doi che do tuong khong dung lai vat lieu / luoi gop', () => {
+  const apply = (file) => {
+    const id = path.join(PACKAGES, file);
+    const raw = readFileSync(id, 'utf8');
+    return transformRealism(RENDER_RULES[file] ? transformRender(raw, id) : raw, id);
+  };
+
+  it('vat lieu visible va nap cat mot lan luc tao', () => {
+    const out = apply('viewer/src/systems/wall/wall-materials.ts');
+    assert.match(out, /import \{ capCutMaterial \} from '@pascal-realism\/cutSync'/);
+    assert.match(out, /visible\.forEach\(\(material\) => capCutMaterial\(material\)\)\n {2}const result: WallMaterials = \{/);
+  });
+
+  it('tam dung gop: an/hien luoi gop, khong huy; tang cu van gop lai', () => {
+    const out = apply('nodes/src/wall/wall-batch-system.tsx');
+    assert.match(out, /record\.mesh\.visible = !suspended/);
+    assert.match(out, /if \(!suspended && staleLevels\.has\(levelId\)\) \{\n {8}disposeLevelBatches\(levelId\)/);
+    assert.doesNotMatch(out, /if \(batchingSuspended\) \{\n {4}staleLevels\.clear\(\)/);
+    assert.match(out, /holdBatchedWallsAfterCapture\(\): void \{\n.*\n {2}if \(batchingSuspended\) return/);
+  });
+});
