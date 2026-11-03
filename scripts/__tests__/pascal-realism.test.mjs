@@ -116,3 +116,19 @@ describe('r9x-wall-caps: nhom vat lieu 0 cua tuong (nap tren/day) dung vat lieu 
     assert.match(out, /Array\.from\(\{ length: 12 \}, \(\) => wallRoleMaterial\)/);
   });
 });
+
+describe('u43 + r10-ao: post-processing khong dung lai khi doi co canvas; GTAO chi khi scene pass 1 mau', () => {
+  const full = path.join(PACKAGES, 'viewer/src/components/viewer/post-processing.tsx');
+  const raw = readFileSync(full, 'utf8');
+  const out = transformRealism(transformRender(raw, full), full);
+
+  it('deps cua effect dung pipeline la hasSize, khong phai size.width/height', () => {
+    assert.match(out, /const hasSize = size\.width >= 1 && size\.height >= 1\n {2}\/\/ Build \/ rebuild/);
+    assert.match(out, /\n {4}hasSize,\n {4}zoneLayers,\n/);
+    assert.doesNotMatch(out, /\n {4}size\.(width|height),\n/);
+  });
+
+  it('gtaoOn nhan transparentBackground (cung dieu kien traaOn)', () => {
+    assert.match(out, /const gtaoEnabled = gtaoOn\(shading, ssgiEnabled, transparentBackground\)/);
+  });
+});

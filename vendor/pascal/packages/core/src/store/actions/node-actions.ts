@@ -1757,6 +1757,7 @@ const deleteNodesActionImpl = (
   let deletedIds = new Set<AnyNodeId>()
   let parentsToMarkDirty = new Set<AnyNodeId>()
   let nodesToMarkDirty = new Set<AnyNodeId>()
+  const nodesBefore = get().nodes
 
   set((state) => {
     const plan = planNodeDeletion(state, ids)
@@ -1775,9 +1776,13 @@ const deleteNodesActionImpl = (
   for (const id of deletedIds) get().clearDirty(id)
 
   // Mark affected nodes dirty: parents of deleted nodes and their remaining children
-  // (e.g. deleting a slab affects sibling walls via level elevation changes)
+  // (e.g. deleting a slab affects sibling walls via level elevation changes).
+  // Only items deleted → siblings are unaffected (no joins/openings/elevation);
+  // dirtying every sibling of a level rebuilt ~129 nodes per item delete.
+  const onlyItems = [...deletedIds].every((id) => nodesBefore[id]?.type === 'item')
   parentsToMarkDirty.forEach((parentId) => {
     get().markDirty(parentId)
+    if (onlyItems) return
     const parent = get().nodes[parentId]
     if (parent && 'children' in parent && Array.isArray(parent.children)) {
       for (const childId of parent.children) {
