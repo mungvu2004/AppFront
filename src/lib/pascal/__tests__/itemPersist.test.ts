@@ -140,6 +140,17 @@ describe('W3b — đồ đạc giữ khe, mẫu, độ cao', () => {
     expectStable(after);
   });
 
+  it('kéo riêng bề rộng: ghi `heightMm` đang thấy, nạp lại giữ đúng chiều cao ấy', () => {
+    const node = sceneOf(graph).nodes[nodeId] as PascalItemNode;
+    const after = afterOf(
+      commit(graph, edit(sceneOf(graph), nodeId, () => ({ scale: [1.6, node.scale[1], node.scale[2]] })), nodeId),
+    );
+
+    expect(Math.abs((after.heightMm ?? 0) - Math.round(node.asset.dimensions[1] * node.scale[1] * 1000))).toBeLessThanOrEqual(1);
+    // Nạp lại đọc ngược ra không lệnh nào: chiều cao về đúng `heightMm` đã ghi, không đoán từ tỷ lệ rộng.
+    expectStable(after);
+  });
+
   it('xoay riêng một món bày biện sinh ra cũng nhận nuôi, mang `variant`/`heightMm` của nó', () => {
     const scene = sceneOf(graph);
     const dress = items(scene).find((node) => adoptableRoomOf(node) !== null) as PascalItemNode;

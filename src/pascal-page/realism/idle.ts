@@ -70,11 +70,16 @@ interface CameraLike {
 }
 const camPrev = new Float64Array(32);
 let selPrev: readonly unknown[] = [];
+let hovPrev: readonly unknown[] = [];
+
+const sameList = (a: readonly unknown[], b: readonly unknown[]): boolean =>
+  a.length === b.length && a.every((o, i) => o === b[i]);
 let sizePrev = '';
 
 /**
- * Gọi đầu useFrame vẽ, TRƯỚC `shouldDraw`. Camera đổi / chọn đổi / có hover (viền nhấp nháy theo
- * `time`) / đổi cỡ → bẩn.
+ * Gọi đầu useFrame vẽ, TRƯỚC `shouldDraw`. Camera đổi / chọn đổi / hover đổi / đổi cỡ → bẩn.
+ * Viền hover tĩnh (post-processing không còn nhấp nháy theo `time`) nên đang hover mà đứng yên thì
+ * KHÔNG vẽ lại mỗi khung — trước đây giữ GPU iGPU bận suốt lúc rê chuột, nút/cuộn phản hồi trễ.
  */
 export function pollDirty(
   camera: CameraLike,
@@ -91,9 +96,13 @@ export function pollDirty(
     if (camPrev[16 + i] !== p[i]) { camPrev[16 + i] = p[i]!; moved = true; }
   }
   if (moved) markDirty('camera', HOLD_MS, nowMs);
-  if (outliner.hoveredObjects.length > 0) markDirty('hover', HOLD_MS, nowMs);
+  const hov = outliner.hoveredObjects;
+  if (!sameList(hov, hovPrev)) {
+    hovPrev = hov.slice();
+    markDirty('hover', HOLD_MS, nowMs);
+  }
   const sel = outliner.selectedObjects;
-  if (sel.length !== selPrev.length || sel.some((o, i) => o !== selPrev[i])) {
+  if (!sameList(sel, selPrev)) {
     selPrev = sel.slice();
     markDirty('selection', HOLD_MS, nowMs);
   }
@@ -148,5 +157,6 @@ export function __resetIdle(): void {
   drawn = skipped = 0;
   camPrev.fill(0);
   selPrev = [];
+  hovPrev = [];
   sizePrev = '';
 }

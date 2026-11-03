@@ -42,6 +42,9 @@
 }
 :is(.bg-sidebar, [class*="bg-sidebar/95"]) [class*="border-white/"] { border-color: var(--pa-border); }
 :is(.bg-sidebar, [class*="bg-sidebar/95"]) [class*="text-white/"] { color: var(--pa-text-2); }
+/* Số đo trần `font-mono text-white` (Kích thước ở Thông tin, nodes/src/item/panel.tsx) — trắng trên nền sáng.
+   Không bắt mọi `.text-white`: nút nền nhấn đậm vẫn cần chữ trắng. */
+[class*="bg-sidebar/95"] .font-mono.text-white { color: var(--pa-text); }
 :is(.bg-sidebar, [class*="bg-sidebar/95"]) [class*="bg-muted/"]:not([class*="hover:"]) { background: var(--pa-sunken); }
 :is(.bg-sidebar, [class*="bg-sidebar/95"]) .text-muted-foreground { color: var(--pa-text-2); }
 :is(.bg-sidebar, [class*="bg-sidebar/95"]) [class*="divide-border"] > :not(:first-child),

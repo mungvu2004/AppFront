@@ -18,6 +18,7 @@ import type { PascalNode, PascalScene } from '@/lib/pascal/types';
 import { useStore } from '@/store';
 
 import {
+  blockedGeneratedDeletes,
   commitOfScenes,
   PASCAL_READ_ONLY_REASON,
   unsavedPascalEdits,
@@ -99,6 +100,18 @@ describe('commitOfScenes', () => {
     expect(commit?.changedNodeIds).toEqual([firstWall().id]);
     expect(commit?.removedNodeIds).toEqual([]);
   });
+
+  it('sàn Pascal tự đặt theo tường (`autoFromWalls`) không vào lượt ghi; chỉ có nó thì không có lượt nào', () => {
+    const slab = Object.values(SCENE.nodes).find((node) => node.type === 'slab') as PascalNode;
+    const auto = { ...slab, id: 'slab_auto1', autoFromWalls: true } as PascalNode;
+    const withAuto: PascalScene = { nodes: { ...SCENE.nodes, slab_auto1: auto }, rootNodeIds: SCENE.rootNodeIds };
+
+    expect(commitOfScenes(SCENE, withAuto)).toBeNull();
+    expect(commitOfScenes(withAuto, SCENE)).toBeNull();
+    expect(commitOfScenes(SCENE, { ...withAuto, nodes: { ...withAuto.nodes, ...thickened().nodes } })?.changedNodeIds).toEqual([
+      firstWall().id,
+    ]);
+  });
 });
 
 /** Cảnh nền với node đầu tiên loại `type` được ghép thêm `patch`. */
@@ -158,7 +171,9 @@ describe('unsavedPascalEdits (v3 V3 + W3e — phần sửa máy chủ chưa nh�
     expect(unsavedPascalEdits(SCENE, added)).toEqual([]);
     expect(unsavedPascalEdits(added, swapped)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
     expect(unsavedPascalEdits(SCENE, swapped)).toEqual(['màu đồ đạc', 'mẫu đồ đạc']);
-    expect(unsavedPascalEdits(dressed, SCENE)).toEqual(['xoá đồ bày sẵn']);
+    // Xoá món bày sẵn chưa nhớ được giờ bị chặn cả lượt (`blockedGeneratedDeletes`), không còn "ẩn tạm".
+    expect(unsavedPascalEdits(dressed, SCENE)).toEqual([]);
+    expect(blockedGeneratedDeletes(dressed, SCENE, ['item_DRESS-sofa-R-1'])).toEqual(['item_DRESS-sofa-R-1']);
 
     // Mẫu thư viện máy chủ: URL ký không lưu nguyên được nhưng toSpatial lưu `/items/<id>/…` thay vào.
     registerServerLibrary([{ id: 'srv-sofa', widthMm: 2000, heightMm: 800, depthMm: 900, modelUrl: 'https://minio.test/s?sig=1' }]);
@@ -177,6 +192,13 @@ describe('unsavedPascalEdits (v3 V3 + W3e — phần sửa máy chủ chưa nh�
     const declared: PascalScene = { nodes: { ...dressed.nodes, 'zone_R-1': zone }, rootNodeIds: SCENE.rootNodeIds };
 
     expect(unsavedPascalEdits(declared, { nodes: { ...SCENE.nodes, 'zone_R-1': zone }, rootNodeIds: SCENE.rootNodeIds })).toEqual([]);
+    expect(blockedGeneratedDeletes(declared, SCENE, ['item_DRESS-sofa-R-1'])).toEqual([]);
+    // Mất theo cha (xoá trần kéo theo đèn): cha mới là thứ người dùng xoá, không chặn vì món con.
+    const child: PascalScene = {
+      nodes: { ...SCENE.nodes, 'item_DRESS-sofa-R-1': { ...item, id: 'item_DRESS-sofa-R-1', parentId: 'ceiling_gone' } as PascalNode },
+      rootNodeIds: SCENE.rootNodeIds,
+    };
+    expect(blockedGeneratedDeletes(child, SCENE, ['item_DRESS-sofa-R-1'])).toEqual([]);
   });
 });
 

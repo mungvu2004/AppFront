@@ -40,7 +40,7 @@ import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
 import { splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
 import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
 import { isServerModel } from '@/lib/pascal/furnitureCatalog';
-import { dismissableNodeIdsOf, saveableModelSrc, saveableRef, type PascalIdBook } from '@/lib/pascal/toSpatial';
+import { dismissableNodeIdsOf, isAutoSurface, saveableModelSrc, saveableRef, type PascalIdBook } from '@/lib/pascal/toSpatial';
 import type { PascalScene } from '@/lib/pascal/types';
 import { buildSplitRoomCommandFromWalls } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
 import { useStore } from '@/store';
@@ -115,11 +115,33 @@ export const commitOfScenes = (
 
   if (isEmptyDiff(diff)) return null;
 
-  return {
-    origin: 'local',
-    changedNodeIds: [...diff.upsert.map((node) => node.id), ...diff.remove],
-    removedNodeIds: diff.remove,
-  };
+  // Sàn/trần Pascal tự đặt theo tường (`isAutoSurface`) không phải phần sửa của người dùng.
+  const auto = (nodeId: string) => isAutoSurface(previous.nodes[nodeId]) || isAutoSurface(next.nodes[nodeId]);
+  const upserted = diff.upsert.map((node) => node.id).filter((nodeId) => !auto(nodeId));
+  const removed = diff.remove.filter((nodeId) => !auto(nodeId));
+
+  if (upserted.length === 0 && removed.length === 0) return null;
+
+  return { origin: 'local', changedNodeIds: [...upserted, ...removed], removedNodeIds: removed };
+};
+
+/** Câu khi người dùng xoá món bày sẵn mà bản vẽ chưa nhớ được (đèn trần, nhánh tủ chữ L…): chặn, món về chỗ cũ. */
+export const GENERATED_DELETE_BLOCKED =
+  'Món đồ bày sẵn này chưa xoá được: nó tự có theo phòng nên mở lại sẽ hiện lại. Món đã được đặt về chỗ cũ.';
+
+/**
+ * H4 — xoá món tự bày zone khai (`dressIds`) thì lưu được (`Room.dressingOff`); đèn trần, nhánh tủ chữ L
+ * thì chưa. Xoá chúng trước đây chỉ "ẩn" trên màn rồi hiện lại ở lượt mở sau — nay chặn hẳn. Món mất
+ * theo cha (xoá trần kéo theo đèn) không tính: cha mới là thứ người dùng xoá.
+ */
+export const blockedGeneratedDeletes = (previous: PascalScene, next: PascalScene, removed: readonly string[]): string[] => {
+  const dismissable = dismissableNodeIdsOf(previous);
+
+  return removed.filter((nodeId) => {
+    const parentId = previous.nodes[nodeId]?.parentId ?? null;
+
+    return isGeneratedNodeId(nodeId) && !dismissable.has(nodeId) && (parentId === null || next.nodes[parentId] !== undefined);
+  });
 };
 
 const PAINT_FIELDS = ['slots', 'material', 'materialPreset'] as const;
@@ -191,17 +213,7 @@ export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): st
     }
   }
 
-  // H4 — món tự bày mà zone khai (`dressIds`) xoá thì lưu được (`Room.dressingOff`); đèn trần, nhánh tủ chữ L thì chưa.
-  const dismissable = dismissableNodeIdsOf(previous);
-
-  if (
-    Object.keys(previous.nodes).some(
-      (nodeId) => next.nodes[nodeId] === undefined && isGeneratedNodeId(nodeId) && !dismissable.has(nodeId),
-    )
-  ) {
-    labels.add('xoá đồ bày sẵn');
-  }
-
+  // Xoá món bày sẵn chưa nhớ được không tới đây: `blockedGeneratedDeletes` chặn cả lượt.
   return [...labels];
 }
 
@@ -293,6 +305,18 @@ export function usePascalEdits({
       if (!gate.hasLoaded()) gate.acknowledgeLoad();
 
       const removed = pascalCommit.removedNodeIds ?? [];
+
+      if (blockedGeneratedDeletes(previous, scene, removed).length > 0) {
+        const blocked: PascalEditResult = {
+          ok: false,
+          error: { type: 'pascal.edit', code: 'PASCAL_UNKNOWN_NODE', reasons: [GENERATED_DELETE_BLOCKED] },
+        };
+
+        lastVerdict.current = { scene, result: blocked, massDelete: null, notices: [] };
+
+        return blocked;
+      }
+
       const confirmed = confirmedRemoval.current;
       const gateVerdict = gate.admit(pascalCommit, previous);
       const massDelete = !gateVerdict.admitted && gateVerdict.code === 'PASCAL_MASS_DELETE';

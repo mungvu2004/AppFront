@@ -46,8 +46,13 @@ describe('idle', () => {
     pollDirty(cam(1), none, 800, 600, 2000);
     expect(shouldDraw(2001)).toBe(true);
     drawsAfter(SETTLE_FRAMES, 3000);
-    pollDirty(cam(1), { selectedObjects: [], hoveredObjects: [{}] }, 800, 600, 4000);
+    const hovered = {};
+    pollDirty(cam(1), { selectedObjects: [], hoveredObjects: [hovered] }, 800, 600, 4000);
     expect(shouldDraw(4001)).toBe(true);
+    drawsAfter(SETTLE_FRAMES, 4500);
+    // Vẫn hover cùng vật, đứng yên → không vẽ lại (viền tĩnh, trước đây bẩn mỗi tick).
+    pollDirty(cam(1), { selectedObjects: [], hoveredObjects: [hovered] }, 800, 600, 4800);
+    expect(shouldDraw(4801)).toBe(false);
     drawsAfter(SETTLE_FRAMES, 5000);
     pollDirty(cam(1), { selectedObjects: [{}], hoveredObjects: [] }, 800, 600, 6000);
     expect(shouldDraw(6001)).toBe(true);

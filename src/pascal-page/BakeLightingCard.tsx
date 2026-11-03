@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react';
 
 import type { LightingBake } from '@/api/schemas/lightingBake';
 
+import { MENU_SUMMARY_CLASS, menuPanelClass, SECTION_TITLE_CLASS, useMenuGroup } from './menuGroup';
 import { bakeStatusLabel, isBakeActive, useLightingBake } from './useLightingBake';
 
 const BUTTON =
@@ -19,21 +20,16 @@ export interface BakeLightingViewProps {
   readonly onStart: () => void;
   readonly onView: () => void;
   readonly onHide: () => void;
+  /** Mục trong menu "Xem" (`./ViewMenu`) thay vì menu riêng. */
+  readonly section?: boolean;
 }
 
 /** View thuần: test được chỉ từ props. */
-export function BakeLightingView({ bake, busy, error, previewing, onStart, onView, onHide }: BakeLightingViewProps) {
+export function BakeLightingView({ bake, busy, error, previewing, onStart, onView, onHide, section = false }: BakeLightingViewProps) {
+  useMenuGroup();
   const status = error ?? bakeStatusLabel(bake) ?? 'Chưa nướng lần nào';
-  return (
-    <details className="relative" data-appfront-menu="">
-      <summary
-        aria-label="Nướng ánh sáng — mở bảng nướng"
-        className="flex h-8 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)] [&::-webkit-details-marker]:hidden"
-      >
-        Nướng ánh sáng
-        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
-      </summary>
-      <div className="absolute top-full left-0 z-50 mt-1 w-60 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-overlay)]">
+  const panel = (
+      <div className={menuPanelClass(section, 'w-60')}>
         <p aria-live="polite" className="px-2 py-1.5 text-[var(--pa-text-3)]" role="status">
           {status}
         </p>
@@ -46,6 +42,25 @@ export function BakeLightingView({ bake, busy, error, previewing, onStart, onVie
           </button>
         ) : null}
       </div>
+  );
+  if (section) {
+    return (
+      <section aria-label="Nướng ánh sáng">
+        <h3 className={SECTION_TITLE_CLASS}>Nướng ánh sáng</h3>
+        {panel}
+      </section>
+    );
+  }
+  return (
+    <details className="relative" data-appfront-menu="">
+      <summary
+        aria-label="Nướng ánh sáng — mở bảng nướng"
+        className={MENU_SUMMARY_CLASS}
+      >
+        Nướng ánh sáng
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
+      </summary>
+      {panel}
     </details>
   );
 }
@@ -53,9 +68,10 @@ export function BakeLightingView({ bake, busy, error, previewing, onStart, onVie
 export interface BakeLightingCardProps {
   readonly projectId: string;
   readonly exportGlb: () => Promise<Blob | null>;
+  readonly section?: boolean;
 }
 
-export function BakeLightingCard({ projectId, exportGlb }: BakeLightingCardProps) {
+export function BakeLightingCard({ projectId, exportGlb, section = false }: BakeLightingCardProps) {
   const state = useLightingBake(projectId, exportGlb);
   return (
     <BakeLightingView
@@ -66,6 +82,7 @@ export function BakeLightingCard({ projectId, exportGlb }: BakeLightingCardProps
       onStart={state.start}
       onView={state.view}
       previewing={state.previewing}
+      section={section}
     />
   );
 }

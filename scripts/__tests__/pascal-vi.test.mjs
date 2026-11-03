@@ -86,4 +86,11 @@ describe('pascal-vi', () => {
     const s = applyTable(readFileSync(path.join(PACKAGES, settings), 'utf8'), settings, PASCAL_VI_TABLES[settings]);
     expect(s).toContain("className={readOnly ? 'hidden' : 'grid grid-cols-2 gap-2'}");
   });
+
+  it('wall-review-ux: mục "Bộ sưu tập" của đồ vật bị ẩn (không phải thư viện đồ)', () => {
+    const file = 'nodes/src/item/panel.tsx';
+    const out = applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]).replaceAll('\r\n', '\n');
+    expect(out).toContain('{false && (\n      <PanelSection title="Bộ sưu tập">');
+    expect(out).toContain('</CollectionsPopover>\n        </ActionGroup>\n      </PanelSection>\n      )}\n');
+  });
 });

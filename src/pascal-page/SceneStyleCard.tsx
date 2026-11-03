@@ -26,6 +26,7 @@ import {
   type ProjectDesignConcept,
   type ProjectSceneStyle,
 } from './bridge';
+import { MENU_SUMMARY_CLASS, menuPanelClass, SECTION_TITLE_CLASS, useMenuGroup } from './menuGroup';
 
 /** AID-01 — thăm dò N47 mỗi 3 s, tối đa 2 phút. */
 export const CONCEPT_POLL_MS = 3000;
@@ -135,9 +136,12 @@ export interface SceneStyleCardProps {
   readonly reload: () => void;
   /** Phong cách của dự án đang mở; mặc định đọc từ cầu (test cắm thẳng vào). */
   readonly source?: ProjectSceneStyle | null;
+  /** Mục trong menu "Xem" (`./ViewMenu`) thay vì menu riêng. */
+  readonly section?: boolean;
 }
 
-export function SceneStyleCard({ saveNow, flushAutosaves, reload, source = currentProjectSceneStyle() }: SceneStyleCardProps) {
+export function SceneStyleCard({ saveNow, flushAutosaves, reload, source = currentProjectSceneStyle(), section = false }: SceneStyleCardProps) {
+  useMenuGroup();
   const current = source?.id ?? DEFAULT_SCENE_STYLE;
   const concept = source?.designConcept;
   const saveToProject = source?.saveToProject;
@@ -178,20 +182,10 @@ export function SceneStyleCard({ saveNow, flushAutosaves, reload, source = curre
     }
   };
 
-  return (
-    <details className="relative" data-appfront-menu="">
-      <summary
-        aria-label={`Phong cách: ${SCENE_STYLES[current].label} — mở danh sách phong cách`}
-        className="flex h-8 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)] [&::-webkit-details-marker]:hidden"
-        title={`Đổi phong cách cảnh (đang dùng: ${SCENE_STYLES[current].label})`}
-      >
-        <Palette aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1300px]/appbar:hidden" />
-        <span className="hidden @min-[1300px]/appbar:inline">Phong cách</span>
-        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[1200px]/appbar:hidden" />
-      </summary>
+  const list = (
       <ul
         aria-label="Danh sách phong cách"
-        className="absolute top-full left-0 z-50 mt-1 min-w-44 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-overlay)]"
+        className={menuPanelClass(section, 'min-w-44')}
       >
         {/* A2-09/L1-11: chọn phong cách là dựng lại cả mô hình — báo trước. */}
         <li className="px-2 pt-1 pb-1 text-[12px] text-[var(--pa-text-3)]">Mô hình sẽ dựng lại vài giây</li>
@@ -227,6 +221,28 @@ export function SceneStyleCard({ saveNow, flushAutosaves, reload, source = curre
           </li>
         ) : null}
       </ul>
+  );
+  if (section) {
+    return (
+      <section aria-label="Phong cách">
+        <h3 className={SECTION_TITLE_CLASS}>Phong cách</h3>
+        {list}
+      </section>
+    );
+  }
+
+  return (
+    <details className="relative" data-appfront-menu="">
+      <summary
+        aria-label={`Phong cách: ${SCENE_STYLES[current].label} — mở danh sách phong cách`}
+        className={MENU_SUMMARY_CLASS}
+        title={`Đổi phong cách cảnh (đang dùng: ${SCENE_STYLES[current].label})`}
+      >
+        <Palette aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1300px]/appbar:hidden" />
+        <span className="hidden @min-[1300px]/appbar:inline">Phong cách</span>
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[1200px]/appbar:hidden" />
+      </summary>
+      {list}
     </details>
   );
 }

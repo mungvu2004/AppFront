@@ -38,10 +38,17 @@ export function itemTrustLabelOf(metadata: LooseMetadata | undefined): ItemTrust
   return null;
 }
 
-const TONE_CLASS: Record<ItemTrustLabel['tone'], string> = {
-  verified: 'text-[var(--pa-ok)]',
-  attention: 'text-[var(--pa-text)]',
-  neutral: 'text-[var(--pa-text-3)]',
+/** Chữ ngắn của huy hiệu; câu đầy đủ nằm ở chú thích (`title`) và tên đọc được. */
+export const TRUST_BADGE: Record<ItemTrustLabel['tone'], string> = {
+  verified: 'Đã duyệt',
+  attention: 'Chưa duyệt',
+  neutral: 'Máy thêm',
+};
+
+const DOT_CLASS: Record<ItemTrustLabel['tone'], string> = {
+  verified: 'bg-[var(--pa-ok)]',
+  attention: 'bg-[var(--pa-warn)]',
+  neutral: 'bg-[var(--pa-text-3)]',
 };
 
 export function ItemTrustCard({ stores }: { readonly stores: SwapModelStores }) {
@@ -55,11 +62,14 @@ export function ItemTrustCard({ stores }: { readonly stores: SwapModelStores }) 
 
   return (
     <span
-      className={`flex h-8 shrink-0 items-center whitespace-nowrap px-2.5 text-[12px] ${TONE_CLASS[label.tone]}`}
+      aria-label={label.text}
+      className="flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap px-2 text-[12px] text-[var(--pa-text-2)]"
       data-tone={label.tone}
       role="status"
+      title={label.text}
     >
-      {label.text}
+      <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${DOT_CLASS[label.tone]}`} />
+      {TRUST_BADGE[label.tone]}
     </span>
   );
 }

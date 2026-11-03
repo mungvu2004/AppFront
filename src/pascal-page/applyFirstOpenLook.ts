@@ -12,7 +12,8 @@
  * người dùng bật lại thì giữ nấy. Tường cũng đặt `cutaway` MỖI lần mở (như `rendered`): Pascal ẩn
  * các bức tường quay mặt về phía camera (wall-cutout-cache.ts `apply`), nên góc nhìn xiên thấy
  * hết các phòng như nhà cắt lớp ở trang đăng nhập; `up` để tường gần che ⅓ số phòng, `down` hạ
- * hết tường, `translucent` làm mờ mọi tường.
+ * hết tường, `translucent` làm mờ mọi tường. Người dùng đã chọn kiểu tường ở thanh công cụ
+ * (`WALL_MODE_KEY`, ghi lúc bấm) thì mở lại theo lựa chọn ấy, không ép `cutaway`.
  *
  * Chủ đề thì khác: `viewer-preferences` dùng chung với khung Pascal nhúng trong app chính, mà
  * khung ấy ghim `studio` (`stackExplodedLevels`, pascalScene.ts). Nên trang này giữ chủ đề của
@@ -22,13 +23,36 @@
 export const FIRST_OPEN_FLAG = 'appfront.pascal.firstOpen.v1';
 export const FIRST_OPEN_THEME = 'night';
 export const EDITOR_THEME_KEY = 'appfront.pascal.editorTheme.v1';
+/** Kiểu tường người dùng chọn lần trước (viewer-toolbar ghi khi bấm). */
+export const WALL_MODE_KEY = 'appfront.pascal.wallMode.v1';
+export const WALL_MODES = ['down', 'cutaway', 'up', 'translucent'] as const;
+export type WallMode = (typeof WALL_MODES)[number];
+
+/** Kiểu tường đã nhớ; `null` khi chưa chọn, giá trị lạ hay bộ nhớ bị chặn. */
+export function readWallMode(storage: () => Storage): WallMode | null {
+  try {
+    const value = storage().getItem(WALL_MODE_KEY);
+    return WALL_MODES.find((m) => m === value) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Nhớ kiểu tường người dùng vừa chọn; bộ nhớ bị chặn thì thôi (lần sau về `cutaway`). */
+export function rememberWallMode(storage: () => Storage, mode: WallMode): void {
+  try {
+    storage().setItem(WALL_MODE_KEY, mode);
+  } catch {
+    // Bộ nhớ đầy/bị chặn: không nhớ được, không sao.
+  }
+}
 
 interface ViewerLook {
   sceneTheme: string;
   setRenderContext: (context: 'editor') => void;
   setShading: (shading: 'rendered') => void;
   setEdges: (edges: 'off') => void;
-  setWallMode: (mode: 'cutaway') => void;
+  setWallMode: (mode: WallMode) => void;
   setSceneTheme: (id: string) => void;
 }
 
@@ -47,7 +71,7 @@ export function applyFirstOpenLook(store: FirstOpenStore, storage: () => Storage
       const viewer = store.getState();
       viewer.setRenderContext('editor');
       viewer.setShading('rendered');
-      viewer.setWallMode('cutaway');
+      viewer.setWallMode(readWallMode(storage) ?? 'cutaway');
       if (local.getItem(FIRST_OPEN_FLAG) === null) {
         viewer.setEdges('off');
         local.setItem(EDITOR_THEME_KEY, FIRST_OPEN_THEME);

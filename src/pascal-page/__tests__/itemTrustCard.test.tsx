@@ -29,6 +29,10 @@ describe('itemTrustLabelOf (D7)', () => {
 
     render(<ItemTrustCard stores={stores} />);
 
-    expect(screen.getByRole('status').textContent).toBe('Máy chưa chắc (0,42) — chưa ai duyệt');
+    // Huy hiệu ngắn; câu đầy đủ ở chú thích và tên đọc được.
+    const badge = screen.getByRole('status');
+    expect(badge.textContent).toBe('Chưa duyệt');
+    expect(badge.getAttribute('title')).toBe('Máy chưa chắc (0,42) — chưa ai duyệt');
+    expect(badge.getAttribute('aria-label')).toBe('Máy chưa chắc (0,42) — chưa ai duyệt');
   });
 });

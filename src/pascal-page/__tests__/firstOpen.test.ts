@@ -14,6 +14,8 @@ import {
   FIRST_OPEN_FLAG,
   FIRST_OPEN_THEME,
   type FirstOpenStore,
+  rememberWallMode,
+  WALL_MODE_KEY,
 } from '../applyFirstOpenLook';
 
 type Listener = Parameters<FirstOpenStore['subscribe']>[0];
@@ -74,6 +76,19 @@ describe('applyFirstOpenLook', () => {
     expect(second.look.setShading).toHaveBeenCalledWith('rendered');
     expect(second.look.setWallMode).toHaveBeenCalledWith('cutaway');
     expect(second.look.setEdges).not.toHaveBeenCalled();
+  });
+
+  it('kiểu tường người dùng đã chọn thì giữ, giá trị lạ về cutaway', () => {
+    const storage = fakeStorage();
+    rememberWallMode(() => storage, 'up');
+    const remembered = fakeStore();
+    applyFirstOpenLook(remembered.store, () => storage);
+    expect(remembered.look.setWallMode).toHaveBeenCalledWith('up');
+
+    storage.setItem(WALL_MODE_KEY, 'lạ');
+    const odd = fakeStore();
+    applyFirstOpenLook(odd.store, () => storage);
+    expect(odd.look.setWallMode).toHaveBeenCalledWith('cutaway');
   });
 
   it('app chính ghim studio vào kho chung: trang editor vẫn mở lại đúng chủ đề người dùng chọn', () => {

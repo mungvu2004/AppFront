@@ -437,7 +437,8 @@ export const ROOM_USAGE_LABELS: Readonly<Record<RoomUsage, string>> = {
   stairwell: 'buồng thang',
   utility: 'phòng kỹ thuật',
   loggia: 'lô gia',
-  other: 'phòng khác',
+  // Không ghi "phòng khác": đọc lướt dễ thành "phòng khách" thiếu một chữ.
+  other: 'phòng chưa rõ tên',
 };
 
 /* -------------------------------------------------------------------------- */

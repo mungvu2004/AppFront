@@ -49,6 +49,8 @@ export const RULES = {
       "window.matchMedia('(pointer: coarse)').matches ? Math.min(1.25, tierConfig(realismTier).dprMax) : tierConfig(realismTier).dprMax",
     ],
     ["key={immersiveActive ? 'webgl-xr' : 'webgpu'}", "key={immersiveActive ? 'webgl-xr' : `webgpu-${realismEpoch}`}"],
+    // low: tắt bóng ở mức renderer (pass bóng nhân đôi draw call mỗi khung; an toàn khi bật lại, xem chú thích gốc).
+    ['          enabled: shadowsEnabled,\n', "          enabled: shadowsEnabled && realismTier !== 'low',\n"],
   ],
   'viewer/src/components/viewer/lights.tsx': [
     ["import { SHADOW_ONLY_LAYER } from '../../lib/layers'", `import { SHADOW_ONLY_LAYER } from '../../lib/layers'\n${IMPORT}`],

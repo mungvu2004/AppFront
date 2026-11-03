@@ -20,22 +20,22 @@ import { libraryOnlyCatalog, serverCatalogTiles, setRealismModels } from '@/lib/
 import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
 import { BRIDGE_SESSION_ERROR, loginHrefOf, savePascalNow, usePascalProjectBridge } from './bridge';
-import { BakeLightingCard } from './BakeLightingCard';
+import { isEmptyChange, type NodeChanges, nodeChangesTo } from './bridge/sceneRevert';
 import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { HomeownerCardMount } from './HomeownerCardMount';
 import { ItemTrustCard } from './ItemTrustCard';
-import { LightingCard } from './LightingCard';
 import { ModelCreditCard } from './ModelCreditCard';
+import { PlacementIssuesChip } from './PlacementIssuesChip';
 import { realismFlagsFrom, useRealism } from './realism/store';
 import { setDetailsEnabled } from './realism/details';
 import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
 import { useSceneLoader } from './sceneLoader';
-import { SceneStyleCard } from './SceneStyleCard';
 import { SwapModelCard } from './SwapModelCard';
 import { PascalTour } from './tour/PascalTour';
 import { openBuildTabWithoutArming } from './upstream/components/build-tab';
 import Home from './upstream/page';
+import { ViewMenu } from './ViewMenu';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
 import './pascal.css';
 import './pascal-theme.css';
@@ -112,12 +112,25 @@ function EditModel() {
 }
 
 /* Lượt sửa bị từ chối → đặt lại cảnh từ kho mà KHÔNG ghi bước hoàn tác và không xoá lịch sử
-   (khác `applySceneGraphToEditor`): Ctrl+Z ngay sau đó về đúng cảnh trước lượt bị từ chối (no-op). */
+   (khác `applySceneGraphToEditor`): Ctrl+Z ngay sau đó về đúng cảnh trước lượt bị từ chối (no-op).
+   Chỉ đổi các node khác (`nodeChangesTo`) — `setScene` cả cây làm cả mô hình dựng lại như tải trang.
+   Cảnh đã khớp (xác nhận xoá nhiều) thì không làm gì. Tính chênh hỏng mới lùi về `setScene`. */
 const applyRejectedRevert = (scene: unknown) => {
   const { nodes, rootNodeIds, collections, materials } = scene as SceneGraph;
+  const store = useScene.getState();
   pauseSceneHistory(useScene);
   try {
-    useScene.getState().setScene(nodes as never, rootNodeIds as never, { collections, materials } as never);
+    let changes: NodeChanges | null = null;
+    try {
+      changes = nodeChangesTo(store.nodes as Record<string, unknown>, nodes as Record<string, unknown>);
+    } catch {
+      changes = null;
+    }
+    if (changes === null) {
+      store.setScene(nodes as never, rootNodeIds as never, { collections, materials } as never);
+    } else if (!isEmptyChange(changes)) {
+      store.applyNodeChanges(changes as never);
+    }
   } finally {
     resumeSceneHistory(useScene);
   }
@@ -167,9 +180,15 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
           {readOnly ? null : <EditModel />}
           {/* UI-1023 V-01: các chỉnh cảnh là một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). */}
           <div aria-label="Cảnh" className="inline-flex shrink-0 items-center" data-appfront-cluster="" role="group">
-            <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
-            <LightingCard projectId={projectId} useViewer={useViewer} />
-            {readOnly ? null : <BakeLightingCard exportGlb={exportSceneGlb} projectId={projectId} />}
+            <ViewMenu
+              flushAutosaves={flushAutosaves}
+              projectId={projectId}
+              reload={() => window.location.reload()}
+              saveNow={savePascalNow}
+              useViewer={useViewer}
+              {...(readOnly ? {} : { exportGlb: exportSceneGlb })}
+            />
+            <PlacementIssuesChip useViewer={useViewer} />
             <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
             <ModelCreditCard stores={{ useScene, useViewer }} />
             <ItemTrustCard stores={{ useScene, useViewer }} />

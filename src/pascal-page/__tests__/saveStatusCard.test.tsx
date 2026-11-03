@@ -1,17 +1,31 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { AUTOSAVE_CHIP, BackToProjectCard, OFFLINE_CHIP, READ_ONLY_REASON, SaveStatusCard } from '../BackToProjectCard';
-import type { PascalSaveStatus } from '../bridge/types';
+import {
+  ALERT_TOAST_MS,
+  AUTOSAVE_CHIP,
+  BackToProjectCard,
+  INFO_TOAST_MS,
+  OFFLINE_CHIP,
+  READ_ONLY_REASON,
+  SaveStatusCard,
+} from '../BackToProjectCard';
+import type { PascalNotice, PascalSaveStatus } from '../bridge/types';
 
 const status = (patch: Partial<PascalSaveStatus> = {}): PascalSaveStatus => ({
   state: 'saved',
   label: 'Đã lưu lúc 10:00',
   blockMessage: null,
   onReloadFloor: vi.fn(),
-  notice: null,
+  notices: [],
   dismissNotice: vi.fn(),
   ...patch,
+});
+
+const note = (text: string, tone: PascalNotice['tone'] = 'info', id = 1): PascalNotice => ({ id, tone, text, createdAt: 0 });
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal)', () => {
@@ -37,7 +51,7 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
   });
 
   it('câu "Chưa lưu được" đóng được, đủ chữ (không cắt); chưa lưu lần nào thì chip vẫn có: "Tự động lưu" (K5)', () => {
-    const save = status({ label: null, notice: 'Chưa lưu được: màu sàn — sẽ có ở bản sau.' });
+    const save = status({ label: null, notices: [note('Chưa lưu được: màu sàn — sẽ có ở bản sau.', 'info', 7)] });
     render(<SaveStatusCard save={save} />);
 
     const text = screen.getByText('Chưa lưu được: màu sàn — sẽ có ở bản sau.');
@@ -46,11 +60,11 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
     expect(rest).toHaveLength(1);
     expect(chip).toHaveTextContent(AUTOSAVE_CHIP);
     fireEvent.click(screen.getByRole('button', { name: 'Đóng thông báo' }));
-    expect(save.dismissNotice).toHaveBeenCalledTimes(1);
+    expect(save.dismissNotice).toHaveBeenCalledWith(7);
   });
 
   it('V10 — câu thông báo là toast cổng ra body (không chiếm chỗ trên thanh), chip lưu co được', () => {
-    const save = status({ notice: 'Chưa lưu được: màu sàn.' });
+    const save = status({ notices: [note('Chưa lưu được: màu sàn.')] });
     const { container } = render(
       <div data-testid="bar">
         <SaveStatusCard save={save} />
@@ -62,13 +76,15 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
     expect(toast.parentElement!.parentElement).toBe(document.body);
     expect(toast.parentElement!.className).toContain('fixed');
     expect(toast.querySelector('button[aria-label="Đóng thông báo"]')).not.toBeNull();
+    // Chip gọn: một chấm, câu đầy đủ ở chú thích (title) và cho trình đọc màn hình.
     const chip = screen.getByText('Đã lưu lúc 10:00').parentElement!;
     expect(container.contains(chip)).toBe(true);
-    expect(chip.className).not.toContain('shrink-0');
+    expect(chip).toHaveAttribute('title', 'Đã lưu lúc 10:00');
+    expect(screen.getByText('Đã lưu lúc 10:00').className).toContain('sr-only');
   });
 
   it('N1 — lượt lưu bị từ chối: toast là cảnh báo (role alert, màu đỏ)', () => {
-    render(<SaveStatusCard save={status({ notice: 'Không lưu được: món đồ đặt lên đồ khác.', noticeTone: 'alert' })} />);
+    render(<SaveStatusCard save={status({ notices: [note('Không lưu được: món đồ đặt lên đồ khác.', 'alert')] })} />);
 
     const toast = screen.getByRole('alert');
     expect(toast).toHaveTextContent('Không lưu được: món đồ đặt lên đồ khác.');
@@ -89,6 +105,45 @@ describe('SaveStatusCard (v3 V3 — trạng thái lưu thật trên trang Pascal
     const chip = screen.getByRole('status');
     expect(chip).toHaveTextContent('Chưa lưu');
     expect(chip.className).toContain('shrink-0');
+  });
+
+  it('câu báo và câu lỗi là hai toast riêng: câu báo không bị nhuộm đỏ', () => {
+    render(<SaveStatusCard save={status({ notices: [note('Lỗi A', 'alert', 1), note('Báo B', 'info', 2)] })} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Lỗi A');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Báo B');
+    expect(screen.getByText('Báo B').closest('[role="status"]')!.className).not.toContain('pa-danger');
+  });
+
+  it('toast tự gỡ: câu báo sau 6 s, câu lỗi sau 8 s; rê chuột vào thì dừng đếm', () => {
+    vi.useFakeTimers();
+    const save = status({ notices: [note('Lỗi A', 'alert', 1), note('Báo B', 'info', 2)] });
+    render(<SaveStatusCard save={save} />);
+
+    act(() => vi.advanceTimersByTime(INFO_TOAST_MS));
+    expect(save.dismissNotice).toHaveBeenCalledWith(2);
+    expect(save.dismissNotice).not.toHaveBeenCalledWith(1);
+
+    fireEvent.mouseEnter(screen.getByRole('alert'));
+    act(() => vi.advanceTimersByTime(ALERT_TOAST_MS * 2));
+    expect(save.dismissNotice).not.toHaveBeenCalledWith(1);
+
+    fireEvent.mouseLeave(screen.getByRole('alert'));
+    act(() => vi.advanceTimersByTime(ALERT_TOAST_MS));
+    expect(save.dismissNotice).toHaveBeenCalledWith(1);
+  });
+
+  it('bị khối (có nút "Tải lại tầng") thì toast giữ; lưu hỏng thường tự gỡ sau 8 s', () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<SaveStatusCard save={status({ state: 'blocked', blockMessage: 'Bản vẽ đã đổi.' })} />);
+
+    act(() => vi.advanceTimersByTime(ALERT_TOAST_MS * 3));
+    expect(screen.getByRole('alert')).toHaveTextContent('Bản vẽ đã đổi.');
+
+    rerender(<SaveStatusCard save={status({ state: 'failed', label: 'Lưu thất bại' })} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Lưu thất bại');
+    act(() => vi.advanceTimersByTime(ALERT_TOAST_MS));
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('K5/A2-06 — mất mạng: chip riêng "Mất mạng — chưa gửi được", không phải "Đang lưu…"', () => {

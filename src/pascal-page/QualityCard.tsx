@@ -5,18 +5,13 @@
  *
  * Dùng `aria-current` (không `aria-pressed`) để không lẫn với nút đang chọn của thẻ Ánh sáng.
  *
- * C7 — kèm số lỗi đặt đồ (`scenePlacementIssues`: chồng nhau, chắn cửa, lấn tường) và vài dòng đầu;
- * chỉ báo, không tự dời đồ.
+ * Lỗi đặt đồ (C7) đã tách ra chip riêng `./PlacementIssuesChip`.
  */
 /* eslint-disable react-refresh/only-export-components -- bảng nhãn đi kèm thẻ để test dùng. */
 import { ChevronDown, Gauge } from 'lucide-react';
-import { useMemo, type MouseEvent } from 'react';
+import type { MouseEvent } from 'react';
 
-import { denormalizeSpatial } from '@/domain/spatial/normalize';
-import { scenePlacementIssues, type PlacementIssue } from '@/lib/pascal/placement';
-import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
-import { useStore } from '@/store';
-
+import { MENU_SUMMARY_CLASS, menuPanelClass, SECTION_TITLE_CLASS, useMenuGroup } from './menuGroup';
 import { useRealism, type RealismTier } from './realism/store';
 import { setTierMode } from './realism/tiers';
 
@@ -36,39 +31,22 @@ export function qualityLabel(mode: TierMode, tier: RealismTier): string {
   return mode === 'auto' ? `${labelOf('auto')} · ${labelOf(tier)}` : labelOf(mode);
 }
 
-/** Số dòng lỗi đặt đồ hiện trong thẻ; phần còn lại gộp thành "và N lỗi khác". */
-const ISSUE_LINES = 5;
-
-export function placementSummary(issues: readonly PlacementIssue[]): string {
-  return issues.length === 0 ? 'Không thấy lỗi đặt đồ' : `${issues.length} lỗi đặt đồ`;
-}
-
-export function QualityCard() {
+/** `section`: mục trong menu "Xem" (`./ViewMenu`) thay vì menu riêng. */
+export function QualityCard({ section = false }: { readonly section?: boolean } = {}) {
+  useMenuGroup();
   const mode = useRealism((s) => s.tierMode);
   const tier = useRealism((s) => s.tier);
   const label = qualityLabel(mode, tier);
-  const spatial = useStore(selectViewerSpatial);
-  const issues = useMemo(() => (spatial === null ? [] : scenePlacementIssues(denormalizeSpatial(spatial))), [spatial]);
 
   const choose = (id: TierMode, event: MouseEvent<HTMLButtonElement>) => {
     setTierMode(id);
     event.currentTarget.closest('details')?.removeAttribute('open');
   };
 
-  return (
-    <details className="relative" data-appfront-menu="">
-      <summary
-        aria-label={`Chất lượng: ${label} — mở danh sách mức chất lượng`}
-        className="flex h-8 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)] [&::-webkit-details-marker]:hidden"
-        title={`Chất lượng: ${label}`}
-      >
-        <Gauge aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1600px]/appbar:hidden" />
-        <span className="hidden @min-[1600px]/appbar:inline">Chất lượng</span>
-        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[1200px]/appbar:hidden" />
-      </summary>
+  const list = (
       <ul
         aria-label="Danh sách mức chất lượng"
-        className="absolute top-full left-0 z-50 mt-1 min-w-36 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-overlay)]"
+        className={menuPanelClass(section)}
       >
         {QUALITY_MODES.map((m) => (
           <li key={m.id}>
@@ -85,21 +63,28 @@ export function QualityCard() {
           </li>
         ))}
         <li className="px-2 pt-0.5 pb-1.5 text-[12px] text-[var(--pa-text-3)]">Chỉ lưu trên máy này</li>
-        {spatial === null ? null : (
-          <li className="border-t border-[var(--pa-border)] px-2 pt-1.5 pb-1.5 text-[12px] text-[var(--pa-text-2)]">
-            <p className="font-medium text-[var(--pa-text)]">{placementSummary(issues)}</p>
-            {issues.length === 0 ? null : (
-              <ul aria-label="Lỗi đặt đồ" className="mt-0.5 max-w-64 list-disc pl-4">
-                {issues.slice(0, ISSUE_LINES).map((issue) => (
-                  <li key={`${issue.kind}-${issue.furnitureIds.join('-')}`}>{issue.message}</li>
-                ))}
-                {issues.length > ISSUE_LINES ? <li>và {issues.length - ISSUE_LINES} lỗi khác</li> : null}
-              </ul>
-            )}
-            <p className="mt-0.5 text-[var(--pa-text-3)]">Kéo đồ để sửa; máy không tự dời.</p>
-          </li>
-        )}
       </ul>
+  );
+  if (section) {
+    return (
+      <section aria-label="Chất lượng hình">
+        <h3 className={SECTION_TITLE_CLASS}>Chất lượng hình</h3>
+        {list}
+      </section>
+    );
+  }
+  return (
+    <details className="relative" data-appfront-menu="">
+      <summary
+        aria-label={`Chất lượng: ${label} — mở danh sách mức chất lượng`}
+        className={MENU_SUMMARY_CLASS}
+        title={`Chất lượng: ${label}`}
+      >
+        <Gauge aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1600px]/appbar:hidden" />
+        <span className="hidden @min-[1600px]/appbar:inline">Chất lượng</span>
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[1200px]/appbar:hidden" />
+      </summary>
+      {list}
     </details>
   );
 }

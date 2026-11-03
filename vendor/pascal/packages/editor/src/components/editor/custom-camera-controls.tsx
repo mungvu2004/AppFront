@@ -328,7 +328,11 @@ export const CustomCameraControls = ({ paused = false }: { paused?: boolean }) =
   const isPreviewMode = useEditor((s) => s.isPreviewMode)
   const isFirstPersonMode = useEditor((s) => s.isFirstPersonMode)
   const allowUndergroundCamera = useEditor((s) => s.allowUndergroundCamera)
-  const selection = useViewer((s) => s.selection)
+  // Narrow selectors: the whole `selection` object changes on every pick, re-rendering
+  // <CameraControls> for nothing; only these ids are read here.
+  const selectedLevelId = useViewer((s) => s.selection.levelId)
+  const selectedZoneId = useViewer((s) => s.selection.zoneId)
+  const selectedBuildingId = useViewer((s) => s.selection.buildingId)
   const levelMode = useViewer((s) => s.levelMode)
   const renderPaused = useViewer((state) => state.renderPaused)
   const cameraMode = useViewer((state) => state.cameraMode)
@@ -337,7 +341,7 @@ export const CustomCameraControls = ({ paused = false }: { paused?: boolean }) =
     isFirstPersonMode,
     cameraMode,
   )
-  const currentLevelId = selection.levelId
+  const currentLevelId = selectedLevelId
   const firstLoad = useRef(true)
   const maxPolarAngle =
     !isPreviewMode && allowUndergroundCamera ? DEBUG_MAX_POLAR_ANGLE : DEFAULT_MAX_POLAR_ANGLE
@@ -949,7 +953,7 @@ export const CustomCameraControls = ({ paused = false }: { paused?: boolean }) =
 
   // Preview mode: auto-navigate camera to selected node (viewer behavior)
   const previewTargetNodeId = isPreviewMode
-    ? (selection.zoneId ?? selection.levelId ?? selection.buildingId)
+    ? (selectedZoneId ?? selectedLevelId ?? selectedBuildingId)
     : null
 
   useEffect(() => {
@@ -1289,6 +1293,10 @@ export const CustomCameraControls = ({ paused = false }: { paused?: boolean }) =
       onTransitionStart={onTransitionStart}
       ref={controls}
       restThreshold={0.01}
+      // camera-controls defaults (0.25 / 0.125 s) made wheel zoom settle ~0.4 s and orbit
+      // trail the pointer — felt as input lag on iGPU. Keep a touch of easing only.
+      smoothTime={0.1}
+      draggingSmoothTime={0.03}
       touches={touches}
     />
   )

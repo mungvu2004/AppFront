@@ -16,6 +16,14 @@ export interface PascalConfirm {
   readonly onCancel: () => void;
 }
 
+/** Một thông báo nổi. `alert` = lượt sửa vừa bị từ chối (N1, `role="alert"`); `info` = câu báo thường. */
+export interface PascalNotice {
+  readonly id: number;
+  readonly tone: 'info' | 'alert';
+  readonly text: string;
+  readonly createdAt: number;
+}
+
 /** Trạng thái lưu THẬT của tầng (lượt PUT N16), cho thẻ trên trang Pascal. */
 export interface PascalSaveStatus {
   /**
@@ -29,11 +37,12 @@ export interface PascalSaveStatus {
   readonly blockMessage: string | null;
   /** "Tải lại tầng": có sửa chưa lưu thì mở `confirm` trước, xác nhận mới bỏ bản ấy và nạp bản máy chủ. */
   readonly onReloadFloor: () => void;
-  /** "Chưa lưu được: màu sàn, … — sẽ có ở bản sau." (mỗi nhãn một lần mỗi phiên, gộp; giữ tới khi đóng). */
-  readonly notice: string | null;
-  /** `alert` = lượt sửa vừa bị từ chối (N1), thẻ phải hiện như cảnh báo (`role="alert"`); còn lại `info`. */
-  readonly noticeTone?: 'info' | 'alert';
-  readonly dismissNotice: () => void;
+  /**
+   * Thông báo nổi, mỗi câu một mục riêng (không gộp — câu báo thường không bị nhuộm đỏ vì dính câu lỗi).
+   * Thẻ tự gỡ sau vài giây (dừng khi rê chuột / có tiêu điểm); người dùng đóng sớm bằng `dismissNotice`.
+   */
+  readonly notices: readonly PascalNotice[];
+  readonly dismissNotice: (id: number) => void;
   /** Đường "Đăng nhập lại" (quay về đúng mô hình 3D) khi `state` là `session`. */
   readonly loginHref?: string;
   /** Hộp xác nhận đang mở, `null`/vắng khi không hỏi gì. */

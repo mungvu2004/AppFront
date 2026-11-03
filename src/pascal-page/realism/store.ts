@@ -35,9 +35,31 @@ export type GroundMode = 'plain' | 'gravel' | 'grass';
 
 export const DEFAULT_REALISM_FLAGS: RealismFlags = { idle: true, traa: true, hdri: true, materials: true, details: true };
 
+/** Mức người dùng chọn (UI Chất lượng); không có = 'auto'. */
+export const TIER_MODE_KEY = 'pascal.realism.tierMode';
+/** Mức khởi đầu đã đo ở lần nạp trước (`initTier`), để lần sau dựng pipeline đúng mức ngay. */
+export const AUTO_TIER_KEY = 'pascal.realism.autoTier';
+
+const isTier = (v: unknown): v is RealismTier => v === 'low' || v === 'medium' || v === 'high';
+
+/**
+ * Mức lúc tạo store, TRƯỚC khi renderer có: mức chọn tay → mức đo lần trước → 'low'. Trước đây
+ * cố định 'medium' nên máy iGPU dựng pipeline SSGI rồi dựng lại cho 'low' ở mỗi lần nạp.
+ */
+export function bootTier(): RealismTier {
+  try {
+    const mode = window.localStorage.getItem(TIER_MODE_KEY);
+    if (isTier(mode)) return mode;
+    const cached = window.localStorage.getItem(AUTO_TIER_KEY);
+    return isTier(cached) ? cached : 'low';
+  } catch {
+    return 'low';
+  }
+}
+
 export const useRealism = create<RealismState>()(() => ({
   backend: 'unknown',
-  tier: 'medium',
+  tier: bootTier(),
   tierMode: 'auto',
   flags: { ...DEFAULT_REALISM_FLAGS },
   ground: 'plain',

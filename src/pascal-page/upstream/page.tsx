@@ -66,6 +66,19 @@ function EditorItemsPanel() {
   return <ItemsPanel showSourceFilter={false} showTagFilters={false} />
 }
 
+// AppFront (wall-review-ux): the rail showed bare icons and users asked "what is this for?" —
+// a short caption under each icon (the button keeps its aria-label + hover tooltip).
+function railIcon(src: string, label: string) {
+  return (
+    <span className="flex flex-col items-center gap-0.5">
+      <Image alt="" className="h-6 w-6 object-contain" height={24} src={src} width={24} />
+      <span aria-hidden="true" className="whitespace-nowrap text-[10px] leading-none">
+        {label}
+      </span>
+    </span>
+  )
+}
+
 const SIDEBAR_TABS = [
   {
     id: 'site',
@@ -73,15 +86,7 @@ const SIDEBAR_TABS = [
     component: () => null,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Layers className="h-5 w-5" />,
-    icon: (
-      <Image
-        alt=""
-        className="h-8 w-8 object-contain"
-        height={32}
-        src="/icons/scene.webp"
-        width={32}
-      />
-    ),
+    icon: railIcon('/icons/scene.webp', 'Cảnh'),
   },
   {
     id: 'build',
@@ -89,15 +94,7 @@ const SIDEBAR_TABS = [
     component: BuildTab,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Hammer className="h-5 w-5" />,
-    icon: (
-      <Image
-        alt=""
-        className="h-8 w-8 object-contain"
-        height={32}
-        src="/icons/build.webp"
-        width={32}
-      />
-    ),
+    icon: railIcon('/icons/build.webp', 'Dựng'),
   },
   {
     id: 'items',
@@ -105,15 +102,7 @@ const SIDEBAR_TABS = [
     component: EditorItemsPanel,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Package className="h-5 w-5" />,
-    icon: (
-      <Image
-        alt=""
-        className="h-8 w-8 object-contain"
-        height={32}
-        src="/icons/couch.webp"
-        width={32}
-      />
-    ),
+    icon: railIcon('/icons/couch.webp', 'Đồ vật'),
   },
   {
     id: 'settings',
@@ -121,15 +110,7 @@ const SIDEBAR_TABS = [
     component: () => null,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Settings className="h-5 w-5" />,
-    icon: (
-      <Image
-        alt=""
-        className="h-8 w-8 object-contain"
-        height={32}
-        src="/icons/settings.webp"
-        width={32}
-      />
-    ),
+    icon: railIcon('/icons/settings.webp', 'Cài đặt'),
   },
 ]
 

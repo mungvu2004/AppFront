@@ -83,6 +83,7 @@ import { editor3dHref, ROUTES } from '@/routes/paths'
 import { Tooltip, TooltipContent, TooltipTrigger } from './toolbar-tooltip'
 import { pickWalkRoom, walkStartPose } from './walk-start'
 import { isSceneReady } from '../../tour/tourLogic'
+import { rememberWallMode, type WallMode } from '../../applyFirstOpenLook'
 // AppFront edit (P40, G5-11; QA-2 L1; impeccable D1): text labels of the level/wall/display buttons
 // collapse to screen-reader text when the top bar itself is narrower than 1500px (container `appbar`,
 // declared in pascal.css; the sidebar width counts, not just the viewport). The 3D/2D/Chia đôi and
@@ -200,13 +201,14 @@ const levelModeLabels: Record<string, string> = {
   solo: 'Tầng: từng tầng',
 }
 
-const wallModeOrder = ['cutaway', 'up', 'down', 'translucent'] as const
-const wallModeConfig: Record<string, { icon: string; label: string }> = {
-  up: { icon: '/icons/room.webp', label: 'Tường: cao đủ' },
-  cutaway: { icon: '/icons/wallcut.webp', label: 'Tường: cắt' },
-  down: { icon: '/icons/walllow.webp', label: 'Tường: thấp' },
-  translucent: { icon: '/icons/wall.webp', label: 'Tường: trong mờ' },
-}
+// AppFront (wall-review-ux): segmented control, always labelled — the old cycle button was icon-only
+// below 1500 px and users could not find "full-height walls".
+const WALL_SEGMENTS: readonly { mode: WallMode; label: string; hint: string }[] = [
+  { mode: 'down', label: 'Thấp', hint: 'Tường thấp: hạ hết tường, nhìn rõ đồ đạc' },
+  { mode: 'cutaway', label: 'Cắt', hint: 'Tường cắt: ẩn các bức tường quay về phía camera' },
+  { mode: 'up', label: 'Đầy đủ', hint: 'Tường cao đủ: dựng đủ chiều cao mọi bức tường' },
+  { mode: 'translucent', label: 'Mờ', hint: 'Tường trong mờ: thấy xuyên qua mọi tường' },
+]
 
 const SHADING_OPTIONS = [
   { id: 'solid', name: 'Phẳng', detail: 'Nhanh, không đổ bóng môi trường', icon: Box },
@@ -358,29 +360,29 @@ function LevelModeToggle() {
 function WallModeToggle() {
   const wallMode = useViewer((state) => state.wallMode)
   const setWallMode = useViewer((state) => state.setWallMode)
-  const config = wallModeConfig[wallMode] ?? wallModeConfig.cutaway!
 
-  const cycle = () => {
-    const index = wallModeOrder.indexOf(wallMode as (typeof wallModeOrder)[number])
-    const next = wallModeOrder[(index + 1) % wallModeOrder.length]
-    if (next) setWallMode(next)
+  const choose = (mode: WallMode) => {
+    setWallMode(mode)
+    rememberWallMode(() => localStorage, mode)
   }
 
   return (
-    <ToolbarTooltip label={`${config.label} (bấm để đổi)`}>
-      <button
-        className={cn(
-          TOOLBAR_BTN,
-          'w-auto min-w-8 gap-1.5 px-2',
-          wallMode !== 'cutaway' ? BTN_ON : 'opacity-70 hover:opacity-100',
-        )}
-        onClick={cycle}
-        type="button"
-      >
-        <Image alt="" className="h-4 w-4 object-contain" height={16} src={config.icon} width={16} />
-        <span className={`font-medium text-[13px] ${LABEL_WIDE}`}>{config.label}</span>
-      </button>
-    </ToolbarTooltip>
+    <div aria-label="Tường" className="flex items-stretch" role="group">
+      <span className="flex items-center pr-1 pl-2 font-medium text-[13px] text-[var(--pa-text-3)]">Tường</span>
+      {WALL_SEGMENTS.map((segment) => (
+        <ToolbarTooltip key={segment.mode} label={segment.hint}>
+          <button
+            aria-label={segment.hint}
+            aria-pressed={wallMode === segment.mode}
+            className={cn(TOOLBAR_BTN, 'w-auto min-w-8 px-2 font-medium text-[13px]', wallMode === segment.mode && BTN_ON)}
+            onClick={() => choose(segment.mode)}
+            type="button"
+          >
+            {segment.label}
+          </button>
+        </ToolbarTooltip>
+      ))}
+    </div>
   )
 }
 
