@@ -2,8 +2,21 @@ import { describe, expect, it } from 'vitest';
 
 import { parseTelemetryEvent } from '@/lib/telemetry/events';
 
-import { FRAME_BUDGET_MS, autoTier, initialTier, lowerTier, onDeviceLost, percentile, tierSsgi, useDeviceEpoch } from './tiers';
+import {
+  FRAME_BUDGET_MS,
+  autoTier,
+  initTier,
+  initialTier,
+  sceneTier,
+  lowerTier,
+  onDeviceLost,
+  percentile,
+  setTierMode,
+  tierSsgi,
+  useDeviceEpoch,
+} from './tiers';
 import { AUTO_TIER_KEY, TIER_MODE_KEY, bootTier, useRealism } from './store';
+import { traaEnabled } from './traa';
 
 describe('tiers', () => {
   it('autoTier: hạ một mức sau 5 giây liền vượt ngân sách, không tự nâng', () => {
@@ -66,6 +79,20 @@ describe('tiers', () => {
     onDeviceLost({ reason: 'unknown' });
     expect(useRealism.getState().tier).toBe('low');
     expect(useDeviceEpoch.getState().epoch).toBe(1);
+  });
+
+  it('sceneTier: cảnh (AA, MRT, bóng, đèn) theo mức lúc tải; đổi mức giữa phiên không đổi cấu hình cảnh', () => {
+    window.localStorage.setItem(TIER_MODE_KEY, 'low');
+    initTier({ backend: { device: { adapterInfo: { vendor: 'nvidia', description: 'GeForce RTX 4050' } } } });
+    expect(useRealism.getState().tier).toBe('low');
+    expect(sceneTier()).toBe('low');
+    expect(traaEnabled()).toBe(false);
+    setTierMode('medium');
+    expect(useRealism.getState().tier).toBe('medium');
+    expect(sceneTier()).toBe('low');
+    expect(traaEnabled()).toBe(false);
+    setTierMode('auto');
+    expect(sceneTier()).toBe('low');
   });
 
   it('sự kiện frame_p95 / tier_change hợp schema', () => {

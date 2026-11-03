@@ -1,9 +1,44 @@
 import { BoxGeometry, Mesh, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 
-import { isGlossy, probeStep, reflectProbeWanted } from './reflectRules';
+import { isGlossy, pmremWithoutMrt, probeStep, reflectProbeWanted } from './reflectRules';
 
 describe('reflectRules', () => {
+  it('PMREM chạy trên renderer thật (bỏ lớp chụp nhanh W2) với MRT tắt, trả lại cả hai kể cả khi lỗi; cài một lần', () => {
+    const real = Object.assign(
+      Object.create({
+        getMRT(this: { _mrt: unknown }) {
+          return this._mrt;
+        },
+        setMRT(this: { _mrt: unknown }, m: unknown) {
+          this._mrt = m;
+        },
+      }) as object,
+      { _mrt: 'scene-mrt' },
+    );
+    const snapshot = Object.assign(Object.create(real) as object, { getMRT: () => 'frozen-mrt' });
+    const seen: unknown[] = [];
+    const proto: Record<string, unknown> = {
+      fromScene(this: { _renderer: { getMRT(): unknown } }) {
+        seen.push((this._renderer as object) === real, this._renderer.getMRT());
+        return 'rt';
+      },
+      _fromTexture() {
+        throw new Error('boom');
+      },
+    };
+    pmremWithoutMrt(proto);
+    pmremWithoutMrt(proto);
+    const gen = Object.assign(Object.create(proto) as Record<string, () => unknown>, { _renderer: snapshot });
+    expect(gen.fromScene!()).toBe('rt');
+    expect(seen).toEqual([true, null]);
+    expect(gen._renderer).toBe(snapshot);
+    expect((real as { _mrt: unknown })._mrt).toBe('scene-mrt');
+    expect(() => gen._fromTexture!()).toThrow('boom');
+    expect((real as { _mrt: unknown })._mrt).toBe('scene-mrt');
+    expect(gen._renderer).toBe(snapshot);
+  });
+
   it('chỉ nhận vật liệu bóng có envMap', () => {
     expect(isGlossy({ roughness: 0.05, metalness: 0, envMap: null })).toBe(true);
     expect(isGlossy({ roughness: 0.45, metalness: 1, envMap: null })).toBe(true);

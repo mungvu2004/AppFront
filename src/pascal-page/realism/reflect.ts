@@ -30,10 +30,12 @@ import {
 import { equirectUV, float, mix, positionViewDirection, smoothstep, texture, transformedNormalView, uniform } from 'three/tsl';
 import { MeshStandardNodeMaterial, type Node, PMREMGenerator, type WebGPURenderer } from 'three/webgpu';
 
-import { glassTwinParams, isGlossy, isLambertGlass, probeStep, reflectProbeWanted } from './reflectRules';
+import { glassTwinParams, isGlossy, isLambertGlass, pmremWithoutMrt, probeStep, reflectProbeWanted } from './reflectRules';
 import { useRealism } from './store';
 import { currentTier } from './tiers';
 import { isFirstLoad } from './warm';
+
+pmremWithoutMrt(PMREMGenerator.prototype as unknown as Record<string, unknown>);
 
 // Ảnh giữ chỗ cùng kiểu với HDRI (RGBA float) → đổi `value` không đổi bố cục binding.
 const placeholder = new DataTexture(new Float32Array(4), 1, 1, RGBAFormat, FloatType);

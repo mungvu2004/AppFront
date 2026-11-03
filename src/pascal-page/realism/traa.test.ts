@@ -10,7 +10,7 @@ describe('traaEnabledFor', () => {
     expect(traaEnabledFor(true, '?disable=traax')).toBe(true);
   });
 
-  it('F3: mức low tắt TRAA (MSAA như cũ), medium/high theo cờ', () => {
+  it('F3: cảnh low dùng MSAA, medium/high theo cờ (chưa initTier: mức cảnh = mức hiện tại)', () => {
     useRealism.setState({ tier: 'low' });
     expect(traaEnabled()).toBe(false);
     useRealism.setState({ tier: 'high' });

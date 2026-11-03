@@ -9,6 +9,45 @@ export function isGlossy(m: { roughness?: unknown; metalness?: unknown; envMap?:
   return m.roughness <= GLOSSY_ROUGHNESS || (metal >= 0.5 && m.roughness <= 0.5);
 }
 
+/**
+ * PMREM (env equirect của theme qua `PMREMNode.updateBefore`, probe `fromScene`) có thể chạy LỒNG trong scene pass đang
+ * bật MRT → quad PMREM dựng theo MRT của cảnh → "Render pipeline creation failed (PMREM…): Color target has no
+ * corresponding fragment stage output" (theme Nắng chiều, đo 2026-11-04). Gốc: PMREMNode tạo generator lúc `setup` với
+ * `builder.renderer`; khi bản dựng chạy nền (W2, `warm.ts`) đó là renderer chụp nhanh có `getMRT`/`getRenderTarget`
+ * đóng băng theo scene pass → mọi lần PMREM sau vẽ theo MRT cảnh. Nên: mỗi lần tạo PMREM dùng renderer THẬT (bỏ lớp
+ * chụp nhanh — đối tượng có `getMRT` riêng, kế thừa từ renderer thật) với MRT tắt, xong trả lại cả hai.
+ */
+interface MrtRenderer {
+  getMRT(): unknown;
+  setMRT(mrt: unknown): unknown;
+}
+const liveRenderer = (r: MrtRenderer): MrtRenderer => {
+  let x = r;
+  while (Object.prototype.hasOwnProperty.call(x, 'getMRT')) x = Object.getPrototypeOf(x) as MrtRenderer;
+  return x;
+};
+type PmremProto = Record<string, unknown> & { __pmremNoMrt?: boolean };
+export function pmremWithoutMrt(proto: PmremProto, methods: readonly string[] = ['fromScene', '_fromTexture']): void {
+  if (proto.__pmremNoMrt) return;
+  proto.__pmremNoMrt = true;
+  for (const name of methods) {
+    const orig = proto[name] as (this: { _renderer: MrtRenderer }, ...a: unknown[]) => unknown;
+    proto[name] = function (this: { _renderer: MrtRenderer }, ...a: unknown[]) {
+      const held = this._renderer;
+      const live = liveRenderer(held);
+      const mrt = live.getMRT();
+      this._renderer = live;
+      live.setMRT(null);
+      try {
+        return orig.apply(this, a);
+      } finally {
+        live.setMRT(mrt);
+        this._renderer = held;
+      }
+    };
+  }
+}
+
 const box = new Box3();
 /** Trong nhà = dưới một trần (trong hộp xz của trần, thấp hơn trần ≤ 4 m). */
 export function reflectProbeWanted(p: Vector3, ceilings: readonly Object3D[]): boolean {

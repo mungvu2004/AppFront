@@ -10,7 +10,7 @@
 import { Box3, type HemisphereLight, type Object3D, PointLight, type Scene, Vector3 } from 'three';
 
 import { DAY_THEME_ID } from '../renderLook';
-import { useRealism } from './store';
+import { sceneTier } from './tiers';
 
 export const WINDOW_LIGHT_MAX = 8;
 /** cd mỗi m² ô cửa (decay 2 → độ rọi I/d²). */
@@ -28,7 +28,7 @@ export function windowLightsOn(themeId: string, appearance: string, tier: string
 
 /** Hệ số nhân ambient/hemi của vendor (1 khi tắt) — áp vào giá trị đích nên lerp không cộng dồn. */
 export function windowAmbientScale(themeId: string, appearance: string): number {
-  return windowLightsOn(themeId, appearance, useRealism.getState().tier) ? WINDOW_AMBIENT_SCALE : 1;
+  return windowLightsOn(themeId, appearance, sceneTier()) ? WINDOW_AMBIENT_SCALE : 1;
 }
 
 export interface WindowPane {
@@ -104,7 +104,7 @@ export function syncWindowLights(
   appearance: string,
   hemi: HemisphereLight | null,
 ): void {
-  const on = windowLightsOn(themeId, appearance, useRealism.getState().tier);
+  const on = windowLightsOn(themeId, appearance, sceneTier());
   if (!on) {
     if (pool.length) {
       for (const l of pool) l.removeFromParent();

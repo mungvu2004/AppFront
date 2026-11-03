@@ -62,7 +62,9 @@ export function QualityCard({ section = false }: { readonly section?: boolean } 
             </button>
           </li>
         ))}
-        <li className="px-2 pt-0.5 pb-1.5 text-[12px] text-[var(--pa-text-3)]">Chỉ lưu trên máy này</li>
+        <li className="px-2 pt-0.5 pb-1.5 text-[12px] text-[var(--pa-text-3)]">
+          Chỉ lưu trên máy này. Một phần thay đổi chỉ áp dụng khi mở lại trang.
+        </li>
       </ul>
   );
   if (section) {

@@ -129,7 +129,7 @@ describe('u43 + r10-ao: post-processing khong dung lai khi doi co canvas; GTAO c
   });
 
   it('gtaoOn nhan transparentBackground (cung dieu kien traaOn)', () => {
-    assert.match(out, /const gtaoEnabled = gtaoOn\(shading, ssgiEnabled, transparentBackground\)/);
+    assert.match(out, /const aoMrt = gtaoOn\(shading, ssgiEnabled, transparentBackground\)/);
   });
 });
 
@@ -152,5 +152,34 @@ describe('r9y-cut-cap: doi che do tuong khong dung lai vat lieu / luoi gop', () 
     assert.match(out, /if \(!suspended && staleLevels\.has\(levelId\)\) \{\n {8}disposeLevelBatches\(levelId\)/);
     assert.doesNotMatch(out, /if \(batchingSuspended\) \{\n {4}staleLevels\.clear\(\)/);
     assert.match(out, /holdBatchedWallsAfterCapture\(\): void \{\n.*\n {2}if \(batchingSuspended\) return/);
+  });
+});
+
+describe('r3t-tiers: doi muc khong doi khoa vat lieu canh (chi dung lai quad hau ky)', () => {
+  const patched = (file) => {
+    const id = path.join(PACKAGES, file);
+    const raw = readFileSync(id, 'utf8');
+    return transformRealism(RENDER_RULES[file] ? transformRender(raw, id) : raw, id);
+  };
+
+  it('mot nut MRT dung chung moi lan dung pipeline (mrt.id moi = dung lai moi vat lieu)', () => {
+    const pp = patched('viewer/src/components/viewer/post-processing.tsx');
+    assert.equal(pp.split(/\bmrt\(\{/).length - 1, 1);
+    assert.match(pp, /SCENE_MRTS\[String\(traaOn\)\] \?\?= mrt\(\{/);
+    assert.match(pp, /scenePass\.setMRT\(sceneMrt\(traaOn\)\)/);
+    // MRT theo muc CANH (TRAA cua sceneTier): ha low giua phien tat GTAO/SSGI nhung giu MRT.
+    assert.match(pp, /const gtaoEnabled = aoMrt && realismTier !== 'low'\n\s+const needsNormalMRT = ssgiEnabled \|\| inkEnabled \|\| aoMrt\n/);
+    // Tai o low: SSGI tat toi khi mo lai trang (bat = them MRT = dung lai moi vat lieu).
+    assert.match(pp, /ao: set\.has\('ao'\) \|\| !tierConfig\(currentTier\(\)\)\.ssgiOn \|\| !tierConfig\(sceneTier\(\)\)\.ssgiOn,\n/);
+    // So dich cua pass phai nhu nhau (khoa context): albedo xin ngay sau normal, ca khi low khong dung.
+    assert.match(pp, /normalTexture\.type = UnsignedByteType\n\s+scenePass\.getTexture\('diffuseColor'\)\.type = UnsignedByteType\n/);
+  });
+
+  it('shadowMap theo muc canh (luc tai); ha low giua phien: den chinh intensity 0 + dung cap nhat bong', () => {
+    const index = patched('viewer/src/components/viewer/index.tsx');
+    assert.match(index, /enabled: shadowsEnabled && sceneTier\(\) !== 'low',\n/);
+    assert.doesNotMatch(index, /realismTier !== 'low'/);
+    const lights = patched('viewer/src/components/viewer/lights.tsx');
+    assert.match(lights, /if \(lowShadow\) light\.shadow\.intensity = 0\n\s+light\.shadow\.autoUpdate = !lowShadow/);
   });
 });

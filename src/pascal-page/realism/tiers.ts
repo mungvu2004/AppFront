@@ -53,6 +53,14 @@ const TIER_QUIET_OFF =
 /** Đọc mức ngoài React (lúc dựng pipeline). */
 export const currentTier = (): RealismTier => useRealism.getState().tier;
 export const tierConfig = (tier: RealismTier): TierConfig => TIERS[tier];
+/**
+ * Mức của CẢNH = mức lúc tải trang (hoặc lúc dựng lại canvas sau mất thiết bị). Mọi thứ vào khoá vật liệu/context
+ * chọn theo nó: khử răng cưa (TRAA hay MSAA), tập MRT, `shadowMap.enabled`, bộ đèn phòng/cửa sổ — đổi một thứ là dựng
+ * lại mọi vật liệu cảnh (~40-60 lần dựng, 16-20 s khựng, đo 2026-11-04). Đổi mức giữa phiên (tự hạ hay nút) chỉ đổi
+ * DPR + hậu kỳ; phần còn lại áp ở lần mở trang sau (`autoTier` đã lưu).
+ */
+let loadTier: RealismTier | null = null;
+export const sceneTier = (): RealismTier => loadTier ?? useRealism.getState().tier;
 /** Hook cho vendor: mức đang dùng. */
 export const useTier = (): RealismTier => useRealism((s) => s.tier);
 
@@ -156,6 +164,7 @@ export function initTier(renderer: unknown): void {
   const mode = readMode();
   useRealism.setState({ tierMode: mode });
   setTier(mode === 'auto' ? autoStart : mode, mode === 'auto');
+  loadTier = useRealism.getState().tier;
   startLoop();
 }
 
@@ -163,6 +172,8 @@ export function initTier(renderer: unknown): void {
 export function onDeviceLost(info: { reason?: string | null } | undefined): void {
   if (info?.reason === 'destroyed') return;
   setTier('low', true);
+  // Canvas dựng lại từ đầu (renderer mới) → cảnh cũng theo low.
+  loadTier = 'low';
   useDeviceEpoch.setState((s) => ({ epoch: s.epoch + 1 }));
 }
 
