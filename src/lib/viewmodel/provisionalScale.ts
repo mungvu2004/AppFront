@@ -18,6 +18,16 @@ export function isScaleMissing(source: ScaleSource | undefined): boolean {
   return source === 'project_default';
 }
 
+/** N16 `scaleBasis` mà máy chỉ ước lượng (cửa, độ dày tường, mặc định) — không đọc từ số trên bản vẽ. */
+const ESTIMATED_SCALE_BASES: ReadonlySet<string> = new Set(['door', 'wallThickness', 'default']);
+
+export function isScaleEstimated(basis: string | undefined): boolean {
+  return basis !== undefined && ESTIMATED_SCALE_BASES.has(basis);
+}
+
+/** Nhãn tỷ lệ ước lượng (N16 `scaleBasis`), dùng chung mọi màn. */
+export const SCALE_ESTIMATED_NOTE = 'Tỷ lệ ước lượng — nên hiệu chỉnh';
+
 /**
  * Ba trạng thái tỷ lệ của một tầng (UX-R2 K50/K20/K46) — MỘT nguồn chữ và màu cho thanh bước,
  * cổng, dải, chip Các tầng, Xử lý, Quy chuẩn và 3D: `missing` đỏ (máy không đo được, đang dùng

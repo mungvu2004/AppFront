@@ -117,6 +117,55 @@ describe('FloorLayerDocumentSchema', () => {
     expect(parse({ state: 'ready' })).toBe(false);
   });
 
+  it('BENCH3D-11: geometrySuspect + checks (cả mã lạ) và scaleBasis được nhận; bản cũ không có chúng vẫn qua', () => {
+    const readiness = {
+      checks: ['OPEN_ENVELOPE', 'ROTATED_PLAN', 'SOME_FUTURE_CHECK'],
+      reasons: ['geometrySuspect', 'scaleUnresolved'],
+      state: 'needsReview',
+    } as const;
+    const parsed = FloorLayerDocumentSchema.parse({ ...fullDocument, readiness, scaleBasis: 'door' });
+
+    expect(parsed.readiness).toStrictEqual(readiness);
+    expect(parsed.scaleBasis).toBe('door');
+    // `checks: []` coi như vắng; tài liệu không có trường mới không sinh khoá nào.
+    expect(
+      FloorLayerDocumentSchema.parse({ ...minimalDocument, readiness: { checks: [], reasons: [], state: 'ready' } })
+        .readiness,
+    ).toStrictEqual({ reasons: [], state: 'ready' });
+    expect('scaleBasis' in FloorLayerDocumentSchema.parse(minimalDocument)).toBe(false);
+    expect(FloorLayerDocumentSchema.safeParse({ ...minimalDocument, scaleBasis: 'guess' }).success).toBe(false);
+    expect(
+      FloorLayerDocumentSchema.safeParse({ ...minimalDocument, readiness: { checks: [''], reasons: [], state: 'ready' } })
+        .success,
+    ).toBe(false);
+  });
+
+  it('BENCH3D-11: phòng có clearAreaM2 thì giữ, không có thì không sinh khoá', () => {
+    const room = {
+      ...AI_REVIEW,
+      areaM2: 16,
+      id: 'R-ROOM000',
+      levelId: 'L-LEVEL00',
+      name: 'Phòng ngủ',
+      outline: [
+        { x: 0, y: 0 },
+        { x: 4000, y: 0 },
+        { x: 4000, y: 4000 },
+      ],
+      usage: 'bedroom',
+      wallIds: [],
+    } as const;
+    const parse = (rooms: readonly unknown[]) =>
+      FloorLayerDocumentSchema.parse({ ...minimalDocument, layer: { ...layer, rooms } }).layer.rooms[0];
+
+    expect(parse([{ ...room, clearAreaM2: 14.62 }])?.clearAreaM2).toBe(14.62);
+    expect(parse([room])).not.toHaveProperty('clearAreaM2');
+    expect(
+      FloorLayerDocumentSchema.safeParse({ ...minimalDocument, layer: { ...layer, rooms: [{ ...room, clearAreaM2: -1 }] } })
+        .success,
+    ).toBe(false);
+  });
+
   it('nhận tài liệu đầy đủ', () => {
     expect(FloorLayerDocumentSchema.parse(fullDocument)).toStrictEqual({ ...fullDocument });
   });

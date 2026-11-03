@@ -75,6 +75,8 @@ export const FloorOriginSchema = z.object({ x: z.number().int(), y: z.number().i
 export const ReadinessReasonSchema = z.enum([
   'scaleUnresolved',
   'criticalIssues',
+  /** Kiểm hình học critical của lượt mới nhất (mã ở `readiness.checks`); `criticalIssues` giữ cho lỗi toàn vẹn dữ liệu. */
+  'geometrySuspect',
   'fallbackWallModel',
   'fallbackObjectModel',
   'fallbackTextModel',
@@ -85,11 +87,28 @@ export const ReadinessSchema = z
   .object({
     state: z.enum(['ready', 'needsReview', 'notEvaluated']),
     reasons: z.array(ReadinessReasonSchema),
+    /**
+     * Mã các kiểm hình học critical (`OPEN_ENVELOPE`, `MULTIPLE_PLANS`…), thứ tự máy chủ giữ cố định.
+     * Chuỗi tự do, không enum: mã mới của BE không được làm vỡ cả tài liệu tầng — màn hiện câu chung.
+     */
+    checks: z.array(z.string().min(1)).optional(),
   })
-  .strict();
+  .strict()
+  .transform(({ checks, ...readiness }) => ({
+    ...readiness,
+    ...(checks !== undefined && checks.length > 0 ? { checks } : {}),
+  }));
 
 export type FloorReadiness = z.infer<typeof ReadinessSchema>;
 export type ReadinessReason = z.infer<typeof ReadinessReasonSchema>;
+
+/**
+ * Tỉ lệ của tầng lấy từ đâu: `chain`/`paired`/`note` đọc từ số trên bản vẽ; `door`/`wallThickness`/`default`
+ * là ước lượng (nên hiệu chỉnh); `human` = người đặt.
+ */
+export const ScaleBasisSchema = z.enum(['chain', 'paired', 'note', 'door', 'wallThickness', 'default', 'human']);
+
+export type ScaleBasis = z.infer<typeof ScaleBasisSchema>;
 
 export const FloorLayerDocumentSchema = z
   .object({
@@ -101,6 +120,7 @@ export const FloorLayerDocumentSchema = z
     level: LevelSchema,
     revision: revisionSchema,
     scaleStatus: z.literal('unresolved').optional(),
+    scaleBasis: ScaleBasisSchema.optional(),
     /** Nguồn tỉ lệ tạm, chỉ đi cùng `scaleStatus`: `project_default` = máy không đo được (UX-R1 K12). */
     scaleSource: z.enum(['pipeline', 'project_default']).optional(),
     /** Tỷ lệ máy ước từ độ dày tường (mm/px), để người dùng xác nhận khi chưa có tỷ lệ (UX-R2). */
@@ -126,6 +146,7 @@ export const FloorLayerDocumentSchema = z
     ...(wireDocument.origin != null ? { origin: wireDocument.origin } : {}),
     ...(wireDocument.readiness !== undefined ? { readiness: wireDocument.readiness } : {}),
     ...(wireDocument.scaleStatus !== undefined ? { scaleStatus: wireDocument.scaleStatus } : {}),
+    ...(wireDocument.scaleBasis !== undefined ? { scaleBasis: wireDocument.scaleBasis } : {}),
     ...(wireDocument.scaleSource !== undefined ? { scaleSource: wireDocument.scaleSource } : {}),
     ...(wireDocument.suggestedScaleMmPerPx !== undefined
       ? { suggestedScaleMmPerPx: wireDocument.suggestedScaleMmPerPx }

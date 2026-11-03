@@ -296,6 +296,8 @@ export const RoomSchema: z.ZodType<Room, z.ZodTypeDef, unknown> = z
   .object({
     ...reviewMetadataShape,
     areaM2: squareMetresSchema,
+    /** Diện tích thông thủy (lùi nửa bề dày tường bao); máy chủ tính, chỉ đọc — không gửi lại khi ghi. */
+    clearAreaM2: squareMetresSchema.optional(),
     id: roomIdSchema,
     levelId: levelIdSchema,
     name: z.string().min(1),
@@ -323,8 +325,9 @@ export const RoomSchema: z.ZodType<Room, z.ZodTypeDef, unknown> = z
   .strict()
   .refine(humanOnlyReview)
   /* `finish` vắng là vắng khoá (xem chú thích của `FurnitureSchema` bên dưới). */
-  .transform(({ finish, floorMaterial, dressingOff, ceilingMaterial, ...wireRoom }) => ({
+  .transform(({ clearAreaM2, finish, floorMaterial, dressingOff, ceilingMaterial, ...wireRoom }) => ({
     ...wireRoom,
+    ...(clearAreaM2 !== undefined ? { clearAreaM2 } : {}),
     ...(ceilingMaterial !== undefined ? { ceilingMaterial } : {}),
     ...(finish !== undefined ? { finish } : {}),
     ...(floorMaterial !== undefined ? { floorMaterial } : {}),

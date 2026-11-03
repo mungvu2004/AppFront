@@ -30,7 +30,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Room, RoomId, Wall, WallId } from '@/domain/spatial/types';
-import { millimetres } from '@/domain/units/types';
+import { millimetresPerPixel, scaleFromRatio } from '@/domain/units/scale';
+import { millimetres, squareMetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -58,6 +59,7 @@ import {
   scaleSegmentOf,
   createMockRoomLabelReviewGateway,
   hasRoomName,
+  measureRoom,
   provisionalMeasureText,
   roomCodeLabel,
   roomsSpillingOutside,
@@ -282,7 +284,9 @@ describe('phép ghép thuần của màn Duyệt tên phòng', () => {
 
   it('[BUG-408] câu giải thích diện tích bằng lời thường, không lộ công thức dây giày', () => {
     expect(areaCaptionOf(null)).toBe('');
-    expect(areaCaptionOf(ROOM_R005)).toBe('Diện tích sàn đo trong mép thông thuỷ của ranh phòng.');
+    expect(areaCaptionOf(ROOM_R005)).toBe('Diện tích tính theo tim tường của ranh phòng.');
+    // BENCH3D-11: có thông thuỷ thì chú giải nói số nào là số nào.
+    expect(areaCaptionOf({ ...ROOM_R005, clearAreaM2: squareMetres(1) })).toMatch(/^Số chính là diện tích thông thuỷ/u);
     expect(areaCaptionOf(ROOM_R005)).not.toMatch(/dây giày|x1 × y2/u);
   });
 
@@ -899,6 +903,31 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
     expect(provisionalMeasureText('12,40 m²', 'unresolved')).toBe('≈ 12,40 m² (tạm)');
     expect(provisionalMeasureText('12,40 m²', 'unresolved', 'project_default')).toBe('Chưa có');
     expect(provisionalMeasureText('12,40 m²', undefined)).toBe('12,40 m²');
+  });
+
+  it('BENCH3D-11: có clearAreaM2 thì số chính là thông thuỷ, tim tường là số phụ; tầng đỏ không số phụ', () => {
+    const room: Room = {
+      ...ROOM_R005,
+      outline: [
+        { x: 0, y: 0 },
+        { x: 4000, y: 0 },
+        { x: 4000, y: 4000 },
+        { x: 0, y: 4000 },
+      ] as unknown as Room['outline'],
+      clearAreaM2: squareMetres(14.44),
+    };
+    const scale = scaleFromRatio(millimetresPerPixel(1));
+
+    expect(measureRoom(room, scale)).toMatchObject({ areaText: '14,44 m² thông thuỷ', centerlineAreaText: '16,00 m² tim tường' });
+    expect(measureRoom(room, scale, 'unresolved', 'pipeline')).toMatchObject({
+      areaText: '≈ 14,44 m² thông thuỷ (tạm)',
+      centerlineAreaText: '≈ 16,00 m² tim tường (tạm)',
+    });
+    expect(measureRoom(room, scale, 'unresolved', 'project_default')).not.toHaveProperty('centerlineAreaText');
+    const { clearAreaM2: _omit, ...withoutClear } = room;
+    void _omit;
+    expect(measureRoom(withoutClear, scale)).toMatchObject({ areaText: '16,00 m²' });
+    expect(measureRoom(withoutClear, scale)).not.toHaveProperty('centerlineAreaText');
   });
 
   /* UX-R2 K22/K04: tỷ lệ "cần kiểm" (vàng) không còn dải ở màn; số đo vẫn "≈ … (tạm)". */

@@ -8,7 +8,7 @@
  * lệ", không mời sang Duyệt tầng.
  */
 
-import { SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
+import { SCALE_ESTIMATED_NOTE, SCALE_STATE_VIEWS } from '@/lib/viewmodel/provisionalScale';
 
 import type { ProcessingReviewReason, ProcessingScreenProps } from './types';
 
@@ -23,6 +23,8 @@ export interface ProcessingGateAction {
 
 /** Một lý do "cần xem lại" (N16 `readiness`): câu cho người đọc và màn sửa được nó. */
 export interface ProcessingGateReviewRow {
+  /** Khoá dòng: lý do, hoặc mã kiểm khi `geometrySuspect` tách theo `readiness.checks`. */
+  readonly key: string;
   readonly reason: ProcessingReviewReason;
   readonly sentence: string;
   /** `scale` → nút Đặt tỷ lệ; `review` → nút Sang Duyệt tầng. */
@@ -66,10 +68,40 @@ const CALIBRATE_NOTE = 'Đo một đoạn đã biết chiều dài, như số gh
 export const REVIEW_REASON_SENTENCE: Readonly<Record<ProcessingReviewReason, string>> = {
   scaleUnresolved: 'Tỷ lệ bản vẽ mới là tạm, chưa ai kiểm: kích thước và diện tích có thể sai.',
   criticalIssues: 'Mô hình còn lỗi nghiêm trọng cần sửa ở Duyệt tầng.',
+  geometrySuspect: 'Hình học của tầng có chỗ đáng ngờ: nên kiểm lại tường và phòng ở Duyệt tầng.',
   fallbackWallModel: 'Tường được dò bằng mô hình dự phòng, độ chính xác thấp hơn: nên kiểm lại tường.',
   fallbackObjectModel: 'Cửa và đồ vật được dò bằng mô hình dự phòng, có thể thiếu hoặc sai chỗ.',
   fallbackTextModel: 'Chữ và số kích thước được đọc bằng mô hình dự phòng, có thể đọc sai.',
 };
+
+/** Câu cho từng mã kiểm hình học (N16 `readiness.checks`): chuyện gì và nên làm gì. Mã lạ dùng câu của `geometrySuspect`. */
+export const GEOMETRY_CHECK_SENTENCE: Readonly<Record<string, string>> = {
+  OPEN_ENVELOPE: 'Tường bao ngoài chưa khép kín, mô hình 3D sẽ bị hở: hãy nối các đoạn tường ngoài ở Duyệt tầng.',
+  WALL_FRAGMENTS: 'Tường bị vỡ thành nhiều mảnh ngắn: hãy gộp hoặc vẽ lại các đoạn tường ở Duyệt tầng.',
+  MULTIPLE_PLANS: 'Tờ có nhiều mặt bằng: hãy cắt từng căn thành một bản vẽ riêng rồi xử lý lại.',
+  ROOMS_WITHOUT_DOOR: 'Có phòng không có cửa vào: hãy thêm cửa còn thiếu ở Duyệt tầng.',
+  ROOM_USAGE_UNKNOWN: 'Nhiều phòng chưa rõ công năng: hãy đặt tên phòng ở bước Phòng.',
+  ROTATED_PLAN: 'Bản vẽ có vẻ bị xoay, chữ đọc theo chiều dọc: hãy xoay ảnh cho chữ đọc xuôi rồi tải lại.',
+};
+
+/** Một dòng cho mỗi lý do; `geometrySuspect` có mã kiểm thì tách thành một dòng cho mỗi mã. */
+function reviewRowsOf(
+  reasons: readonly ProcessingReviewReason[],
+  checks: readonly string[],
+): ProcessingGateReviewRow[] {
+  return reasons.flatMap((reason): ProcessingGateReviewRow[] => {
+    if (reason === 'geometrySuspect' && checks.length > 0) {
+      return checks.map((code) => ({
+        key: code,
+        reason,
+        sentence: GEOMETRY_CHECK_SENTENCE[code] ?? REVIEW_REASON_SENTENCE.geometrySuspect,
+        target: 'review',
+      }));
+    }
+
+    return [{ key: reason, reason, sentence: REVIEW_REASON_SENTENCE[reason], target: reason === 'scaleUnresolved' ? 'scale' : 'review' }];
+  });
+}
 
 /** Thứ tự `metricLabels` của hook: tường, "cửa, nội thất", chuỗi kích thước, phòng, diện tích. */
 function resultsOf(props: ProcessingScreenProps): ReadonlyMap<string, string> {
@@ -164,7 +196,10 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
 
   // `needsReview` không bao giờ ra 'ready' (FIX-P0-15): tỷ lệ tạm mà có kích thước từng báo "Sẵn sàng".
   const reasons: readonly ProcessingReviewReason[] = summary.reviewReasons ?? [];
+  // Tỷ lệ ước lượng nói trước nguồn tỷ lệ: người đọc cần biết số nào chưa đáng tin.
+  const scaleNote = summary.scaleEstimated === true ? SCALE_ESTIMATED_NOTE : summary.scaleSourceNote;
   if (reasons.length > 0) {
+    const rows = reviewRowsOf(reasons, summary.reviewChecks ?? []);
     const isScaleUnresolved = reasons.includes('scaleUnresolved');
     const calibrate = {
       label: CALIBRATE_LABEL,
@@ -178,15 +213,11 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
       kind: 'needs-review',
       chipLabel: 'Xong · cần xem lại',
       chipVariant: 'attention',
-      title: reasons.length === 1 ? 'Còn 1 việc cần xem lại' : `Còn ${String(reasons.length)} việc cần xem lại`,
+      title: rows.length === 1 ? 'Còn 1 việc cần xem lại' : `Còn ${String(rows.length)} việc cần xem lại`,
       scaleValue: isScaleUnresolved ? 'Cần kiểm' : 'Suy từ chuỗi kích thước',
-      ...(summary.scaleSourceNote !== undefined ? { scaleNote: summary.scaleSourceNote } : {}),
+      ...(scaleNote !== undefined ? { scaleNote } : {}),
       isScaleOk: !isScaleUnresolved,
-      reviewRows: reasons.map((reason): ProcessingGateReviewRow => ({
-        reason,
-        sentence: REVIEW_REASON_SENTENCE[reason],
-        target: reason === 'scaleUnresolved' ? 'scale' : 'review',
-      })),
+      reviewRows: rows,
       // Đặt tỷ lệ đi trước; Duyệt tầng vẫn mở (lối mềm như tỷ lệ chưa kiểm, không chặn cứng).
       action: isScaleUnresolved ? calibrate : review,
       // Tỷ lệ chưa kiểm: "Sang Duyệt tầng" mở ở bước Tỷ lệ (bước đầu của Duyệt tầng), không bỏ qua nó (U28).
@@ -201,8 +232,8 @@ export function deriveProcessingGate(props: ProcessingScreenProps): ProcessingGa
     chipVariant: 'verified',
     title: 'Sẵn sàng duyệt tầng',
     scaleValue:
-      scaleKnown && noDimension ? 'Đã đặt' : summary.scaleSourceNote !== undefined ? 'Máy đề xuất' : 'Suy từ chuỗi kích thước',
-    ...(summary.scaleSourceNote !== undefined ? { scaleNote: summary.scaleSourceNote } : {}),
+      scaleKnown && noDimension ? 'Đã đặt' : scaleNote !== undefined ? 'Máy đề xuất' : 'Suy từ chuỗi kích thước',
+    ...(scaleNote !== undefined ? { scaleNote } : {}),
     isScaleOk: true,
     action: { label: GO_REVIEW_LABEL, isForward: true, onClick: summary.onReviewWalls },
   };

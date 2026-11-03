@@ -245,7 +245,9 @@ const OVERSIZED_ROOM_SHARE = 0.8;
  * Từng lấy đoạn phép tính của `explainRoom` (công thức dây giày, "x1 × y2 − x2 × y1")
  * — chi tiết của người lập trình, không phải của người duyệt tên phòng (BUG-408).
  */
-const AREA_CAPTION = 'Diện tích sàn đo trong mép thông thuỷ của ranh phòng.';
+/* Ranh phòng là đường tim tường: số tính từ nó không phải thông thuỷ. */
+const AREA_CAPTION = 'Diện tích tính theo tim tường của ranh phòng.';
+const CLEAR_AREA_CAPTION = 'Số chính là diện tích thông thuỷ (trừ nửa bề dày tường bao); số phụ tính theo tim tường.';
 
 /* -------------------------------------------------------------------------- */
 /* Phép ghép thuần — kiểm được mà không cần dựng hook.                          */
@@ -369,7 +371,8 @@ export function splitPointOf(
 
 /** Câu giải thích diện tích; `''` khi tầng chưa có phòng nào — không có ranh phòng thì không có gì để giải thích. */
 export function areaCaptionOf(room: Room | null): string {
-  return room === null ? '' : AREA_CAPTION;
+  if (room === null) return '';
+  return room.clearAreaM2 === undefined ? AREA_CAPTION : CLEAR_AREA_CAPTION;
 }
 
 /** Tám nhãn công năng làm gợi ý tên — GỢI Ý, không bao giờ ép (CẤM TUYỆT ĐỐI). */
@@ -524,7 +527,7 @@ export function useRoomLabelReview(
     const next = new Map<RoomId, RoomLabelMeasures>();
 
     for (const room of rooms) {
-      const key = `${outlineKeyOf(room)}|${scaleStatus ?? ''}|${scaleSource ?? ''}`;
+      const key = `${outlineKeyOf(room)}|${String(room.clearAreaM2)}|${scaleStatus ?? ''}|${scaleSource ?? ''}`;
       const cached = cache.get(room.id);
 
       if (cached !== undefined && cached.key === key) {
