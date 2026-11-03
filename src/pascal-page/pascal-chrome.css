@@ -304,7 +304,8 @@ button[data-slot="button"]:has(> svg.lucide-volume-x) {
 }
 
 /* Đợt 2: thanh dưới bên phải không đủ chỗ (viewer-toolbar `useDockCompact`) → chỉ còn biểu tượng. */
-[data-appfront-dock][data-compact] .dock-label {
+[data-appfront-dock][data-compact] .dock-label,
+[data-appfront-undo][data-compact] .dock-label {
   position: absolute !important;
   width: 1px !important;
   height: 1px !important;

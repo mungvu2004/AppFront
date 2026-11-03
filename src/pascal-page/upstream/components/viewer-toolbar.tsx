@@ -76,6 +76,7 @@ import { createPortal, flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
 import { cn } from '../lib/utils'
 import { roomsOf } from '../lib/fit-on-ready'
+import { barLayoutVars, type DockFit, dockFit } from '../lib/dock-fit'
 import { fitModel, fitRoom, viewedFrame } from '../lib/view-frame'
 import { isSeparateUnits } from '../../bridge'
 import { QUICK_SHOT_REQUEST_ID } from '../../realism/snapshot'
@@ -969,8 +970,13 @@ function TopViewWalkButtons() {
   )
 }
 
-/** AppFront edit (UX-R1 K38/K49): the rotate pair lives in this "Góc nhìn" menu. */
-function MoreCameraMenu() {
+/**
+ * AppFront edit (UX-R1 K38/K49): the rotate pair lives in this "Góc nhìn" menu.
+ * HIG-A: with `projectId` (dock too narrow even as icons) the rest of the dock folds in here too.
+ */
+function MoreCameraMenu({ projectId }: { projectId?: string }) {
+  const is2dOnly = useEditor((state) => state.viewMode === '2d')
+  const walkReady = useSceneDrawn()
   return (
     <div className="contents">
       <DropdownMenu>
@@ -982,12 +988,48 @@ function MoreCameraMenu() {
           </DropdownMenuTrigger>
         </ToolbarTooltip>
         <DropdownMenuContent align="end" className={SUBMENU_CONTENT_CLASS} side="top" sideOffset={8}>
+          {projectId ? (
+            <>
+              {is2dOnly ? null : (
+                <DropdownMenuItem onSelect={topViewToggle}>
+                  <ArrowDownToDot className="h-4 w-4" />
+                  <span>Nhìn từ trên</span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem disabled={!walkReady} onSelect={toggleWalkthrough}>
+                <Footprints className="h-4 w-4" />
+                <span>Đi bộ</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={fitWholeModel}>
+                <Maximize className="h-4 w-4" />
+                <span>Xem toàn bộ</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          ) : null}
           {CAMERA_BUTTONS.map(({ label, icon: ItemIcon, onClick }) => (
             <DropdownMenuItem key={label} onSelect={onClick}>
               <ItemIcon className="h-4 w-4" />
               <span>{label}</span>
             </DropdownMenuItem>
           ))}
+          {projectId ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => shootView(projectId)}>
+                <Camera className="h-4 w-4" />
+                <span>Ảnh</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void copyEditorLink(projectId).catch(() => undefined)}>
+                <Send className="h-4 w-4" />
+                <span>Chép liên kết trang 3D</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => openShareLinkPage(projectId)}>
+                <Send className="h-4 w-4" />
+                <span>Tạo liên kết xem không cần tài khoản</span>
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -1001,23 +1043,23 @@ const canRedoNow = () => getHistoryCommandState().canRedo
  * Editor3D G2 (T13, A2-03, F-08): labelled Hoàn tác / Làm lại, always on the bar, disabled when the
  * history is empty. Same calls as Ctrl+Z / Ctrl+Shift+Z (`runUndo` / `runRedo`). "Hoàn tác" never collapses.
  */
-function UndoRedoButtons() {
+function UndoRedoButtons({ compact = false }: { compact?: boolean }) {
   const canUndo = useSyncExternalStore(subscribeHistoryCommandState, canUndoNow)
   const canRedo = useSyncExternalStore(subscribeHistoryCommandState, canRedoNow)
   const btn = cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2 font-medium text-[13px] disabled:cursor-not-allowed')
   return (
-    <div className={TOOLBAR_CONTAINER} data-appfront-undo="">
+    <div className={TOOLBAR_CONTAINER} data-appfront-undo="" data-compact={compact ? '' : undefined}>
       <ToolbarTooltip label={canUndo ? 'Hoàn tác (Ctrl+Z)' : 'Chưa có gì để hoàn tác'}>
         <button aria-label="Hoàn tác" className={btn} disabled={!canUndo} onClick={() => runUndo()} type="button">
           <Undo2 className="h-3.5 w-3.5 shrink-0" />
-          <span>Hoàn tác</span>
+          <span className="dock-label">Hoàn tác</span>
         </button>
       </ToolbarTooltip>
       <div className="my-1.5 w-px bg-[var(--pa-border)]" />
       <ToolbarTooltip label={canRedo ? 'Làm lại (Ctrl+Shift+Z)' : 'Chưa có gì để làm lại'}>
         <button aria-label="Làm lại" className={btn} disabled={!canRedo} onClick={() => runRedo()} type="button">
           <Redo2 className="h-3.5 w-3.5 shrink-0" />
-          <span>Làm lại</span>
+          <span className="dock-label">Làm lại</span>
         </button>
       </ToolbarTooltip>
     </div>
@@ -1096,37 +1138,82 @@ function useActionMenuEdges() {
   return edges
 }
 
+/** The viewer column (the top bar's parent, vendor RightColumn); null when not mounted. */
+function viewerColumn(): HTMLElement | null {
+  return document.querySelector('[data-appfront-bar]')?.closest<HTMLElement>('.z-20')?.parentElement ?? null
+}
+
 /**
  * Đợt 2 (thử tay 1280 px, bảng Dựng mở): the action menu sits right of centre, so the labelled dock ran
  * past the screen edge. Labels collapse to icons (`data-compact`, pascal-chrome.css) whenever the
  * labelled width — remembered while labels show — does not fit right of the action menu.
+ * HIG-A (768 px, bảng bên mở): icons alone still ran off the edge → fold the rest into "…" (level 2).
+ * Hoàn tác / Làm lại drop their labels when they would run under the sidebar, left of the action menu.
  */
-function useDockCompact(edges: { left: number; right: number } | null): boolean {
-  const [compact, setCompact] = useState(false)
-  const fullWidth = useRef(0)
+function useDockFit(edges: { left: number; right: number } | null): { fit: DockFit; undoCompact: boolean } {
+  const [fit, setFit] = useState<DockFit>(0)
+  const [undoCompact, setUndoCompact] = useState(false)
+  const widths = useRef({ full: 0, icons: 0, undo: 0 })
   useEffect(() => {
     const check = () => {
       const dock = document.querySelector<HTMLElement>('[data-appfront-dock]')
       if (!dock || !edges) return
-      if (!dock.hasAttribute('data-compact')) fullWidth.current = dock.getBoundingClientRect().width
+      const w = widths.current
+      if (!dock.hasAttribute('data-compact')) w.full = dock.getBoundingClientRect().width
+      else if (!dock.hasAttribute('data-tight')) w.icons = dock.getBoundingClientRect().width
       const room = window.innerWidth - edges.right - DOCK_GAP * 2
-      setCompact(fullWidth.current > room)
+      setFit(dockFit(w.full, w.icons, room))
+      const undo = document.querySelector<HTMLElement>('[data-appfront-undo]')
+      if (undo && !undo.hasAttribute('data-compact')) w.undo = undo.getBoundingClientRect().width
+      const leftRoom = edges.left - (viewerColumn()?.getBoundingClientRect().left ?? 0) - DOCK_GAP * 2
+      setUndoCompact(w.undo > leftRoom)
     }
     check()
     const timer = window.setInterval(check, 500)
     return () => window.clearInterval(timer)
   }, [edges])
-  return compact
+  return { fit, undoCompact }
 }
+
+/**
+ * HIG-A: the top bar wraps (pascal.css) and its height changes with the sidebar, selection cards and
+ * width, so the floor card and the canvas-help pill read its bottom edge (and the viewer column's left
+ * edge, to centre on the canvas rather than the window) from these variables instead of a fixed top-14.
+ */
+function useBarLayoutVars() {
+  useEffect(() => {
+    const style = document.documentElement.style
+    const tick = () => {
+      const column = viewerColumn()
+      const bar = document.querySelector('[data-appfront-bar]')?.closest('.z-20')
+      if (!column || !bar) return
+      const vars = barLayoutVars(bar.getBoundingClientRect(), column.getBoundingClientRect())
+      for (const [name, value] of Object.entries(vars)) style.setProperty(name, value)
+    }
+    tick()
+    const timer = window.setInterval(tick, 250)
+    return () => {
+      window.clearInterval(timer)
+      style.removeProperty('--appfront-bar-bottom')
+      style.removeProperty('--appfront-viewer-left')
+    }
+  }, [])
+}
+
+const shootView = (projectId: string) =>
+  emitter.emit('camera-controls:generate-thumbnail', {
+    projectId,
+    requestId: QUICK_SHOT_REQUEST_ID,
+    captureMode: 'viewport',
+  })
+const copyEditorLink = (projectId: string) =>
+  navigator.clipboard.writeText(new URL(editor3dHref(projectId), window.location.origin).toString())
+const openShareLinkPage = (projectId: string) =>
+  window.open(`${ROUTES.project.export(projectId)}?share=1`, '_blank', 'noopener')
 
 /** Editor3D đợt 2: "Ảnh" — the vendor capture of the current view; page.tsx saves it as `<tên>-3d.png`. */
 function SnapshotButton({ projectId }: { projectId: string }) {
-  const shoot = () =>
-    emitter.emit('camera-controls:generate-thumbnail', {
-      projectId,
-      requestId: QUICK_SHOT_REQUEST_ID,
-      captureMode: 'viewport',
-    })
+  const shoot = () => shootView(projectId)
   return (
     <ToolbarTooltip label="Chụp khung đang nhìn, tải ảnh PNG về máy">
       <button aria-label="Ảnh" className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2')} onClick={shoot} type="button">
@@ -1148,8 +1235,7 @@ function SendFamilyMenu({ projectId }: { projectId: string }) {
   const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
   const copy = (event: Event) => {
     event.preventDefault()
-    const url = new URL(editor3dHref(projectId), window.location.origin).toString()
-    navigator.clipboard.writeText(url).then(
+    copyEditorLink(projectId).then(
       () => setCopied('ok'),
       () => setCopied('failed'),
     )
@@ -1174,7 +1260,7 @@ function SendFamilyMenu({ projectId }: { projectId: string }) {
           </div>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => window.open(`${ROUTES.project.export(projectId)}?share=1`, '_blank', 'noopener')}>
+        <DropdownMenuItem onSelect={() => openShareLinkPage(projectId)}>
           <div className="flex flex-col gap-0.5">
             <span className="text-foreground">Tạo liên kết xem không cần tài khoản</span>
             <span className={MENU_DETAIL}>Mở trang Xuất ở thẻ mới, tạo liên kết chỉ xem có hạn dùng.</span>
@@ -1204,7 +1290,7 @@ function useFitRoomFromLabels() {
  */
 export function BottomDock({ projectId, readOnly = false }: { projectId: string; readOnly?: boolean }) {
   const edges = useActionMenuEdges()
-  const compact = useDockCompact(edges)
+  const { fit, undoCompact } = useDockFit(edges)
   useFitRoomFromLabels()
   const hidden = useEditor((state) => state.isPreviewMode || state.isFirstPersonMode)
   if (hidden) return null
@@ -1216,18 +1302,29 @@ export function BottomDock({ projectId, readOnly = false }: { projectId: string;
     <>
       {readOnly ? null : (
         <div className="fixed bottom-7 z-50" style={leftStyle}>
-          <UndoRedoButtons />
+          <UndoRedoButtons compact={undoCompact} />
         </div>
       )}
       <div className="fixed bottom-7 z-50" style={rightStyle}>
-        <div className={TOOLBAR_CONTAINER} data-appfront-dock="" data-compact={compact ? '' : undefined}>
+        <div
+          className={TOOLBAR_CONTAINER}
+          data-appfront-dock=""
+          data-compact={fit > 0 ? '' : undefined}
+          data-tight={fit === 2 ? '' : undefined}
+        >
           <RoomJumpMenu />
-          <TopViewWalkButtons />
-          <FitViewButton />
-          <MoreCameraMenu />
-          <div className="my-1.5 w-px bg-[var(--pa-border)]" />
-          <SnapshotButton projectId={projectId} />
-          <SendFamilyMenu projectId={projectId} />
+          {fit === 2 ? (
+            <MoreCameraMenu projectId={projectId} />
+          ) : (
+            <>
+              <TopViewWalkButtons />
+              <FitViewButton />
+              <MoreCameraMenu />
+              <div className="my-1.5 w-px bg-[var(--pa-border)]" />
+              <SnapshotButton projectId={projectId} />
+              <SendFamilyMenu projectId={projectId} />
+            </>
+          )}
         </div>
       </div>
     </>,
@@ -1256,6 +1353,7 @@ export function CommunityViewerToolbarRight({
   vrDisabled?: boolean
   vrLabel?: string
 }) {
+  useBarLayoutVars()
   return (
     <section
       aria-label="Xem"

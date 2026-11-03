@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PascalTour } from '../PascalTour';
@@ -6,6 +6,7 @@ import {
   HINT_BOTTOM_PX,
   HINT_TEXT,
   isSceneReady,
+  isSelectionCardShown,
   markDone,
   placeCard,
   requestTour,
@@ -39,7 +40,7 @@ const renderReady = async () => {
 beforeEach(() => window.localStorage.clear());
 afterEach(() => {
   vi.restoreAllMocks();
-  document.querySelectorAll('canvas, [class*="pascal-loader-"]').forEach((el) => el.remove());
+  document.querySelectorAll('canvas, [class*="pascal-loader-"], [data-appfront-homeowner-card]').forEach((el) => el.remove());
 });
 
 describe('tourLogic', () => {
@@ -211,5 +212,43 @@ describe('T-11 — thẻ tour 3D cùng hình thức thẻ QC', () => {
     expect(screen.getByText('Bấm Esc để đóng hướng dẫn.')).toBeTruthy();
     const current = screen.getByRole('dialog').querySelector('[data-current="true"]') as HTMLElement | null;
     expect(current?.style.width).toBe('16px');
+  });
+});
+
+describe('HIG 04/11 — gợi ý lần đầu nhường thẻ vật đang chọn', () => {
+  const addSelectionCard = () => {
+    const card = document.createElement('section');
+    card.setAttribute('data-appfront-homeowner-card', '');
+    document.body.appendChild(card);
+    return card;
+  };
+
+  it('isSelectionCardShown chỉ đúng khi thẻ thao tác nhanh có trong DOM', () => {
+    expect(isSelectionCardShown(document)).toBe(false);
+    const card = addSelectionCard();
+    expect(isSelectionCardShown(document)).toBe(true);
+    card.remove();
+    expect(isSelectionCardShown(document)).toBe(false);
+  });
+
+  it('chọn vật thì gợi ý ẩn (không ghi đã xem); bỏ chọn thì gợi ý hiện lại', async () => {
+    addCanvas();
+    render(<PascalTour />);
+    await findHint();
+    const card = addSelectionCard();
+    await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Gợi ý thao tác 3D' })).toBeNull());
+    expect(window.localStorage.getItem(TOUR_KEY)).toBeNull();
+    card.remove();
+    await findHint();
+  });
+
+  it('đang chọn vật lúc cảnh sẵn sàng thì gợi ý không hiện', async () => {
+    addSelectionCard();
+    addCanvas();
+    render(<PascalTour />);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 400));
+    });
+    expect(screen.queryByRole('complementary', { name: 'Gợi ý thao tác 3D' })).toBeNull();
   });
 });

@@ -106,6 +106,12 @@ export function isSceneReady(root: ParentNode = document, hasModel: () => boolea
 
 export const HINT_TEXT = 'Kéo chuột để xoay, lăn chuột để phóng to.';
 /**
+ * HIG 04/11: thẻ thao tác nhanh của vật đang chọn (`HomeownerCard`, "giường · Xoay 90° · Xoá · Hoàn tác") đứng
+ * cùng chỗ giữa cạnh dưới với gợi ý lần đầu — khi thẻ đó hiện thì gợi ý nhường (ẩn, không đánh dấu đã xem).
+ */
+export const SELECTION_CARD = '[data-appfront-homeowner-card]';
+export const isSelectionCardShown = (root: ParentNode = document): boolean => root.querySelector(SELECTION_CARD) !== null;
+/**
  * UX-R2 K38: gợi ý lần đầu đứng giữa cạnh dưới, ngay trên thanh công cụ dưới (`fixed bottom-6`, cao
  * ~52px) — không còn dưới cụm trợ giúp đầu cảnh, nơi nó đè lên mô hình.
  */

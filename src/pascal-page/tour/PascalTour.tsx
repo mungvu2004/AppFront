@@ -7,8 +7,10 @@
  * dẫn"), đóng được và nhớ. Tour đầy đủ chỉ mở từ nút '?' hoặc nút của gợi ý.
  * UX-R2 K38: gợi ý đứng ngay trên thanh công cụ dưới, không còn dưới cụm trợ giúp đầu cảnh — ở đó
  * nó đè lên mô hình.
+ * HIG 04/11: gợi ý ẩn khi thẻ vật đang chọn hiện (cùng chỗ giữa cạnh dưới), hiện lại khi bỏ chọn.
  */
 import { X } from 'lucide-react';
+import { hintFits } from '../upstream/lib/dock-fit';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import {
@@ -18,6 +20,7 @@ import {
   HINT_TEXT,
   isHuge,
   isSceneReady,
+  isSelectionCardShown,
   markDone,
   placeCard,
   resolveAnchor,
@@ -83,7 +86,10 @@ function FirstHint({ onOpen, onClose }: { readonly onOpen: () => void; readonly 
       data-pascal-tour-hint=""
       style={{
         position: 'fixed',
-        left: '50%',
+        // HIG-A: giữa cột 3D, không giữa cửa sổ (768 + bảng bên mở thì lấn bảng bên); biến do viewer-toolbar.tsx
+        // `useBarLayoutVars` đặt, chưa có thì 0 = giữa cửa sổ như cũ. Cột hẹp: chữ xuống dòng thay vì tràn.
+        left: 'calc(50% + var(--appfront-viewer-left, 0px) / 2)',
+        maxWidth: 'calc(100vw - var(--appfront-viewer-left, 0px) - 24px)',
         bottom: HINT_BOTTOM_PX,
         transform: 'translateX(-50%)',
         zIndex: Z,
@@ -101,7 +107,7 @@ function FirstHint({ onOpen, onClose }: { readonly onOpen: () => void; readonly 
       }}
     >
       <style>{CSS}</style>
-      <span>{HINT_TEXT}</span>
+      <span style={{ whiteSpace: 'normal' }}>{HINT_TEXT}</span>
       <button className="pascal-tour-btn pascal-tour-primary" onClick={onOpen} type="button">
         Xem hướng dẫn
       </button>
@@ -121,6 +127,27 @@ function FirstHint({ onOpen, onClose }: { readonly onOpen: () => void; readonly 
 
 const ALWAYS = () => true;
 
+/**
+ * Thẻ vật đang chọn có hiện không — chỉ dò khi `active` (gợi ý lần đầu đang chờ hiện).
+ * HIG-A: cột 3D quá hẹp (768 + bảng bên mở) cũng tính là "đang che": gợi ý ẩn nhưng không ghi đã xem.
+ */
+function useSelectionCardShown(active: boolean): boolean {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    const check = () =>
+      setShown(
+        isSelectionCardShown(document) ||
+          !hintFits(window.innerWidth, getComputedStyle(document.documentElement).getPropertyValue('--appfront-viewer-left')),
+      );
+    check();
+    // eslint-disable-next-line local/no-raw-duration -- chu kỳ dò thẻ chọn vật, không phải chuyển động
+    const id = window.setInterval(check, 250);
+    return () => window.clearInterval(id);
+  }, [active]);
+  return active && shown;
+}
+
 /** `hasModel`: cảnh đã có mô hình chưa (giữ cùng một hàm giữa các lượt vẽ). */
 export function PascalTour({ hasModel = ALWAYS }: { readonly hasModel?: () => boolean } = {}) {
   const [open, setOpen] = useState(false);
@@ -133,6 +160,7 @@ export function PascalTour({ hasModel = ALWAYS }: { readonly hasModel?: () => bo
   const primaryRef = useRef<HTMLButtonElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
   const scene = useSceneState(hasModel);
+  const selectionCard = useSelectionCardShown(hint && !open);
 
   const openTour = useCallback(() => {
     returnTo.current = document.activeElement as HTMLElement | null;
@@ -209,7 +237,7 @@ export function PascalTour({ hasModel = ALWAYS }: { readonly hasModel?: () => bo
   }, [open, index]);
 
   if (!open) {
-    if (hint) return <FirstHint onClose={dismissHint} onOpen={openTour} />;
+    if (hint) return selectionCard ? null : <FirstHint onClose={dismissHint} onOpen={openTour} />;
     return scene.loading ? (
       <p
         aria-live="polite"

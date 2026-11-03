@@ -2,6 +2,8 @@
  * Menu "Xem" (`../ViewMenu`): một menu duy nhất chứa các mục Phong cách, Ánh sáng, Chất lượng hình,
  * và Nướng ánh sáng chỉ khi sửa được.
  */
+import { readFileSync } from 'node:fs';
+
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { create } from 'zustand';
@@ -50,5 +52,17 @@ describe('ViewMenu', () => {
   it('chỉ xem: không có mục Nướng ánh sáng', () => {
     render(<ViewMenu {...base} />);
     expect(screen.queryByRole('region', { name: 'Nướng ánh sáng' })).toBeNull();
+  });
+
+  // PR #34 (HIG 04/11) gom Phong cách / Ánh sáng / Chất lượng / Nướng vào một nút "Cảnh"; ở nhánh này nhóm đó là menu "Xem".
+  it('main.tsx: các chỉnh cảnh chỉ qua ViewMenu (không nút "Cảnh" riêng), thẻ theo vật chọn đứng ngoài', () => {
+    const src = readFileSync('src/pascal-page/main.tsx', 'utf8');
+    expect(src).toContain('<ViewMenu');
+    for (const card of ['<SceneStyleCard', '<LightingCard', '<BakeLightingCard', '<SceneMenu']) expect(src).not.toContain(card);
+    const menu = src.slice(src.indexOf('<ViewMenu'), src.indexOf('<PlacementIssuesChip'));
+    for (const card of ['<SwapModelCard', '<ModelCreditCard', '<ItemTrustCard']) {
+      expect(menu).not.toContain(card);
+      expect(src).toContain(card);
+    }
   });
 });
