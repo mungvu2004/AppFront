@@ -1,8 +1,9 @@
 /**
- * Lớp che lần nạp đầu của khung 3D: "Đang chuẩn bị mô hình 3D… n/m" thay cho cảnh hiện dần từng vật
- * (W1/W2 dựng shader bất đồng bộ). `warm.ts` gắn lớp này lên khung chứa canvas khi bọc renderer mới và,
- * trong lúc che, dựng hết shader trong vài khung + chỉ vẽ ~5 khung/s. Gỡ khi hết việc (không pipeline/bản
- * dựng/tải tệp nào còn chờ, yên `LOAD_QUIET_MS`) hoặc sau `LOAD_CAP_MS`. `?disable=loadoverlay` tắt.
+ * Nhãn lần nạp đầu của khung 3D: viên nhỏ "Đang chuẩn bị nội thất… n/m" giữa đáy, trên thanh dock — KHÔNG
+ * che cảnh (che cả khung thì căn nhà ẩn tới 12–34 s, bản cũ hiện tường ~4 s). `warm.ts` gắn nhãn lên khung
+ * chứa canvas khi bọc renderer mới; trong lúc nạp đầu kết cấu dựng/vẽ trước, đồ đạc hiện dần. Gỡ khi hết việc
+ * (không pipeline/bản dựng/tải tệp nào còn chờ, yên `LOAD_QUIET_MS`) hoặc tới mốc `deadline` (= lúc nạp bắt
+ * đầu + `LOAD_CAP_MS`, do `warm.ts` giữ). `?disable=loadoverlay` tắt.
  *
  * DOM thuần (không React): mount từ đúng chỗ renderer ra đời, không cần sửa cây component của vendor.
  */
@@ -54,9 +55,26 @@ export function loadDone(s: LoadStats, baseBuilds: number, loadsInFlight: number
   return s.builds > baseBuilds && nowMs - Math.max(s.lastActivityAt, lastLoadEndAt) >= LOAD_QUIET_MS;
 }
 
-export function installLoadOverlay(host: HTMLElement, stats: () => LoadStats, onDone: () => void): void {
+/** Kiểu viên nhãn: nhỏ, không chặn chuột, trên nhãn phòng HTML (drei `Html` dùng z-index tới 16777271). */
+export const PILL_STYLE: Partial<CSSStyleDeclaration> = {
+  position: 'absolute',
+  left: '50%',
+  bottom: '96px',
+  transform: 'translateX(-50%)',
+  zIndex: '16777272',
+  padding: '6px 14px',
+  borderRadius: '999px',
+  background: 'var(--bg-elevated, rgba(255, 255, 255, 0.92))',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
+  color: 'var(--text-muted, #5f5f5f)',
+  font: '500 13px/1.4 system-ui, sans-serif',
+  whiteSpace: 'nowrap',
+  pointerEvents: 'none',
+};
+
+export function installLoadOverlay(host: HTMLElement, stats: () => LoadStats, onDone: () => void, deadline = performance.now() + LOAD_CAP_MS): void {
   hookLoads();
-  const t0 = performance.now();
+  const t0 = deadline - LOAD_CAP_MS;
   const b = stats();
   const l0 = { ...loads };
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -64,38 +82,28 @@ export function installLoadOverlay(host: HTMLElement, stats: () => LoadStats, on
   el.setAttribute('role', 'status');
   el.setAttribute('aria-live', 'polite');
   el.dataset.testid = 'pascal-load-overlay';
-  Object.assign(el.style, {
-    position: 'absolute',
-    inset: '0',
-    zIndex: '5',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'var(--bg-app, #f4f2ee)',
-    color: 'var(--text-muted, #5f5f5f)',
-    font: '500 14px/1.4 system-ui, sans-serif',
-    // Không chặn chuột: lớp che chỉ giấu cảnh đang dựng dở; e2e/người dùng thao tác canvas vẫn tới.
-    pointerEvents: 'none',
-    transition: `opacity ${cssDurationMs('fast', { reducedMotion })} ease`,
-  });
-  el.textContent = 'Đang chuẩn bị mô hình 3D…';
+  Object.assign(el.style, PILL_STYLE, { transition: `opacity ${cssDurationMs('fast', { reducedMotion })} ease` });
+  el.textContent = 'Đang chuẩn bị nội thất…';
   host.appendChild(el);
   let finished = false;
-  const finish = () => {
+  const finish = (ended = true) => {
     if (finished) return;
     finished = true;
     clearInterval(timer);
-    onDone();
+    clearTimeout(cap);
+    if (ended) onDone();
     el.style.opacity = '0';
     setTimeout(() => el.remove(), durationMs('fast', { reducedMotion }));
   };
   const timer = setInterval(() => {
-    if (!el.isConnected) return finish(); // renderer gỡ (rời editor) giữa chừng
+    if (!el.isConnected) return finish(false); // renderer gỡ giữa chừng: renderer mới (nếu có) giữ mốc nạp đầu, không kết thúc hộ
     const s = stats();
     const now = performance.now();
     const done = s.buildsDone - b.buildsDone + (s.done - b.done) + (loads.done - l0.done);
     const total = s.builds - b.builds + (s.started - b.started) + (loads.started - l0.started) + (s.texWaiting ?? 0);
-    if (total > 0) el.textContent = `Đang chuẩn bị mô hình 3D… ${done}/${total}`;
+    if (total > 0) el.textContent = `Đang chuẩn bị nội thất… ${done}/${total}`;
     if (loadDone(s, b.builds, loads.started - loads.done, loads.lastEndAt, t0, now)) finish();
   }, POLL_MS);
+  // Mốc cứng riêng: vòng hỏi 100 ms có thể bị kẹp (tab nền) — tới mốc là gỡ.
+  const cap = setTimeout(() => finish(), Math.max(0, deadline - performance.now()));
 }

@@ -26,6 +26,8 @@
  * nhận một renderer "proxy" chụp đúng trạng thái của khung sống lúc khởi động. `?disable=nodebuild` tắt riêng.
  * Thứ tự dựng: vật lớn trên màn hình trước (`build-order.ts`, `?disable=buildorder` tắt).
  */
+import { sceneRegistry } from '@pascal-app/core';
+
 import { coversScreen, screenSize } from './build-order';
 import { markDirty } from './idle';
 import { installLoadOverlay, LOAD_CAP_MS } from './loadOverlay';
@@ -94,16 +96,24 @@ const touch = () => {
   stats.lastActivityAt = performance.now();
 };
 /**
- * Lần nạp đầu (che bằng `loadOverlay.ts`): mọi bản dựng đục khởi động trong vài khung (ngân sách vô hạn)
- * và chỉ vẽ ~1 khung mỗi `LOAD_DRAW_MS` — mỗi khung vẽ lại mã hoá cả cảnh (~25–30 ms) mà lớp che đã giấu
- * cảnh, nên ~125 khung vẽ lúc nạp chỉ tốn luồng chính. Hết khi lớp che gỡ, hoặc tự hết sau `LOAD_CAP_MS`.
+ * Lần nạp đầu (nhãn `loadOverlay.ts`, KHÔNG che cảnh): kết cấu (tường, sàn, trần, cửa…) dựng trước và vẽ
+ * ngay khi xong; đồ đạc dựng sau với ngân sách lớn hơn (`LOAD_BUILD_BUDGET_MS`), và khi chỉ còn đồ đạc thì
+ * chỉ vẽ ~1 khung mỗi `LOAD_DRAW_MS` (mỗi khung mã hoá cả cảnh ~25–30 ms). Hết khi nhãn gỡ (yên) hoặc tự hết
+ * ở `firstLoadUntil` = mốc bắt đầu nạp + `LOAD_CAP_MS` (renderer tạo lại giữa chừng không dời mốc).
  */
 let firstLoadUntil = 0;
 let lastLoadDraw = -Infinity;
 export const LOAD_DRAW_MS = 200;
-export function beginFirstLoad(nowMs = performance.now()): void {
+/** Ngân sách dựng mỗi khung lúc nạp đầu: vô hạn thì một khung treo luồng chính vài giây (cảnh đã hiện, và
+ * bộ đếm giờ của nhãn trễ theo — nguyên nhân nhãn ở tới 34 s dù giới hạn 20 s). */
+export const LOAD_BUILD_BUDGET_MS = 400;
+/** Trả mốc hết lần nạp đầu; đang nạp dở thì giữ mốc cũ (giới hạn tính từ lúc nạp thật sự bắt đầu). */
+export function beginFirstLoad(nowMs = performance.now()): number {
+  if (nowMs < firstLoadUntil) return firstLoadUntil;
   firstLoadUntil = nowMs + LOAD_CAP_MS;
   lastLoadDraw = -Infinity;
+  structDirty = false;
+  return firstLoadUntil;
 }
 export function endFirstLoad(): void {
   if (firstLoadUntil === 0) return;
@@ -111,7 +121,34 @@ export function endFirstLoad(): void {
   markDirty('load-ready');
 }
 export const isFirstLoad = (nowMs = performance.now()): boolean => nowMs < firstLoadUntil;
-const budget = (): number => (isFirstLoad() ? Infinity : BUILD_BUDGET_MS);
+const budget = (): number => (isFirstLoad() ? LOAD_BUILD_BUDGET_MS : BUILD_BUDGET_MS);
+
+/** Loại nút kết cấu (registry `useRegistry(id, type, ref)`): dựng/vẽ trước đồ đạc lúc nạp đầu. */
+const STRUCTURE_TYPES = ['wall', 'slab', 'ceiling', 'door', 'window', 'roof', 'roof-segment', 'stair', 'stair-segment', 'column'];
+/** Hạng cộng thêm cho kết cấu — luôn trên mọi cỡ màn hình thật. */
+const STRUCT_RANK = 1e6;
+interface RegistryLike {
+  nodes: Map<string, unknown> & { revision?: number };
+  byType: Record<string, Set<string> | undefined>;
+}
+let structRoots = new Set<unknown>();
+let structRev: number | undefined = -1;
+/** Vật (mesh) thuộc một nút kết cấu: dò lên cha tới gốc đã đăng ký. */
+export function isStructure(object: unknown, registry: RegistryLike = sceneRegistry as unknown as RegistryLike): boolean {
+  const rev = registry.nodes.revision;
+  if (rev === undefined || rev !== structRev) {
+    structRev = rev;
+    structRoots = new Set();
+    for (const t of STRUCTURE_TYPES) for (const id of registry.byType[t] ?? []) structRoots.add(registry.nodes.get(id));
+  }
+  let o = object as { parent?: unknown } | null | undefined;
+  for (let i = 0; o && i < 12; i++, o = o.parent as typeof o) if (structRoots.has(o)) return true;
+  return false;
+}
+/** Kết cấu vừa xong bản dựng/pipeline → khung sau vẽ ngay, không đợi nhịp `LOAD_DRAW_MS`. */
+let structDirty = false;
+/** Số khoá kết cấu còn chờ dựng ở khung trước (lúc nạp đầu). */
+let structBacklog = 0;
 
 /** Thời gian dựng node đã tiêu trong khung sống hiện tại. */
 let frameSpent = 0;
@@ -125,9 +162,10 @@ let liveScene: unknown = null;
 /** Bọc lệnh vẽ khung sống của viewport (vendor `post-processing.tsx`). */
 export function liveFrame(scene: unknown, draw: () => void, nowMs = performance.now()): void {
   if (isFirstLoad(nowMs)) {
-    // Bỏ khung này; giữ vòng vẽ theo nhu cầu chạy để khung sau (≥ LOAD_DRAW_MS) khởi động/hoàn tất tiếp.
-    if (nowMs - lastLoadDraw < LOAD_DRAW_MS) return void markDirty('load-wait');
+    // Kết cấu còn chờ/vừa xong: vẽ ngay. Chỉ còn đồ đạc: ≤ 1 khung mỗi LOAD_DRAW_MS, khung bỏ vẫn giữ vòng vẽ chạy.
+    if (structBacklog === 0 && !structDirty && nowMs - lastLoadDraw < LOAD_DRAW_MS) return void markDirty('load-wait');
     lastLoadDraw = nowMs;
+    structDirty = false;
   }
   liveScene = scene;
   frameSpent = 0;
@@ -144,11 +182,10 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
   const pipelines = (renderer as { _pipelines?: PipelinesLike })._pipelines;
   if (off || !pipelines || pipelines.__asyncW1) return;
   pipelines.__asyncW1 = true;
-  // Mỗi renderer mới (vào editor) một lớp che nạp đầu; node test không có `document`.
+  // Mỗi renderer mới (vào editor) một nhãn nạp đầu; node test không có `document`.
   const host = (renderer as { domElement?: HTMLElement }).domElement?.parentElement;
   if (!OVERLAY_OFF && typeof document !== 'undefined' && host) {
-    beginFirstLoad();
-    installLoadOverlay(host, warmStats, endFirstLoad);
+    installLoadOverlay(host, warmStats, endFirstLoad, beginFirstLoad());
   }
   const sink: Promise<unknown>[] = [];
   const onDone = () => {
@@ -156,6 +193,10 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
     stats.lastDoneAt = Math.round(performance.now());
     touch();
     markDirty('pipeline');
+  };
+  const onStructDone = () => {
+    structDirty = true;
+    onDone();
   };
   pipelines.updateForRender = (renderObject) => {
     if (liveScene === null || (renderObject as RenderObjectLike).scene !== liveScene) {
@@ -167,7 +208,8 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
     stats.started += sink.length;
     touch();
     // three luôn resolve (kể cả khi lỗi — pipeline hỏng thì vật không vẽ, đã báo lỗi ra console).
-    for (const p of sink.splice(0)) p.then(onDone);
+    const struct = isFirstLoad() && isStructure((renderObject as { object?: unknown }).object);
+    for (const p of sink.splice(0)) p.then(struct ? onStructDone : onDone);
   };
 }
 
@@ -233,16 +275,18 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
         // trong suốt, ngữ cảnh pass), dựng lúc khác là sai shader (đã thử: F1 ra nền đen, tối cả cảnh).
         const cover = coversScreen(object);
         const opaqueMain = !ORDER_OFF && !cover && m.isShadowPassMaterial !== true && m.transparent !== true;
+        // Lần nạp đầu: kết cấu xếp trên mọi đồ đạc; bóng/kính của kết cấu chỉ đợi hàng kết cấu, không đợi đồ đạc.
+        const struct = !ORDER_OFF && isFirstLoad() && isStructure(object);
         if (opaqueMain && (!chosen.has(key) || frameSpent >= budget())) {
           // Xếp hạng ở khung này, khởi động ở khung sau ngay tại chỗ vẽ (trạng thái renderer đúng lượt).
-          const size = screenSize(object, camera);
+          const size = screenSize(object, camera) + (struct ? STRUCT_RANK : 0);
           if ((ranked.get(key) ?? -1) < size) ranked.set(key, size);
           return;
         }
-        if (!opaqueMain && !ORDER_OFF && !cover && mainBacklog > 0) return void markDirty('node-build');
+        if (!opaqueMain && !ORDER_OFF && !cover && (struct ? structBacklog : mainBacklog) > 0) return void markDirty('node-build');
         // Hết ngân sách khung này: khung sau khởi động tiếp (vòng vẽ theo nhu cầu phải còn chạy).
         if (frameSpent >= budget()) return void markDirty('node-build');
-        startBuild(nodes, ro, key, snapshotRenderer(r));
+        startBuild(nodes, ro, key, snapshotRenderer(r), struct);
         return;
       }
     }
@@ -264,12 +308,17 @@ function rankFrame(): void {
   mainBacklog = ranked.size;
   chosen.clear();
   const take = Math.max(1, Math.floor(budget() / avgBuildMs));
-  for (const [key] of [...ranked].sort((a, b) => b[1] - a[1]).slice(0, take)) chosen.add(key);
+  let order = [...ranked].sort((a, b) => b[1] - a[1]);
+  const structOnly = order.filter(([, size]) => size >= STRUCT_RANK);
+  structBacklog = structOnly.length;
+  // Còn kết cấu chờ: khung sau chỉ khởi động kết cấu (đồ đạc vẽ trước trong danh sách không chiếm ngân sách).
+  if (structOnly.length) order = structOnly;
+  for (const [key] of order.slice(0, take)) chosen.add(key);
   ranked.clear();
   if (mainBacklog > 0) markDirty('node-build');
 }
 
-function startBuild(nodes: NodesLike, ro: unknown, key: string, snap: unknown): void {
+function startBuild(nodes: NodesLike, ro: unknown, key: string, snap: unknown, struct = false): void {
   pendingKeys.add(key);
   stats.builds++;
   touch();
@@ -289,6 +338,7 @@ function startBuild(nodes: NodesLike, ro: unknown, key: string, snap: unknown): 
     pendingKeys.delete(key);
     stats.buildsDone++;
     stats.lastBuildAt = Math.round(performance.now());
+    if (struct) structDirty = true;
     touch();
     markDirty('node-build');
   };
