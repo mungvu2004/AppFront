@@ -31,6 +31,7 @@ import { realismFlagsFrom, useRealism } from './realism/store';
 import { setDetailsEnabled } from './realism/details';
 import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
 import { useSceneLoader } from './sceneLoader';
+import { SceneMenu } from './SceneMenu';
 import { SceneStyleCard } from './SceneStyleCard';
 import { SwapModelCard } from './SwapModelCard';
 import { PascalTour } from './tour/PascalTour';
@@ -165,11 +166,14 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
           <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
           <ProjectStepsCard projectId={projectId} readOnly={readOnly} />
           {readOnly ? null : <EditModel />}
-          {/* UI-1023 V-01: các chỉnh cảnh là một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). */}
+          {/* UI-1023 V-01: một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). HIG 04/11: Phong cách /
+              Ánh sáng (+ Chất lượng) / Nướng ánh sáng gom vào MỘT nút "Cảnh"; thẻ theo vật chọn đứng ngoài. */}
           <div aria-label="Cảnh" className="inline-flex shrink-0 items-center" data-appfront-cluster="" role="group">
-            <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
-            <LightingCard projectId={projectId} useViewer={useViewer} />
-            {readOnly ? null : <BakeLightingCard exportGlb={exportSceneGlb} projectId={projectId} />}
+            <SceneMenu>
+              <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
+              <LightingCard projectId={projectId} useViewer={useViewer} />
+              {readOnly ? null : <BakeLightingCard exportGlb={exportSceneGlb} projectId={projectId} />}
+            </SceneMenu>
             <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
             <ModelCreditCard stores={{ useScene, useViewer }} />
             <ItemTrustCard stores={{ useScene, useViewer }} />
