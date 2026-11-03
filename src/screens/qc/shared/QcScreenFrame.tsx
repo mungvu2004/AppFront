@@ -123,7 +123,8 @@ export function QcWorkspace({
       {hasLeft ? (
         <div
           className={cn(
-            'flex min-h-0 shrink-0 flex-col gap-2 lg:overflow-y-auto',
+            /* Cột việc tự chia vùng cuộn (chỉ danh sách cuộn) — khung ngoài không cuộn thêm một lớp. */
+            'flex min-h-0 shrink-0 flex-col gap-2', !column && 'lg:overflow-y-auto',
             columnDrawer ? QC_COLUMN_DRAWER_CLASS : 'max-lg:order-1 max-lg:w-full',
             columnDrawer && !isColumnOpen && 'max-lg:hidden',
             column ? 'lg:w-[300px] xl:w-[360px]' : wideLeft ? 'lg:w-[320px]' : 'lg:w-[240px]',

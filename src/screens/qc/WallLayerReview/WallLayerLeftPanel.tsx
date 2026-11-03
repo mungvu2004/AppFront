@@ -1,20 +1,22 @@
 /**
- * Panel trái — nằm trong cột việc (`QcStepColumn`, H1 ở đầu cột): bộ lọc, rồi MỘT hàng đợi tường
- * theo nhóm (demo Z/S-15): Không chuẩn → Đúng chuẩn → Đã duyệt.
+ * Panel trái — nằm trong cột việc (`QcStepColumn`, H1 ở đầu cột), kiểu bảng lớp Figma: thanh công cụ
+ * một dòng (nút "Lọc" mở ba ô lọc, nút "⚠ n" mở lỗi quy chuẩn), rồi MỘT hàng đợi tường theo nhóm
+ * (demo Z/S-15): Không chuẩn → Đúng chuẩn → Đã duyệt. Danh sách là vùng cuộn duy nhất.
  *
  * View THUẦN (R-60): chỉ đọc props. Đổi tầng nằm ở breadcrumb "Tầng ▾" của `QcFloorNav`; hai công
  * tắc lớp Tường / Tim tường ở popover Hiển thị trên bản vẽ (BC-19, K29).
  */
 
+import { ListFilter } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
-import { Checkbox } from '@/components/ui/Checkbox';
 import type { CommandItem } from '@/hooks/useCommandPalette';
 import { useScreenCommands } from '@/hooks/useScreenCommands';
 
 import { QC_COMMAND_GROUP } from '../shared/qcLayout';
-import { QcRuleIssues, type QcRuleIssuesProps } from '../shared/QcRuleIssues';
+import { QcDisplayPopover } from '../shared/QcDisplayPopover';
+import { QcRuleIssueFocus, QcRuleIssuesBadge, type QcRuleIssuesProps } from '../shared/QcRuleIssues';
 import { WallLayerList } from './WallLayerList';
 import type { WallLayerFilterKey, WallLayerViewProps, WallRowViewModel } from './types';
 import type { WallReviewQueue } from './wallReviewQueue';
@@ -60,6 +62,8 @@ const FILTER_LABELS: Readonly<Record<WallLayerFilterKey, string>> = {
   onlyLowConfidence: 'Chỉ hiện chỗ máy chưa chắc',
   onlyNonStandardThickness: 'Chỉ hiện độ dày không chuẩn',
 };
+const FILTER_BUTTON = 'Lọc';
+const FILTER_GROUP = 'Lọc danh sách';
 const COLUMN_CODE = 'Đoạn';
 const COLUMN_LENGTH = 'Dài, mm';
 const COLUMN_THICKNESS = 'Dày';
@@ -85,39 +89,38 @@ export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers }: WallL
   );
   useScreenCommands(commands);
   const ruleIssues = extras.ruleIssues;
-  const hasRuleIssues =
-    ruleIssues !== undefined && (ruleIssues.issues.length > 0 || ruleIssues.focused !== null || ruleIssues.focusResolved);
 
   return (
-    /*
-     * Dưới 1024 panel cao theo nội dung, vùng ngoài cuộn (BUG-395). Từ 1024 panel cao bằng bản
-     * vẽ, chỉ danh sách cuộn bên trong (G4a-07). Con CUỐI luôn là vùng danh sách (BUG-621).
-     */
-    <div className="order-1 flex min-h-0 w-full flex-1 shrink-0 flex-col lg:order-0 lg:h-full lg:min-h-0 lg:w-full lg:overflow-hidden">
-
-      {/* P03: mở từ nút "Sửa" của màn Quy chuẩn thì lỗi đó nói ngay đầu cột — lỗi gì, sửa thế nào. */}
-      {hasRuleIssues && (
-        <div className="shrink-0 border-b border-border-default px-4 py-3">
-          <QcRuleIssues {...ruleIssues} />
-        </div>
-      )}
-
-      <div className="flex shrink-0 flex-col gap-1 border-b border-border-default px-4 py-3">
-        {filterKeys.map((key) => (
-          <Checkbox
-            aria-label={FILTER_LABELS[key]}
-            checked={filters[key]}
-            key={key}
-            label={FILTER_LABELS[key]}
-            onChange={() => onToggleFilter(key)}
-            size="sm"
-          />
-        ))}
+    /* Kiểu bảng lớp Figma: thanh công cụ một dòng, dải lỗi đang chỉ, tiêu đề cột, rồi danh sách là vùng cuộn DUY NHẤT (con cuối, BUG-621). */
+    <div className="order-1 flex min-h-0 w-full flex-1 shrink-0 flex-col overflow-hidden lg:order-0">
+      <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border-default px-2">
+        <QcDisplayPopover
+          groups={[
+            {
+              title: FILTER_GROUP,
+              items: filterKeys.map((key) => ({ key, label: FILTER_LABELS[key], checked: filters[key], onToggle: () => onToggleFilter(key) })),
+            },
+          ]}
+          icon={<ListFilter aria-hidden="true" className="h-4 w-4" />}
+          label={FILTER_BUTTON}
+          popoverLabel={FILTER_GROUP}
+          showActiveCount
+          variant="flat"
+        />
+        <span className="flex-1" />
+        {ruleIssues === undefined ? null : <QcRuleIssuesBadge {...ruleIssues} />}
       </div>
 
-      {/* Tiêu đề cột: số căn phải, đơn vị ở tiêu đề (demo Z/S-15 vòng 9). */}
+      {/* P03: mở từ nút "Sửa" của màn Quy chuẩn thì lỗi đó nói ngay trên danh sách — lỗi gì, sửa thế nào. */}
+      {ruleIssues !== undefined && (ruleIssues.focused !== null || ruleIssues.focusResolved) ? (
+        <div className="shrink-0 border-b border-border-default px-3 py-2">
+          <QcRuleIssueFocus {...ruleIssues} />
+        </div>
+      ) : null}
+
+      {/* Tiêu đề cột đứng yên ngoài vùng cuộn: số căn phải, đơn vị ở tiêu đề (demo Z/S-15 vòng 9). */}
       {panel.rows.length > 0 && panel.state !== 'loading' && (
-        <div aria-hidden="true" className="flex shrink-0 items-center gap-2 px-5 pb-1 pt-3 text-caption text-text-secondary">
+        <div aria-hidden="true" className="flex shrink-0 items-center gap-2 px-5 pb-1 pt-2 text-caption text-text-secondary">
           {/* Khớp cột của hàng: mẫu 20 + khoảng 8 + mã 48; cột dài co giãn, cột dày 36 (K28). */}
           <span className="w-[4.75rem] shrink-0 pl-7">{COLUMN_CODE}</span>
           <span className="min-w-0 flex-1 text-right">{COLUMN_LENGTH}</span>
@@ -127,8 +130,7 @@ export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers }: WallL
         </div>
       )}
 
-      {/* Dưới 1024 vùng danh sách cao theo nội dung (BUG-621); từ 1024 nó cuộn bên trong. */}
-      <div className="overflow-y-auto px-3 pb-4 lg:min-h-0 lg:flex-1 lg:pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2">
         {panel.state === 'error' && panel.errorMessage !== null && (
           <div className="px-2 pb-2 pt-1">
             <InlineAlert level="violation" message={panel.errorMessage} />
