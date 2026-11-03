@@ -66,8 +66,7 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcStatusBar, QcWorkspace } from '../shared/QcScreenFrame';
-import { QcQueueAskCard } from '../shared/QcAskCard';
-import { QcAskSlot } from '../shared/qcAsk';
+import { QcInspectorEmpty } from '../shared/QcInspectorSection';
 import { QcStepColumn } from '../shared/QcStepColumn';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
@@ -93,6 +92,8 @@ export type RoomLabelReviewViewProps = RoomLabelReviewProps & {
 /* Chuỗi tĩnh của vỏ màn (A6 — chữ thường kiểu câu, trừ tên riêng và mã).      */
 /* -------------------------------------------------------------------------- */
 
+const INSPECTOR_EMPTY_TITLE = 'Tầng này';
+const INSPECTOR_EMPTY_HINT = 'Chọn một phòng trên bản vẽ hoặc trong danh sách để duyệt.';
 const SCREEN_TITLE = 'Duyệt phòng';
 const STEP_TASK = 'Đặt tên cho từng phòng máy tìm thấy. Tên đúng thì giữ, sai thì sửa.';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ duyệt phòng';
@@ -290,41 +291,37 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   const nav = props.floorNav;
   const selectedStatus = rooms.find((room) => room.id === selectedRoomId)?.status;
-  const inspectorView = (
-    <RoomLabelInspector
-      extras={{
-        nameSuggestions,
-        usageOptions,
-        areaCaption,
-        mergeCandidates,
-        onNavigateToWalls,
-        splitPointMm,
-        viewerRoleNotice,
-        scaleLock,
-      }}
-      inspector={{
-        room: selectedRoom,
-        isViewerRole,
-        onRename,
-        onChangeUsage,
-        onMerge,
-        onSplit,
-        onApprove,
-      }}
-    />
-  );
-  const ask =
-    !isCollapsed && selectedRoomId !== null ? (
-      <QcQueueAskCard
-        items={byRoomReason(rooms).map((room) => ({ id: room.id, pending: room.status !== 'confirmed' }))}
-        onSelect={onSelect}
-        reason={selectedStatus === undefined || selectedStatus === 'confirmed' ? null : ROOM_REASON_TITLE[selectedStatus]}
-        selectedId={selectedRoomId}
-        unit="Phòng"
-      >
-        {inspectorView}
-      </QcQueueAskCard>
-    ) : null;
+  const inspectorView =
+    selectedRoom === null ? (
+      <QcInspectorEmpty hint={INSPECTOR_EMPTY_HINT} title={INSPECTOR_EMPTY_TITLE} />
+    ) : (
+      <RoomLabelInspector
+        card={{
+          items: byRoomReason(rooms).map((room) => ({ id: room.id, pending: room.status !== 'confirmed' })),
+          onSelect,
+          reason: selectedStatus === undefined || selectedStatus === 'confirmed' ? null : ROOM_REASON_TITLE[selectedStatus],
+        }}
+        extras={{
+          nameSuggestions,
+          usageOptions,
+          areaCaption,
+          mergeCandidates,
+          onNavigateToWalls,
+          splitPointMm,
+          viewerRoleNotice,
+          scaleLock,
+        }}
+        inspector={{
+          room: selectedRoom,
+          isViewerRole,
+          onRename,
+          onChangeUsage,
+          onMerge,
+          onSplit,
+          onApprove,
+        }}
+      />
+    );
   const gate =
     nav == null || props.state === 'loading' ? null : (
         <FloorReviewGate
@@ -352,8 +349,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         </div>
       )}
 
-      {/* Khe chung (A3): cột việc | bản vẽ; chi tiết là thẻ hỏi neo trên bản vẽ. */}
-      <QcAskSlot value={ask}>
+      {/* Khe chung (A3): cột việc | bản vẽ | panel phải neo (phòng đang chọn, hoặc "Tầng này"). */}
       <QcWorkspace
         canvas={
           <RoomLabelCanvas
@@ -379,7 +375,9 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
                 {EXPAND_PANEL_LABEL}
               </button>
             </div>
-          ) : null
+          ) : (
+            inspectorView
+          )
         }
         column
         left={
@@ -393,7 +391,6 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         }
         selectionKey={selectedRoomId}
       />
-      </QcAskSlot>
 
       <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={props.saveStatus ?? null} />
 

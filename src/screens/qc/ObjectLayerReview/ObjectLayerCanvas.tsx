@@ -30,9 +30,8 @@ import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 
-import { QcAskAnchor } from '../shared/QcAskCard';
 import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
-import { pointInFrame, rectInFrame, useQcAskSlot } from '../shared/qcAsk';
+import { pointInFrame, rectInFrame } from '../shared/qcAsk';
 import { QcViewLayer } from '../shared/QcViewLayer';
 import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
 
@@ -137,7 +136,6 @@ export function ObjectLayerCanvas({
   const focusRectPx = selectedObjectId === null || haloRectPx === null || frameView === null ? null : rectInFrame(haloRectPx, frameView);
 
   const halo = useSelectionHalo();
-  const ask = useQcAskSlot();
   const menu = useContextMenu();
   const { select: haloSelect, hover: haloHover, deselect: haloDeselect } = halo;
   const { openMenu } = menu;
@@ -404,9 +402,14 @@ export function ObjectLayerCanvas({
         )}
       </div>
 
-      {/* Thẻ hỏi và lớp làm tối đứng NGOÀI lớp phóng: chữ thẻ không to theo mức phóng, mặt nạ phủ đủ khung. */}
-      <QcAskAnchor rect={focusRectPx}>{ask}</QcAskAnchor>
-      <QcViewLayer focus={focusRectPx} onPick={onSelect} pins={frameView === null ? [] : viewPins.map((pin) => pointInFrame(pin, frameView))} selectedId={selectedObjectId} />
+      {/* Lớp làm tối + chấm số đứng NGOÀI lớp phóng; đang vẽ thì chấm số không chặn con trỏ. */}
+      <QcViewLayer
+        focus={focusRectPx}
+        onPick={onSelect}
+        pins={frameView === null ? [] : viewPins.map((pin) => pointInFrame(pin, frameView))}
+        pinsInteractive={!isDrawing}
+        selectedId={selectedObjectId}
+      />
 
       {placements.length === 0 && !isLoading ? (
         <p className="absolute inset-x-0 top-1/2 text-center text-[13px] text-text-muted">

@@ -1,7 +1,7 @@
 /**
  * Màn S-13 "Lớp đối tượng" (`ObjectLayerReview`) — VIEW THUẦN, bố cục L23:
  * ray công cụ trái (56), cột việc (`QcStepColumn`, 360) bọc bộ lọc và hàng đợi
- * với cổng ở đáy, bản vẽ giữa (thẻ hỏi neo trên mục chọn, popover "Hiển thị"),
+ * với cổng ở đáy, bản vẽ giữa, panel phải neo (`ObjectLayerInspectorPanel`, mang "Hiển thị"),
  * thanh trạng thái (32) dính đáy.
  *
  * Nhận HẾT qua props ({@link ObjectLayerReviewViewProps}) và chỉ dựng thẻ.
@@ -45,15 +45,11 @@ import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScre
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
-import { QcQueueAskCard } from '../shared/QcAskCard';
-import { QcAskSlot } from '../shared/qcAsk';
 import { QcStepColumn } from '../shared/QcStepColumn';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
-import { ObjectLayerDisplayPopover } from './ObjectLayerDisplayPopover';
-import { OBJECT_REASON_TITLE, objectReasonOf } from './objectReviewReasons';
 import { ObjectLayerGate } from './ObjectLayerHead';
-import { ObjectLayerInspector } from './ObjectLayerInspector';
+import { ObjectLayerInspectorPanel } from './ObjectLayerInspectorPanel';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
 import { ObjectLayerList } from './ObjectLayerList';
 import { ObjectLayerStatusBar } from './ObjectLayerStatusBar';
@@ -315,40 +311,6 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   /* Đọc cờ của vỏ màn, không `state`: ở vai người xem `forbidden` đứng trước `collapsed`, và nút thu gọn đổi nhãn mà panel không thu (BUG-601). */
   const isCollapsed = model.isCollapsed;
   const nav = model.floorNav;
-  const inspectorView = (
-    <ObjectLayerInspector
-        inspector={model.inspector}
-        isViewerRole={isReadOnly(model)}
-        onApprove={model.onApprove}
-        onAttachToNearestWall={model.onAttachToNearestWall}
-        onChangeFurnitureKind={model.onChangeFurnitureKind}
-        onChangeSubtype={model.onChangeSubtype}
-        onChangeSwing={model.onChangeSwing}
-        onDelete={model.onDelete}
-        onDragPosition={model.onDragPosition}
-        onSelectHostWall={model.onSelectHostWall}
-        scaleLock={model.scaleLock ?? null}
-        focusKindToken={model.focusKindToken}
-        onResize={model.onResize}
-        onRotate={model.onRotate}
-      />
-  );
-  const selectedId = model.inspector?.id ?? null;
-  const selectedReason = objectReasonOf(model.rows.find((row) => row.id === selectedId) ?? { isReviewed: true, isLowConfidence: false, isOrphan: false });
-  const reasonTitle = selectedReason === null ? null : OBJECT_REASON_TITLE[selectedReason];
-  const ask =
-    !isCollapsed && selectedId !== null ? (
-      <QcQueueAskCard
-        items={model.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))}
-        onSelect={model.onSelect}
-        reason={reasonTitle}
-        selectedId={selectedId}
-        unit="Mục"
-      >
-        {inspectorView}
-      </QcQueueAskCard>
-    ) : null;
-
   if (model.readFailure != null) {
     return (
       <QcScreenFrame label={SCREEN_ARIA_LABEL}>
@@ -371,11 +333,10 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           <ProvisionalScaleBanner notice={model.provisionalScaleNotice} />
         </div>
       )}
-      {/* Khe chung (A3): rail | cột việc | bản vẽ; chi tiết là thẻ hỏi neo trên mục đang chọn. */}
-      <QcAskSlot value={ask}>
+      {/* Khe chung (A3): rail | cột việc | bản vẽ | panel phải neo (chi tiết mục chọn, hoặc "Tầng này"). */}
       <QcWorkspace
         column
-        chromeTopRight={<ObjectLayerDisplayPopover layerVisibility={model.layerVisibility} onToggleLayer={model.onToggleLayer} />}
+        inspector={isCollapsed ? null : <ObjectLayerInspectorPanel model={model} readOnly={isReadOnly(model)} />}
         canvas={<ObjectLayerCanvasRegion model={model} />}
         canvasLabel={CANVAS_REGION_LABEL}
         left={
@@ -403,7 +364,6 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           />
         }
       />
-      </QcAskSlot>
 
       <ObjectLayerStatusBar
         saveLabel={model.saveLabel ?? null}

@@ -195,7 +195,7 @@ import { useScaleLock } from '../shared/useScaleLock';
 import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 
 import { layerGateOf } from './layerGate';
-import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
+import { focusBoundsOf, useQcViewMode } from '../shared/qcViewMode';
 import { useLayerRuleIssues } from '../shared/useLayerRuleIssues';
 import { objectReasonRank } from './objectReviewReasons';
 
@@ -2151,7 +2151,7 @@ export function useObjectLayerReview(
     const min = toFramePoint(fitView, { x: box.x, y: box.y });
     const max = toFramePoint(fitView, { x: box.x + box.width, y: box.y + box.height });
 
-    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, focusFrameOf(frameSizePx).width, frameSizePx.height);
+    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, frameSizePx.width, frameSizePx.height);
   }, [endFlight, fitView, flyToBounds, frameSizePx, placements, selectedObjectId, surfacePx, viewMode]);
 
   /*
@@ -2191,7 +2191,7 @@ export function useObjectLayerReview(
     const min = toFramePoint(fitView, { x: centre.x - half, y: centre.y - half });
     const max = toFramePoint(fitView, { x: centre.x + half, y: centre.y + half });
 
-    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, focusFrameOf(frameSizePx).width, frameSizePx.height);
+    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, frameSizePx.width, frameSizePx.height);
   }, [fitView, flyToBounds, focusedIssue, frameSizePx, isLoading, level, objects, onSelect, selectedObjectId]);
 
   /* `?tool=door|window` của nút "Sửa": bật sẵn "Vẽ cửa đi/cửa sổ" một lần khi lớp đã đọc xong. */
