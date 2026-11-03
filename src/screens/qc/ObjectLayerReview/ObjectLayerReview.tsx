@@ -343,6 +343,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           isCollapsed ? null : (
             <QcStepColumn
               activeStep="objects"
+              fileHeader={<QcFloorNav {...nav} layer="objects" minimal stacked titled />}
               floorId={nav.floorId}
               gate={<ObjectLayerGate model={model} />}
               projectId={nav.projectId}

@@ -981,11 +981,11 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(failed.closest('[role="status"]')?.querySelector('svg.text-state-violation')).not.toBeNull();
   });
 
-  it('[BUG-329] chưa chọn gì: panel "Tầng này" có gợi ý và nút xem đoạn đầu tiên', () => {
+  it('[BUG-329] chưa chọn gì: panel "Tầng này" có gợi ý (kèm phím J), không lặp nút đi tiếp của cột việc', () => {
     renderWithProviders(<WallLayerInspectorPanel panel={inspectorPanel({})} />);
 
-    expect(screen.getByRole('region', { name: 'Tầng này' })).toHaveTextContent(/Chọn một đoạn tường/u);
-    expect(screen.getByRole('button', { name: 'Xem đoạn cần xem đầu tiên (J)' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Tầng này' })).toHaveTextContent(/Chọn một đoạn tường.*phím J/u);
+    expect(screen.queryByRole('button', { name: /Xem đoạn cần xem đầu tiên/u })).toBeNull();
   });
 
   it('[BUG-604] "Đổi độ dày" đưa focus vào ô chọn độ dày', () => {

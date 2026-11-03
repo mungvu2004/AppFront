@@ -14,7 +14,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { AppHeader } from '@/components/shell/AppHeader';
-import { EditorChromeProvider, EditorFileMenu, EditorStepChip, type EditorChrome } from '@/components/shell/EditorChrome';
+import { EditorChromeProvider, EditorFileMenu, EditorStepLabel, EditorStepList, type EditorChrome } from '@/components/shell/EditorChrome';
 import { rememberAppPath } from '@/pascal-page/bridge/backHref';
 import { useSession } from '@/hooks/useSession';
 import { LAST_PROJECT_KEY, lastFloorPathKey, signOut } from '@/lib/auth';
@@ -191,9 +191,11 @@ export function AppLayout() {
       <LazyNotificationBell />
     </Suspense>
   );
-  // Bốn màn duyệt tầng dạng trình biên tập: không header chung, màn tự đặt menu tệp + chip bước + chuông.
+  // Bốn màn duyệt tầng dạng trình biên tập: không header chung, đầu cột việc tự đặt menu tệp (kèm sáu bước) + dòng vị trí + chuông.
+  const editorProject =
+    location === null ? null : { id: location.projectId, stepIndex: location.stepIndex, floorId: location.floorId, lastFloorPath, stepStates };
   const editorChrome: EditorChrome | null =
-    location !== null && isFloorEditorPath(routerLocation.pathname)
+    location !== null && editorProject !== null && isFloorEditorPath(routerLocation.pathname)
       ? {
           fileMenu: (
             <EditorFileMenu
@@ -203,9 +205,10 @@ export function AppLayout() {
               accountInitials={accountInitials}
               accountLabel={accountLabel}
               onSignOut={handleSignOut}
+              steps={<EditorStepList project={editorProject} />}
             />
           ),
-          stepChip: <EditorStepChip project={{ id: location.projectId, stepIndex: location.stepIndex, floorId: location.floorId, lastFloorPath, stepStates }} />,
+          stepLabel: <EditorStepLabel project={editorProject} />,
           bell: notificationBell,
         }
       : null;

@@ -281,8 +281,8 @@ export function QcColumnScrim({ onClose }: { readonly onClose: () => void }) {
 }
 
 /**
- * Nút "Việc" mở lại ngăn kéo cột việc. Chỉ có dưới 1024. Đứng ở góc trên trái, ngay dưới nút
- * Từng việc/Tổng thể (cùng hàng công cụ nổi), không giữa mép trái — chỗ đó đè nét vẽ (U47).
+ * Nút nổi "Việc" mở lại ngăn kéo cột việc (dự án, tầng, bốn bước, nút đi tiếp). Chỉ có dưới 1024.
+ * Đứng ở góc trên trái bản vẽ, không giữa mép trái — chỗ đó đè nét vẽ (U47).
  */
 export function QcColumnHandle({ open, onOpen }: { readonly open: boolean; readonly onOpen: () => void }) {
   return (
@@ -290,7 +290,7 @@ export function QcColumnHandle({ open, onOpen }: { readonly open: boolean; reado
       aria-controls={QC_COLUMN_ID}
       aria-expanded={open}
       aria-label={COLUMN_OPEN_LABEL}
-      className="absolute left-3 top-14 z-30 flex items-center gap-1.5 rounded-lg bg-bg-surface px-2.5 py-1.5 text-body-sm font-medium text-text-primary shadow-float hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent lg:hidden"
+      className="absolute left-3 top-3 z-30 flex items-center gap-1.5 rounded-lg bg-bg-surface px-2.5 py-1.5 text-body-sm font-medium text-text-primary shadow-float hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent lg:hidden"
       onClick={onOpen}
       type="button"
     >

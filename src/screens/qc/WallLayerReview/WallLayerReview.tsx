@@ -222,6 +222,7 @@ export function WallLayerReview({
           left !== null && floorNav != null ? (
             <QcStepColumn
               activeStep="walls"
+              fileHeader={<QcFloorNav {...floorNav} floors={leftPanel.floors} layer="walls" minimal stacked titled />}
               floorId={floorNav.floorId}
               gate={
                 <div className="flex flex-col gap-2">

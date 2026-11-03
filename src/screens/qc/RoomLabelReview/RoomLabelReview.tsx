@@ -382,7 +382,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         column
         left={
           isCollapsed ? null : nav != null ? (
-            <QcStepColumn activeStep="rooms" floorId={nav.floorId} gate={gate} hint={`${props.summary.roomCount} phòng · sàn ${props.summary.totalAreaText}`} projectId={nav.projectId} task={STEP_TASK}>
+            <QcStepColumn activeStep="rooms" fileHeader={<QcFloorNav {...nav} layer="rooms" minimal stacked titled />} floorId={nav.floorId} gate={gate} hint={`${props.summary.roomCount} phòng · sàn ${props.summary.totalAreaText}`} projectId={nav.projectId} task={STEP_TASK}>
               <RoomLabelLeftColumn {...props} />
             </QcStepColumn>
           ) : (

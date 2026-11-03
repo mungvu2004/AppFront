@@ -1,7 +1,8 @@
 /**
  * Vỏ thu gọn cho bốn màn duyệt tầng dạng trình biên tập (`isFloorEditorPath`): ở đó `AppLayout` không vẽ
- * {@link AppHeader}, mà đưa ba mảnh qua context để thanh của màn (QcFloorNav) tự đặt — menu tệp (tên dự án ▾),
- * chip bước ("Bước 3 · Duyệt tầng ▾") và chuông. Ngoài bốn màn đó context là null.
+ * {@link AppHeader}, mà đưa ba mảnh qua context để đầu cột việc (QcFloorNav `stacked`) tự đặt — menu tệp
+ * (tên dự án ▾, gồm cả sáu bước của dự án), dòng mờ vị trí ("Bước 3 · Duyệt tầng", chữ, không nút) và chuông.
+ * Ngoài bốn màn đó context là null.
  *
  * ponytail: menu dùng `<details>` gốc như header (Esc đóng, không đóng khi bấm ra ngoài); cần thì đổi sang Popover.
  */
@@ -20,7 +21,7 @@ import { ProjectNav } from './ProjectNav';
 
 export interface EditorChrome {
   readonly fileMenu: ReactNode;
-  readonly stepChip: ReactNode;
+  readonly stepLabel: ReactNode;
   readonly bell: ReactNode;
 }
 
@@ -58,10 +59,12 @@ export interface EditorFileMenuProps {
   readonly accountInitials?: string | undefined;
   readonly accountLabel: string;
   readonly onSignOut: () => void;
+  /** Sáu bước của dự án (`EditorStepList`), giữa lối về và màn phụ. */
+  readonly steps?: ReactNode;
 }
 
-/** Menu tệp: tên dự án ▾ gom mọi lối của header chung (danh sách dự án, quản trị, màn phụ, tài khoản, đăng xuất). */
-export function EditorFileMenu({ projectId, projectName, showAdmin, accountInitials, accountLabel, onSignOut }: EditorFileMenuProps) {
+/** Menu tệp: tên dự án ▾ gom mọi lối của header chung (danh sách dự án, quản trị, bước dự án, màn phụ, tài khoản, đăng xuất). */
+export function EditorFileMenu({ projectId, projectName, showAdmin, accountInitials, accountLabel, onSignOut, steps }: EditorFileMenuProps) {
   const location = useLocation();
   const [confirmOut, setConfirmOut] = useState(false);
   return (
@@ -86,6 +89,12 @@ export function EditorFileMenu({ projectId, projectName, showAdmin, accountIniti
               Quản trị
             </Link>
           )}
+          {steps == null ? null : (
+            <>
+              <div className="my-1 border-t border-border-default" />
+              {steps}
+            </>
+          )}
           <div className="my-1 border-t border-border-default" />
           <ProjectNav projectId={projectId} pathname={location.pathname} search={location.search} />
           <div className="my-1 border-t border-border-default" />
@@ -106,7 +115,7 @@ export function EditorFileMenu({ projectId, projectName, showAdmin, accountIniti
   );
 }
 
-export interface EditorStepChipProps {
+export interface EditorStepProps {
   readonly project: {
     readonly id: string;
     readonly stepIndex: number;
@@ -116,47 +125,36 @@ export interface EditorStepChipProps {
   };
 }
 
-/** Chip "Bước 3 · Duyệt tầng ▾" mở sáu bước kèm trạng thái (cùng khuôn ProjectStepsCard của trang 3D). */
-export function EditorStepChip({ project }: EditorStepChipProps) {
-  const location = useLocation();
+/** Dòng mờ vị trí dưới tên dự án (như "Drafts" dưới tên tệp của Figma): chữ, không phải nút. */
+export function EditorStepLabel({ project }: EditorStepProps) {
   const current = PROJECT_STEPS[project.stepIndex];
+  if (current === undefined) return null;
+  return <p className="truncate px-2 text-caption text-text-muted">{`Bước ${project.stepIndex + 1} · ${current.label}`}</p>;
+}
+
+/** Sáu bước của dự án kèm trạng thái (cùng khuôn ProjectStepsCard của trang 3D), đặt trong menu tệp. */
+export function EditorStepList({ project }: EditorStepProps) {
   return (
-    <nav aria-label="Các bước của dự án" className="shrink-0">
-      <details key={location.pathname} className="relative" onKeyDown={closeOnEscape}>
-        <summary
-          aria-label={current === undefined ? 'Danh sách bước' : `Bước ${project.stepIndex + 1}/${PROJECT_STEPS.length}: ${current.label}, mở danh sách bước`}
-          title={current === undefined ? undefined : `Bước ${project.stepIndex + 1}: ${current.label}`}
-          className={cn(SUMMARY_CLASS, 'whitespace-nowrap font-medium text-text-primary')}
-        >
-          {current !== undefined && (
-            <span>
-              Bước {project.stepIndex + 1}
-              {/* Dưới 1280 chỉ còn số bước; tên ở aria-label/title. */}
-              <span className="hidden xl:inline"> · {current.label}</span>
-            </span>
-          )}
-          <ChevronDown size={14} aria-hidden="true" className="shrink-0 text-text-muted" />
-        </summary>
-        <ol aria-label="Danh sách bước" className={PANEL_CLASS}>
-          {PROJECT_STEPS.map((step, index) => {
-            const isCurrent = index === project.stepIndex;
-            const state = project.stepStates?.[index] ?? 'todo';
-            return (
-              <li key={step.id}>
-                <Link
-                  to={stepPath(project, index)}
-                  aria-current={isCurrent ? 'step' : undefined}
-                  aria-label={`Bước ${index + 1}: ${step.label}, ${stepStateText(state, index, project.stepIndex)}`}
-                  className={cn(ITEM_CLASS, isCurrent && 'bg-accent-wash font-semibold text-accent')}
-                >
-                  <StepMarker index={index} isCurrent={isCurrent} state={state} />
-                  {step.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ol>
-      </details>
+    <nav aria-label="Các bước của dự án">
+      <ol aria-label="Danh sách bước">
+        {PROJECT_STEPS.map((step, index) => {
+          const isCurrent = index === project.stepIndex;
+          const state = project.stepStates?.[index] ?? 'todo';
+          return (
+            <li key={step.id}>
+              <Link
+                to={stepPath(project, index)}
+                aria-current={isCurrent ? 'step' : undefined}
+                aria-label={`Bước ${index + 1}: ${step.label}, ${stepStateText(state, index, project.stepIndex)}`}
+                className={cn(ITEM_CLASS, isCurrent && 'bg-accent-wash font-semibold text-accent')}
+              >
+                <StepMarker index={index} isCurrent={isCurrent} state={state} />
+                {step.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
     </nav>
   );
 }

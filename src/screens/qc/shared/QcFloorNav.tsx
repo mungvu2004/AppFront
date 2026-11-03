@@ -16,7 +16,6 @@ import {
   type FloorReviewLayerState,
   type FloorScaleState,
 } from './floorReviewGateModel';
-import { FloorReviewGate } from './FloorReviewGate.container';
 import { QC_LAYERS, qcLayerTitle, qcStepOf, type QcLayerKey } from './qcLayers';
 import { useFloorReview } from './useFloorReview';
 
@@ -29,10 +28,10 @@ import { useFloorReview } from './useFloorReview';
  * Nút đi tiếp của tầng nằm ở khe cổng của header (`FloorReviewGate`), không lặp ở đây.
  * Tầng chưa có tỷ lệ: các bước sau Tỷ lệ (và Độ dày tường) bị khoá, kèm lý do.
  * Phím `]` / `[` sang bước sau / về bước trước của tầng (U19), hiện trong bảng `?`.
- * Trong khung soạn thảo (`useEditorChrome()` khác null — 4 màn duyệt tầng không còn header và thanh
- * bước dự án): đây là HÀNG DUY NHẤT, h-10: menu Tệp, chip bước dự án | tầng ▾ | bốn bước (dưới xl chỉ
- * bước đang mở còn chữ, các bước khác giữ số đếm) | … | nút đi tiếp (chỉ dưới lg, khi cột trái thành
- * ngăn kéo) | chuông.
+ * Trong khung soạn thảo (`useEditorChrome()` khác null — 4 màn duyệt tầng không còn header, không còn hàng
+ * trên cùng, kiểu Figma): bản đặt ở đầu màn chỉ giữ H1 ẩn + phím tắt; bản `stacked` (truyền vào
+ * `QcStepColumn.fileHeader`) vẽ khối đầu cột: dự án ▾ + chuông · chip bước dự án · tầng ▾ · bốn bước xếp dọc
+ * (số, chấm, đếm). Nút đi tiếp chỉ có ở đáy cột việc. Ngoài khung soạn thảo `stacked` không vẽ gì.
  * Gắn: `<QcFloorNav floorId={floorId} layer="rooms" projectId={projectId} />` (cần nằm trong Router).
  */
 export interface QcFloorNavFloor {
@@ -55,6 +54,8 @@ export interface QcFloorNavProps {
   readonly titled?: boolean;
   /** Bố cục L23: bỏ dòng `progress` (chip ở đầu cột việc đã nói); số đã duyệt/tổng của từng bước vẫn hiện. */
   readonly minimal?: boolean;
+  /** Khối đầu cột việc (chỉ vẽ trong khung soạn thảo); không đăng ký phím tắt — bản ở đầu màn đã đăng ký. */
+  readonly stacked?: boolean;
 }
 
 const FLOOR_FALLBACK = 'Tầng';
@@ -89,6 +90,11 @@ const TAB_CLASS = cn(
 const CURRENT_CLASS = 'bg-accent-wash font-medium text-accent';
 const IDLE_CLASS = 'text-text-secondary hover:bg-bg-hover hover:text-text-primary';
 const MENU_ITEM_CLASS = 'flex w-full items-center gap-1 rounded-md px-3 py-1.5 text-left';
+/** Một bước trong danh sách dọc của cột việc (như danh sách Pages của Figma). */
+const ROW_CLASS = cn(
+  'flex h-7 w-full items-center gap-2 whitespace-nowrap rounded-md px-2 text-[13px] transition-colors duration-120',
+  'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+);
 
 /** A12: Esc đóng menu đang mở và trả tiêu điểm về nút mở. */
 function closeOnEscape(event: KeyboardEvent<HTMLDetailsElement>) {
@@ -183,7 +189,7 @@ function FloorMenuItem({ projectId, floor, layer, isCurrent }: FloorMenuItemProp
   );
 }
 
-export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, titled = false, minimal = false }: QcFloorNavProps) {
+export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, titled = false, minimal = false, stacked = false }: QcFloorNavProps) {
   const current = QC_LAYERS.find((item) => item.key === layer) ?? QC_LAYERS[0]!;
   const floorLabel = floors.find((floor) => floor.id === floorId)?.label ?? FLOOR_FALLBACK;
   const screenTitle = qcLayerTitle(layer);
@@ -210,10 +216,10 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
     if (target === undefined || isLocked(target.key)) return;
     void navigate(target.route(projectId, floorId));
   };
-  useShortcut({ id: 'qcFloorNav.nextStep', combo: ']', scope: 'global', description: NEXT_STEP_SHORTCUT, onTrigger: () => goStep(1) });
-  useShortcut({ id: 'qcFloorNav.previousStep', combo: '[', scope: 'global', description: PREVIOUS_STEP_SHORTCUT, onTrigger: () => goStep(-1) });
+  useShortcut({ id: 'qcFloorNav.nextStep', combo: ']', scope: 'global', description: NEXT_STEP_SHORTCUT, onTrigger: () => goStep(1) }, { enabled: !stacked });
+  useShortcut({ id: 'qcFloorNav.previousStep', combo: '[', scope: 'global', description: PREVIOUS_STEP_SHORTCUT, onTrigger: () => goStep(-1) }, { enabled: !stacked });
   /* UX-12: sang Mô hình 3D không phải lần Tab qua cả màn; có trong bảng `?`. */
-  useShortcut({ id: 'qcFloorNav.openViewer', combo: 'Shift+M', scope: 'global', description: OPEN_VIEWER_SHORTCUT, onTrigger: () => void navigate(ROUTES.project.viewer(projectId)) });
+  useShortcut({ id: 'qcFloorNav.openViewer', combo: 'Shift+M', scope: 'global', description: OPEN_VIEWER_SHORTCUT, onTrigger: () => void navigate(ROUTES.project.viewer(projectId)) }, { enabled: !stacked });
   const currentOf = (key: QcLayerKey): StepProps['current'] => {
     if (key === layer) return 'page';
     return key === activeStep ? 'step' : undefined;
@@ -237,7 +243,7 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
     </NavMenu>
   );
   const stepNav = (
-    <nav aria-label={STEP_BAR_LABEL} className={cn('flex min-w-0 items-center gap-1 border-l border-border-default pl-3', chrome === null && 'flex-1')}>
+    <nav aria-label={STEP_BAR_LABEL} className={stacked ? 'flex flex-col gap-0.5' : 'flex min-w-0 flex-1 items-center gap-1 border-l border-border-default pl-3'}>
       {steps.map((item, index) => {
         const state = layerStates.get(item.key);
         const isScale = item.key === 'scale';
@@ -245,19 +251,17 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
         const scaleView = isScale && scale !== null ? SCALE_STATE_VIEWS[scale] : null;
         /* Tỷ lệ chưa xác nhận: bước mang đúng tên trạng thái ("Chưa có tỷ lệ", "Tỷ lệ cần kiểm"). */
         const label = scaleView !== null && scale !== 'confirmed' ? scaleView.name : item.label;
-        /* Khung soạn thảo, dưới xl: bước không mở chỉ còn số + chấm + đếm; chữ vẫn đọc được cho trình đọc màn hình. */
-        const compact = chrome !== null && currentOf(item.key) === undefined;
         return (
           <Step
             key={item.key}
-            className={TAB_CLASS}
+            className={stacked ? ROW_CLASS : TAB_CLASS}
             current={currentOf(item.key)}
             locked={isLocked(item.key)}
             to={item.route(projectId, floorId)}
           >
             <span aria-hidden="true" className="tabular-nums text-text-muted">{index + 1}</span>
             {isLocked(item.key) ? null : <StatusDot tone={scaleView?.statusCode ?? (isDone ? 'verified' : 'neutral')} />}
-            <span className={cn(isScale && scale !== null && SCALE_TEXT_CLASS[scale], compact && 'max-xl:sr-only')}>{label}</span>
+            <span className={cn('min-w-0 truncate', stacked && 'flex-1', isScale && scale !== null && SCALE_TEXT_CLASS[scale])}>{label}</span>
             {isDone && <span className="sr-only">: đã xong</span>}
             {state !== undefined && !isDone && (
               <>
@@ -270,9 +274,9 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
       })}
       {subLinks.length === 0 ? null : (
         <>
-          <span aria-hidden="true" className="mx-2 h-5 w-px shrink-0 bg-border-control" />
+          {stacked ? null : <span aria-hidden="true" className="mx-2 h-5 w-px shrink-0 bg-border-control" />}
           {subLinks.map((item) => (
-            <Step key={item.key} className={TAB_CLASS} current={currentOf(item.key)} locked={isLocked(item.key)} to={item.route(projectId, floorId)}>
+            <Step key={item.key} className={stacked ? cn(ROW_CLASS, 'pl-7') : TAB_CLASS} current={currentOf(item.key)} locked={isLocked(item.key)} to={item.route(projectId, floorId)}>
               {item.label}
             </Step>
           ))}
@@ -282,24 +286,23 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
   );
   const heading = titled ? null : <h1 className="sr-only">{`${screenTitle} · ${floorLabel}`}</h1>;
 
-  if (chrome !== null) {
+  if (stacked) {
+    if (chrome === null) return null;
+    /* Đầu cột việc kiểu Figma: tên tệp ▾ + chuông, dòng mờ vị trí (bước dự án), rồi "trang" = tầng ▾ và bốn bước. */
     return (
-      <div className="flex h-10 shrink-0 items-center gap-3 border-b border-border-default px-3" data-testid="qc-editor-row">
-        {heading}
-        {chrome.fileMenu}
-        {chrome.stepChip}
-        <span aria-hidden="true" className="h-5 w-px shrink-0 bg-border-control" />
-        {floorMenu}
-        {stepNav}
-        <span aria-hidden="true" className="flex-1" />
-        {/* Dưới lg cột trái là ngăn kéo: nút đi tiếp của tầng phải còn trên hàng. */}
-        <div className="shrink-0 lg:hidden">
-          <FloorReviewGate floorId={floorId} inline projectId={projectId} />
+      <div className="flex shrink-0 flex-col gap-1 border-b border-border-default px-2 py-2" data-testid="qc-panel-nav">
+        <div className="flex items-center gap-1">
+          <div className="min-w-0 flex-1">{chrome.fileMenu}</div>
+          {chrome.bell}
         </div>
-        {chrome.bell}
+        {chrome.stepLabel}
+        <div className="mt-1 border-t border-border-default pt-1">{floorMenu}</div>
+        {stepNav}
       </div>
     );
   }
+  /* Khung soạn thảo: không còn hàng trên cùng — đầu màn chỉ giữ H1 ẩn và phím tắt; nội dung ở đầu cột việc. */
+  if (chrome !== null) return heading;
 
   return (
     <div className="flex h-8 shrink-0 items-center gap-3 px-4">

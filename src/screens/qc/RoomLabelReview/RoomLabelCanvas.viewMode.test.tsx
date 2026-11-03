@@ -3,9 +3,10 @@
  * (chưa có tên trước, máy đề xuất sau); nút đổi chế độ luôn có trên bản vẽ.
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { QcInspectorEmpty } from '../shared/QcInspectorSection';
 import { setQcViewMode } from '../shared/qcViewMode';
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import type { RoomLabelStatus, RoomLabelViewModel } from './roomLabelTypes';
@@ -76,10 +77,13 @@ describe('RoomLabelCanvas — chế độ nhìn', () => {
     expect(parseFloat(pins[0]!.style.left)).toBeGreaterThan(parseFloat(pins[1]!.style.left));
   });
 
-  it('có nút đổi chế độ nhìn trên bản vẽ', () => {
+  it('nút đổi chế độ nhìn không nổi trên bản vẽ: nó ở thanh đầu panel phải (cạnh "Hiển thị")', () => {
     renderCanvas();
+    expect(screen.queryByRole('group', { name: 'Chế độ nhìn' })).toBeNull();
+    cleanup();
 
-    expect(screen.getByRole('group', { name: 'Chế độ nhìn' })).toBeTruthy();
+    render(<QcInspectorEmpty title="Tầng này" />);
+    expect(within(screen.getByRole('region', { name: 'Tầng này' })).getByRole('group', { name: 'Chế độ nhìn' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tổng thể' })).toBeTruthy();
   });
 });

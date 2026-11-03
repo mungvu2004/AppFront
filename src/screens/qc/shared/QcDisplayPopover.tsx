@@ -54,7 +54,8 @@ export function QcDisplayPopover({ groups, label = BUTTON_LABEL, popoverLabel = 
         aria-haspopup="dialog"
         className={cn(
           'flex items-center gap-2 rounded-lg text-body-sm font-medium text-text-primary transition-colors duration-120',
-          variant === 'float' ? 'h-9 bg-bg-surface px-3 shadow-float' : 'h-8 px-2',
+          /* Phẳng: đứng cạnh nút chế độ nhìn ở thanh đầu panel 260–320 px — không xuống dòng; dưới 1280 chỉ còn biểu tượng. */
+          variant === 'float' ? 'h-9 bg-bg-surface px-3 shadow-float' : 'h-8 shrink-0 gap-1 whitespace-nowrap px-1.5',
           activeCount > 0 && variant === 'flat' && 'bg-accent-wash text-accent',
           'hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent',
         )}
@@ -62,7 +63,7 @@ export function QcDisplayPopover({ groups, label = BUTTON_LABEL, popoverLabel = 
         type="button"
       >
         {icon ?? <Layers aria-hidden="true" className="h-4 w-4" />}
-        {label}
+        {variant === 'flat' ? <span className="max-xl:sr-only">{label}</span> : label}
         {activeCount > 0 ? (
           <>
             <span aria-hidden="true" className="rounded-full bg-accent px-1.5 text-caption tabular-nums text-white">{activeCount}</span>

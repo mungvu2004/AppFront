@@ -61,27 +61,50 @@ describe('QcFloorNav (UX-R1 K25, UX-R2 K04)', () => {
     expect(screen.queryByTestId('qc-editor-row')).toBeNull();
   });
 
-  it('trong khung soạn thảo: một hàng h-10 gồm Tệp, chip bước, tầng ▾, bốn bước, nút đi tiếp (dưới lg), chuông', () => {
+  it('trong khung soạn thảo: không hàng trên cùng — bản đầu màn chỉ còn H1 ẩn; bản stacked là khối đầu cột', () => {
     review.scale = 'confirmed';
-    const steps = renderNav('walls', {
+    const chrome: EditorChrome = {
       fileMenu: <button type="button">Tệp</button>,
-      stepChip: <span>Bước 3/5</span>,
+      stepLabel: <p>Bước 3 · Duyệt tầng</p>,
       bell: <button type="button">Thông báo</button>,
-    });
-    const row = screen.getByTestId('qc-editor-row');
-    const order = [...row.children].filter((el) => el.tagName !== 'H1').map((el) => el.textContent ?? '');
+    };
+    const floors = [
+      { id: 'f1', label: 'Tầng 1' },
+      { id: 'f2', label: 'Tầng 2' },
+    ];
+    render(
+      <MemoryRouter>
+        <EditorChromeProvider value={chrome}>
+          <QcFloorNav floorId="f1" floors={floors} layer="walls" projectId="p1" />
+          <aside data-testid="cot">
+            <QcFloorNav floorId="f1" floors={floors} layer="walls" projectId="p1" stacked titled />
+          </aside>
+        </EditorChromeProvider>
+      </MemoryRouter>,
+    );
+    const block = screen.getByTestId('qc-panel-nav');
+    const steps = screen.getByRole('navigation', { name: 'Các bước duyệt tầng' });
 
-    expect(row).toHaveClass('h-10');
-    expect(steps.parentElement).toBe(row);
-    expect(screen.getByLabelText('Đổi tầng: đang ở Tầng 1').closest('[data-testid="qc-editor-row"]')).toBe(row);
-    expect(order.slice(0, 2)).toEqual(['Tệp', 'Bước 3/5']);
-    expect(order.at(-1)).toBe('Thông báo');
+    expect(screen.queryByTestId('qc-editor-row')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Duyệt tường · Tầng 1' }).parentElement).not.toBe(screen.getByTestId('cot'));
+    expect(screen.getByTestId('cot')).toContainElement(block);
+    expect(block).toContainElement(steps);
+    expect(within(block).getByRole('button', { name: 'Tệp' })).toBeInTheDocument();
+    expect(within(block).getByRole('button', { name: 'Thông báo' })).toBeInTheDocument();
+    expect(within(block).getByLabelText('Đổi tầng: đang ở Tầng 1')).toBeInTheDocument();
     expect(steps.textContent).toMatch(/^1Tỷ lệ.*2Tường3Cửa và nội thất4Phòng/u);
-    /* Bước không mở: chữ chỉ ẩn dưới xl, vẫn đọc được; bước đang mở giữ chữ. */
-    expect(within(steps).getByText('Phòng')).toHaveClass('max-xl:sr-only');
-    expect(within(steps).getByText('Tường')).not.toHaveClass('max-xl:sr-only');
-    const gate = row.querySelector<HTMLElement>('[class~="lg:hidden"]')!;
-    expect(within(gate).getByRole('link')).toBeInTheDocument();
+    /* Không còn nút đi tiếp ở đây: nút đó chỉ ở đáy cột việc (cả khi cột là ngăn kéo dưới lg). */
+    expect(within(block).queryByRole('link', { name: /^Tiếp:/u })).toBeNull();
+  });
+
+  it('ngoài khung soạn thảo: bản stacked không vẽ gì', () => {
+    render(
+      <MemoryRouter>
+        <QcFloorNav floorId="f1" layer="walls" projectId="p1" stacked />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('qc-panel-nav')).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Các bước duyệt tầng' })).toBeNull();
   });
 
   it('bước Tỷ lệ có link Kích thước và So với bản vẽ; đứng ở mục con thì bước Tỷ lệ sáng', () => {

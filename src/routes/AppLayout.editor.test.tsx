@@ -27,7 +27,7 @@ function Screen() {
       ) : (
         <div data-testid="editor-bar">
           {chrome.fileMenu}
-          {chrome.stepChip}
+          {chrome.stepLabel}
           {chrome.bell}
         </div>
       )}

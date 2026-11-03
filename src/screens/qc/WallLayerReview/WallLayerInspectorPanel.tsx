@@ -2,13 +2,12 @@
  * Panel phải LUÔN có của bước Tường (bố cục hai panel kiểu Figma, `docs/figma-layout-spec.md`):
  * - đang chọn: `QcQueueAskCard` — mã + huy hiệu + ‹ K › J ×, thân là các mục của `WallLayerInspector`,
  *   chân ghim là nút duyệt (hoặc lý do khoá tỷ lệ);
- * - chưa chọn gì: "Tầng này" — gợi ý, nút "Xem đoạn cần xem đầu tiên (J)", mục "Chú giải".
+ * - chưa chọn gì: "Tầng này" — gợi ý (kèm phím J), mục "Chú giải". Không nút đi tiếp: nút đó chỉ ở đáy cột việc.
  * Trigger "Hiển thị" ở thanh đầu panel trong cả hai trường hợp.
  */
 
 import { useMemo, type ReactNode } from 'react';
 
-import { Button } from '@/components/ui/Button';
 import type { CommandItem } from '@/hooks/useCommandPalette';
 import { useScreenCommands } from '@/hooks/useScreenCommands';
 
@@ -30,8 +29,8 @@ export interface WallLayerInspectorPanelProps extends WallLayerInspectorProps {
 }
 
 const EMPTY_TITLE = 'Tầng này';
-const EMPTY_HINT = 'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để duyệt.';
-const FIRST_LABEL = 'Xem đoạn cần xem đầu tiên (J)';
+/* Không lặp nút "Xem tiếp": nút đi tiếp duy nhất ở đáy cột việc; phím J vẫn mở đoạn cần xem đầu tiên. */
+const EMPTY_HINT = 'Chọn một đoạn tường trên bản vẽ hoặc trong danh sách để duyệt (phím J: đoạn cần xem đầu tiên).';
 const LEGEND_TITLE = 'Chú giải';
 const UNIT = 'Đoạn';
 
@@ -50,11 +49,6 @@ function WallLayerFloorPanel({ panel, display, legend }: WallLayerInspectorPanel
 
   return (
     <QcInspectorEmpty display={display} hint={EMPTY_HINT} title={EMPTY_TITLE}>
-      <div className="px-4 pb-3">
-        <Button disabled={firstId === null} fullWidth onClick={() => firstId !== null && onSelect(firstId)} size="sm" variant="secondary">
-          {FIRST_LABEL}
-        </Button>
-      </div>
       {legend === undefined || !legend.isWallLayerVisible ? null : (
         <QcInspectorSection title={LEGEND_TITLE}>
           <WallLayerLegendTray {...legend} />
