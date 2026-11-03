@@ -34,6 +34,8 @@ export interface WallLayerStatusBarProps {
   readonly onUndo?: (() => void) | undefined;
   /** Vai người xem: thanh phím chỉ còn phím đi tới đoạn kế (không có phím sửa). */
   readonly readOnly?: boolean | undefined;
+  /** Chỉ dẫn của công cụ đang bật (Vẽ tường/Tách/Đo), một dòng; rỗng khi đang Chọn. */
+  readonly toolHint?: string | undefined;
 }
 
 /** Thanh phím: tối đa 3 phím việc lặp lại + "?" mở bảng mọi phím (NGUYEN-TAC §5, demo Z/S-15). */
@@ -42,13 +44,13 @@ const KEY_HINTS: readonly { readonly key: string; readonly label: string; readon
   { key: 'J', label: 'kế tiếp', edit: false },
 ];
 const ALL_KEYS_LABEL = 'Phím tắt';
-const ALL_KEYS_TITLE = 'Bấm ? để xem mọi phím tắt: S để sau, F vừa khung, 1 2 3 đặt độ dày, K đoạn trước.';
+const ALL_KEYS_TITLE = 'Bấm ? để xem mọi phím tắt: S để sau, F đổi Từng việc / Tổng thể, 1 2 3 đặt độ dày, K đoạn trước.';
 
 /** G4a-19: gợi ý kéo/phóng bản vẽ — khớp `wallLayerReview.statusBar.panHint`. */
 const PAN_HINT = 'Kéo nền hoặc giữ Space để di chuyển · lăn chuột để phóng';
 const SAVED_PREFIX = 'Đã lưu';
 
-export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = false }: WallLayerStatusBarProps) {
+export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = false, toolHint = '' }: WallLayerStatusBarProps) {
   return (
     /* Trạng thái tự lưu (A7) nằm ở thanh này: bố cục L23 không còn đầu panel. */
     <QcStatusBar onUndo={onUndo} saveFailed={saveFailed} saveLabel={saveLabel}>
@@ -56,7 +58,14 @@ export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = f
         Sans + tabular-nums, không mono: nhãn này cũng là câu ("Chưa rê chuột lên bản vẽ") — BUG-612.
         Dưới 640 chỉ giữ trạng thái lưu, hai mục kia không gãy thành nhiều dòng (BUG-324).
       */}
-      <span className="hidden min-w-0 truncate text-caption text-text-secondary 2xl:block">{PAN_HINT}</span>
+      {/* Công cụ đang bật thì chỉ dẫn của nó thay gợi ý kéo/phóng — luôn hiện, một dòng. */}
+      {toolHint === '' ? (
+        <span className="hidden min-w-0 truncate text-caption text-text-secondary 2xl:block">{PAN_HINT}</span>
+      ) : (
+        <span aria-live="polite" className="min-w-0 truncate text-caption font-medium text-text-primary" data-testid="wall-tool-hint">
+          {toolHint}
+        </span>
+      )}
       <span aria-label="Phím tắt" className="ml-auto hidden shrink-0 items-center gap-3 text-caption text-text-secondary lg:flex" role="group">
         {KEY_HINTS.filter((hint) => !readOnly || !hint.edit).map((hint) => (
           <span className="flex items-center gap-1" key={hint.key}>

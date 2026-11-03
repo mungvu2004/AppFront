@@ -138,7 +138,10 @@ export const NODES_PANELS_VI = {
     ["label=\"Delete\"", "label=\"Xoá\""],
     ["title=\"Info\"", "title=\"Thông tin\""],
     [">Dimensions<", ">Kích thước<"],
-    ["title=\"Collections\"", "title=\"Bộ sưu tập\""],
+    // wall-review-ux: ẩn mục "Bộ sưu tập" của đồ vật — đó là nhóm nút cảnh do người dùng tự đặt, không phải
+    // thư viện đồ, người dùng nhầm và gặp bảng trống. Bọc mục trong `false && (...)`, giữ dịch phòng khi bật lại.
+    ["      <PanelSection title=\"Collections\">\n", "      {false && (\n      <PanelSection title=\"Bộ sưu tập\">\n"],
+    ["          </CollectionsPopover>\n        </ActionGroup>\n      </PanelSection>\n", "          </CollectionsPopover>\n        </ActionGroup>\n      </PanelSection>\n      )}\n"],
     ["label=\"Manage collections…\"", "label=\"Quản lý bộ sưu tập…\""],
     ["            Uniform Scale\n          </span>", "            Tỉ lệ đều\n          </span>"],
     ["X<sub className=\"ml-[1px] text-[11px] opacity-70\">pos</sub>", "Ngang"],

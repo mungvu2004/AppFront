@@ -343,6 +343,18 @@ const readStrings = (fields: Fields, key: string): string[] => {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 };
 
+/** Câu cho tấm sàn người dùng tự vẽ trong Pascal (bản vẽ chưa có chỗ chứa). */
+export const SLAB_NOT_SAVED = 'Không thêm sàn riêng được. Muốn đổi sàn: chọn phòng → Vật liệu sàn.';
+
+/**
+ * Sàn/trần Pascal TỰ đặt khi tường khép một khoảng chưa có sàn khớp (`space-detection.ts`
+ * `planAutoSlabsForLevel`, id ngẫu nhiên, `autoFromWalls: true`) — vd. xoá một vách gộp hai phòng.
+ * Sàn/trần AppFront luôn `autoFromWalls: false` (toPascal). Không phải thứ người dùng vẽ: bỏ qua im
+ * lặng ở mọi đường (lượt về, khai lượt sửa), không thì cả lượt xoá cửa/tường bị từ chối oan.
+ */
+export const isAutoSurface = (node: PascalNode | undefined): boolean =>
+  (node?.type === 'slab' || node?.type === 'ceiling') && (node as { readonly autoFromWalls?: unknown }).autoFromWalls === true;
+
 /** H4 — mọi node món tự bày mà zone khai (`dressIds`, toPascal): có trong đây thì xoá nó lưu được. */
 export const dismissableNodeIdsOf = (scene: PascalScene): Set<PascalNodeId> =>
   new Set(
@@ -401,7 +413,7 @@ const itemSlotsFieldOf = (item: PascalItemNode): Readonly<Record<string, Materia
 
 /**
  * Trường I1 của món đồ: `variant` / `heightMm` / `liftMm` từ siêu dữ liệu lượt đi (đồ sinh
- * ra được nhận nuôi cũng mang theo), đè bằng lần kéo cao (`scale` y ≠ 1) hay nâng (y lệch
+ * ra được nhận nuôi cũng mang theo), đè bằng lần kéo giãn (`scale` trục nào ≠ 1) hay nâng (y lệch
  * quá 1 mm) vừa rồi; `slots` khác phong cách; `model` khi mẫu không phải mẫu AppFront chọn
  * và `src` là một mẫu `/items/…` (ngoài ra không lưu được).
  */
@@ -410,8 +422,10 @@ const itemFieldsOf = (item: PascalItemNode, kind: FurnitureKind): Partial<Furnit
   const variant = readOneOf(fields, 'variant', FURNITURE_VARIANTS);
   const styleLiftMm = readNumber(fields, 'styleLiftMm') ?? 0;
   const liftNowMm = millimetresOf(item.position[1]);
+  /* Kéo giãn trục nào cũng ghi chiều cao đang thấy: lượt về `toPascal` (`heightOf`) đoán cao từ tỷ lệ
+     rộng/sâu, nên kéo riêng bề rộng mà không ghi `heightMm` thì mở lại món cao lên. */
   const heightMm =
-    Math.abs(item.scale[1] - 1) >= SCALE_EPSILON
+    item.scale.some((axis) => Math.abs(axis - 1) >= SCALE_EPSILON)
       ? Math.max(1, Math.round(millimetresOf(item.asset.dimensions[1]) * item.scale[1]))
       : readNumber(fields, 'heightMm');
   const liftMm = Math.abs(liftNowMm - styleLiftMm) > 1 ? Math.max(0, Math.round(liftNowMm)) : readNumber(fields, 'liftMm');
@@ -569,6 +583,19 @@ interface Collector {
 }
 
 const positionIsUsable = (position: PascalVec3): boolean => isUsable(...position);
+
+/**
+ * Hộp bao về lưới 1 mm. Kéo `scale` (kể cả "Giữ tỉ lệ" 1902 → 2102, k = 1,10515…), nửa cạnh lẻ hay
+ * quay hộp ¼ vòng đều ra phần lẻ — `FurnitureSchema` đòi số nguyên, bộ lưu chặn cả tầng trước khi gửi.
+ */
+const wholeBox = (box: BoundingBox): BoundingBox => {
+  const mm = (value: number): number => Math.round(value) + 0;
+
+  return {
+    min: { x: mm(box.min.x), y: mm(box.min.y) },
+    max: { x: mm(box.max.x), y: mm(box.max.y) },
+  };
+};
 
 /** Hộp bao dựng quanh tâm, cho đồ đạc mà Pascal vừa đặt và AppFront chưa biết. */
 const boxAround = (centre: Point, dimensions: PascalVec3, scale: PascalVec3): BoundingBox => {
@@ -763,7 +790,7 @@ const collectItem = (scene: PascalScene, item: PascalItemNode, levelId: LevelId,
       levelId,
       kind,
       centre,
-      boundingBox: autoKept ? worldBoxOf(box, rotationDeg) : box,
+      boundingBox: wholeBox(autoKept ? worldBoxOf(box, rotationDeg) : box),
       rotationDeg: autoKept ? asDegrees(0) : rotationDeg,
       ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
       ...itemFieldsOf(item, kind),
@@ -936,12 +963,14 @@ const collectLevelChildren = (
           levelId,
           kind: 'stair',
           centre,
-          boundingBox: stored
-            ? { min, max }
-            : {
-                min: { x: centre.x - sizeX / 2, y: centre.y - sizeY / 2 },
-                max: { x: centre.x + sizeX / 2, y: centre.y + sizeY / 2 },
-              },
+          boundingBox: wholeBox(
+            stored
+              ? { min, max }
+              : {
+                  min: { x: centre.x - sizeX / 2, y: centre.y - sizeY / 2 },
+                  max: { x: centre.x + sizeX / 2, y: centre.y + sizeY / 2 },
+                },
+          ),
           // Viết −(bù − yaw) chứ không phải yaw − bù: yaw 0 phải ra 0° chứ không phải −0° (diff so giá trị).
           rotationDeg: planDegreesOf(-((runAlongX ? Math.PI / 2 : 0) - child.rotation)),
           ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
@@ -996,11 +1025,11 @@ const collectLevelChildren = (
          * Tấm sàn NGƯỜI DÙNG vẽ trong Pascal thì khác: id của nó là nanoid nên
          * `appFrontIdOf` trả `null`, và nó được nói ra.
          */
-        if (appFrontIdOf('room', child.id) === null) {
+        if (appFrontIdOf('room', child.id) === null && !isAutoSurface(child)) {
           collector.skip(
             child.id,
             'sàn',
-            'Sàn chưa vẽ thêm được trong bản này. Sàn tự có theo từng phòng; muốn đổi sàn, chọn phòng rồi đổi vật liệu sàn.',
+            SLAB_NOT_SAVED,
           );
         }
         break;
@@ -1013,7 +1042,7 @@ const collectLevelChildren = (
        * không được rơi im lặng (R3-F2). Trần người dùng vẽ cũng nói ra, như sàn.
        */
       case 'ceiling': {
-        if (appFrontIdOf('room', child.id) === null) {
+        if (appFrontIdOf('room', child.id) === null && !isAutoSurface(child)) {
           collector.skip(child.id, 'trần', 'Trần chưa vẽ thêm được trong bản này. Trần tự có theo từng phòng.');
         }
 

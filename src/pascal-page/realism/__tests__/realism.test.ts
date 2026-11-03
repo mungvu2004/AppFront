@@ -17,7 +17,8 @@ afterEach(() => {
 describe('realism store', () => {
   it('mặc định đúng CONTRACT', () => {
     const s = useRealism.getState();
-    expect([s.backend, s.tier, s.tierMode]).toEqual(['unknown', 'medium', 'auto']);
+    // Chưa đo, chưa nhớ gì → 'low' (bootTier), tránh dựng SSGI rồi dựng lại trên iGPU.
+    expect([s.backend, s.tier, s.tierMode]).toEqual(['unknown', 'low', 'auto']);
     expect(s.flags).toEqual(DEFAULT_REALISM_FLAGS);
   });
 

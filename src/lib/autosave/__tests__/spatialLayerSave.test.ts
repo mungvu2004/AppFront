@@ -26,9 +26,22 @@ import {
   createFloorLayerSaver,
   type FloorLayerSaver,
   type FloorLayerSaverPorts,
+  invalidWhereOf,
   LAYER_SAVE_MESSAGES,
   spatialLayerOf,
 } from '../spatialLayerSave';
+
+describe('invalidWhereOf', () => {
+  it('hộp bao đồ đạc lẻ mm (kéo "Giữ tỉ lệ") → nêu id món + trường, không câu chung', () => {
+    const furniture = { id: 'F-BED', boundingBox: { min: { x: 0, y: -1147.15 }, max: { x: 2102, y: 1147.15 } } };
+    const body = { layer: { furniture: [furniture], openings: [], rooms: [], walls: [] } } as never;
+    const parsed = FloorLayerWriteSchema.safeParse({ baseVersion: 1, body });
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.success ? '' : invalidWhereOf(parsed.error.issues, body)).toMatch(/^furniture F-BED › /);
+    expect(invalidWhereOf([], body)).toBe('thân lưu');
+  });
+});
 
 describe('spatialLayerOf', () => {
   it('chỉ lấy bốn danh sách của đúng một tầng — PUT không mang thực thể tầng khác', () => {
@@ -506,7 +519,7 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     await expect(second).resolves.toBeUndefined();
   });
 
-  it('thân không hợp FloorLayerWriteSchema → blocked câu chung, không gửi, ném 422 không tạm thời', async () => {
+  it('thân không hợp FloorLayerWriteSchema → blocked nêu chỗ sai, không gửi, ném 422 không tạm thời', async () => {
     const { layers, saver, writeLayer } = harness();
     const [wall] = wireLayer(4800).walls;
 
@@ -518,7 +531,10 @@ describe('createFloorLayerSaver — F-04x-1 bước 4', () => {
     expect(error).toMatchObject({ kind: 'http', retryable: false, status: 422 });
     expect(isTransientWireError(error)).toBe(false);
     expect(writeLayer).toHaveBeenCalledTimes(0);
-    expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'blocked', message: LAYER_SAVE_MESSAGES.unknown });
+    expect(saver.getBlock(FLOOR_A)).toStrictEqual({
+      kind: 'blocked',
+      message: LAYER_SAVE_MESSAGES.invalid(`walls ${wall?.id ?? ''} › thicknessMm`),
+    });
     expect(saver.hasDirty()).toBe(false);
   });
 
@@ -834,6 +850,30 @@ describe('saveScale — F-04x-2 bước 5', () => {
   });
 });
 
+describe('createFloorLayerSaver — sự cố hạ tầng không khoá tầng', () => {
+  it('503 DEPENDENCY_UNAVAILABLE rồi 200: không khối, thân giữ được gửi lại, hết chưa lưu', async () => {
+    const { saver, writeLayer } = harness();
+    const unsaved: (readonly string[])[] = [];
+    const unavailable = httpError(503, { code: 'DEPENDENCY_UNAVAILABLE', requestId: 'req-1' });
+
+    saver.subscribe((ids) => unsaved.push(ids));
+    writeLayer.mockResolvedValueOnce(failed(unavailable)).mockResolvedValueOnce(savedAt(4));
+    saver.markDirty([FLOOR_A]);
+
+    await expect(saver.flush()).rejects.toBe(unavailable);
+    expect(saver.getBlock(FLOOR_A)).toBeNull();
+    expect(saver.hasDirty()).toBe(true);
+
+    await saver.flush();
+
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(sentWrite(writeLayer, 1)).toStrictEqual(sentWrite(writeLayer, 0));
+    expect(saver.blockedFloorIds()).toStrictEqual([]);
+    expect(saver.hasDirty()).toBe(false);
+    expect(unsaved.at(-1)).toStrictEqual([]);
+  });
+});
+
 describe('classifyLayerSaveError', () => {
   it.each([
     [httpError(409, { code: 'VERSION_CONFLICT', requestId: 'r' }), 'reload'],
@@ -843,6 +883,8 @@ describe('classifyLayerSaveError', () => {
     [httpError(428, { code: 'PRECONDITION_REQUIRED', requestId: 'r' }), 'blocked'],
     [httpError(404, { code: 'NOT_FOUND', requestId: 'r', resource: 'floor' }), 'blocked'],
     [httpError(503, { code: 'DEPENDENCY_UNAVAILABLE', requestId: 'r' }), 'temporary'],
+    [httpError(500, { code: 'INTERNAL', requestId: 'r' }), 'temporary'],
+    [{ kind: 'aborted', raw: undefined, requestId: 'r', retryable: false }, 'temporary'],
     [TIMEOUT, 'temporary'],
     [{ kind: 'network', raw: undefined, requestId: 'r', retryable: true }, 'temporary'],
   ] as const)('%# → %s', (error, expected) => {

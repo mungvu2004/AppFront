@@ -65,6 +65,15 @@ describe('pascal-vi', () => {
     expect(calls(out)).toBe(calls(src.replaceAll('\r\n', '\n')) - 1);
   });
 
+  it('không thanh trên: cụm trái vào đầu bảng trái (nổi cạnh rail khi thu gọn), canvas chỉ còn cụm phải', () => {
+    const file = 'editor/src/components/editor/editor-layout-v2.tsx';
+    const out = applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]);
+    expect(out).toContain('header={viewerToolbarLeft}');
+    expect(out).toContain('data-appfront-panel-head="docked"');
+    expect(out).toContain('data-appfront-panel-head="floating"');
+    expect(out).not.toContain('toolbarLeft={isCaptureMode');
+  });
+
   it('U16: bảng Cấu tạo tường và tên mẫu cấu tạo không còn chữ Anh', () => {
     const tr = (file) => applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]);
     const panel = tr('nodes/src/wall/panel.tsx');
@@ -86,6 +95,13 @@ describe('pascal-vi', () => {
     const settings = 'editor/src/components/ui/sidebar/panels/settings-panel/index.tsx';
     const s = applyTable(readFileSync(path.join(PACKAGES, settings), 'utf8'), settings, PASCAL_VI_TABLES[settings]);
     expect(s).toContain("className={readOnly ? 'hidden' : 'grid grid-cols-2 gap-2'}");
+  });
+
+  it('wall-review-ux: mục "Bộ sưu tập" của đồ vật bị ẩn (không phải thư viện đồ)', () => {
+    const file = 'nodes/src/item/panel.tsx';
+    const out = applyTable(readFileSync(path.join(PACKAGES, file), 'utf8'), file, PASCAL_VI_TABLES[file]).replaceAll('\r\n', '\n');
+    expect(out).toContain('{false && (\n      <PanelSection title="Bộ sưu tập">');
+    expect(out).toContain('</CollectionsPopover>\n        </ActionGroup>\n      </PanelSection>\n      )}\n');
   });
 
   it('editor-hig C: trợ giúp khi chọn vật hết chữ Anh; "Xoá hết và làm lại" hỏi trước khi xoá', () => {

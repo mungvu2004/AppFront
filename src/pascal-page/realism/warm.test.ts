@@ -2,7 +2,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { coversScreen, screenSize } from './build-order';
-import { BUILD_BUDGET_MS, compileActiveSince, installAsyncNodeBuilds, installAsyncPipelines, installLazyDispose, liveFrame, warmStats } from './warm';
+import { LOAD_CAP_MS } from './loadOverlay';
+import { beginFirstLoad, BUILD_BUDGET_MS, compileActiveSince, endFirstLoad, installAsyncNodeBuilds, installAsyncPipelines, installLazyDispose, isFirstLoad, isStructure, liveFrame, LOAD_DRAW_MS, markDrawReady, warmStats } from './warm';
+
+// Registry giả của vendor: chỉ gốc kết cấu `wall` (không nạp cả `@pascal-app/core` trong node).
+const registry = vi.hoisted(() => {
+  const nodes = Object.assign(new Map<string, unknown>(), { revision: 0 });
+  return { nodes, byType: { wall: new Set<string>() } as Record<string, Set<string>> };
+});
+vi.mock('@pascal-app/core', () => ({ sceneRegistry: registry }));
 
 describe('installAsyncPipelines', () => {
   it('chỉ vật của cảnh chính trong khung sống tạo pipeline bất đồng bộ, và đếm lúc xong', async () => {
@@ -116,6 +124,52 @@ describe('installAsyncNodeBuilds', () => {
     expect(seenTargets).toHaveLength(1);
     expect(warmStats().buildsPending).toBeGreaterThan(0);
   });
+
+  it('lần nạp đầu: chỉ còn đồ đạc thì vẽ mỗi LOAD_DRAW_MS', () => {
+    const { draw, seenTargets } = setup(BUILD_BUDGET_MS + 2);
+    const scene = {};
+    const t = performance.now();
+    beginFirstLoad(t);
+    let draws = 0;
+    const frame = (at: number) =>
+      liveFrame(scene, () => {
+        draws++;
+        draw(scene, { key: 'p' }, { key: 'q' });
+      }, at);
+    frame(t);
+    frame(t + 10); // bỏ: chưa đủ LOAD_DRAW_MS
+    expect(draws).toBe(1);
+    frame(t + LOAD_DRAW_MS);
+    expect(draws).toBe(2);
+    expect(seenTargets).toHaveLength(2);
+    endFirstLoad();
+    frame(t + LOAD_DRAW_MS + 1);
+    expect(draws).toBe(3);
+  });
+
+  it('vật liệu còn ảnh đang nạp: chưa dựng; ảnh về (texturesready) thì dựng', async () => {
+    const { renderer, seenTargets } = setup();
+    const scene = {};
+    const listeners: (() => void)[] = [];
+    const mat = {
+      userData: { texPending: 1 },
+      addEventListener: (_: string, f: () => void) => void listeners.push(f),
+      removeEventListener: () => undefined,
+    };
+    const frame = () => liveFrame(scene, () => renderer._renderObjectDirect({ key: 'tex' }, mat, scene));
+    frame();
+    frame();
+    expect(seenTargets).toHaveLength(0);
+    expect(warmStats().texWaiting).toBe(1);
+    mat.userData.texPending = 0;
+    for (const f of listeners) f();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(warmStats().texWaiting).toBe(0);
+    frame();
+    frame();
+    expect(seenTargets).toHaveLength(1);
+  });
 });
 
 describe('thứ tự dựng (build-order)', () => {
@@ -213,6 +267,80 @@ describe('thứ tự dựng (build-order)', () => {
     expect(most).toBeGreaterThan(1); // thời gian dựng trung bình hạ → nhiều khoá mỗi khung
   });
 
+  it('lần nạp đầu: kết cấu dựng trước đồ đạc lớn hơn; xong kết cấu thì vẽ ngay, không đợi nhịp', async () => {
+    const order: string[] = [];
+    const resolvers: (() => void)[] = [];
+    const nodes = {
+      get: () => ({}),
+      nodeBuilderCache: new Map<string, unknown>(),
+      getForRenderCacheKey: (ro: unknown) => (ro as { key: string }).key,
+      _createNodeBuilder: () => ({ renderer: null }),
+      getForRenderAsync(ro: unknown) {
+        order.push((ro as { key: string }).key);
+        return new Promise<void>((res) => resolvers.push(res));
+      },
+    };
+    const renderer = {
+      _nodes: nodes,
+      _objects: { get: (object: unknown) => object },
+      _renderObjectDirect: vi.fn<(...args: unknown[]) => void>(),
+      _currentRenderContext: null,
+      contextNode: null,
+      getRenderTarget: () => null,
+      getMRT: () => null,
+    };
+    installAsyncNodeBuilds(renderer, false);
+    const wallRoot = {};
+    registry.nodes.set('w1', wallRoot);
+    registry.byType.wall!.add('w1');
+    registry.nodes.revision++;
+    const wall = { ...sized('wall', 0.5), parent: wallRoot }; // nhỏ trên màn hình
+    const sofa = sized('sofa', 5); // lớn hơn nhiều
+    expect(isStructure(wall)).toBe(true);
+    expect(isStructure(sofa)).toBe(false);
+    const scene = {};
+    const t = performance.now() + LOAD_CAP_MS; // xa mọi mốc nạp đầu của test trước
+    endFirstLoad();
+    beginFirstLoad(t);
+    let draws = 0;
+    const frame = (at: number) =>
+      liveFrame(scene, () => {
+        draws++;
+        renderer._renderObjectDirect(sofa, null, scene, camera);
+        renderer._renderObjectDirect(wall, null, scene, camera);
+      }, at);
+    frame(t); // xếp hạng
+    frame(t + 1); // còn kết cấu chờ → vẽ ngay; chỉ khởi động kết cấu
+    expect(order).toEqual(['wall']);
+    expect(draws).toBe(2);
+    frame(t + 2); // hết hàng kết cấu: đồ đạc tới lượt (khung này chỉ xếp hạng)
+    frame(t + LOAD_DRAW_MS + 2);
+    expect(order).toEqual(['wall', 'sofa']);
+    const before = draws;
+    frame(t + LOAD_DRAW_MS + 3); // chỉ còn đồ đạc: bỏ khung (nhịp ≤ 5/s)
+    expect(draws).toBe(before);
+    resolvers[0]!(); // bản dựng tường xong
+    await Promise.resolve();
+    await Promise.resolve();
+    frame(t + LOAD_DRAW_MS + 4); // kết cấu vừa xong → vẽ ngay dù chưa đủ LOAD_DRAW_MS
+    expect(draws).toBe(before + 1);
+    endFirstLoad();
+    registry.byType.wall!.clear();
+    registry.nodes.clear();
+    registry.nodes.revision++;
+  });
+
+  it('mốc nạp đầu: tính từ lúc nạp bắt đầu, renderer gắn lại giữa chừng không dời mốc', () => {
+    endFirstLoad();
+    const t = performance.now() + 2 * LOAD_CAP_MS;
+    expect(beginFirstLoad(t)).toBe(t + LOAD_CAP_MS);
+    expect(beginFirstLoad(t + 7_000)).toBe(t + LOAD_CAP_MS); // renderer mới lúc 7 s: giữ mốc cũ
+    expect(isFirstLoad(t + LOAD_CAP_MS - 1)).toBe(true);
+    expect(isFirstLoad(t + LOAD_CAP_MS)).toBe(false);
+    expect(beginFirstLoad(t + LOAD_CAP_MS + 1)).toBe(t + 2 * LOAD_CAP_MS + 1); // lần nạp sau: mốc mới
+    endFirstLoad();
+  });
+
   it('screenSize: bán kính / khoảng cách, 0 khi thiếu dữ liệu', () => {
     expect(screenSize(sized('a', 1), camera)).toBeCloseTo(0.1);
     expect(screenSize({}, camera)).toBe(0);
@@ -235,5 +363,22 @@ describe('installLazyDispose', () => {
     const built = { _bindings: [] };
     renderer._bindings.deleteForRender(built);
     expect(deleteForRender).toHaveBeenCalledWith(built);
+  });
+});
+
+describe('markDrawReady', () => {
+  it('chỉ lưới gộp, lượt chính, pipeline đã sẵn mới được đánh dấu vẽ được', () => {
+    const ready = { _pipelines: { isReady: () => true } };
+    const notReady = { _pipelines: { isReady: () => false } };
+    const batch = { isBatchedMesh: true, userData: {} as Record<string, unknown> };
+    markDrawReady(batch, {}, {}, notReady);
+    expect(batch.userData.drawReady).toBeUndefined();
+    markDrawReady(batch, { isShadowPassMaterial: true }, {}, ready);
+    expect(batch.userData.drawReady).toBeUndefined();
+    markDrawReady(batch, {}, {}, ready);
+    expect(batch.userData.drawReady).toBe(true);
+    const mesh = { userData: {} as Record<string, unknown> };
+    markDrawReady(mesh, {}, {}, ready);
+    expect(mesh.userData.drawReady).toBeUndefined();
   });
 });

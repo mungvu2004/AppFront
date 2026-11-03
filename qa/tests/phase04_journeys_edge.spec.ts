@@ -225,13 +225,13 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
 
       await test.step('[X4-A-013] Clicking the dark backdrop skips the tour; the clicked control is not activated', async () => {
         await resetTour(page, d1.projectId, d1.floorId);
-        // A point on the backdrop outside the card and the cutout: the zoom "Phóng to" button, right of the canvas.
-        const zoomIn = await page.getByRole('button', { name: 'Phóng to', exact: true }).boundingBox();
+        // A point on the backdrop outside the card and the cutout: the zoom "N% ▾" menu button, right of the canvas.
+        const zoomIn = await page.getByRole('button', { name: /^Mức thu phóng / }).boundingBox();
         if (zoomIn === null) throw new Error('zoom-in button has no box');
         await page.mouse.click(zoomIn.x + zoomIn.width / 2, zoomIn.y + zoomIn.height / 2);
         await expect.soft(tourCard(page)).toHaveCount(0);
         await expect.soft(tourChip(page)).toBeVisible();
-        await expect.soft(page.getByRole('button', { name: /^Mức thu phóng 100%/u }), 'the control under the backdrop was not activated').toBeVisible();
+        await expect.soft(page.getByRole('button', { name: /^Mức thu phóng 100%/u }), 'the control under the backdrop was not activated').toHaveAttribute('aria-expanded', 'false');
         await ev(page, 'X4-A-013', 'backdrop-skips-tour');
       });
 
@@ -382,8 +382,9 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
       await test.step('[X4-A-006] SCR-17 "Lọc theo loại" chips are visibility toggles, not navigation (Z/S-16)', async () => {
         await hop('Cửa và nội thất');
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.objects(q2.projectId, one.id));
+        await page.locator('summary').filter({ hasText: /^Lọc/u }).click(); // the chips live in "Lọc"
         const objectsFilter = page.getByRole('group', { name: 'Lọc theo loại', exact: true });
-        const eye = objectsFilter.getByRole('button', { name: /^(Ẩn|Hiện) lớp cửa đi$/u });
+        const eye = objectsFilter.getByRole('button', { name: 'Chỉ hiện cửa đi', exact: true });
         await expect(eye).toBeVisible();
         const before = await eye.getAttribute('aria-pressed');
         await eye.click();

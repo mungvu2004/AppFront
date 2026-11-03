@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { EditorChromeProvider, type EditorChrome } from '@/components/shell/EditorChromeContext';
 import { ROUTES } from '@/routes/paths';
 
 import { SCALE_LOCK_REASON, type FloorScaleState } from './floorReviewGateModel';
@@ -18,21 +19,25 @@ vi.mock('./useFloorReview', () => ({
     storeSpatial: null,
     scale: floorId in review.byFloor ? review.byFloor[floorId] : review.scale,
   }),
+  useNextFloor: () => null,
 }));
 
-function renderNav(layer: QcLayerKey = 'walls') {
+/* `chrome` null = màn ngoài 4 màn duyệt tầng (header cũ còn nguyên). */
+function renderNav(layer: QcLayerKey = 'walls', chrome: EditorChrome | null = null) {
   render(
     <MemoryRouter>
-      <QcFloorNav
-        floorId="f1"
-        floors={[
-          { id: 'f1', label: 'Tầng 1' },
-          { id: 'f2', label: 'Tầng 2' },
-        ]}
-        layer={layer}
-        projectId="p1"
-        projectName="Nhà A"
-      />
+      <EditorChromeProvider value={chrome}>
+        <QcFloorNav
+          floorId="f1"
+          floors={[
+            { id: 'f1', label: 'Tầng 1' },
+            { id: 'f2', label: 'Tầng 2' },
+          ]}
+          layer={layer}
+          projectId="p1"
+          projectName="Nhà A"
+        />
+      </EditorChromeProvider>
     </MemoryRouter>,
   );
   return screen.getByRole('navigation', { name: 'Các bước duyệt tầng' });
@@ -53,6 +58,59 @@ describe('QcFloorNav (UX-R1 K25, UX-R2 K04)', () => {
     expect(within(steps).queryByText(/Nâng cao/u)).toBeNull();
     expect(within(steps).getByRole('link', { name: /Tường/u })).toHaveAttribute('aria-current', 'page');
     expect(within(steps).queryByRole('link', { name: 'Trục' })).toBeNull();
+    expect(screen.queryByTestId('qc-editor-row')).toBeNull();
+  });
+
+  it('trong khung soạn thảo: không hàng trên cùng — bản đầu màn chỉ còn H1 ẩn; bản stacked là khối đầu cột', () => {
+    review.scale = 'confirmed';
+    const chrome: EditorChrome = {
+      fileMenu: (floors) => (
+        <details open>
+          <summary>Tệp</summary>
+          <ul aria-label="Tầng">{floors}</ul>
+        </details>
+      ),
+      stepLabel: <p>Bước 3 · Duyệt tầng</p>,
+    };
+    const floors = [
+      { id: 'f1', label: 'Tầng 1' },
+      { id: 'f2', label: 'Tầng 2' },
+    ];
+    render(
+      <MemoryRouter>
+        <EditorChromeProvider value={chrome}>
+          <QcFloorNav floorId="f1" floors={floors} layer="walls" projectId="p1" />
+          <aside data-testid="cot">
+            <QcFloorNav floorId="f1" floors={floors} layer="walls" projectId="p1" stacked titled />
+          </aside>
+        </EditorChromeProvider>
+      </MemoryRouter>,
+    );
+    const block = screen.getByTestId('qc-panel-nav');
+    const steps = screen.getByRole('navigation', { name: 'Các bước duyệt tầng' });
+
+    expect(screen.queryByTestId('qc-editor-row')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Duyệt tường · Tầng 1' }).parentElement).not.toBe(screen.getByTestId('cot'));
+    expect(screen.getByTestId('cot')).toContainElement(block);
+    expect(block).toContainElement(steps);
+    expect(within(block).getByText('Tệp')).toBeInTheDocument();
+    /* Đổi tầng nằm TRONG menu dự án, không còn nút "Tầng ▾" riêng; tên tầng đứng làm chữ. */
+    expect(within(block).queryByLabelText('Đổi tầng: đang ở Tầng 1')).toBeNull();
+    expect(within(within(block).getByRole('list', { name: 'Tầng' })).getByRole('link', { name: 'Tầng 2' })).toHaveAttribute('href', expect.stringContaining('f2'));
+    expect(within(block).getByText('Tầng 1', { selector: 'p' })).toBeInTheDocument();
+    expect(steps.textContent).toMatch(/^1Tỷ lệ.*2Tường3Cửa và nội thất4Phòng/u);
+    /* Không còn nút đi tiếp ở đây: nút đó chỉ ở đáy cột việc (cả khi cột là ngăn kéo dưới lg). */
+    expect(within(block).queryByRole('link', { name: /^Tiếp:/u })).toBeNull();
+  });
+
+  it('ngoài khung soạn thảo: bản stacked không vẽ gì', () => {
+    render(
+      <MemoryRouter>
+        <QcFloorNav floorId="f1" layer="walls" projectId="p1" stacked />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('qc-panel-nav')).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Các bước duyệt tầng' })).toBeNull();
   });
 
   it('bước Tỷ lệ có link Kích thước và So với bản vẽ; đứng ở mục con thì bước Tỷ lệ sáng', () => {

@@ -21,10 +21,9 @@
 
 import { type AnyNodeId, useScene } from '@pascal-app/core'
 import { useEditor } from '@pascal-app/editor'
-import { ChevronDown, ChevronUp, CircleHelp, Mouse } from 'lucide-react'
+import { CircleHelp } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { UNDRAWN_FLOORS_KEY } from '../../bridge'
-import { useScaleUnresolved } from '../../scaleUnresolved'
 import { requestTour } from '../../tour/tourLogic'
 import { clampShift, clearOfShift, pollLayout, unionBox } from '../lib/clamp-shift'
 import { ToolHint } from '../../draftAssist/DraftAssist'
@@ -249,10 +248,9 @@ function useMarkUndrawnFloors() {
 
 /**
  * `banner` (the scale warning) heads the same centred column, so it never sits under the help pills;
- * while it shows, the pills fold to icons (names stay as aria-label + title).
+ * The help is one "?" icon button (name in aria-label + title).
  */
 export function CanvasHelp({ banner }: { banner?: ReactNode }) {
-  const compact = useScaleUnresolved()
   const [userOpen, setOpen] = useState(false)
   const [tourOn, setTourOn] = useState(false)
   const open = userOpen && !tourOn // tour đang hiện thì gập, tránh chồng lấn
@@ -281,7 +279,7 @@ export function CanvasHelp({ banner }: { banner?: ReactNode }) {
     })
   }
   const hints = isPreview ? PREVIEW_HINTS : EDITOR_HINTS
-  const toggleLabel = open ? 'Ẩn hướng dẫn điều khiển' : 'Điều khiển chuột và phím tắt'
+  const toggleLabel = open ? 'Ẩn trợ giúp' : 'Trợ giúp: chuột, phím tắt, hướng dẫn'
 
   return (
     <>
@@ -299,34 +297,18 @@ export function CanvasHelp({ banner }: { banner?: ReactNode }) {
           ) : (
             <ToolHint />
           )}
-          <div className="flex items-center gap-1.5">
-            <button
-              aria-expanded={open}
-              aria-label={toggleLabel}
-              className="appfront-help-btn"
-              onClick={toggle}
-              title={compact ? toggleLabel : undefined}
-              type="button"
-            >
-              <Mouse aria-hidden="true" className="h-4 w-4" />
-              {compact ? null : toggleLabel}
-              {open ? (
-                <ChevronUp aria-hidden="true" className="h-4 w-4" />
-              ) : (
-                <ChevronDown aria-hidden="true" className="h-4 w-4" />
-              )}
-            </button>
-            <button
-              aria-label="Xem lại hướng dẫn thao tác"
-              className="appfront-help-btn"
-              onClick={requestTour}
-              title={compact ? 'Xem lại hướng dẫn thao tác' : undefined}
-              type="button"
-            >
-              <CircleHelp aria-hidden="true" className="h-4 w-4" />
-              {compact ? null : 'Hướng dẫn'}
-            </button>
-          </div>
+          {/* wall-review-ux: one "?" button (was "Điều khiển chuột và phím tắt ▾" + "Hướng dẫn"); the tour
+              replay lives inside the panel it opens. */}
+          <button
+            aria-expanded={open}
+            aria-label={toggleLabel}
+            className="appfront-help-btn"
+            onClick={toggle}
+            title={toggleLabel}
+            type="button"
+          >
+            <CircleHelp aria-hidden="true" className="h-4 w-4" />
+          </button>
           {open ? (
             <section aria-label="Hướng dẫn điều khiển camera" className="appfront-help-panel">
               <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1.5">
@@ -337,6 +319,14 @@ export function CanvasHelp({ banner }: { banner?: ReactNode }) {
                 </div>
               ))}
               </dl>
+              <button
+                aria-label="Xem lại hướng dẫn thao tác"
+                className="appfront-help-btn mt-2"
+                onClick={requestTour}
+                type="button"
+              >
+                Xem lại hướng dẫn thao tác
+              </button>
             </section>
           ) : null}
         </div>

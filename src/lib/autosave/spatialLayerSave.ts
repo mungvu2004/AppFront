@@ -154,10 +154,19 @@ export const LAYER_SAVE_MESSAGES = {
   scaleRedirtied: 'Tỷ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
   rejected: (field: string): string =>
     `Máy chủ không nhận dữ liệu của tầng này (${field}) nên thay đổi chưa được lưu. Báo quản trị kèm câu này.`,
+  /* Thân bị chặn ngay ở máy (chưa gửi): nêu đúng chỗ sai, không để câu chung che mất lỗi. */
+  invalid: (where: string): string =>
+    `Thay đổi của tầng này chưa lưu được: dữ liệu sai ở ${where}. Hoàn tác lần sửa vừa rồi rồi thử lại; vẫn lỗi thì báo quản trị kèm câu này.`,
   unknown: 'Không lưu được thay đổi của tầng này.',
 } as const;
 
-/** 409 và 422 `baseVersion` → tải lại (R6); lỗi tạm (mạng, timeout, 503) → thử lại; còn lại → khối. */
+/**
+ * 409 và 422 `baseVersion` → tải lại (R6); lỗi tạm → thử lại; còn lại → khối.
+ *
+ * Tạm gồm mọi 5xx và lượt bị cắt giữa chừng (`aborted`), không chỉ 502/503/504: máy chủ sập
+ * hay mạng đứt không nói gì về thân gửi, còn khối thì bày "Tải lại tầng" — nút BỎ sửa của
+ * người dùng — cho một sự cố hạ tầng tự hết sau vài giây (worker api sập → 503 rồi 200).
+ */
 export function classifyLayerSaveError(error: unknown): LayerSaveErrorClass {
   const wire = readWireError(error);
 
@@ -165,7 +174,9 @@ export function classifyLayerSaveError(error: unknown): LayerSaveErrorClass {
     return 'reload';
   }
 
-  return isTransientWireError(error) ? 'temporary' : 'blocked';
+  const aborted = typeof error === 'object' && error !== null && 'kind' in error && error.kind === 'aborted';
+
+  return isTransientWireError(error) || (wire?.status ?? 0) >= 500 || aborted ? 'temporary' : 'blocked';
 }
 
 /** `raw` của lỗi 422 tại chỗ (`issues` của zod): có lỗi ở `rooms.<n>.name` — phòng chưa đặt tên. */
@@ -177,7 +188,28 @@ const hasUnnamedRoomIssue = (raw: unknown): boolean =>
     return Array.isArray(path) && path.includes('rooms') && path[path.length - 1] === 'name';
   });
 
-const blockMessageOf = (kind: LayerSaveBlock['kind'], error: unknown): string => {
+/**
+ * Chỗ sai đầu tiên của thân bị chặn tại máy, đọc được: `furniture F-01… › boundingBox.min.y`.
+ * Bỏ tiền tố `body.layer`; chỉ số mảng đổi thành id thực thể khi tra được.
+ */
+export const invalidWhereOf = (issues: readonly unknown[], body: FloorLayerWriteBody): string => {
+  const first = issues[0];
+  const raw: unknown = typeof first === 'object' && first !== null && 'path' in first ? first.path : null;
+  const path = Array.isArray(raw) ? raw.filter((part): part is string | number => typeof part === 'string' || typeof part === 'number') : [];
+  const rest = path[0] === 'body' ? path.slice(path[1] === 'layer' ? 2 : 1) : path;
+  const [list, index, ...field] = rest;
+  const entries: unknown = typeof list === 'string' && body.layer ? (body.layer as unknown as Record<string, unknown>)[list] : undefined;
+  const entity: unknown = Array.isArray(entries) && typeof index === 'number' ? entries[index] : undefined;
+  const id = typeof entity === 'object' && entity !== null && 'id' in entity ? String(entity.id) : null;
+
+  if (id !== null && typeof list === 'string') {
+    return field.length > 0 ? `${list} ${id} › ${field.join('.')}` : `${list} ${id}`;
+  }
+
+  return rest.length > 0 ? rest.join('.') : 'thân lưu';
+};
+
+const blockMessageOf = (kind: LayerSaveBlock['kind'], error: unknown, body?: FloorLayerWriteBody): string => {
   const wire = readWireError(error);
   const raw: unknown = typeof error === 'object' && error !== null && 'raw' in error ? error.raw : null;
   const count = typeof raw === 'object' && raw !== null && 'count' in raw ? raw.count : undefined;
@@ -192,6 +224,11 @@ const blockMessageOf = (kind: LayerSaveBlock['kind'], error: unknown): string =>
 
   if (hasUnnamedRoomIssue(raw)) {
     return LAYER_SAVE_MESSAGES.unnamedRoom;
+  }
+
+  // `raw` là mảng `issues` của zod chỉ khi thân bị chặn tại máy (`send`), không bao giờ từ máy chủ.
+  if (body !== undefined && Array.isArray(raw) && raw.length > 0) {
+    return LAYER_SAVE_MESSAGES.invalid(invalidWhereOf(raw, body));
   }
 
   if (wire?.code === 'LAYER_INTEGRITY_BROKEN' && typeof count === 'number') {
@@ -336,7 +373,7 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
       }
     } else if (!scaleSent || write.body.layer) {
       // Thân chỉ tỉ lệ hỏng không khoá lớp: lỗi về tay màn đã bấm áp.
-      blocks.set(floorId, { kind, message: blockMessageOf(kind, error) });
+      blocks.set(floorId, { kind, message: blockMessageOf(kind, error, parsed.success ? undefined : write.body) });
       blockErrors.set(floorId, error);
     }
 

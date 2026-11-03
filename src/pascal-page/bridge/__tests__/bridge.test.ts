@@ -175,6 +175,10 @@ vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
   }),
 }));
 
+/** Chữ các thông báo nổi đang hiện, theo thứ tự. */
+const textsOf = (bridge: { readonly save?: { readonly notices: readonly { readonly text: string }[] } }): string[] =>
+  bridge.save?.notices.map((item) => item.text) ?? [];
+
 describe('usePascalProjectBridge', () => {
   beforeEach(() => {
     session.ok = true;
@@ -448,7 +452,7 @@ describe('usePascalProjectBridge', () => {
 
     await waitFor(() => expect(applied).toHaveLength(1));
     expect(saver.reloaded).toEqual(['L-1']);
-    expect(result.current.save?.notice).toBe('Tầng đã đổi trên máy chủ.');
+    expect(result.current.save?.notices.map((item) => item.text)).toEqual(['Tầng đã đổi trên máy chủ.']);
     /* eslint-disable-next-line local/no-direct-set -- dọn lại */
     useStore.setState({ unsavedFloorIds: [] });
   });
@@ -508,20 +512,20 @@ describe('usePascalProjectBridge', () => {
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn', 'màu tường']));
-    expect(result.current.save?.notice).toBe('Chưa lưu được: màu sàn, màu tường — sẽ có ở bản sau.');
+    expect(textsOf(result.current)).toEqual([unsavedNoticeOf(['màu sàn', 'màu tường'])]);
+    expect(textsOf(result.current)).toEqual(['Chưa lưu được: màu sàn, màu tường — sẽ có ở bản sau.']);
 
-    act(() => result.current.save?.dismissNotice());
+    act(() => result.current.save!.dismissNotice(result.current.save!.notices[0]!.id));
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBeNull();
+    expect(textsOf(result.current)).toEqual([]);
 
     commit.unsaved = ['màu sàn', 'kiểu cửa'];
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBe('Chưa lưu được: kiểu cửa — sẽ có ở bản sau.');
+    expect(textsOf(result.current)).toEqual(['Chưa lưu được: kiểu cửa — sẽ có ở bản sau.']);
 
     detail.role = 'viewer';
     const { result: viewer } = renderHook(() => usePascalProjectBridge('p1'));
@@ -538,17 +542,17 @@ describe('usePascalProjectBridge', () => {
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBe(split);
+    expect(textsOf(result.current)).toEqual([split]);
 
-    act(() => result.current.save?.dismissNotice());
+    act(() => result.current.save!.dismissNotice(result.current.save!.notices[0]!.id));
     commit.notices = [split, 'Phòng "Ngủ" có vách mới — mở màn Phòng để tách.'];
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBe('Phòng "Ngủ" có vách mới — mở màn Phòng để tách.');
+    expect(textsOf(result.current)).toEqual(['Phòng "Ngủ" có vách mới — mở màn Phòng để tách.']);
   });
 
-  it('C1/F-01 — câu "Chưa lưu được" không tự gỡ ở lượt sau, gộp nhãn mới với nhãn đang hiện', async () => {
+  it('C1/F-01 — câu "Chưa lưu được" không bị lượt sau gỡ; nhãn mới là một thông báo riêng', async () => {
     const { result } = renderHook(() => usePascalProjectBridge('p1'));
     await waitFor(() => expect(result.current.status).toBe('ready'));
 
@@ -556,22 +560,22 @@ describe('usePascalProjectBridge', () => {
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn']));
+    expect(textsOf(result.current)).toEqual([unsavedNoticeOf(['màu sàn'])]);
 
     commit.unsaved = [];
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn']));
+    expect(textsOf(result.current)).toEqual([unsavedNoticeOf(['màu sàn'])]);
 
     commit.unsaved = ['kiểu cửa'];
     await act(async () => {
       await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     });
-    expect(result.current.save?.notice).toBe(unsavedNoticeOf(['màu sàn', 'kiểu cửa']));
+    expect(textsOf(result.current)).toEqual([unsavedNoticeOf(['màu sàn']), unsavedNoticeOf(['kiểu cửa'])]);
   });
 
-  it('C4/A2-02 — xoá nhiều: hộp xác nhận thay toast đỏ; xác nhận thì mở cổng, đặt lại cảnh đã xoá và lưu', async () => {
+  it('C4/A2-02 — xoá nhiều: hộp xác nhận thay toast đỏ, cảnh đã xoá giữ nguyên; xác nhận thì mở cổng và lưu, không đặt lại cảnh', async () => {
     const applied: unknown[] = [];
     const { result } = renderHook(() => usePascalProjectBridge('p1', (scene) => applied.push(scene)));
     await waitFor(() => expect(result.current.status).toBe('ready'));
@@ -584,8 +588,9 @@ describe('usePascalProjectBridge', () => {
       await expect(result.current.onSave(deleted)).rejects.toThrow(commit.reason ?? '');
     });
     expect(result.current.save?.confirm?.title).toBe(MASS_DELETE_TITLE);
-    expect(result.current.save?.notice).toBeNull();
-    expect(applied).toHaveLength(1);
+    expect(textsOf(result.current)).toEqual([]);
+    // Đang chờ hỏi: không đặt cảnh về kho (cả mô hình từng nháy hai lần — về rồi lại xoá).
+    expect(applied).toHaveLength(0);
 
     commit.ok = true;
     commit.reason = null;
@@ -595,9 +600,25 @@ describe('usePascalProjectBridge', () => {
       await Promise.resolve();
     });
     expect(commit.confirmed).toEqual([['n1', 'n2', 'n3', 'n4', 'n5']]);
-    expect(applied[1]).toBe(deleted);
+    expect(applied).toHaveLength(0);
     expect(result.current.save?.confirm).toBeNull();
     await waitFor(() => expect(saver.saveNow.calls).toBe(1));
+  });
+
+  it('C4/A2-02 — xoá nhiều rồi Huỷ: cảnh đặt về kho', async () => {
+    const applied: unknown[] = [];
+    const { result } = renderHook(() => usePascalProjectBridge('p1', (scene) => applied.push(scene)));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    commit.ok = false;
+    commit.reason = 'Thay đổi này xoá 5 trong 10 đối tượng của một tầng nên phải được xác nhận trước.';
+    commit.massDelete = ['n1', 'n2', 'n3', 'n4', 'n5'];
+    await act(async () => {
+      await expect(result.current.onSave({ nodes: { a: {} }, rootNodeIds: ['a'] })).rejects.toThrow(commit.reason ?? '');
+    });
+    act(() => result.current.save?.confirm?.onCancel());
+    expect(result.current.save?.confirm).toBeNull();
+    expect(applied).toHaveLength(1);
   });
 
   it('K5/A2-06 — mất mạng là trạng thái riêng, không phải "đang lưu"', async () => {
@@ -633,8 +654,15 @@ describe('usePascalProjectBridge', () => {
     await act(async () => {
       await expect(result.current.onSave({ nodes: {}, rootNodeIds: [] })).rejects.toThrow(commit.reason ?? '');
     });
-    expect(result.current.save?.notice).toBe('Món đồ này đã có trong bản vẽ.');
-    expect(result.current.save?.noticeTone).toBe('alert');
+    expect(result.current.save?.notices).toMatchObject([{ text: 'Món đồ này đã có trong bản vẽ.', tone: 'alert' }]);
+
+    // Câu báo thường đến sau là mục riêng, giọng `info` — không bị nhuộm đỏ vì dính câu lỗi.
+    commit.reason = null;
+    commit.unsaved = ['màu sàn'];
+    await act(async () => {
+      await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    });
+    expect(result.current.save?.notices.map((item) => item.tone)).toEqual(['alert', 'info']);
   });
 
   it('Codex P1 — tầng chưa có tỷ lệ: không dựng nội dung trong 3D, tầng vẫn còn; tỷ lệ máy đo vẫn dựng', async () => {

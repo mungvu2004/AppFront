@@ -338,6 +338,12 @@
     --wall-110-stroke: #B3ACA1;
     --wall-330-stroke: #706A60;
     --state-attention-stroke: #d4b46a;
+
+    /* Màu tường theo ĐỘ TIN CẬY của máy — bảng "Chì và nâu đất": chì ấm / xám / nâu đất trầm
+       (7,81 / 4,30 / 7,02 :1 trên --canvas-2d tối). Chưa chắc có thêm mép khắc màu nền (--wall-conf-cut). */
+    --wall-conf-high: #B3ACA1;
+    --wall-conf-mid: #827D74;
+    --wall-conf-low: #C69B7E;
   }
 
   :root {
@@ -412,6 +418,13 @@
     --wall-110-stroke: #969083;
     --wall-330-stroke: #5C564D;
     --state-attention-stroke: #a8873f;
+
+    /* Màu tường theo ĐỘ TIN CẬY của máy — bảng "Chì và nâu đất" (7,26 / 3,34 / 5,41 :1 trên nền trắng). */
+    --wall-conf-high: #5C564D;
+    --wall-conf-mid: #928C82;
+    --wall-conf-low: #8C6048;
+    /* Mép khắc của tường chưa chắc + viền tách quanh viền chọn: chính màu nền canvas (cả hai chủ đề). */
+    --wall-conf-cut: var(--canvas-2d);
 
     --canvas-2d: #FFFFFF;
     --canvas-2d-grid: #F2EFEA;

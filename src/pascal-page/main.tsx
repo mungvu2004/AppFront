@@ -9,10 +9,10 @@ import './icons';
 import './firstOpen';
 import { acquireSceneReadOnlyLease, pauseSceneHistory, resumeSceneHistory, type SceneGraph, useScene } from '@pascal-app/core';
 import { CATALOG_ITEMS, useEditor, useSidebarStore } from '@pascal-app/editor';
-import { loadPlugin } from '@pascal-app/core/registry';
+import { loadPlugin, nodeRegistry } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
-import { getSceneTheme, SSGI_PARAMS, useViewer } from '@pascal-app/viewer';
-import { type ReactNode, StrictMode, useEffect } from 'react';
+import { createMaterialFromPresetRef, getSceneTheme, prewarmWebGpuDevice, SSGI_PARAMS, useViewer } from '@pascal-app/viewer';
+import { type ReactNode, StrictMode, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { flushAutosaves } from '@/hooks/useAutosave';
@@ -20,23 +20,25 @@ import { libraryOnlyCatalog, serverCatalogTiles, setRealismModels } from '@/lib/
 import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
 import { BRIDGE_SESSION_ERROR, loginHrefOf, savePascalNow, usePascalProjectBridge } from './bridge';
-import { BakeLightingCard } from './BakeLightingCard';
+import { isEmptyChange, type NodeChanges, nodeChangesTo } from './bridge/sceneRevert';
 import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { HomeownerCardMount } from './HomeownerCardMount';
 import { ItemTrustCard } from './ItemTrustCard';
-import { LightingCard } from './LightingCard';
 import { ModelCreditCard } from './ModelCreditCard';
+import { PlacementIssuesChip } from './PlacementIssuesChip';
+import { prefetchHdri } from './realism/lighting-hdri';
 import { realismFlagsFrom, useRealism } from './realism/store';
+import { preloadSceneTextures } from './realism/texturePreload';
 import { setDetailsEnabled } from './realism/details';
 import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
 import { useSceneLoader } from './sceneLoader';
-import { SceneMenu } from './SceneMenu';
-import { SceneStyleCard } from './SceneStyleCard';
 import { SwapModelCard } from './SwapModelCard';
 import { PascalTour } from './tour/PascalTour';
 import { openBuildTabWithoutArming } from './upstream/components/build-tab';
+import { CommunityViewerToolbarLeft, DisplayMenu } from './upstream/components/viewer-toolbar';
 import Home from './upstream/page';
+import { ViewMenu } from './ViewMenu';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
 import './pascal.css';
 import './pascal-theme.css';
@@ -44,7 +46,14 @@ import './pascal-panels.css';
 import './pascal-chrome.css';
 
 // Như upstream `apps/editor/lib/bootstrap.ts`, nhưng chỉ bộ node dựng sẵn — không plugin ngoài.
-const builtinsLoaded = loadPlugin(builtinPlugin);
+// Tải trước mọi chunk lazy (renderer/system của từng loại node) ngay khi đăng ký xong: không thì
+// React.lazy chỉ đòi chúng khi Canvas đã lên (~12 s), nối đuôi sau cả chuỗi phiên → dự án → GPU.
+const builtinsLoaded = loadPlugin(builtinPlugin).then(() => {
+  for (const [, def] of nodeRegistry.entries()) {
+    if (def.renderer?.kind === 'parametric') def.renderer.module().catch(() => {});
+    def.system?.module().catch(() => {});
+  }
+});
 // Dáng render ấm: đè chủ đề `night` + SSGI trước khi vẽ (cả khung sửa lẫn Preview đọc chung).
 applyRenderLook(getSceneTheme('night'), SSGI_PARAMS);
 // "Ban ngày" của thẻ Ánh sáng: đè chủ đề sáng `studio` cùng cách.
@@ -56,6 +65,11 @@ useRealism.setState({ flags: realismFlagsFrom(getFeatureFlagsSnapshot().values) 
 setDetailsEnabled(useRealism.getState().flags.details);
 // B1 (bước 2): sofa/ghế bành/ghế ăn → mẫu Poly Haven `-ph` khi bật cờ materials (furnitureCatalog.ts).
 setRealismModels(useRealism.getState().flags.materials);
+// HDRI của chủ đề đang chọn tải từ lúc mở trang (lighting-hdri.ts), không đợi cảnh rảnh.
+{
+  const { sceneTheme } = useViewer.getState();
+  prefetchHdri(sceneTheme, getSceneTheme(sceneTheme).appearance);
+}
 // Backend thật (vendor ghi sau khi renderer init) khác phép thử `navigator.gpu`, hoặc mức chất lượng đổi
 // (SSGI bật/tắt theo mức) → đè lại số đèn.
 // ponytail: đè tại chỗ, đèn đã vẽ chỉ đổi ở lượt dựng lại kế tiếp (đổi chủ đề/tải lại); GĐ3 nếu cần tức thì.
@@ -112,13 +126,36 @@ function EditModel() {
   return <EditModelButton collapsed={collapsed} onOpen={open} />;
 }
 
+/** Bảng trái đang mở thẻ nào (`html[data-appfront-panel]`): thẻ "Cảnh" đã liệt kê tầng nên ẩn chip tầng (pascal-chrome.css). */
+function PanelFlag() {
+  const tab = useEditor((state) => state.activeSidebarPanel);
+  const collapsed = useSidebarStore((state) => state.isCollapsed);
+  useEffect(() => {
+    document.documentElement.dataset.appfrontPanel = collapsed ? 'none' : tab;
+  }, [tab, collapsed]);
+  return null;
+}
+
 /* Lượt sửa bị từ chối → đặt lại cảnh từ kho mà KHÔNG ghi bước hoàn tác và không xoá lịch sử
-   (khác `applySceneGraphToEditor`): Ctrl+Z ngay sau đó về đúng cảnh trước lượt bị từ chối (no-op). */
+   (khác `applySceneGraphToEditor`): Ctrl+Z ngay sau đó về đúng cảnh trước lượt bị từ chối (no-op).
+   Chỉ đổi các node khác (`nodeChangesTo`) — `setScene` cả cây làm cả mô hình dựng lại như tải trang.
+   Cảnh đã khớp (xác nhận xoá nhiều) thì không làm gì. Tính chênh hỏng mới lùi về `setScene`. */
 const applyRejectedRevert = (scene: unknown) => {
   const { nodes, rootNodeIds, collections, materials } = scene as SceneGraph;
+  const store = useScene.getState();
   pauseSceneHistory(useScene);
   try {
-    useScene.getState().setScene(nodes as never, rootNodeIds as never, { collections, materials } as never);
+    let changes: NodeChanges | null = null;
+    try {
+      changes = nodeChangesTo(store.nodes as Record<string, unknown>, nodes as Record<string, unknown>);
+    } catch {
+      changes = null;
+    }
+    if (changes === null) {
+      store.setScene(nodes as never, rootNodeIds as never, { collections, materials } as never);
+    } else if (!isEmptyChange(changes)) {
+      store.applyNodeChanges(changes as never);
+    }
   } finally {
     resumeSceneHistory(useScene);
   }
@@ -132,11 +169,30 @@ const hasWalls = () =>
 const exportSceneGlb = async (): Promise<Blob | null> =>
   (await useEditor.getState().modelExport?.('glb', { download: false }))?.blob ?? null;
 
+/** Trần chờ ảnh vật liệu trước lượt dựng đầu; quá thì dựng luôn, ảnh gán sau. */
+const TEXTURE_HOLD_MS = 1500;
+
 function PascalPage({ projectId }: { readonly projectId: string }) {
   const bridge = usePascalProjectBridge(projectId, applyRejectedRevert);
   const readOnly = bridge.status === 'ready' && bridge.readOnly;
   // Cầu khai kiểu lỏng (`PascalSceneGraph`, `unknown`) để không nhập Pascal; `useSceneLoader` ráp với `SceneGraph`.
-  const onLoad = useSceneLoader(bridge.onLoad, bridge.rebaseLoaded);
+  const loadScene = useSceneLoader(bridge.onLoad, bridge.rebaseLoaded);
+  // Ảnh vật liệu thư viện của cảnh nạp ngay khi JSON về; đợi tối đa TEXTURE_HOLD_MS để lượt dựng đầu
+  // trúng cache (khe ảnh đủ → không dựng lại pipeline). Danh tính giữ nguyên theo `loadScene`.
+  const onLoad = useCallback(async () => {
+    const graph = await loadScene();
+    const create = (ref: string) => {
+      try {
+        return createMaterialFromPresetRef(ref);
+      } catch {
+        return null;
+      }
+    };
+    await Promise.race([preloadSceneTextures(graph, create), new Promise((resolve) => setTimeout(resolve, TEXTURE_HOLD_MS))]);
+    return graph;
+  }, [loadScene]);
+
+  const booted = useBooted();
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);
 
@@ -157,26 +213,49 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
       </Notice>
     );
   }
+  if (!booted) return <LoadingNotice />;
+
+  const itemCards = (
+    <>
+      <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
+      <ModelCreditCard stores={{ useScene, useViewer }} />
+      <ItemTrustCard stores={{ useScene, useViewer }} />
+    </>
+  );
 
   return (
     <>
     <Home
+      // Không thanh trên (kiểu Figma): đầu bảng trái = về dự án + lưu + thu gọn, rồi bước của dự án.
       backCard={
         <>
-          <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
-          <ProjectStepsCard projectId={projectId} readOnly={readOnly} />
-          {readOnly ? null : <EditModel />}
-          {/* UI-1023 V-01: một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). HIG 04/11: Phong cách /
-              Ánh sáng (+ Chất lượng) / Nướng ánh sáng gom vào MỘT nút "Cảnh"; thẻ theo vật chọn đứng ngoài. */}
+          <div className="flex w-full min-w-0 items-center gap-2 [&>a:first-child]:mr-auto">
+            <BackToProjectCard href={bridge.backHref} projectName={bridge.projectName} save={bridge.save} />
+            <CommunityViewerToolbarLeft />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ProjectStepsCard projectId={projectId} readOnly={readOnly} />
+            {readOnly ? null : <EditModel />}
+          </div>
+        </>
+      }
+      // Bảng Xem góc phải: MỘT menu Xem (phong cách, ánh sáng, chất lượng, nướng, hiển thị) + chip lỗi đặt đồ (chỉ khi có lỗi).
+      // Thẻ của món đang chọn nằm ở thẻ thao tác nhanh (HomeownerCard); người xem không có thẻ đó nên thẻ ở lại đây.
+      viewPanel={
+        <>
+          {/* UI-1023 V-01: các chỉnh cảnh là một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). */}
           <div aria-label="Cảnh" className="inline-flex shrink-0 items-center" data-appfront-cluster="" role="group">
-            <SceneMenu>
-              <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
-              <LightingCard projectId={projectId} useViewer={useViewer} />
-              {readOnly ? null : <BakeLightingCard exportGlb={exportSceneGlb} projectId={projectId} />}
-            </SceneMenu>
-            <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
-            <ModelCreditCard stores={{ useScene, useViewer }} />
-            <ItemTrustCard stores={{ useScene, useViewer }} />
+            <ViewMenu
+              display={<DisplayMenu />}
+              flushAutosaves={flushAutosaves}
+              projectId={projectId}
+              reload={() => window.location.reload()}
+              saveNow={savePascalNow}
+              useViewer={useViewer}
+              {...(readOnly ? {} : { exportGlb: exportSceneGlb })}
+            />
+            <PlacementIssuesChip useViewer={useViewer} />
+            {readOnly ? itemCards : null}
           </div>
         </>
       }
@@ -186,14 +265,28 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
       projectName={bridge.projectName}
       readOnly={readOnly}
     />
+    <PanelFlag />
     <PascalTour hasModel={hasWalls} />
-    <HomeownerCardMount readOnly={readOnly} />
+    <HomeownerCardMount extra={readOnly ? null : itemCards} readOnly={readOnly} />
     </>
   );
 }
 
 const root = createRoot(document.getElementById('root') as HTMLElement);
 const projectId = new URLSearchParams(window.location.search).get('project');
+
+if (projectId) {
+  // Xin adapter/device WebGPU ngay, chồng lên lượt tải mạng; Canvas nhận lại đúng device này
+  // (`renderer-capability.ts`). 'high-performance' = mặc định `gl` của R3F, khác thì vendor xin lại.
+  prewarmWebGpuDevice('high-performance');
+  // Bộ giải Draco/Basis (tự host, `scripts/pascal-self-host.mjs`) vào cache trước khi GLB đầu cần.
+  for (const href of ['/draco/draco_wasm_wrapper.js', '/draco/draco_decoder.wasm', '/basis/basis_transcoder.js', '/basis/basis_transcoder.wasm']) {
+    document.head.append(Object.assign(document.createElement('link'), { rel: 'prefetch', href }));
+  }
+  // Mô-đun cầu (`bridge/loadProject`) chỉ nhập sau phiên — nhập trước cho song song.
+  void import('@/api/floorLayerGraph').catch(() => {});
+  void import('@/store/projectHydration').catch(() => {});
+}
 
 // Thư viện máy chủ gộp vào danh mục trước lượt dựng đầu; lỗi/offline → danh mục đóng gói (serverLibrary.ts).
 // Mở phiên TRƯỚC: token chỉ ở bộ nhớ, gọi ngay lúc tải trang là 401 và mất thư viện máy chủ (e2e fullstack
@@ -209,8 +302,27 @@ const serverLibraryLoaded = Promise.all([import('@/api/appClient'), import('@/ro
   })
   .catch(() => 0);
 
-void Promise.all([builtinsLoaded, serverLibraryLoaded]).then(() =>
-  root.render(
+// Trang vẽ ngay để cầu nạp dự án SONG SONG với thư viện máy chủ (cùng một lượt `startAppSession`);
+// chỉ phần Pascal (`Home`) đợi node dựng sẵn + danh mục máy chủ, như trước.
+let booted = false;
+const bootReady = Promise.all([builtinsLoaded, serverLibraryLoaded]).then(() => {
+  booted = true;
+});
+
+function useBooted(): boolean {
+  const [ready, setReady] = useState(booted);
+  useEffect(() => {
+    if (ready) return undefined;
+    let live = true;
+    void bootReady.then(() => live && setReady(true));
+    return () => {
+      live = false;
+    };
+  }, [ready]);
+  return ready;
+}
+
+root.render(
     <StrictMode>
       {projectId ? (
         <PascalPage projectId={projectId} />
@@ -223,5 +335,4 @@ void Promise.all([builtinsLoaded, serverLibraryLoaded]).then(() =>
         </Notice>
       )}
     </StrictMode>,
-  ),
 );

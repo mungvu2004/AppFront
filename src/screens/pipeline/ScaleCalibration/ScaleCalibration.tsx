@@ -278,6 +278,7 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
           <div className={cn('flex min-h-0 shrink-0 lg:w-[300px] xl:w-[360px]', QC_COLUMN_DRAWER_CLASS, !columnOpen && 'max-lg:hidden')} id={QC_COLUMN_ID}>
             <QcStepColumn
               activeStep="scale"
+              fileHeader={<QcFloorNav {...floorNav} layer="scale" minimal stacked titled />}
               floorId={floorNav.floorId}
               gate={<FloorReviewGate floorId={floorNav.floorId} inline projectId={floorNav.projectId} />}
               projectId={floorNav.projectId}

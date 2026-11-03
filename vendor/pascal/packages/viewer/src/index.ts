@@ -176,6 +176,7 @@ export {
 export {
   detectRendererCapability,
   initializeGpuRenderer,
+  prewarmWebGpuDevice,
   type RendererBackendParameters,
   type RendererCapability,
   type RendererCapabilityCanvas,

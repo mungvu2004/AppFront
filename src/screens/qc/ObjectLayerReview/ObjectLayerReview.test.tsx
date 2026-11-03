@@ -293,17 +293,17 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('K07 — nút rail "Vẽ …" bật chế độ vẽ thật', () => {
-  it('ba nút vẽ bấm được; bấm "Vẽ nội thất" bật chế độ vẽ, bấm lại thì tắt; không còn nút "Thêm" ở chân panel', async () => {
+  it('ba nút vẽ bấm được; bấm "Thêm đồ vật" bật chế độ vẽ, bấm lại thì tắt; không còn nút "Thêm" ở chân panel', async () => {
     renderState('success');
     await screen.findByRole('group', { name: LIST_LABEL });
 
     const rail = screen.getByRole('toolbar', { name: TOOL_RAIL_LABEL });
 
-    for (const name of ['Vẽ cửa đi', 'Vẽ cửa sổ', 'Vẽ nội thất']) {
+    for (const name of ['Vẽ cửa đi', 'Vẽ cửa sổ', 'Thêm đồ vật']) {
       expect(within(rail).getByRole('button', { name })).toBeEnabled();
     }
 
-    const furniture = within(rail).getByRole('button', { name: 'Vẽ nội thất' });
+    const furniture = within(rail).getByRole('button', { name: 'Thêm đồ vật' });
 
     fireEvent.click(furniture);
     await waitFor(() => {

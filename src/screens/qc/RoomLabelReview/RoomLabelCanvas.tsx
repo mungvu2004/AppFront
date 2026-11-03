@@ -47,15 +47,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
 import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
-import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { MOTION_EASINGS, cssDurationMs } from '@/lib/motion';
 
-import { QcAskAnchor } from '../shared/QcAskCard';
-import { useQcAskSlot } from '../shared/qcAsk';
-import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
+import { focusBoundsOf, useQcViewMode } from '../shared/qcViewMode';
 import { QcViewLayer } from '../shared/QcViewLayer';
+import { QcZoomMenu } from '../shared/QcZoomMenu';
 import { RoomLabelCanvasRoomFigure } from './RoomLabelCanvasRoomFigure';
 import {
   BACKGROUND_IMAGE_OPACITY,
@@ -108,7 +106,6 @@ export function RoomLabelCanvas({
     [setPanEl],
   );
   const halo = useSelectionHalo();
-  const ask = useQcAskSlot();
   const reducedMotion = useReducedMotion();
   const { select: haloSelect, hover: haloHover, deselect: haloDeselect } = halo;
 
@@ -195,13 +192,13 @@ export function RoomLabelCanvas({
     lastViewKey.current = key;
     if (viewMode === 'overview') onFitToScreen();
     else if (selectedBounds !== null) {
-      const view = focusViewOf(focusBoundsOf(selectedBounds, contentBounds), contentBounds, focusFrameOf(frameSize), panPx);
+      const view = focusViewOf(focusBoundsOf(selectedBounds, contentBounds), contentBounds, frameSize, panPx);
       setZoom(view.zoomPct);
       panTo(view.offset);
     }
   }, [contentBounds, frameSize, onFitToScreen, panPx, panTo, selectedBounds, selectedRoomId, setZoom, viewMode]);
 
-  /* Thẻ hỏi, phủ mờ, ghim nằm ở khung (không phóng theo bản vẽ): đổi hộp phòng sang px khung. */
+  /* Phủ mờ, ghim nằm ở khung (không phóng theo bản vẽ): đổi hộp phòng sang px khung. */
   const translate = { x: panPx.x + pan.offset.x, y: panPx.y + pan.offset.y };
   const toFrame = (bounds: RoomLabelBoundsPx) =>
     contentBounds === null ? bounds : frameRectOf(bounds, contentBounds, translate, scale);
@@ -343,10 +340,9 @@ export function RoomLabelCanvas({
           })}
         </div>
       )}
-      <QcAskAnchor rect={askRect}>{ask}</QcAskAnchor>
       <QcViewLayer focus={askRect} onPick={(id) => onSelect(id as RoomLabelRoomId)} pins={pins} selectedId={selectedRoomId} />
 
-      <ZoomCluster {...zoomCluster} />
+      <QcZoomMenu {...zoomCluster} viewMode />
 
       {isInteractive ? null : (
         <p className="sr-only" id={FORBIDDEN_DESCRIPTION_ID}>

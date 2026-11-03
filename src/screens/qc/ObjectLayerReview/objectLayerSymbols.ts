@@ -314,6 +314,10 @@ export interface ObjectLayerLeftPanelViewProps extends ObjectLayerLeftPanelProps
   readonly listLayerFilter: ObjectLayerId | null;
   /** Lỗi quy chuẩn của lớp (P03); vắng = không vẽ khối lỗi. */
   readonly ruleIssues?: ObjectLayerReviewModel['ruleIssues'] | undefined;
+  /** Lọc "chỉ chỗ máy chưa chắc" đang bật. */
+  readonly isLowConfidenceOnly: boolean;
+  /** Công tắc lọc ấy trong "Lọc"; `null` = tầng không còn mục máy chưa chắc và lọc đang tắt (ẩn ô). */
+  readonly onToggleLowConfidenceOnly: (() => void) | null;
 }
 
 /**

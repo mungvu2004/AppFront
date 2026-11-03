@@ -18,7 +18,7 @@ import { createPascalEditCommand } from '../fromPascal';
 import { BUILDING_NODE_ID, SITE_NODE_ID } from '../ids';
 import { ceilingNodesOf, isGeneratedNodeId } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
-import { CEILING_FIXTURE_KIND, toSpatialGraph } from '../toSpatial';
+import { CEILING_FIXTURE_KIND, isAutoSurface, SLAB_NOT_SAVED, toSpatialGraph } from '../toSpatial';
 import type {
   PascalBuildingNode,
   PascalLevelNode,
@@ -485,8 +485,17 @@ describe('N2 — node vừa đổi không được rơi im lặng', () => {
 
     expect(result.ok ? 'ok' : result.error).toMatchObject({
       code: 'PASCAL_UNKNOWN_NODE',
-      reasons: ['Sàn chưa vẽ thêm được trong bản này. Sàn tự có theo từng phòng; muốn đổi sàn, chọn phòng rồi đổi vật liệu sàn.'],
+      reasons: [SLAB_NOT_SAVED],
     });
+  });
+
+  it('sàn/trần Pascal tự đặt theo tường (`autoFromWalls: true`): bỏ qua im lặng, không câu báo nào', () => {
+    const slab = scene.nodes[`slab_${ROOM.id}`] as PascalNode;
+    const auto = { ...slab, id: 'slab_qv1auto0slab', autoFromWalls: true } as PascalNode;
+
+    expect(isAutoSurface(auto)).toBe(true);
+    expect(isAutoSurface(slab)).toBe(false);
+    expect(toSpatialGraph(withChild(auto)).skipped).toEqual([]);
   });
 });
 

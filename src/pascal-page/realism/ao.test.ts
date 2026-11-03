@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AO_DIRECT_HI, AO_DIRECT_LO, aoFactor, aoModeFor, type AoInput } from './ao';
 
-const base: AoInput = { webGpu: true, postFx: true, shading: 'rendered', ssgiEnabled: false, search: '' };
+const base: AoInput = { webGpu: true, postFx: true, shading: 'rendered', ssgiEnabled: false, search: '', traa: true };
 
 describe('aoModeFor', () => {
   it('SSGI bật → AO của SSGI; SSGI tắt (mức low) → GTAO', () => {
@@ -13,6 +13,11 @@ describe('aoModeFor', () => {
     expect(aoModeFor({ ...base, webGpu: false })).toBe('none');
     expect(aoModeFor({ ...base, postFx: false })).toBe('none');
     expect(aoModeFor({ ...base, shading: 'solid' })).toBe('none');
+  });
+
+  it('không TRAA (mức low / nền trong suốt → depth MSAA) → không GTAO', () => {
+    expect(aoModeFor({ ...base, traa: false })).toBe('none');
+    expect(aoModeFor({ ...base, traa: false, ssgiEnabled: true })).toBe('ssgi');
   });
 
   it('?disable=ao / gtao tắt GTAO', () => {

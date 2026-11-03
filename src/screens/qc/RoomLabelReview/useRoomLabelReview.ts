@@ -1100,6 +1100,17 @@ export function useRoomLabelReview(
     },
     { ...roomShortcutOptions, enabled: nextPendingRoomId !== null },
   );
+  /* A12: Esc bỏ chọn phòng như × "Bỏ chọn" của panel phải (cùng `onSelect(null)` như màn tường, đồ vật). Chỉ bật khi có phòng chọn. */
+  useShortcut(
+    {
+      id: 'roomLabelReview.closeTopLayer',
+      combo: 'Escape',
+      scope: 'canvas',
+      description: 'Bỏ chọn phòng',
+      onTrigger: () => onSelect(null),
+    },
+    { ...roomShortcutOptions, enabled: selectedRoomId !== null },
+  );
 
   /* ---------------------------------------------------------------------- */
   /* Bảy trạng thái và ba câu đi kèm.                                        */

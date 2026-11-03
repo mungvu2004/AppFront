@@ -342,8 +342,8 @@ export const WALL = {
   thickness: 'Độ dày tường',
   advanced: 'Thông số nâng cao',
   onlyUnreviewed: 'Chỉ hiện chưa duyệt',
-  onlyLow: 'Chỉ hiện độ tin cậy thấp',
-  onlyNonStandard: 'Chỉ hiện độ dày không chuẩn',
+  onlyLow: 'Chỉ hiện chỗ máy chưa chắc', // WallLayerLeftPanel FILTER_LABELS
+  onlyNonStandard: 'Chỉ hiện độ dày không chuẩn', // ba ô lọc nằm trong popover "Lọc" ({@link filterCheckbox})
   centrelines: 'Tim tường', // L23: checkbox trong popover "Hiển thị" ({@link displayCheckbox})
   wallLayer: 'Lớp tường', // như trên
   step: 'Tường', // QcStepColumn: <section aria-label="Tường"> của bước đang làm
@@ -371,7 +371,7 @@ export const wallOption = (page: Page, code: string): Locator =>
   wallList(page).getByRole('option', { name: new RegExp(`^${esc(code)} — `, 'u') });
 export const selectedRows = (page: Page): Locator => wallList(page).getByRole('option', { selected: true });
 /** L23 (QcAskCard): chi tiết mục đang chọn nằm trong thẻ hỏi neo trên bản vẽ; chưa chọn gì thì thẻ không hiện. */
-export const ASK_CARD = 'Thẻ hỏi của mục đang chọn';
+export const ASK_CARD = 'Chi tiết mục đang chọn';
 export const inspector = (page: Page): Locator => page.getByRole('region', { name: ASK_CARD, exact: true });
 export const rail = (page: Page): Locator => page.getByRole('toolbar', { name: WALL.rail, exact: true });
 export const railButton = (page: Page, name: string | RegExp): Locator => rail(page).getByRole('button', { name });
@@ -399,9 +399,17 @@ export async function displayCheckbox(page: Page, name: string): Promise<Locator
   return checkbox(page, name);
 }
 
-/** Checkbox: focus + Space (sr-only input under a drawn box). */
+/** Ô lọc danh sách tường (Chỉ hiện …) là checkbox trong popover "Lọc" ở thanh công cụ của cột việc; đóng thì mở trước. */
+export async function filterCheckbox(page: Page, name: string): Promise<Locator> {
+  const button = page.getByRole('button', { name: /^Lọc/u });
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+  return checkbox(page, name);
+}
+
+/** Checkbox: focus + Space (sr-only input under a drawn box). Công tắc lớp mở popover "Hiển thị", ô lọc mở popover "Lọc" trước. */
 export async function toggleCheckbox(page: Page, name: string): Promise<void> {
-  const box = checkbox(page, name);
+  const isLayer = name === WALL.centrelines || name === WALL.wallLayer;
+  const box = (await checkbox(page, name).isVisible()) ? checkbox(page, name) : isLayer ? await displayCheckbox(page, name) : await filterCheckbox(page, name);
   await box.focus();
   await page.keyboard.press('Space');
 }

@@ -28,10 +28,15 @@
  * giờ `'violation'` ở màn này".
  */
 
-import { wallStrokeToken, wallThicknessColorBand } from '@/components/canvas/materialMap';
+import {
+  wallStrokeToken,
+  wallThicknessColorBand,
+  type WallConfidenceTier,
+} from '@/components/canvas/materialMap';
 import type { Point, WallId } from '@/domain/spatial/types';
 import { WALL_THICKNESS_TOLERANCE_MM } from '@/domain/walls/thicknessTolerance';
 import type { MeasurementState, Point as PointPx } from '@/hooks/useMeasurementLabel';
+import { confidenceLevel } from '@/lib/format/semantic';
 import type { WallThickness as SpatialWallThickness } from '@/types/spatial';
 
 import type {
@@ -41,6 +46,7 @@ import type {
   WallThicknessChoice,
 } from './types';
 import { WALL_THICKNESS_CHOICES } from './types';
+import type { OpeningSymbolPx } from '../shared/openingSymbols';
 import type { QcViewLayerProps } from '../shared/QcViewLayer';
 
 /* -------------------------------------------------------------------------- */
@@ -114,6 +120,33 @@ export function wallThicknessFillToken(thicknessMm: number): string {
   const band = wallThicknessBandOf(thicknessMm);
 
   return band === null ? UNBANDED_WALL_TOKEN : wallStrokeToken(wallThicknessColorBand(band));
+}
+
+export type { WallConfidenceTier };
+
+/** Chữ của bậc tin cậy — cùng lời với thanh tra ("Máy chắc chắn / Máy khá chắc / Máy chưa chắc"). */
+export const WALL_CONFIDENCE_TIER_TEXT: Readonly<Record<WallConfidenceTier, string>> = {
+  certain: 'Máy chắc chắn',
+  suggested: 'Máy khá chắc',
+  needsReview: 'Máy chưa chắc',
+  reviewed: 'Đã duyệt',
+  unknown: 'Chưa có điểm',
+};
+
+/** Thứ tự bốn mục của chú giải tin cậy. */
+export const WALL_CONFIDENCE_LEGEND_TIERS: readonly WallConfidenceTier[] = ['certain', 'suggested', 'needsReview', 'reviewed'];
+
+/**
+ * Bậc tin cậy một tường: đã duyệt thắng; "chưa chắc" gộp cả tường bị nghi theo hình (điểm số thật
+ * có thể đều nhau, nên chỉ điểm thì mọi tường cùng màu); ngưỡng dự án thấp hơn 0,70 thì một
+ * tường dự án coi là "không thấp" không bị tô đỏ.
+ */
+export function wallConfidenceTierOf(isReviewed: boolean, isLowConfidence: boolean, confidence: number): WallConfidenceTier {
+  if (isReviewed) return 'reviewed';
+  if (isLowConfidence) return 'needsReview';
+  const level = confidenceLevel(confidence);
+
+  return level === 'needsReview' ? 'suggested' : level;
 }
 
 /** Nhóm màu của chú giải/bộ lọc: ba token, mỗi nhóm gồm hai bậc danh mục. */
@@ -190,8 +223,8 @@ export const WALL_HATCH_TILE_PX = 12;
 /** Nét gạch 2px — đúng đặc tả. */
 export const WALL_HATCH_LINE_WIDTH_PX = 2;
 
-/** Độ mờ 6% — đúng đặc tả. Gạch chéo là gợi ý, không phải cảnh báo. */
-export const WALL_HATCH_OPACITY = 0.06;
+/** Độ mờ 35%: trên nền màu tin cậy, 6% cũ không còn thấy (WRU-B) — vẫn là gợi ý phụ cạnh màu. */
+export const WALL_HATCH_OPACITY = 0.35;
 
 /** Phép quay của mẫu lát, chuỗi đã dựng sẵn cho `patternTransform`. 45 độ. */
 export const WALL_HATCH_PATTERN_TRANSFORM = 'rotate(45)';
@@ -344,11 +377,30 @@ export interface WallLayerCanvasShape extends WallShapeViewModel {
   readonly isLowConfidence: boolean;
   /** Đã duyệt — menu chuột phải không đưa "Duyệt" chết (BUG-604). */
   readonly isReviewed: boolean;
+  /** Bậc tin cậy — màu tô của tường (WRU-B); dựng ở `toCanvasShapes` bằng {@link wallConfidenceTierOf}. */
+  readonly confidenceTier: WallConfidenceTier;
+}
+
+/** Nhãn nhỏ cạnh tường đang chọn/rê: đường dẫn từ tim tường tới chip, pixel KHUNG (`wallTag.ts`). */
+export interface WallTagView {
+  readonly anchorPx: PointPx;
+  readonly tagPx: PointPx;
+  /** Ví dụ `"3.450 × 220 mm · Máy chắc chắn"` — đã định dạng ở hook (A15). */
+  readonly text: string;
+  readonly tier: WallConfidenceTier;
 }
 
 /** Mọi thứ view canvas nhận. Thuần cộng thêm lên `WallLayerCanvasProps`. */
+/** Cờ lớp "Cửa đi / cửa sổ" của popover Hiển thị (bước Tường); vắng = không có mục. */
+export interface WallOpeningLayerToggle {
+  readonly isOpeningLayerVisible?: boolean;
+  readonly onToggleOpeningLayer?: () => void;
+}
+
 export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly shapes: readonly WallLayerCanvasShape[];
+  /** Cửa đi / cửa sổ vẽ chỉ-đọc, mờ, trên tường (pixel bản vẽ); rỗng khi lớp tắt. Vắng = không vẽ. */
+  readonly openings?: readonly OpeningSymbolPx[];
   /** Mọi tường đang chọn (Ctrl-bấm để nối đoạn) — canvas tô viền cả nhóm, không chỉ tường chính (G73b). */
   readonly selectedWallIds?: readonly WallId[];
   /** Lượt mở menu bằng bàn phím từ danh sách — `seq` đổi mỗi lượt để mở lại cùng tường (G74). */
@@ -387,6 +439,8 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly haloRectPx: WallLayerRectPx | null;
   /** Lớp chế độ nhìn L23 (Từng việc / Tổng thể); không có ở bố cục cũ. */
   readonly viewLayer?: QcViewLayerProps | null;
+  /** Nhãn dài × dày · tin cậy của tường đang chọn/rê (WRU-B); vắng = không vẽ. */
+  readonly wallTag?: WallTagView | null;
   readonly onApprove: (wallId: WallId) => void;
   /** Xin đổi độ dày: đưa tiêu điểm về điều khiển ba lựa chọn của thanh tra. */
   readonly onRequestThicknessChange: (wallId: WallId) => void;

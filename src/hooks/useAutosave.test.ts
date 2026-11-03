@@ -565,6 +565,63 @@ describe('useFloorLayerAutosave', () => {
     expect(result.current.saveBlock).toMatchObject({ kind: 'reload', message: expect.stringContaining('Không tải lại được') });
   });
 
+  it('503 DEPENDENCY_UNAVAILABLE then 200: no block, no failed label, engine back to saved', async () => {
+    const { client, writeLayer } = spyClient();
+
+    writeLayer.mockResolvedValueOnce({
+      error: {
+        code: 'DEPENDENCY_UNAVAILABLE',
+        kind: 'http',
+        raw: { code: 'DEPENDENCY_UNAVAILABLE' },
+        requestId: 'r-1',
+        retryable: true,
+        status: 503,
+      },
+      ok: false,
+    } as never);
+    loadSample();
+    const { result } = renderHook(() => useFloorLayerAutosave({ apiClient: client, projectId: PROJECT }));
+
+    await tick();
+    act(() => editFloor(FLOOR_A));
+    await tick(800);
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    expect(result.current.saveBlock).toBeNull();
+    expect(result.current.autosave.getState()).toBe('dirty');
+
+    await tick(5_000);
+
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(result.current.saveBlock).toBeNull();
+    expect(result.current.isFloorBlocked(FLOOR_A)).toBe(false);
+    expect(result.current.autosave.getState()).toBe('saved');
+    expect(useStore.getState().unsavedFloorIds).toStrictEqual([]);
+  });
+
+  it('a 500 is retried on the engine schedule, not left as a blocked floor', async () => {
+    const { client, writeLayer } = spyClient();
+
+    writeLayer.mockResolvedValueOnce({
+      error: { code: 'INTERNAL', kind: 'http', raw: { code: 'INTERNAL' }, requestId: 'r-1', retryable: true, status: 500 },
+      ok: false,
+    } as never);
+    loadSample();
+    const { result } = renderHook(() => useFloorLayerAutosave({ apiClient: client, projectId: PROJECT }));
+
+    await tick();
+    act(() => editFloor(FLOOR_A));
+    await tick(800);
+
+    expect(result.current.saveBlock).toBeNull();
+    expect(result.current.autosave.getState()).toBe('dirty');
+
+    await tick(5_000);
+
+    expect(writeLayer).toHaveBeenCalledTimes(2);
+    expect(result.current.autosave.getState()).toBe('saved');
+  });
+
   it('a blocked floor elsewhere does not turn this screen label into "Lưu thất bại"', async () => {
     const { client, writeLayer } = spyClient();
 

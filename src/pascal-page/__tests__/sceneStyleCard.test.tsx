@@ -97,7 +97,7 @@ describe('SceneStyleCard', () => {
     expect(screen.getByRole('button', { name: SCENE_STYLES['go-am'].label }).hasAttribute('disabled')).toBe(false);
   });
 
-  it('V11 — menu mở thì chip "Điều khiển chuột và phím tắt" ẩn (không đè mục đầu "Ấm áp")', () => {
+  it('V11 — menu mở thì chip trợ giúp "?" ẩn (không đè mục đầu "Ấm áp")', () => {
     const rule = /([^{}]*\.appfront-canvas-help)\s*\{\s*visibility:\s*hidden/.exec(read('../pascal.css'));
     expect(rule).not.toBeNull();
     const selector = rule![1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim();

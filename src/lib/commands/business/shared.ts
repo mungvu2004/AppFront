@@ -32,6 +32,7 @@
 import { describeOpeningKind, clampRelativePosition } from '@/domain/openings/types';
 import type { AttachedOpening, RelativePosition } from '@/domain/openings/types';
 import { readEntity } from '@/domain/spatial/applyPatch';
+import { wallLength } from '@/domain/spatial/arc';
 import type { EntityKind, IdByKind } from '@/domain/spatial/ids';
 import { displayCodeIn, isEntityOfKind, type EntityByKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type {
@@ -81,6 +82,85 @@ export interface CommandRefusal {
 /** What every builder returns: a command to dispatch, or the reasons why not. */
 export type CommandResult = Result<Command, CommandRefusal>;
 
+const roundMm = (value: number): number => millimetres(Math.round(value));
+const roundPoint = (point: Point): Point => ({ x: roundMm(point.x), y: roundMm(point.y) });
+
+/**
+ * Dây ghi (`FloorLayerWriteSchema`) đòi mm nguyên; chân vuông góc trên tường xiên, ô mở dời theo tỉ lệ
+ * dọc tường… ra số lẻ, và autosave bị chặn ở client. Mọi lệnh nghiệp vụ đi qua `buildCommand`, nên làm
+ * tròn MỘT chỗ ở đây. `Math.round` tất định: hai đầu tường chung một điểm (cùng số thực) tròn ra cùng
+ * một điểm, topo vẫn khép. Ô mở tròn SAU tường (tường trong cùng lệnh thắng tường trong đồ thị) rồi bị
+ * kẹp vào `[0, ⌊dài tường − rộng⌋]` để không lòi ra đầu tường 0,5 mm.
+ */
+const withIntegerMillimetres = (changes: readonly EntityChange[], graph: NormalizedSpatial): EntityChange[] => {
+  const wallsHere = new Map<WallId, GraphWall>();
+  const rounded = changes.map((change): EntityChange => {
+    if (change.after === null) {
+      return change;
+    }
+
+    if (change.kind === 'wall') {
+      const wall = change.after;
+      const after: GraphWall = {
+        ...wall,
+        centreline: { start: roundPoint(wall.centreline.start), end: roundPoint(wall.centreline.end) },
+        thicknessMm: roundMm(wall.thicknessMm),
+        heightMm: roundMm(wall.heightMm),
+        ...(wall.curveOffsetMm === undefined ? {} : { curveOffsetMm: roundMm(wall.curveOffsetMm) }),
+      };
+
+      wallsHere.set(after.id, after);
+
+      return { ...change, after };
+    }
+
+    if (change.kind === 'room') {
+      return { ...change, after: { ...change.after, outline: change.after.outline.map(roundPoint) } };
+    }
+
+    if (change.kind === 'furniture') {
+      const { centre, boundingBox } = change.after;
+
+      return {
+        ...change,
+        after: {
+          ...change.after,
+          centre: roundPoint(centre),
+          boundingBox: { min: roundPoint(boundingBox.min), max: roundPoint(boundingBox.max) },
+        },
+      };
+    }
+
+    return change;
+  });
+
+  return rounded.map((change): EntityChange => {
+    if (change.kind !== 'opening' || change.after === null) {
+      return change;
+    }
+
+    const opening = change.after;
+    const widthMm = roundMm(opening.widthMm);
+    const host = wallsHere.get(opening.wallId) ?? readEntity(graph, 'wall', opening.wallId);
+    const roomMm =
+      host === null
+        ? Number.POSITIVE_INFINITY
+        : Math.floor(wallLength(host.centreline.start, host.centreline.end, host.curveOffsetMm) - widthMm);
+    const offsetMm = millimetres(Math.max(0, Math.min(Math.round(opening.offsetMm), roomMm)));
+
+    return {
+      ...change,
+      after: {
+        ...opening,
+        offsetMm,
+        widthMm,
+        heightMm: roundMm(opening.heightMm),
+        sillHeightMm: roundMm(opening.sillHeightMm),
+      },
+    };
+  });
+};
+
 /**
  * Wraps the changes in a command, carrying the test-only overrides through.
  *
@@ -97,7 +177,7 @@ export const buildCommand = (
     type,
     actorId: context.actorId,
     description,
-    changes,
+    changes: withIntegerMillimetres(changes, context.graph),
     ...(context.id === undefined ? {} : { id: context.id }),
     ...(context.timestamp === undefined ? {} : { timestamp: context.timestamp }),
   });

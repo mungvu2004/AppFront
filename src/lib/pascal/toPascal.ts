@@ -634,6 +634,18 @@ const TALL_PLANT_MAX_M = 2.2;
 
 /** Thảm: phủ đúng mặt bằng hộp bao; dày theo `heightMm` hoặc nửa catalog (10 mm từng làm `s` chung = 0,25). */
 const RUG_FOLDERS: ReadonlySet<string> = new Set(['rectangular-carpet', 'round-carpet']);
+
+/**
+ * Thảm phải nằm trong phòng của nó: có `roomId` thì phòng ấy phải dựng được và chứa tâm thảm; không có thì
+ * tâm phải trong một phòng cùng tầng. Phòng thiếu (BE chưa dò ra phòng khách) / AI đặt lệch → thảm "lạc"
+ * nằm trên nền trống ngoài nhà (04/11, ba tấm quanh f-22).
+ */
+const isStrayRug = (f: Furniture, rooms: readonly Room[]): boolean => {
+  const role = roleOf(f);
+  if (role !== 'rug' && role !== 'roundRug') return false;
+  const homes = f.roomId === undefined ? rooms.filter((r) => r.levelId === f.levelId) : rooms.filter((r) => r.id === f.roomId);
+  return !homes.some((r) => insideOutline(f.centre, r.outline));
+};
 const RUG_SCALE_Y = 0.5;
 /**
  * Đồ kéo dài được theo từng trục (dãy tủ, kệ, chậu rửa liền tủ, bồn cây…): một tỉ lệ chung
@@ -1381,8 +1393,9 @@ export const toPascalScene = (
             itemNodeOf({ ...furniture, ...arms.long }, levelNodeId, levelHeightMm, style, usage, 0, sinkFolder),
           );
 
-    /* Hộp quầy gốc vẫn phải có node (thiếu = lượt lưu đọc thành xoá) nhưng ẩn; dãy tủ thay nó là đồ sinh ra. */
-    nodes[node.id] = isKitchenRunHost(furniture)
+    /* Hộp quầy gốc vẫn phải có node (thiếu = lượt lưu đọc thành xoá) nhưng ẩn; dãy tủ thay nó là đồ sinh ra.
+       Thảm lạc ngoài phòng (`isStrayRug`) cũng vậy: giữ node để lưu không xoá, chỉ không trải ra sân trống. */
+    nodes[node.id] = isKitchenRunHost(furniture) || isStrayRug(furniture, builtRooms)
       ? { ...node, visible: false }
       : isGeneratedNodeId(node.id)
         ? { ...node, metadata: { ...node.metadata, generated: 'dressing' } }
@@ -1423,7 +1436,8 @@ export const toPascalScene = (
     [...builtFurniture, ...furnished],
   ).filter(notOff);
   const dressIdsOf = new Map<string, string[]>();
-  const generatedAll = [...furnished, ...dressed, ...aiAdded];
+  // AI (designAdditionsOf) đặt thảm theo tâm nó tự chọn và thảm không bị chặn chồng: tâm ngoài phòng → bỏ.
+  const generatedAll = [...furnished, ...dressed, ...aiAdded].filter((f) => !isStrayRug(f, builtRooms));
   /* Chậu/mặt bếp sinh ra nằm trên mặt đá dãy tủ sinh ra (hoặc thật), như đường đồ thật ở trên. */
   const counterPool = [...builtFurniture, ...generatedAll];
   const usageOfGenerated = (f: Furniture) => (f.roomId === undefined ? undefined : roomUsageOf.get(f.roomId));

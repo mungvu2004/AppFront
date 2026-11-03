@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Color, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry } from 'three';
+import { Color, CompressedTexture, DataTexture, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry, Texture } from 'three';
 import { UPHOLSTERY_PALETTE } from '@/lib/pascal/scenePalette';
 import { clearItemMaterialCache, tuneItemMaterial } from './itemMaterials';
 import { useRealism } from './store';
@@ -12,6 +12,7 @@ import {
   pickUpholstery,
   styleOfFabricRef,
   tagUpholstery,
+  textureMean,
 } from './upholstery';
 
 const enableMaterials = () => useRealism.setState({ flags: { ...useRealism.getState().flags, materials: true } });
@@ -45,6 +46,24 @@ describe('upholstery thuần', () => {
   });
   it('diện tích tam giác', () => {
     expect(geometryArea(new PlaneGeometry(2, 3))).toBeCloseTo(6);
+  });
+});
+
+describe('textureMean', () => {
+  it('vân nén KTX2 (ảnh không vẽ được) → [1,1,1], không ném lỗi drawImage', () => {
+    const tex = new CompressedTexture([], 64, 64);
+    expect(() => textureMean(tex)).not.toThrow();
+    expect(textureMean(tex)).toEqual([1, 1, 1]);
+  });
+  it('DataTexture RGBA 8 bit đọc thẳng từ data', () => {
+    const tex = new DataTexture(new Uint8Array([255, 255, 255, 255, 0, 0, 0, 255]), 2, 1);
+    expect(textureMean(tex)).toEqual([0.5, 0.5, 0.5]);
+  });
+  it('ảnh chưa nạp → null (thử lại sau)', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'complete', { value: false });
+    img.width = 8;
+    expect(textureMean(new Texture(img))).toBeNull();
   });
 });
 

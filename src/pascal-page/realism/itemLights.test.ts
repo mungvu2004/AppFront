@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { DAY_THEME_ID, NIGHT_THEME_ID } from '../renderLook';
-import { ITEM_LIGHT_DISTANCE, itemLightDistance, itemLightIntensity } from './itemLights';
+import { ITEM_LIGHT_DISTANCE, ITEM_LIGHT_POOL, itemLightDistance, itemLightIntensity, itemLightPoolSize } from './itemLights';
 import { DEFAULT_REALISM_FLAGS, useRealism } from './store';
 
 const setMaterials = (materials: boolean) =>
@@ -20,5 +20,10 @@ describe('itemLights', () => {
     setMaterials(false);
     expect(itemLightIntensity(5, DAY_THEME_ID)).toBe(5);
     expect(itemLightDistance(0)).toBe(0);
+  });
+  it('pool: Ban ngày + cờ bật = 0 đèn (shader không mang đèn thừa), còn lại = pool gốc', () => {
+    expect(itemLightPoolSize(DAY_THEME_ID, true)).toBe(0);
+    expect(itemLightPoolSize(NIGHT_THEME_ID, true)).toBe(ITEM_LIGHT_POOL);
+    expect(itemLightPoolSize(DAY_THEME_ID, false)).toBe(ITEM_LIGHT_POOL);
   });
 });

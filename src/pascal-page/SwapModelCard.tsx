@@ -16,6 +16,8 @@ import { useRef } from 'react';
 
 import { namedFolderOf } from '@/lib/pascal/furnitureCatalog';
 
+import { useMenuGroup } from './menuGroup';
+
 type Vec3 = readonly [number, number, number];
 
 /** Phần `asset` của item Pascal mà thẻ đọc/ghi (kiểu lỏng, xem `@pascal-app/core` `ItemNode`). */
@@ -132,6 +134,7 @@ export interface SwapModelCardProps {
 }
 
 export function SwapModelCard({ stores, catalog, readOnly }: SwapModelCardProps) {
+  useMenuGroup();
   const ids = stores.useViewer((s) => s.selection.selectedIds);
   const node = stores.useScene((s) =>
     ids.length === 1 ? (s.nodes as Record<string, LooseNode | undefined>)[ids[0] as string] : undefined,

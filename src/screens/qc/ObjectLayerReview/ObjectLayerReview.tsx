@@ -1,7 +1,7 @@
 /**
  * Màn S-13 "Lớp đối tượng" (`ObjectLayerReview`) — VIEW THUẦN, bố cục L23:
  * ray công cụ trái (56), cột việc (`QcStepColumn`, 360) bọc bộ lọc và hàng đợi
- * với cổng ở đáy, bản vẽ giữa (thẻ hỏi neo trên mục chọn, popover "Hiển thị"),
+ * với cổng ở đáy, bản vẽ giữa, panel phải neo (`ObjectLayerInspectorPanel`, mang "Hiển thị"),
  * thanh trạng thái (32) dính đáy.
  *
  * Nhận HẾT qua props ({@link ObjectLayerReviewViewProps}) và chỉ dựng thẻ.
@@ -35,25 +35,22 @@
  * ra.
  */
 
+import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
-import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcCompareSplit } from '../shared/QcCompareSplit';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
-import { QcQueueAskCard } from '../shared/QcAskCard';
-import { QcAskSlot } from '../shared/qcAsk';
 import { QcStepColumn } from '../shared/QcStepColumn';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
-import { ObjectLayerDisplayPopover } from './ObjectLayerDisplayPopover';
-import { OBJECT_REASON_TITLE, objectReasonOf } from './objectReviewReasons';
 import { ObjectLayerGate } from './ObjectLayerHead';
-import { ObjectLayerInspector } from './ObjectLayerInspector';
+import { ObjectLayerInspectorPanel } from './ObjectLayerInspectorPanel';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
 import { ObjectLayerList } from './ObjectLayerList';
 import { ObjectLayerStatusBar } from './ObjectLayerStatusBar';
@@ -84,7 +81,6 @@ const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
 const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
 const OPEN_WALL_LAYER_ACTION = 'Sang duyệt tường';
-const LOW_CONFIDENCE_FILTER = 'Chỉ hiện chỗ máy chưa chắc';
 const LOW_CONFIDENCE_DONE = 'Đã duyệt hết chỗ máy chưa chắc.';
 const SHOW_ALL = 'Hiện tất cả';
 /* Chưa có số đếm thật thì không in "0/0 đối tượng đã duyệt" (BUG-618). */
@@ -147,36 +143,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
 
   return (
     <div className="flex flex-col gap-2">
-      {/*
-        Nhánh (a) của trạng thái một phần: năm mục dưới ngưỡng tin cậy đã lọc
-        sẵn, và người duyệt phải BỎ được bộ lọc đó — một bộ lọc bật sẵn mà không
-        tắt được là một danh sách thiếu mục mà không ai giải thích.
-      */}
-      {/*
-        BUG-584: còn bộ lọc bật thì nút tắt nó còn — duyệt hết mục dưới ngưỡng làm câu báo biến
-        mất, và bản cũ ẩn luôn nút, để lại danh sách rỗng không lối ra.
-      */}
-      {/* Số mục dưới ngưỡng đã ở dòng trạng thái đầu panel: ở đây chỉ còn công tắc lọc (không lặp số). */}
-      {model.partialNotice === null && !model.isLowConfidenceOnly ? null : (
-        <div className="flex flex-col gap-1 px-2">
-          <button
-            aria-pressed={model.isLowConfidenceOnly}
-            className={cn(
-              'self-start rounded-full border px-2.5 py-1 text-[12px]',
-              'transition-colors duration-120',
-              'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-              model.isLowConfidenceOnly
-                ? 'border-accent bg-accent-wash text-accent'
-                : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-            )}
-            onClick={model.onToggleLowConfidenceOnly}
-            type="button"
-          >
-            {LOW_CONFIDENCE_FILTER}
-          </button>
-        </div>
-      )}
-
+      {/* Công tắc "Chỉ hiện chỗ máy chưa chắc" nằm trong "Lọc" ở thanh đầu cột; ở đây chỉ còn lối ra khi lọc hết mục. */}
       {model.isLowConfidenceOnly && model.rows.length === 0 ? (
         <div className="flex items-center justify-between gap-2 px-2 py-2">
           <p className="text-[13px] text-text-secondary">{LOW_CONFIDENCE_DONE}</p>
@@ -248,34 +215,59 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
         onDelete: model.onDelete,
         drawLayer: model.drawLayer,
         onPlaceAt: model.onPlaceAt,
+        kindPicker: model.kindPicker,
       };
+  /* "So sánh hai bên": một khung nhìn cho cả hai nửa — nửa trái đặt ảnh rõ nét trong cùng lớp phóng. */
+  const zoomPan = useCanvasZoomPan();
+  const { pan, scale } = zoomPan;
+  const image = model.backgroundImageUrl === null ? null : model.surfaceRectPx;
 
   return (
-    <ObjectLayerCanvas
-      backgroundImageAlt={model.backgroundImageAlt}
-      backgroundImageUrl={model.backgroundImageUrl}
-      dragMeasurement={model.dragMeasurement}
-      haloRectPx={model.haloRectPx}
-      highlightedWallId={model.highlightedWallId}
-      hoveredObjectId={model.hoveredObjectId}
-      isInteractive={!readOnly}
-      isLoading={model.state === 'loading'}
-      layerVisibility={model.layerVisibility}
-      millimetresPerPixel={model.millimetresPerPixel}
-      objects={model.objects}
-      onFrameResize={model.onFrameResize}
-      onHover={model.onHover}
-      onSelect={model.onSelect}
-      placements={model.placements}
-      ruleIssueMarker={model.ruleIssueMarker}
-      selectedObjectId={model.selectedObjectId}
-      surfaceRectPx={model.surfaceRectPx}
-      unitPx={model.unitPx}
-      viewBoxPx={model.viewBoxPx}
-      wallOutlines={model.wallOutlines}
-      viewPins={model.viewPins}
-      {...editing}
-    />
+    <QcCompareSplit
+      canPick={!readOnly && model.drawLayer === null}
+      drawing={
+        model.backgroundImageUrl === null ? null : (
+          <img
+            alt={model.backgroundImageAlt}
+            className="absolute block max-w-none select-none"
+            draggable={false}
+            src={model.backgroundImageUrl}
+            style={image === null ? undefined : { height: image.height, left: image.x, top: image.y, width: image.width }}
+          />
+        )
+      }
+      haloRect={model.selectedObjectId === null ? null : model.haloRectPx}
+      layerTransform={`${pan.transform} scale(${scale})`}
+      onPanBy={(dx, dy) => pan.panTo({ x: pan.offset.x + dx, y: pan.offset.y + dy })}
+      onZoom={(direction) => (direction > 0 ? zoomPan.zoomCluster.onZoomIn() : zoomPan.zoomCluster.onZoomOut())}
+    >
+      <ObjectLayerCanvas
+        backgroundImageAlt={model.backgroundImageAlt}
+        backgroundImageUrl={model.backgroundImageUrl}
+        dragMeasurement={model.dragMeasurement}
+        haloRectPx={model.haloRectPx}
+        highlightedWallId={model.highlightedWallId}
+        hoveredObjectId={model.hoveredObjectId}
+        isInteractive={!readOnly}
+        isLoading={model.state === 'loading'}
+        layerVisibility={model.layerVisibility}
+        millimetresPerPixel={model.millimetresPerPixel}
+        objects={model.objects}
+        onFrameResize={model.onFrameResize}
+        onHover={model.onHover}
+        onSelect={model.onSelect}
+        placements={model.placements}
+        ruleIssueMarker={model.ruleIssueMarker}
+        selectedObjectId={model.selectedObjectId}
+        surfaceRectPx={model.surfaceRectPx}
+        unitPx={model.unitPx}
+        viewBoxPx={model.viewBoxPx}
+        wallOutlines={model.wallOutlines}
+        viewPins={model.viewPins}
+        zoomPan={zoomPan}
+        {...editing}
+      />
+    </QcCompareSplit>
   );
 }
 
@@ -290,6 +282,10 @@ function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewMod
             availableSubtypes={model.availableSubtypes}
             counts={model.counts}
             furnitureAttentionNotice={model.furnitureAttentionNotice}
+            isLowConfidenceOnly={model.isLowConfidenceOnly}
+            onToggleLowConfidenceOnly={
+              model.partialNotice === null && !model.isLowConfidenceOnly ? null : model.onToggleLowConfidenceOnly
+            }
             layerVisibility={model.layerVisibility}
             listLayerFilter={model.listLayerFilter}
             onFilterLayer={model.onFilterLayer}
@@ -314,40 +310,6 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   /* Đọc cờ của vỏ màn, không `state`: ở vai người xem `forbidden` đứng trước `collapsed`, và nút thu gọn đổi nhãn mà panel không thu (BUG-601). */
   const isCollapsed = model.isCollapsed;
   const nav = model.floorNav;
-  const inspectorView = (
-    <ObjectLayerInspector
-        inspector={model.inspector}
-        isViewerRole={isReadOnly(model)}
-        onApprove={model.onApprove}
-        onAttachToNearestWall={model.onAttachToNearestWall}
-        onChangeFurnitureKind={model.onChangeFurnitureKind}
-        onChangeSubtype={model.onChangeSubtype}
-        onChangeSwing={model.onChangeSwing}
-        onDelete={model.onDelete}
-        onDragPosition={model.onDragPosition}
-        onSelectHostWall={model.onSelectHostWall}
-        scaleLock={model.scaleLock ?? null}
-        focusKindToken={model.focusKindToken}
-        onResize={model.onResize}
-        onRotate={model.onRotate}
-      />
-  );
-  const selectedId = model.inspector?.id ?? null;
-  const selectedReason = objectReasonOf(model.rows.find((row) => row.id === selectedId) ?? { isReviewed: true, isLowConfidence: false, isOrphan: false });
-  const reasonTitle = selectedReason === null ? null : OBJECT_REASON_TITLE[selectedReason];
-  const ask =
-    !isCollapsed && selectedId !== null ? (
-      <QcQueueAskCard
-        items={model.rows.map((row) => ({ id: row.id, pending: !row.isReviewed }))}
-        onSelect={model.onSelect}
-        reason={reasonTitle}
-        selectedId={selectedId}
-        unit="Mục"
-      >
-        {inspectorView}
-      </QcQueueAskCard>
-    ) : null;
-
   if (model.readFailure != null) {
     return (
       <QcScreenFrame label={SCREEN_ARIA_LABEL}>
@@ -370,17 +332,17 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           <ProvisionalScaleBanner notice={model.provisionalScaleNotice} />
         </div>
       )}
-      {/* Khe chung (A3): rail | cột việc | bản vẽ; chi tiết là thẻ hỏi neo trên mục đang chọn. */}
-      <QcAskSlot value={ask}>
+      {/* Khe chung (A3): rail | cột việc | bản vẽ | panel phải neo (chi tiết mục chọn, hoặc "Tầng này"). */}
       <QcWorkspace
         column
-        chromeTopRight={<ObjectLayerDisplayPopover layerVisibility={model.layerVisibility} onToggleLayer={model.onToggleLayer} />}
+        inspector={isCollapsed ? null : <ObjectLayerInspectorPanel model={model} readOnly={isReadOnly(model)} />}
         canvas={<ObjectLayerCanvasRegion model={model} />}
         canvasLabel={CANVAS_REGION_LABEL}
         left={
           isCollapsed ? null : (
             <QcStepColumn
               activeStep="objects"
+              fileHeader={<QcFloorNav {...nav} layer="objects" minimal stacked titled />}
               floorId={nav.floorId}
               gate={<ObjectLayerGate model={model} />}
               projectId={nav.projectId}
@@ -402,7 +364,6 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           />
         }
       />
-      </QcAskSlot>
 
       <ObjectLayerStatusBar
         saveLabel={model.saveLabel ?? null}

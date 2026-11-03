@@ -89,6 +89,8 @@ const SUBTYPE_ICONS: Readonly<Record<ObjectSubtype, LucideIcon>> = {
 };
 
 const RAIL_ARIA_LABEL = 'Công cụ lớp đối tượng';
+/** Nút nội thất nói việc người dùng muốn làm ("Vẽ nội thất" khó đoán, wall-review-ux). */
+const FURNITURE_TOOL_LABEL = 'Thêm đồ vật';
 
 function subtypesOfLayer(layer: ObjectLayerId): readonly ObjectSubtype[] {
   return OBJECT_SUBTYPES.filter((subtype) => OBJECT_SUBTYPE_LAYER[subtype] === layer).slice(
@@ -122,7 +124,7 @@ export function ObjectLayerToolRail({
             const Icon = tool.icon;
             /* Nút làm đúng việc ghi trên nhãn (K07): bật chế độ vẽ, bấm lên bản vẽ là đặt một món. */
             const isActive = tool.id === drawLayer;
-            const label = `Vẽ ${lowerFirst(OBJECT_LAYER_LABELS[tool.id])}`;
+            const label = tool.id === 'furniture' ? FURNITURE_TOOL_LABEL : `Vẽ ${lowerFirst(OBJECT_LAYER_LABELS[tool.id])}`;
 
             return (
               <div className="relative flex w-full flex-col items-center gap-0.5" key={tool.id}>

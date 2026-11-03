@@ -178,6 +178,22 @@ test('separates both shadow flags and preserves them through capacity growth', (
   expect(batches(root).every((batch) => batch.userData.pascalExport === 'strip')).toBe(true)
 })
 
+test('sources keep drawing until the host warm-up flags the new batch drawn', () => {
+  const { root, meshes } = setup('slab')
+  const host = globalThis as { __pascalDrawReady?: boolean }
+  host.__pascalDrawReady = true
+  try {
+    settle()
+    expect(batches(root).length).toBeGreaterThan(0)
+    expect(meshes[0]!.layers.isEnabled(SCENE_LAYER)).toBe(true)
+    for (const batch of batches(root)) batch.userData.drawReady = true
+    frame()
+    expect(meshes[0]!.layers.isEnabled(SCENE_LAYER)).toBe(false)
+  } finally {
+    delete host.__pascalDrawReady
+  }
+})
+
 test.each([
   'ceiling',
   'slab',

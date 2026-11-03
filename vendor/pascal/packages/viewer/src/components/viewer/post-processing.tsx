@@ -329,7 +329,9 @@ const PostProcessingPasses = ({
     hoverVisibleColor.value.setHex(style.visibleColor)
     hoverHiddenColor.value.setHex(style.hiddenColor)
     hoverStrength.value = style.strength
-    hoverPulseMix.value = style.pulse ? 0 : 1
+    // Static hover outline (style.pulse ignored): a time-driven pulse needs a redraw every frame while
+    // hovering, which kept iGPUs busy and delayed wheel/click response (realism idle.ts).
+    hoverPulseMix.value = 1
     invalidate()
   }, [
     hoverHiddenColor,

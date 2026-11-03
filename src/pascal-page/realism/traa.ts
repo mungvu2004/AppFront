@@ -3,6 +3,7 @@
  * đổi cờ phải dựng lại pipeline. `?disable=traa` tắt để so A/B như các cờ `?disable=` khác.
  */
 import { useRealism } from './store';
+import { sceneTier } from './tiers';
 
 /** F3: bán kính denoise AO khi TRAA. Đã thử 0 (bỏ denoise) và 2: còn hạt dưới chân ghế → giữ 4, bù bằng ao^k. */
 export const TRAA_AO_DENOISE_RADIUS = 4;
@@ -18,7 +19,7 @@ export function traaEnabledFor(flagOn: boolean, search: string): boolean {
 
 export function traaEnabled(): boolean {
   const search = typeof window === 'undefined' ? '' : window.location.search;
-  const { flags, tier } = useRealism.getState();
-  // F3: mức low dùng lại MSAA như cũ (TRAA + velocity tốn thêm trên máy yếu).
-  return tier !== 'low' && traaEnabledFor(flags.traa, search);
+  // F3: cảnh tải ở low dùng MSAA (TRAA + velocity chậm hơn ~66 % p50 khi xoay, đo 2026-11-04). Theo mức CẢNH
+  // (`sceneTier`, lúc tải) chứ không theo mức hiện tại: đổi số mẫu/MRT = dựng lại mọi vật liệu cảnh giữa phiên.
+  return sceneTier() !== 'low' && traaEnabledFor(useRealism.getState().flags.traa, search);
 }

@@ -13,6 +13,7 @@
 import { ChevronDown, Sun } from 'lucide-react';
 import { type MouseEvent, useEffect } from 'react';
 
+import { MENU_SUMMARY_CLASS, menuPanelClass, SECTION_TITLE_CLASS, useMenuGroup } from './menuGroup';
 import { QualityCard } from './QualityCard';
 import { type GroundMode, setRealism, useRealism } from './realism/store';
 import { DAY_THEME_ID, NIGHT_THEME_ID, SUNSET_THEME_ID } from './renderLook';
@@ -71,6 +72,8 @@ export interface LightingCardProps {
     <T>(selector: (state: LightingViewer) => T): T;
     getState(): LightingViewer;
   };
+  /** Mục trong menu "Xem" (`./ViewMenu`) thay vì menu riêng; khi đó không kèm thẻ Chất lượng. */
+  readonly section?: boolean;
 }
 
 const themeOf = (mode: LightingMode) => LIGHTING_MODES.find((m) => m.id === mode)?.theme ?? NIGHT_THEME_ID;
@@ -84,7 +87,8 @@ function readMode(projectId: string): LightingMode | null {
   }
 }
 
-export function LightingCard({ projectId, useViewer }: LightingCardProps) {
+export function LightingCard({ projectId, useViewer, section = false }: LightingCardProps) {
+  useMenuGroup();
   const sceneTheme = useViewer((state) => state.sceneTheme);
   const current = LIGHTING_MODES.find((m) => m.theme === sceneTheme);
   const ground = useRealism((s) => s.ground);
@@ -132,22 +136,10 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
     event.currentTarget.closest('details')?.removeAttribute('open');
   };
 
-  // F3: thẻ "Chất lượng" đặt ngay sau thẻ này (cùng hàng nút).
-  return (
-    <>
-    <details className="relative" data-appfront-menu="">
-      <summary
-        aria-label={`Ánh sáng: ${current?.label ?? 'tuỳ chỉnh'} — mở danh sách ánh sáng`}
-        className="flex h-8 shrink-0 cursor-pointer list-none items-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] px-2.5 font-medium text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)] transition-colors duration-120 hover:bg-[var(--pa-sunken)] motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pa-accent)] [&::-webkit-details-marker]:hidden"
-        title="Ánh sáng"
-      >
-        <Sun aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1300px]/appbar:hidden" />
-        <span className="hidden @min-[1300px]/appbar:inline">Ánh sáng</span>
-        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[1200px]/appbar:hidden" />
-      </summary>
+  const list = (
       <ul
         aria-label="Danh sách ánh sáng"
-        className="absolute top-full left-0 z-50 mt-1 min-w-36 rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-overlay)]"
+        className={menuPanelClass(section)}
       >
         {LIGHTING_MODES.map((mode) => (
           <li key={mode.id}>
@@ -206,6 +198,30 @@ export function LightingCard({ projectId, useViewer }: LightingCardProps) {
         {/* A2-08: ánh sáng chỉ nhớ trong localStorage — nói ra, đừng để người dùng tưởng đã lưu vào dự án. */}
         <li className="px-2 pt-0.5 pb-1.5 text-[12px] text-[var(--pa-text-3)]">Chỉ lưu trên máy này</li>
       </ul>
+  );
+  if (section) {
+    return (
+      <section aria-label="Ánh sáng">
+        <h3 className={SECTION_TITLE_CLASS}>Ánh sáng</h3>
+        {list}
+      </section>
+    );
+  }
+
+  // F3: thẻ "Chất lượng" đặt ngay sau thẻ này (cùng hàng nút).
+  return (
+    <>
+    <details className="relative" data-appfront-menu="">
+      <summary
+        aria-label={`Ánh sáng: ${current?.label ?? 'tuỳ chỉnh'} — mở danh sách ánh sáng`}
+        className={MENU_SUMMARY_CLASS}
+        title="Ánh sáng"
+      >
+        <Sun aria-hidden="true" className="h-4 w-4 shrink-0 @min-[1300px]/appbar:hidden" />
+        <span className="hidden @min-[1300px]/appbar:inline">Ánh sáng</span>
+        <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[1200px]/appbar:hidden" />
+      </summary>
+      {list}
     </details>
     <QualityCard />
     </>

@@ -624,6 +624,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
 
       await step('14-A-019', 'ZoomCluster ("Phóng to", "Thu nhỏ", "Vừa khung nhìn") and MiniMap are wired to this canvas; pressing them draws nothing ⚑', async () => {
         const z0 = (await viewOf(page)).zoom;
+        await page.getByRole('button', { name: /^Mức thu phóng / }).click(); // one "N% ▾" menu (QcZoomMenu)
         await btn(page, 'Phóng to').click();
         await flush(page);
         expect.soft((await viewOf(page)).zoom, '"Phóng to" zooms the canvas').toBeGreaterThan(z0);

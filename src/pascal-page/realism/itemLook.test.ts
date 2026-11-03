@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MeshStandardMaterial, Texture } from 'three';
+import { MeshStandardMaterial, Texture, type EventDispatcher } from 'three';
+import { SCENE_PALETTE } from '@/lib/pascal/scenePalette';
+import { hasPendingTextures, libraryRefsIn, preloadSceneTextures } from './texturePreload';
 import { autoPatch, folderOf, itemKindOf, nameKind, tunedRoughness } from './itemLook';
 import { clearItemMaterialCache, specGlossPlugin, tuneItemMaterial } from './itemMaterials';
 import { useRealism } from './store';
@@ -61,20 +63,47 @@ describe('tuneItemMaterial', () => {
     expect(base.roughness).toBe(0.9);
     expect(tuneItemMaterial(base, ctx)).toBe(a);
   });
-  it('gốc nạp ảnh sau khi clone → clone theo kịp (đồ gỗ không ra trắng)', () => {
-    vi.useFakeTimers();
+  it('gốc nạp ảnh sau khi clone → clone theo kịp (đồ gỗ không ra trắng), không thăm dò', async () => {
     clearItemMaterialCache();
     const base = new MeshStandardMaterial({ roughness: 0.5 });
+    base.userData.texPending = 2; // vendor queueTextureAssignment: 2 ảnh đang nạp
     const a = tuneItemMaterial(base, { ...ctx, src: '/items/dining-table/model.glb', ref: 'library:wood-finewood27' }) as MeshStandardMaterial;
     expect(a).not.toBe(base);
     expect(a.map).toBeNull();
+    expect(hasPendingTextures(a)).toBe(true);
+    const ready = vi.fn();
+    (a as unknown as EventDispatcher<{ texturesready: object }>).addEventListener('texturesready', ready);
     const tex = new Texture();
     base.map = tex;
     base.normalMap = tex;
-    vi.advanceTimersByTime(300);
+    delete base.userData.texPending;
+    (base as unknown as EventDispatcher<{ texturesready: object }>).dispatchEvent({ type: 'texturesready' });
+    await Promise.resolve();
+    await Promise.resolve();
     expect(a.map).toBe(tex);
     expect(a.normalMap).toBe(tex);
-    vi.useRealTimers();
+    expect(hasPendingTextures(a)).toBe(false);
+    expect(ready).toHaveBeenCalledOnce();
+  });
+  it('preload: gom ref thư viện trong cảnh, đợi vật liệu nạp xong', async () => {
+    const scene = { nodes: { w: { material: 'library:oak', slots: ['library:oak', 'library:metal-steel', SCENE_PALETTE.plaster] } } };
+    expect([...libraryRefsIn(scene)]).toEqual(['library:oak', 'library:metal-steel']);
+    const mats = new Map<string, MeshStandardMaterial>();
+    const create = (ref: string) => {
+      const m = new MeshStandardMaterial();
+      if (ref === 'library:oak') m.userData.texPending = 1;
+      mats.set(ref, m);
+      return ref === 'library:gone' ? null : m;
+    };
+    let done = false;
+    const p = preloadSceneTextures(scene, create, ['library:gone']).then(() => (done = true));
+    await Promise.resolve();
+    expect(done).toBe(false);
+    const oak = mats.get('library:oak')!;
+    delete oak.userData.texPending;
+    (oak as unknown as EventDispatcher<{ texturesready: object }>).dispatchEvent({ type: 'texturesready' });
+    await p;
+    expect(done).toBe(true);
   });
   it('gỗ nhân tint, gốc giữ màu', () => {
     clearItemMaterialCache();

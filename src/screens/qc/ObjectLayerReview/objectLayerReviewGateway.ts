@@ -1311,13 +1311,6 @@ export const confidentObjectsOf = (
 /** Nhãn nút (và câu nhật ký hoàn tác) của lượt duyệt món máy chắc — như "Duyệt N đoạn máy chắc chắn". */
 export const approveConfidentLabelOf = (count: number): string => `Duyệt ${formatObjectCount(count)} mục máy chắc chắn`;
 
-/**
- * Dòng gom món máy chắc chắn khi đang lọc chỗ máy chưa chắc: "8 mục máy chắc chắn — Duyệt cả 8".
- * Câu nhật ký hoàn tác vẫn dùng {@link approveConfidentLabelOf}.
- */
-export const confidentRowLabelOf = (count: number): string =>
-  `${formatObjectCount(count)} mục máy chắc chắn — Duyệt cả ${formatObjectCount(count)}`;
-
 /** "Xem từng gợi ý": dòng gợi ý kế sau dòng đang chọn (vòng lại đầu); `null` khi hết gợi ý. */
 export const nextSuggestionIdOf = (
   rows: readonly { readonly id: string; readonly isSuggested?: boolean }[],

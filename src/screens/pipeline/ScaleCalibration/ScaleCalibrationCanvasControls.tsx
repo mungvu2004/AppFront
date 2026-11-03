@@ -14,7 +14,7 @@
 import type { CSSProperties, SyntheticEvent } from 'react';
 
 import { MiniMap } from '@/components/canvas/MiniMap';
-import { ZoomCluster } from '@/components/canvas/ZoomCluster';
+import { QcZoomMenu } from '../../qc/shared/QcZoomMenu';
 import { cn } from '@/lib/utils';
 
 import type {
@@ -170,7 +170,7 @@ export function CanvasNavigation({
   return (
     <div className="contents" onPointerDown={stopAtOverlay} onPointerUp={stopAtOverlay}>
       {/* Ở màn này 100% CHÍNH LÀ vừa khung (ảnh vuông trong khung vuông), nên hai nút cùng một việc. */}
-      <ZoomCluster
+      <QcZoomMenu
         fitShortcut="F"
         onFitToScreen={onFitView}
         onResetZoom={onFitView}

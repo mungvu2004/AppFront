@@ -1,46 +1,26 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { QcAskAnchor, QcAskCard } from './QcAskCard';
-import { ASK_CARD_WIDTH, ASK_CARD_WIDTH_NARROW, askCardPlacement, askCardWidthFor, askNavOf, rectInFrame, stableAskPlacement } from './qcAsk';
+import { QcAskCard, QcQueueAskCard } from './QcAskCard';
+import { QcInspectorEmpty, QcInspectorSection } from './QcInspectorSection';
+import { askNavOf, rectInFrame } from './qcAsk';
+import { focusBoundsOf, focusFrameOf } from './qcViewMode';
 
 const FRAME = { width: 1400, height: 900 };
 
-describe('askCardPlacement (thẻ hỏi neo cạnh đối tượng)', () => {
-  it('đủ chỗ bên phải: đặt sát phải hộp chọn', () => {
-    expect(askCardPlacement({ x: 200, y: 300, width: 60, height: 40 }, FRAME).left).toBe(276);
+describe('focusFrameOf / focusBoundsOf (Từng việc)', () => {
+  it('panel chi tiết neo ngoài bản vẽ: không chừa dải nào, trả nguyên khung', () => {
+    expect(focusFrameOf(FRAME)).toEqual(FRAME);
   });
 
-  it('bên phải hết chỗ: lật sang trái', () => {
-    const place = askCardPlacement({ x: 1200, y: 300, width: 60, height: 40 }, FRAME);
-    expect(place.left).toBe(1200 - 16 - ASK_CARD_WIDTH);
+  it('đoạn ngắn: nới mỗi phía 10 % cạnh dài của tầng', () => {
+    const box = focusBoundsOf({ x: 500, y: 500, width: 10, height: 4 }, { x: 0, y: 0, width: 1000, height: 800 });
+    expect(box).toEqual({ x: 400, y: 400, width: 210, height: 204 });
   });
 
-  it('không bên nào đủ: sát mép phải, không tràn khung; đỉnh nằm trong khung', () => {
-    const place = askCardPlacement({ x: 100, y: -500, width: 300, height: 40 }, { width: 600, height: 500 });
-    expect(place.left).toBe(600 - 12 - ASK_CARD_WIDTH);
-    expect(place.top).toBe(60);
-    expect(place.maxHeight).toBeLessThanOrEqual(500 - 60 - 72);
-  });
-});
-
-describe('stableAskPlacement (U12: thẻ đứng yên giữa các mục)', () => {
-  it('mục mới không bị thẻ che: giữ đúng chỗ cũ', () => {
-    const first = stableAskPlacement(null, { x: 200, y: 300, width: 60, height: 40 }, FRAME);
-    const next = stableAskPlacement(first, { x: 150, y: 600, width: 40, height: 40 }, FRAME);
-    expect(next.left).toBe(first.left);
-    expect(next.top).toBe(first.top);
-  });
-
-  it('mục mới nằm dưới thẻ: tính chỗ mới', () => {
-    const first = stableAskPlacement(null, { x: 200, y: 300, width: 60, height: 40 }, FRAME);
-    const next = stableAskPlacement(first, { x: first.left + 20, y: 400, width: 40, height: 40 }, FRAME);
-    expect(next.left).not.toBe(first.left);
-  });
-
-  it('khung hẹp (768 px): thẻ hẹp lại', () => {
-    expect(askCardWidthFor(700)).toBe(ASK_CARD_WIDTH_NARROW);
-    expect(askCardWidthFor(1400)).toBe(ASK_CARD_WIDTH);
+  it('đoạn dài: nới mỗi phía nửa chiều dài của nó', () => {
+    const box = focusBoundsOf({ x: 100, y: 300, width: 600, height: 20 }, { x: 0, y: 0, width: 1000, height: 800 });
+    expect(box).toEqual({ x: -200, y: 0, width: 1200, height: 620 });
   });
 });
 
@@ -62,28 +42,43 @@ describe('askNavOf ("k trong N", ‹ K / › J)', () => {
 });
 
 describe('QcAskCard', () => {
-  it('đầu thẻ ghi vị trí + mã; ‹ K / › J gọi đúng hàm, tắt khi không có mục kề', () => {
+  it('đầu panel: mã + huy hiệu, dòng mờ vị trí; ‹ K / › J gọi đúng hàm, tắt khi không có mục kề', () => {
     const onNext = vi.fn();
     render(
-      <QcAskCard code="#W-004" eyebrow="Đoạn 1 trong 7 cần xem" onNext={onNext}>
+      <QcAskCard
+        badge={<span>Cần xem</span>}
+        code="#W-004"
+        display={<button type="button">Hiển thị</button>}
+        eyebrow="Đoạn 1 trong 7 cần xem"
+        footer={<button type="button">Duyệt</button>}
+        onNext={onNext}
+      >
         <div>Thanh tra</div>
       </QcAskCard>,
     );
 
-    const card = screen.getByRole('region', { name: 'Thẻ hỏi của mục đang chọn' });
-    expect(card).toHaveTextContent('Đoạn 1 trong 7 cần xem#W-004');
+    const card = screen.getByRole('region', { name: 'Chi tiết mục đang chọn' });
+    expect(card).toHaveTextContent('Hiển thị#W-004Cần xemĐoạn 1 trong 7 cần xemThanh traDuyệt');
+    expect(screen.getByText('Duyệt').closest('footer')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Mục kế tiếp' })).toHaveAttribute('aria-keyshortcuts', 'J');
     expect(screen.getByRole('button', { name: 'Mục trước' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Mục kế tiếp' }));
     expect(onNext).toHaveBeenCalledTimes(1);
   });
 
-  it('U12: không có lý do vẫn giữ khe dòng lý do, nút duyệt không nhảy', () => {
-    render(
+  it('dòng lý do chỉ có khi có lý do', () => {
+    const { rerender } = render(
       <QcAskCard eyebrow="Mục 1 trong 3 cần xem">
         <div>Thanh tra</div>
       </QcAskCard>,
     );
-    expect(screen.getByTestId('qc-ask-reason-slot')).toHaveClass('h-9');
+    expect(screen.queryByText('Ngắn hơn bề dày tường')).toBeNull();
+    rerender(
+      <QcAskCard eyebrow="Mục 1 trong 3 cần xem" reason="Ngắn hơn bề dày tường">
+        <div>Thanh tra</div>
+      </QcAskCard>,
+    );
+    expect(screen.getByText('Ngắn hơn bề dày tường')).toBeInTheDocument();
   });
 });
 
@@ -95,30 +90,66 @@ describe('rectInFrame (thẻ đứng ngoài lớp phóng)', () => {
 });
 
 describe('QcAskCard: nút đóng', () => {
-  it('có `onClose` thì hiện nút "Đóng thẻ" và bấm gọi đúng hàm', () => {
+  it('có `onClose` thì hiện nút "Bỏ chọn" (Esc) và bấm gọi đúng hàm', () => {
     const onClose = vi.fn();
     render(<QcAskCard eyebrow="Mục 1 trong 2 cần xem" onClose={onClose}>thân</QcAskCard>);
-    fireEvent.click(screen.getByRole('button', { name: 'Đóng thẻ' }));
+    expect(screen.getByRole('button', { name: 'Bỏ chọn' })).toHaveAttribute('aria-keyshortcuts', 'Escape');
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('QcAskAnchor', () => {
-  it('U20: dưới 1024 px thẻ thành tấm đáy (rộng hết khung, cao tối đa 45 %), không nổi che nửa phải', () => {
-    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
-    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(750);
-    const height = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
-    try {
-      render(
-        <QcAskAnchor rect={{ x: 100, y: 100, width: 40, height: 40 }}>
-          <div>Thẻ</div>
-        </QcAskAnchor>,
-      );
-      expect(screen.getByTestId('qc-ask-anchor')).toHaveClass('max-lg:inset-x-2!', 'max-lg:top-auto!', 'max-lg:bottom-2!', 'max-lg:w-auto!', 'max-lg:max-h-[45%]!');
-    } finally {
-      width.mockRestore();
-      height.mockRestore();
-      vi.unstubAllGlobals();
-    }
+describe('QcQueueAskCard', () => {
+  it('giữ "k trong N" và nhận thêm mã/chân', () => {
+    render(
+      <QcQueueAskCard
+        code="#W-002"
+        footer={<span>chân</span>}
+        items={[{ id: 'a', pending: true }, { id: 'b', pending: true }]}
+        onSelect={() => {}}
+        selectedId="b"
+        unit="Đoạn"
+      >
+        thân
+      </QcQueueAskCard>,
+    );
+    expect(screen.getByRole('region', { name: 'Chi tiết mục đang chọn' })).toHaveTextContent('#W-002Đoạn 2 trong 2 cần xemthânchân');
+  });
+
+  it('× "Bỏ chọn" gọi onSelect(null): API bỏ chọn chung của ba màn', () => {
+    const onSelect = vi.fn();
+    render(
+      <QcQueueAskCard items={[{ id: 'a', pending: true }]} onSelect={onSelect} selectedId="a" unit="Mục">
+        thân
+      </QcQueueAskCard>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('QcInspectorEmpty / QcInspectorSection', () => {
+  it('chưa chọn: tiêu đề là tên vùng, có gợi ý và mục', () => {
+    render(
+      <QcInspectorEmpty hint="Chọn một đoạn tường để duyệt." title="Tầng này">
+        <QcInspectorSection title="Chú giải">dòng</QcInspectorSection>
+      </QcInspectorEmpty>,
+    );
+    expect(screen.getByRole('region', { name: 'Tầng này' })).toHaveTextContent('Tầng nàyChọn một đoạn tường để duyệt.Chú giảidòng');
+  });
+
+  it('mục gập được: defaultOpen=false thì thân ẩn tới khi bấm tiêu đề; action ở cuối dòng tiêu đề', () => {
+    render(
+      <QcInspectorSection action={<button type="button">Thêm</button>} collapsible defaultOpen={false} title="Thông số nâng cao">
+        <div>thân mục</div>
+      </QcInspectorSection>,
+    );
+    const toggle = screen.getByRole('button', { name: 'Thông số nâng cao' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('thân mục')).toBeNull();
+    fireEvent.click(toggle);
+    expect(screen.getByText('thân mục')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Thêm' })).toBeInTheDocument();
   });
 });

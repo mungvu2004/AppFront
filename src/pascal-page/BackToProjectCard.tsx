@@ -4,6 +4,7 @@
  * của upstream `viewer-toolbar.tsx`.
  */
 import { ArrowLeft, ArrowRight, ChevronDown, Eye, PencilRuler, TriangleAlert, WifiOff, X } from 'lucide-react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ROUTES } from '@/routes/paths';
@@ -79,62 +80,124 @@ function BackLink({ href, projectName }: Omit<BackToProjectCardProps, 'save'>) {
 
 const CARD = 'h-8 shrink-0 items-center rounded-xl border border-[var(--pa-border)] bg-[var(--pa-surface)] text-[13px] text-[var(--pa-text)] shadow-[var(--pa-shadow-float)]';
 /** Như `CARD` nhưng màu viền/chữ theo trạng thái — hai lớp màu cùng loại thì Tailwind không chắc lớp nào thắng. */
-const STATUS_CARD = 'h-8 shrink-[0.01] whitespace-nowrap items-center rounded-xl border bg-[var(--pa-surface)] text-[13px] shadow-[var(--pa-shadow-float)]';
+const STATUS_CARD = 'h-8 shrink-0 items-center rounded-xl border bg-[var(--pa-surface)] text-[13px] shadow-[var(--pa-shadow-float)]';
 /**
- * FE3D-FIX-004 V10: thông báo nổi (toast) góc phải dưới thanh trên, cổng ra `body` nên không chiếm
- * chỗ trong thanh và đè được canvas (thanh nằm trong khối `clipPath` của vendor).
+ * FE3D-FIX-004 V10: thông báo nổi (toast) cổng ra `body` nên không chiếm chỗ trong thanh và đè được
+ * canvas (thanh nằm trong khối `clipPath` của vendor). Giữa, ngay DƯỚI thanh trên (dưới nút "?"): góc
+ * phải dưới đè hàng "Tỉ lệ chung" của bảng đồ vật bên phải, giữa dưới đè thẻ kích thước (`HomeownerCard`)
+ * và dock. Lớp z dưới menu thả xuống (`z-50`) — toast không che menu đang mở. Lỗi lưu ở trên, câu báo ở dưới.
  */
-/** Chồng thông báo nổi góc phải: lỗi lưu ở trên, câu "Chưa lưu được" ở dưới — hai cái không đè nhau. */
-const TOAST_STACK = 'fixed top-14 right-3 z-[100] flex flex-col items-end gap-2';
+const TOAST_STACK = 'fixed top-24 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-2';
 const TOAST =
   'inline-flex min-h-10 max-w-[min(28rem,calc(100vw-2rem))] items-center gap-3 rounded-xl border bg-[var(--pa-surface)] px-4 py-2 text-[14px] leading-[22px] shadow-[var(--pa-shadow-overlay)]';
 const ALERT_TONE = 'border-[var(--pa-danger)] text-[var(--pa-danger)]';
+const INFO_TONE = 'border-[var(--pa-border)] text-[var(--pa-text)]';
 const SAVING_TEXT = 'Đang lưu…';
-/** Chữ của chip trên thanh khi lưu hỏng; câu đầy đủ nằm ở toast. */
+/** Chữ của chip khi lưu hỏng; câu đầy đủ nằm ở toast. */
 const UNSAVED_CHIP = 'Chưa lưu';
 /** K5: chip có ngay từ lúc mở, trước lượt lưu đầu. */
 export const AUTOSAVE_CHIP = 'Tự động lưu';
 /** K5/A2-06: mất mạng không gộp vào "Đang lưu…". */
 export const OFFLINE_CHIP = 'Mất mạng — chưa gửi được';
 const BUTTON_LINK = `${FOCUS_OUT} inline-flex min-h-8 shrink-0 items-center rounded-lg px-2 font-medium text-[var(--pa-accent)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-accent-hover)]`;
+const CLOSE_BUTTON = `${FOCUS_OUT} flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)]`;
+/** Toast tự gỡ: câu báo sau 6 s, câu lỗi sau 8 s. */
+export const INFO_TOAST_MS = 6000;
+export const ALERT_TOAST_MS = 8000;
 
 /**
- * Chip lưu của tầng: đang lưu / đã lưu lúc … / lưu thất bại / bị khối kèm "Tải lại tầng" (v3 BE.md
- * major 1), và câu "Chưa lưu được: …" cho phần sửa máy chủ chưa nhận (major 2).
+ * Một toast. Có `autoHideMs` thì tự gỡ sau chừng ấy; rê chuột vào / có tiêu điểm thì dừng, ra thì
+ * đếm lại từ đầu (đang đọc thì không biến mất). Esc đóng. Vắng `autoHideMs` = giữ tới khi việc được
+ * làm (toast có nút hành động: "Tải lại tầng", "Đăng nhập lại").
+ */
+function Toast({
+  alert,
+  autoHideMs,
+  children,
+  onClose,
+}: {
+  readonly alert: boolean;
+  readonly autoHideMs?: number;
+  readonly children: ReactNode;
+  readonly onClose?: () => void;
+}) {
+  const [paused, setPaused] = useState(false);
+  // Hàm đóng đổi danh tính mỗi lượt vẽ của cầu: giữ trong ref để đồng hồ không đếm lại.
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
+
+  useEffect(() => {
+    if (paused || autoHideMs === undefined) return undefined;
+    const timer = setTimeout(() => close.current?.(), autoHideMs);
+    return () => clearTimeout(timer);
+  }, [autoHideMs, paused]);
+
+  return (
+    <div
+      className={`${TOAST} ${alert ? ALERT_TONE : INFO_TONE}`}
+      onBlur={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && onClose !== undefined) onClose();
+      }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      role={alert ? 'alert' : 'status'}
+    >
+      <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${alert ? 'bg-[var(--pa-danger)]' : 'bg-[var(--pa-ok)]'}`} />
+      {children}
+      {onClose !== undefined && (
+        <button aria-label="Đóng thông báo" className={CLOSE_BUTTON} onClick={onClose} type="button">
+          <X aria-hidden="true" className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Chip lưu của tầng (v3 BE.md major 1): MỘT chấm màu — xanh đã lưu, vàng đang lưu, đỏ chưa lưu; mất
+ * mạng là biểu tượng wifi gạch. Câu đầy đủ ("Đã lưu lúc 10:02"…) ở chú thích khi rê chuột và cho trình
+ * đọc màn hình; thanh trên chật nên không in chữ.
  *
- * Lưu hỏng (B3-09): thanh trên chật nên chip co còn "● Tầ" — chip chỉ ghi "Chưa lưu" (không co), câu
- * đầy đủ và nút "Tải lại tầng" lên toast cổng ra `body`, không bị khối `clipPath` của vendor cắt.
+ * Lưu hỏng (B3-09): câu đầy đủ lên toast cổng ra `body`. Bị khối / phiên hết có nút hành động nên toast
+ * giữ tới khi xử lý; lưu hỏng thường tự gỡ. Câu báo của lượt sửa (`notices`) mỗi câu một toast riêng.
  */
 export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
   const alert = save.state === 'blocked' || save.state === 'failed' || save.state === 'session';
+  const sticky = save.state === 'blocked' || save.state === 'session';
   const offline = save.state === 'offline';
   const alertText =
     save.state === 'blocked' || save.state === 'session' ? (save.blockMessage ?? 'Tầng này chưa lưu được.') : (save.label ?? 'Lưu thất bại');
   const text = alert ? UNSAVED_CHIP : offline ? OFFLINE_CHIP : save.state === 'saving' ? SAVING_TEXT : (save.label ?? AUTOSAVE_CHIP);
   const dot = alert ? 'bg-[var(--pa-danger)]' : offline || save.state === 'saving' ? 'bg-[var(--pa-warn)]' : 'bg-[var(--pa-ok)]';
+  // Lưu hỏng thường (không nút hành động) tự gỡ như câu lỗi; lần hỏng sau với câu khác thì hiện lại.
+  const [hiddenFailure, setHiddenFailure] = useState<string | null>(null);
+  const showAlert = alert && (sticky || hiddenFailure !== alertText);
+  const notices = save.notices;
 
   return (
     <>
       <div
         aria-live="polite"
-        className={`${STATUS_CARD} inline-flex min-w-12 max-w-96 gap-2 px-2.5 font-medium @max-[1100px]/appbar:max-w-48 ${alert ? `shrink-0 ${ALERT_TONE}` : offline ? 'shrink-0 border-[var(--pa-warn)] text-[var(--pa-text)]' : 'border-[var(--pa-border)] text-[var(--pa-text)]'}`}
+        className={`${STATUS_CARD} inline-flex w-8 justify-center ${alert ? ALERT_TONE : offline ? 'border-[var(--pa-warn)] text-[var(--pa-text)]' : INFO_TONE}`}
         role="status"
+        title={alert ? alertText : text}
       >
         {offline ? (
           <WifiOff aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-warn)]" />
         ) : (
-          <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
+          <span aria-hidden="true" className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
         )}
-        <span className="truncate" title={alert ? alertText : text}>
-          {text}
-        </span>
+        <span className="sr-only">{text}</span>
       </div>
-      {(alert || save.notice !== null) &&
+      {(showAlert || notices.length > 0) &&
         createPortal(
           <div className={TOAST_STACK} data-appfront-toast="">
-            {alert && (
-              <div className={`${TOAST} ${ALERT_TONE}`} role="alert">
-                <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--pa-danger)]" />
+            {showAlert && (
+              <Toast alert {...(sticky ? {} : { autoHideMs: ALERT_TOAST_MS, onClose: () => setHiddenFailure(alertText) })}>
                 <span>{alertText}</span>
                 {save.state === 'blocked' && (
                   <button className={BUTTON_LINK} onClick={save.onReloadFloor} type="button">
@@ -146,21 +209,19 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
                     Đăng nhập lại
                   </a>
                 )}
-              </div>
+              </Toast>
             )}
-            {save.notice !== null && (
-              <div
-                className={`${TOAST} ${save.noticeTone === 'alert' ? ALERT_TONE : 'border-[var(--pa-border)] text-[var(--pa-text)]'}`}
-                role={save.noticeTone === 'alert' ? 'alert' : 'status'}
+            {notices.map((notice) => (
+              <Toast
+                alert={notice.tone === 'alert'}
+                autoHideMs={notice.tone === 'alert' ? ALERT_TOAST_MS : INFO_TOAST_MS}
+                key={notice.id}
+                onClose={() => save.dismissNotice(notice.id)}
               >
-                <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${save.noticeTone === 'alert' ? 'bg-[var(--pa-danger)]' : 'bg-[var(--pa-ok)]'}`} />
-                {/* C1/F-01: câu đủ chữ (xuống dòng, không cắt), giữ tới khi người dùng đóng. */}
-                <span className="min-w-0 break-words">{save.notice}</span>
-                <button aria-label="Đóng thông báo" className={`${FOCUS_OUT} flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)]`} onClick={save.dismissNotice} type="button">
-                  <X aria-hidden="true" className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
+                {/* C1/F-01: câu đủ chữ (xuống dòng, không cắt). */}
+                <span className="min-w-0 break-words">{notice.text}</span>
+              </Toast>
+            ))}
           </div>,
           document.body,
         )}

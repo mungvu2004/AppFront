@@ -1,5 +1,8 @@
 /**
- * Panel phải (344px) — thanh tra phòng đang chọn, màn Duyệt tên phòng.
+ * Panel phải neo (bố cục hai panel, `docs/figma-layout-spec.md`) của phòng đang chọn, màn Duyệt tên phòng:
+ * `QcQueueAskCard` (mã + huy hiệu + ‹ K › J ×), các mục "Tên phòng", "Diện tích", "Độ tin cậy",
+ * "Thông số nâng cao" (gập), chân ghim Duyệt/Gộp. Một component giữ cả thân lẫn chân vì nút duyệt
+ * đọc tên đang gõ dở (UX-24). Chưa chọn phòng → `QcInspectorEmpty` ở `RoomLabelReview`.
  *
  * View THUẦN (R-60): nhận đúng {@link RoomLabelInspectorProps} của hợp đồng
  * L1 cộng {@link RoomLabelInspectorExtras}, và chỉ hiển thị. Mọi chuỗi số tới
@@ -41,6 +44,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 
+import { QcQueueAskCard, type QcQueueAskCardProps } from '../shared/QcAskCard';
+import { QcInspectorSection } from '../shared/QcInspectorSection';
+
 import { RoomLabelMergeDialog, RoomLabelSplitDialog } from './RoomLabelActionDialogs';
 import {
   RoomLabelConfidenceBlock,
@@ -77,13 +83,21 @@ export type RoomLabelInspectorExtras = Pick<
 >;
 
 export interface RoomLabelInspectorViewProps {
-  readonly inspector: RoomLabelInspectorProps;
+  readonly inspector: RoomLabelInspectorProps & { readonly room: RoomLabelViewModel };
   readonly extras: RoomLabelInspectorExtras;
+  /** Hàng đợi + lý do của đầu panel (`QcQueueAskCard`). */
+  readonly card: Pick<
+    QcQueueAskCardProps<RoomLabelViewModel['id']>,
+    'items' | 'onSelect' | 'reason'
+  >;
 }
 
-const PANEL_TITLE = 'Phòng';
+const NAME_SECTION = 'Tên phòng';
+const AREA_SECTION = 'Diện tích';
+const CONFIDENCE_SECTION = 'Độ tin cậy';
+const ADVANCED_SECTION = 'Thông số nâng cao';
 const USAGE_LABEL = 'Công năng';
-const EMPTY_MESSAGE = 'Chọn một phòng để xem chi tiết.';
+const PENDING_BADGE = 'Cần xem';
 const APPROVE_PREFIX = 'Duyệt';
 const APPROVED_BADGE = 'Đã duyệt';
 const MERGE_LABEL = 'Gộp phòng';
@@ -93,32 +107,40 @@ const SPLIT_LABEL = 'Tách phòng';
  * đúng đường, và nút ngay dưới đi tới đó — cũng là lối ra cho toast "Chưa gộp được… Sang lớp tường…"
  * (BUG-605).
  */
-const SPLIT_MISSING_POINT = 'Muốn tách phòng, sang lớp tường vẽ một đoạn tường chia phòng rồi quay lại.';
+const SPLIT_MISSING_POINT =
+  'Muốn tách phòng, sang lớp tường vẽ một đoạn tường chia phòng rồi quay lại.';
 const NAVIGATE_WALLS_LABEL = 'Sang lớp tường';
 /* Duyệt một phòng chưa tên không đổi được trạng thái của nó — nói ra, không im lặng (BUG-602). */
 const APPROVE_NEEDS_NAME = 'Đặt tên phòng trước khi duyệt.';
 const APPROVE_HINT_ID = 'room-label-approve-hint';
 const VIEWER_BADGE_LABEL = 'Chỉ xem';
 /* K10: đường bao tràn ra ngoài nhà thì duyệt là sai — việc chính là sửa tường cho phòng khép đúng. */
-const OUTLINE_SPILL_NOTICE = 'Đường bao tràn ra ngoài tường bao. Sửa tường ở lớp tường để máy dò lại phòng, rồi mới duyệt.';
+const OUTLINE_SPILL_NOTICE =
+  'Đường bao tràn ra ngoài tường bao. Sửa tường ở lớp tường để máy dò lại phòng, rồi mới duyệt.';
 const FIX_OUTLINE_LABEL = 'Sửa đường bao';
 const OUTLINE_SPILL_HINT_ID = 'room-label-outline-spill-hint';
 const OPEN_SCALE_LABEL = 'Đặt tỷ lệ';
 
-export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorViewProps) {
+export function RoomLabelInspector({ inspector, extras, card }: RoomLabelInspectorViewProps) {
   const { room, isViewerRole, onRename, onChangeUsage, onMerge, onSplit, onApprove } = inspector;
   const [isMergeOpen, setMergeOpen] = useState(false);
   const [isSplitOpen, setSplitOpen] = useState(false);
   const [mergeCandidateId, setMergeCandidateId] = useState<RoomLabelViewModel['id'] | null>(null);
-  const spills = room?.outlineSpills === true;
+  const spills = room.outlineSpills === true;
   /* Chặn duyệt khi chưa tên hoặc đường bao tràn (K10) — cùng điều kiện với `onApprove` của hook. */
   /* UX-24: tên đang gõ dở của phòng chưa tên — có chữ là duyệt được (đổi tên trước, duyệt ngay sau). */
-  const [draft, setDraft] = useState<{ readonly roomId: RoomLabelViewModel['id']; readonly name: string } | null>(null);
-  const lastCommitRef = useRef<{ readonly roomId: RoomLabelViewModel['id']; readonly name: string } | null>(null);
+  const [draft, setDraft] = useState<{
+    readonly roomId: RoomLabelViewModel['id'];
+    readonly name: string;
+  } | null>(null);
+  const lastCommitRef = useRef<{
+    readonly roomId: RoomLabelViewModel['id'];
+    readonly name: string;
+  } | null>(null);
   const pendingApproveRef = useRef<RoomLabelViewModel['id'] | null>(null);
-  const draftName = room !== null && draft?.roomId === room.id ? draft.name.trim() : '';
-  const canApproveTyped = room?.status === 'unnamed' && draftName !== '' && !spills;
-  const canApprove = (room?.status === 'suggested' && !spills) || canApproveTyped;
+  const draftName = draft?.roomId === room.id ? draft.name.trim() : '';
+  const canApproveTyped = room.status === 'unnamed' && draftName !== '' && !spills;
+  const canApprove = (room.status === 'suggested' && !spills) || canApproveTyped;
 
   /* Đổi tên xong (phòng thành "chờ duyệt") thì duyệt luôn — một cú bấm cho người vừa gõ tên. */
   useEffect(() => {
@@ -126,7 +148,7 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
       return;
     }
 
-    if (room === null || room.id !== pendingApproveRef.current) {
+    if (room.id !== pendingApproveRef.current) {
       pendingApproveRef.current = null;
 
       return;
@@ -159,30 +181,97 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
 
     pendingApproveRef.current = roomId;
   };
-  const approveHintId =
-    canApproveTyped ? undefined : room?.status === 'unnamed' ? APPROVE_HINT_ID : room?.status === 'suggested' && spills ? OUTLINE_SPILL_HINT_ID : undefined;
+  const approveHintId = canApproveTyped
+    ? undefined
+    : room.status === 'unnamed'
+      ? APPROVE_HINT_ID
+      : room.status === 'suggested' && spills
+        ? OUTLINE_SPILL_HINT_ID
+        : undefined;
 
-  return (
-    /* `h-full` cả ở 1024 (ngăn kéo có chiều cao chặn): khối nút ghim đáy luôn thấy (Z/S-20). */
-    <div className="flex h-full w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:h-auto">
-      <div className="flex h-14 shrink-0 items-center gap-2 px-5">
-        <h2 className="text-[13px] font-medium text-text-secondary">{PANEL_TITLE}</h2>
-        {room === null ? null : (
-          <>
-            {/* Chữ hoa trong mã phòng là ngoại lệ được phép của A6. */}
-            <span className="text-heading tabular-nums text-text-primary">{room.codeLabel}</span>
-            {room.status === 'confirmed' && <Badge variant="verified">{APPROVED_BADGE}</Badge>}
-          </>
-        )}
-      </div>
-
-      {room === null ? (
-        // `pb-5` như khối có phòng: câu không sát đáy thẻ (BUG-329).
-        <p className="px-5 pb-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
+  const badge =
+    room.status === 'confirmed' ? (
+      <Badge variant="verified">{APPROVED_BADGE}</Badge>
+    ) : (
+      <Badge variant="attention">{PENDING_BADGE}</Badge>
+    );
+  const footer = (
+    /* Chân ghim NGOÀI vùng cuộn (`QcAskCard.footer`): nút duyệt luôn thấy ở 1024×768. */
+    <div className="flex flex-col gap-2">
+      {extras.scaleLock != null ? (
+        /* Tầng thiếu tỷ lệ: nút chính là lối sang bước Tỷ lệ, kèm lý do (UX-R1 r3). */
+        <>
+          <p className="text-[13px] text-state-violation-text">{extras.scaleLock.reason}</p>
+          {extras.scaleLock.onOpenScale === null ? null : (
+            <Button fullWidth onClick={extras.scaleLock.onOpenScale} variant="primary">
+              {OPEN_SCALE_LABEL}
+            </Button>
+          )}
+        </>
+      ) : isViewerRole ? (
+        /* Câu đầy đủ đã ở băng cảnh báo đầu cột trái — ở đây chỉ một nhãn, không lặp đoạn văn (BUG-636). */
+        extras.viewerRoleNotice !== null && (
+          <Badge className="self-start" variant="neutral">
+            {VIEWER_BADGE_LABEL}
+          </Badge>
+        )
       ) : (
         <>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5">
+          {spills && (
+            <Button fullWidth onClick={() => extras.onNavigateToWalls()} variant="primary">
+              {FIX_OUTLINE_LABEL}
+            </Button>
+          )}
+          <Button
+            aria-describedby={approveHintId}
+            aria-keyshortcuts="A"
+            disabled={!canApprove}
+            fullWidth
+            onClick={() => approve(room.id)}
+            {...(room.status === 'suggested' && !spills ? { shortcut: 'A' } : {})}
+            variant={room.status === 'confirmed' || spills ? 'secondary' : 'primary'}
+          >
+            {room.status === 'confirmed' ? APPROVED_BADGE : `${APPROVE_PREFIX} ${room.codeLabel}`}
+          </Button>
+          {room.status === 'unnamed' && !canApproveTyped && (
+            <p className="text-[13px] text-text-secondary" id={APPROVE_HINT_ID}>
+              {APPROVE_NEEDS_NAME}
+            </p>
+          )}
+          {room.status === 'suggested' && spills && (
+            <p className="text-[13px] text-state-attention-text" id={OUTLINE_SPILL_HINT_ID}>
+              {OUTLINE_SPILL_NOTICE}
+            </p>
+          )}
+          <Button
+            fullWidth
+            onClick={() => {
+              /* Mỗi lần hỏi là một câu hỏi mới (A9): lựa chọn của lần trước —
+                       có khi của một phòng khác — không được chọn sẵn (B-V7-03). */
+              setMergeCandidateId(null);
+              setMergeOpen(true);
+            }}
+            variant="secondary"
+          >
+            {MERGE_LABEL}
+          </Button>
+        </>
+      )}
+    </div>
+  );
 
+  return (
+    /* Chữ hoa trong mã phòng là ngoại lệ được phép của A6. */
+    <QcQueueAskCard
+      {...card}
+      badge={badge}
+      code={room.codeLabel}
+      footer={footer}
+      selectedId={room.id}
+      unit="Phòng"
+    >
+      <QcInspectorSection title={NAME_SECTION}>
+        <div className="flex flex-col gap-3">
           <RoomLabelNameField
             isReadOnly={isViewerRole}
             key={room.id}
@@ -192,146 +281,91 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
             onDraftChange={(name) => setDraft({ roomId: room.id, name })}
             suggestions={extras.nameSuggestions}
           />
-
           <Select
             isReadOnly={isViewerRole}
             label={USAGE_LABEL}
             onChange={(value) => onChangeUsage(room.id, value as RoomLabelViewModel['usage'])}
-            options={extras.usageOptions.map((option) => ({ label: option.label, value: option.value }))}
+            options={extras.usageOptions.map((option) => ({
+              label: option.label,
+              value: option.value,
+            }))}
             value={room.usage}
           />
+        </div>
+      </QcInspectorSection>
 
-          <RoomLabelMeasureRows
-            areaCaption={extras.areaCaption}
-            areaText={room.areaText}
-            centerlineAreaText={room.centerlineAreaText}
-            clearHeightText={room.clearHeightText}
-            perimeterText={room.perimeterText}
-          />
+      <QcInspectorSection title={AREA_SECTION}>
+        <RoomLabelMeasureRows
+          areaCaption={extras.areaCaption}
+          areaText={room.areaText}
+          centerlineAreaText={room.centerlineAreaText}
+          clearHeightText={room.clearHeightText}
+          perimeterText={room.perimeterText}
+        />
+      </QcInspectorSection>
 
+      <QcInspectorSection title={CONFIDENCE_SECTION}>
+        <div className="flex flex-col gap-3">
           <RoomLabelConfidenceBlock
             confidence={room.confidence}
             confidenceLabel={room.confidenceLabel}
             crop={room.crop}
             nameFromOcr={room.nameFromOcr}
           />
-
           <RoomLabelNoticeList notices={room.notices} />
-
-          {/* Tách và sang lớp tường: việc hiếm, ở cuối vùng cuộn — khối ghim đáy chỉ giữ việc lặp lại. */}
-          {isViewerRole ? null : (
-            <div className="flex flex-col gap-2 border-t border-border-default pt-3">
-              {extras.splitPointMm === null ? (
-                <p className="text-[13px] text-text-secondary">{SPLIT_MISSING_POINT}</p>
-              ) : (
-                <Button fullWidth onClick={() => setSplitOpen(true)} variant="secondary">
-                  {SPLIT_LABEL}
-                </Button>
-              )}
-              <Button fullWidth onClick={() => extras.onNavigateToWalls()} size="sm" variant="ghost">
-                {NAVIGATE_WALLS_LABEL}
-              </Button>
-            </div>
-          )}
         </div>
+      </QcInspectorSection>
 
-          {/* Khối nút NGOÀI vùng cuộn, ghim đáy panel: nút duyệt luôn thấy ở 1024×768. */}
-          <div className="flex shrink-0 flex-col gap-2 border-t border-border-default px-5 py-3">
-            {extras.scaleLock != null ? (
-              /* Tầng thiếu tỷ lệ: nút chính là lối sang bước Tỷ lệ, kèm lý do (UX-R1 r3). */
-              <>
-                <p className="text-[13px] text-state-violation-text">{extras.scaleLock.reason}</p>
-                {extras.scaleLock.onOpenScale === null ? null : (
-                  <Button fullWidth onClick={extras.scaleLock.onOpenScale} variant="primary">
-                    {OPEN_SCALE_LABEL}
-                  </Button>
-                )}
-              </>
-            ) : isViewerRole ? (
-              /* Câu đầy đủ đã ở băng cảnh báo đầu cột trái — ở đây chỉ một nhãn, không lặp đoạn văn (BUG-636). */
-              extras.viewerRoleNotice !== null && (
-                <Badge className="self-start" variant="neutral">
-                  {VIEWER_BADGE_LABEL}
-                </Badge>
-              )
+      {/* Tách và sang lớp tường: việc hiếm, gập ở cuối — chân ghim chỉ giữ việc lặp lại. */}
+      {isViewerRole ? null : (
+        <QcInspectorSection collapsible defaultOpen={false} title={ADVANCED_SECTION}>
+          <div className="flex flex-col gap-2">
+            {extras.splitPointMm === null ? (
+              <p className="text-[13px] text-text-secondary">{SPLIT_MISSING_POINT}</p>
             ) : (
-              <>
-                {spills && (
-                  <Button fullWidth onClick={() => extras.onNavigateToWalls()} variant="primary">
-                    {FIX_OUTLINE_LABEL}
-                  </Button>
-                )}
-                <Button
-                  aria-describedby={approveHintId}
-                  aria-keyshortcuts="A"
-                  disabled={!canApprove}
-                  fullWidth
-                  onClick={() => approve(room.id)}
-                  {...(room.status === 'suggested' && !spills ? { shortcut: 'A' } : {})}
-                  variant={room.status === 'confirmed' || spills ? 'secondary' : 'primary'}
-                >
-                  {room.status === 'confirmed' ? APPROVED_BADGE : `${APPROVE_PREFIX} ${room.codeLabel}`}
-                </Button>
-                {room.status === 'unnamed' && !canApproveTyped && (
-                  <p className="text-[13px] text-text-secondary" id={APPROVE_HINT_ID}>
-                    {APPROVE_NEEDS_NAME}
-                  </p>
-                )}
-                {room.status === 'suggested' && spills && (
-                  <p className="text-[13px] text-state-attention-text" id={OUTLINE_SPILL_HINT_ID}>
-                    {OUTLINE_SPILL_NOTICE}
-                  </p>
-                )}
-                <Button
-                  fullWidth
-                  onClick={() => {
-                    /* Mỗi lần hỏi là một câu hỏi mới (A9): lựa chọn của lần trước —
-                       có khi của một phòng khác — không được chọn sẵn (B-V7-03). */
-                    setMergeCandidateId(null);
-                    setMergeOpen(true);
-                  }}
-                  variant="secondary"
-                >
-                  {MERGE_LABEL}
-                </Button>
-              </>
+              <Button fullWidth onClick={() => setSplitOpen(true)} variant="secondary">
+                {SPLIT_LABEL}
+              </Button>
             )}
+            <Button fullWidth onClick={() => extras.onNavigateToWalls()} size="sm" variant="ghost">
+              {NAVIGATE_WALLS_LABEL}
+            </Button>
           </div>
-
-          <RoomLabelMergeDialog
-            candidates={extras.mergeCandidates}
-            isOpen={isMergeOpen}
-            onCancel={() => setMergeOpen(false)}
-            onConfirm={() => {
-              if (mergeCandidateId === null) {
-                return;
-              }
-
-              setMergeOpen(false);
-              onMerge(room.id, mergeCandidateId);
-            }}
-            onSelectCandidate={setMergeCandidateId}
-            roomCodeLabel={room.codeLabel}
-            selectedCandidateId={mergeCandidateId}
-          />
-
-          <RoomLabelSplitDialog
-            isOpen={isSplitOpen}
-            onCancel={() => setSplitOpen(false)}
-            onConfirm={() => {
-              const at = extras.splitPointMm;
-
-              if (at === null) {
-                return;
-              }
-
-              setSplitOpen(false);
-              onSplit(room.id, at);
-            }}
-            roomCodeLabel={room.codeLabel}
-          />
-        </>
+        </QcInspectorSection>
       )}
-    </div>
+
+      <RoomLabelMergeDialog
+        candidates={extras.mergeCandidates}
+        isOpen={isMergeOpen}
+        onCancel={() => setMergeOpen(false)}
+        onConfirm={() => {
+          if (mergeCandidateId === null) {
+            return;
+          }
+
+          setMergeOpen(false);
+          onMerge(room.id, mergeCandidateId);
+        }}
+        onSelectCandidate={setMergeCandidateId}
+        roomCodeLabel={room.codeLabel}
+        selectedCandidateId={mergeCandidateId}
+      />
+
+      <RoomLabelSplitDialog
+        isOpen={isSplitOpen}
+        onCancel={() => setSplitOpen(false)}
+        onConfirm={() => {
+          const at = extras.splitPointMm;
+
+          if (at === null) {
+            return;
+          }
+
+          setSplitOpen(false);
+          onSplit(room.id, at);
+        }}
+        roomCodeLabel={room.codeLabel}
+      />
+    </QcQueueAskCard>
   );
 }

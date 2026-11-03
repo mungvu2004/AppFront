@@ -7,9 +7,10 @@
  * Cờ `flags.materials` tắt, textures=false (clay), kính thư viện → trả nguyên vật liệu.
  */
 import { Color, LinearSRGBColorSpace, MeshPhysicalMaterial, MeshStandardMaterial, SRGBColorSpace } from 'three';
-import type { Material, Texture } from 'three';
+import type { EventDispatcher, Material, Texture } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import { AUTO, autoPatch, folderOf, itemKindOf, KIND_LOOK, nameKind, tunedRoughness, type KindLook } from './itemLook';
+import { hasPendingTextures, whenTexturesReady } from './texturePreload';
 import { useRealism } from './store';
 import { tagUpholstery } from './upholstery';
 
@@ -65,7 +66,7 @@ function withSheen(m: TunableMaterial, look: KindLook): TunableMaterial {
   return phys as unknown as TunableMaterial;
 }
 
-function copyDonorMaps(target: TunableMaterial, donor: TunableMaterial): boolean {
+function copyDonorMaps(target: TunableMaterial, donor: TunableMaterial): void {
   let changed = false;
   if (!target.normalMap && donor.normalMap) {
     target.normalMap = donor.normalMap;
@@ -79,11 +80,10 @@ function copyDonorMaps(target: TunableMaterial, donor: TunableMaterial): boolean
     sharpen(target);
     target.needsUpdate = true;
   }
-  return Boolean(donor.normalMap && donor.roughnessMap);
 }
 
-/** Chép ảnh gốc còn thiếu sang bản clone; trả true khi gốc đã có `map` (nạp xong). */
-function copySourceMaps(target: TunableMaterial, source: TunableMaterial): boolean {
+/** Chép ảnh gốc còn thiếu sang bản clone. */
+function copySourceMaps(target: TunableMaterial, source: TunableMaterial): void {
   let changed = false;
   for (const key of SOURCE_MAPS) {
     if (!target[key] && source[key]) {
@@ -95,7 +95,6 @@ function copySourceMaps(target: TunableMaterial, source: TunableMaterial): boole
     sharpen(target);
     target.needsUpdate = true;
   }
-  return Boolean(source.map);
 }
 
 /** Ảnh không anisotropy → mờ ở góc xiên (sàn/mặt bàn nhìn chếch). Texture dùng chung → sửa một lần. */
@@ -108,16 +107,28 @@ function sharpen(m: TunableMaterial): void {
   }
 }
 
-/** Nhịp thử lại: 40 lần × 250 ms ≈ 10 s (thời gian chờ, không phải chuyển động). */
-const RETRY_EVERY_MS = 250;
-
-/** Map của vật liệu thư viện gán bất đồng bộ → thử lại vài giây (tối đa 10 s). */
-function retry(step: () => boolean): void {
-  if (step()) return;
-  let tries = 0;
-  const id = setInterval(() => {
-    if (step() || ++tries > 40) clearInterval(id);
-  }, RETRY_EVERY_MS);
+/**
+ * Map của vật liệu thư viện gán bất đồng bộ (vendor materials.ts gán một lượt, phát `texturesready`).
+ * Gốc còn chờ → bản clone mang `userData.texPending` (warm-up bỏ qua) tới khi chép xong, rồi tự phát
+ * `texturesready` như gốc. Gốc đã xong → chép ngay.
+ */
+function follow(target: TunableMaterial, source: Material, copy: () => void): void {
+  if (!hasPendingTextures(source)) {
+    copy();
+    return;
+  }
+  const ud = target.userData;
+  ud.texPending = ((ud.texPending as number | undefined) ?? 0) + 1;
+  void whenTexturesReady(source).then(() => {
+    copy();
+    const left = (target.userData.texPending as number) - 1;
+    if (left > 0) {
+      target.userData.texPending = left;
+      return;
+    }
+    delete target.userData.texPending;
+    (target as unknown as EventDispatcher<{ texturesready: object }>).dispatchEvent({ type: 'texturesready' });
+  });
 }
 
 export function tuneItemMaterial(mat: Material, ctx: TuneContext): Material {
@@ -147,8 +158,10 @@ export function tuneItemMaterial(mat: Material, ctx: TuneContext): Material {
 
   const clone = mat.clone() as TunableMaterial;
   const next = look ? withSheen(clone, look) : clone;
+  // clone() chép cả userData (đếm của gốc); `follow` đếm lại cho riêng bản này.
+  delete next.userData.texPending;
   // Clone lúc gốc chưa nạp ảnh thì mất ảnh mãi (đồ gỗ ra trắng) → theo gốc tới khi có map.
-  retry(() => copySourceMaps(next, m));
+  follow(next, m, () => copySourceMaps(next, m));
   next.name = `${mat.name}|${look ? kind : 'auto'}`;
   // Loại không tự đặt kim loại/nhám → luật chung.
   if (patch.metalness != null && look?.metalness == null) next.metalness = patch.metalness;
@@ -180,7 +193,7 @@ export function tuneItemMaterial(mat: Material, ctx: TuneContext): Material {
   // Loại đoán theo tên không lấy normal donor: UV lạ → vải lấm tấm (giường review2).
   if (tableKind && look.donor && ctx.donor && (!next.normalMap || !next.roughnessMap)) {
     const donor = ctx.donor(look.donor) as TunableMaterial | null;
-    if (donor) retry(() => copyDonorMaps(next, donor));
+    if (donor) follow(next, donor, () => copyDonorMaps(next, donor));
   }
   next.needsUpdate = true;
   cache.set(key, next);

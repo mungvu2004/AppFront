@@ -7,7 +7,7 @@
  * Cấm gọi `color=` tự do ngoài file này.
  */
 
-import { confidenceLevel } from '@/lib/format/semantic';
+import { confidenceLevel, type ConfidenceLevel } from '@/lib/format/semantic';
 import type { MaybeNumber } from '@/lib/format/number';
 
 import type { WallThickness } from '../../types/spatial';
@@ -133,6 +133,13 @@ export function selectionFillToken(): string {
   return 'var(--accent-wash)';
 }
 
+/**
+ * Viền tách 1 px màu nền canvas quanh viền chọn (bốn bóng sắc, không nhoè): viền `--accent` không
+ * bao giờ chìm vào ruột tường, kể cả khi màu tường gần màu nhấn (bảng "Chì và nâu đất").
+ */
+export const SELECTION_SEPARATOR_FILTER =
+  'drop-shadow(1px 0 0 var(--wall-conf-cut)) drop-shadow(-1px 0 0 var(--wall-conf-cut)) drop-shadow(0 1px 0 var(--wall-conf-cut)) drop-shadow(0 -1px 0 var(--wall-conf-cut))';
+
 // ─── Confidence ────────────────────────────────────────────────────────────
 
 /**
@@ -151,3 +158,39 @@ export function selectionFillToken(): string {
 export function isLowConfidence(confidence: MaybeNumber): boolean {
   return confidenceLevel(confidence) === 'needsReview';
 }
+
+/** Bậc tin cậy của một tường trên canvas: bốn mức của máy, cộng "đã duyệt" (chỉ người duyệt — A5). */
+export type WallConfidenceTier = ConfidenceLevel | 'reviewed';
+
+/**
+ * Màu tô tường theo bậc tin cậy (thay cho màu theo độ dày — độ dày đã đọc được từ bề rộng thật của
+ * đa giác). Không đổi nghĩa `wallStrokeToken`. Thiếu điểm (`unknown`) giữ xám trung tính.
+ */
+export function wallConfidenceToken(tier: WallConfidenceTier): string {
+  switch (tier) {
+    case 'certain':
+      return 'var(--wall-conf-high)';
+    case 'suggested':
+      return 'var(--wall-conf-mid)';
+    case 'needsReview':
+      return 'var(--wall-conf-low)';
+    case 'reviewed':
+      return 'var(--state-verified)';
+    default:
+      return 'var(--wall-220)';
+  }
+}
+
+/**
+ * Mép khắc của tường CHƯA CHẮC: nét 2 px màu nền canvas, gạch 1 px cách 4 px, không co giãn theo
+ * phóng. Nửa nét nằm trong đa giác nên mỗi vết khắc ăn ~1 px mép ruột — ruột vẫn đặc, không phải
+ * tường rỗng/nét đứt. Tín hiệu không-màu cho người khó phân biệt màu (cùng gạch chéo + chấm vàng).
+ */
+export const WALL_LOW_EDGE_CUT = {
+  stroke: 'var(--wall-conf-cut)',
+  strokeWidth: 2,
+  strokeDasharray: '1 4',
+  strokeLinecap: 'butt',
+  strokeLinejoin: 'round',
+  vectorEffect: 'non-scaling-stroke',
+} as const;

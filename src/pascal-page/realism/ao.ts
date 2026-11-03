@@ -10,6 +10,7 @@
  */
 import { float, luminance, max, mix, smoothstep } from 'three/tsl';
 import type { Node } from 'three/webgpu';
+import { traaEnabled } from './traa';
 
 export type AoMode = 'ssgi' | 'gtao' | 'none';
 
@@ -44,19 +45,30 @@ export interface AoInput {
   ssgiEnabled: boolean;
   /** `location.search` (cờ `?disable=`). */
   search: string;
+  /**
+   * Cảnh dựng 1 mẫu (TRAA bật, nền không trong suốt). Tắt → `pass()` MSAA → depth là
+   * `texture_depth_multisampled_2d`, GTAONode gọi `textureGather` trên nó → pipeline WGSL hỏng, AO rác làm tối cả
+   * phần ambient (đồ "biến mất") tới khi tải lại trang. Nên không TRAA thì không GTAO.
+   */
+  traa: boolean;
 }
 
 export function aoModeFor(input: AoInput): AoMode {
   if (!input.webGpu || !input.postFx || input.shading !== 'rendered') return 'none';
   if (input.ssgiEnabled) return 'ssgi';
+  if (!input.traa) return 'none';
   const disable = (new URLSearchParams(input.search).get('disable') ?? '').split(',');
   return disable.includes('ao') || disable.includes('gtao') ? 'none' : 'gtao';
 }
 
-/** Cờ vendor dùng lúc dựng pipeline (đã qua kiểm WebGPU + postFx ở trên đó). */
-export function gtaoOn(shading: string, ssgiEnabled: boolean): boolean {
+/**
+ * Cờ vendor dùng lúc dựng pipeline (đã qua kiểm WebGPU + postFx ở trên đó). `traa` tính y như `traaOn` của
+ * `r3-traa.mjs` (trừ vế `needsNormalMRT` — GTAO bật thì MRT bật) → GTAO bật ⇒ scene pass 1 mẫu.
+ */
+export function gtaoOn(shading: string, ssgiEnabled: boolean, transparentBackground: boolean): boolean {
   const search = typeof location === 'undefined' ? '' : location.search;
-  return aoModeFor({ webGpu: true, postFx: true, shading, ssgiEnabled, search }) === 'gtao';
+  const traa = !transparentBackground && traaEnabled();
+  return aoModeFor({ webGpu: true, postFx: true, shading, ssgiEnabled, search, traa }) === 'gtao';
 }
 
 const smooth = (lo: number, hi: number, x: number): number => {

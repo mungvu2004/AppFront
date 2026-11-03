@@ -73,8 +73,42 @@ export function projectLocationOf(pathname: string): ProjectLocation | null {
   return { projectId, stepIndex, floorId, layerIndex };
 }
 
+/**
+ * Bốn màn duyệt tầng dạng trình biên tập (tỷ lệ, tường, cửa và nội thất, phòng): không vẽ header chung,
+ * màn tự mang menu tệp + chip bước (`components/shell/EditorChrome.tsx`). Trục, kích thước,
+ * độ dày, so với bản vẽ vẫn giữ header vì FlowGate của chúng cần khe trong thanh bước.
+ */
+export function isFloorEditorPath(pathname: string): boolean {
+  return /^\/projects\/[^/]+\/floors\/[^/]+\/(?:scale|layers\/(?:walls|objects|rooms))\/?$/.test(pathname);
+}
+
 /** Trạng thái một bước trên thanh bước: xong (dấu tích), còn việc (chấm attention), chưa tới. */
 export type ProjectStepState = 'done' | 'attention' | 'todo';
+
+const STEP_STATE_TEXT: Readonly<Record<ProjectStepState, string>> = {
+  done: 'đã xong',
+  attention: 'còn việc',
+  todo: 'chưa xong',
+};
+
+/**
+ * Chữ trạng thái của một bước cho trình đọc màn hình. Bước đang đứng là "đang mở"; còn lại chỉ nói điều
+ * dữ liệu xác nhận. Không suy "đã qua" từ vị trí URL: dán thẳng /export không có nghĩa bước 3–5 đã làm (UX-19).
+ */
+export function stepStateText(state: ProjectStepState, index: number, currentIndex: number): string {
+  if (state !== 'todo') return STEP_STATE_TEXT[state];
+  return index === currentIndex ? 'đang mở' : STEP_STATE_TEXT.todo;
+}
+
+/** Đích của ô bước `index`: bước 3 về lớp đầu của tầng đang mở, hoặc màn tầng gần nhất, hoặc danh sách tầng. */
+export function stepPath(
+  project: { readonly id: string; readonly floorId?: string | undefined; readonly lastFloorPath?: string | undefined },
+  index: number,
+): string {
+  if (index === 2 && project.floorId !== undefined) return FLOOR_LAYERS[0]?.path(project.id, project.floorId) ?? ROUTES.project.floors(project.id);
+  if (index === 2 && project.lastFloorPath !== undefined) return project.lastFloorPath;
+  return PROJECT_STEPS[index]?.path(project.id) ?? ROUTES.dashboard;
+}
 
 /**
  * Trạng thái sáu bước suy từ #24 (đã có ở header, không gọi thêm API). Chỉ khẳng định

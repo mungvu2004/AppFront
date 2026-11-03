@@ -2,8 +2,21 @@ import { describe, expect, it } from 'vitest';
 
 import { parseTelemetryEvent } from '@/lib/telemetry/events';
 
-import { FRAME_BUDGET_MS, autoTier, initialTier, lowerTier, onDeviceLost, percentile, tierSsgi, useDeviceEpoch } from './tiers';
-import { useRealism } from './store';
+import {
+  FRAME_BUDGET_MS,
+  autoTier,
+  initTier,
+  initialTier,
+  sceneTier,
+  lowerTier,
+  onDeviceLost,
+  percentile,
+  setTierMode,
+  tierSsgi,
+  useDeviceEpoch,
+} from './tiers';
+import { AUTO_TIER_KEY, TIER_MODE_KEY, bootTier, useRealism } from './store';
+import { traaEnabled } from './traa';
 
 describe('tiers', () => {
   it('autoTier: hạ một mức sau 5 giây liền vượt ngân sách, không tự nâng', () => {
@@ -20,12 +33,31 @@ describe('tiers', () => {
     expect(lowerTier('low')).toBe('low');
   });
 
-  it('initialTier: WebGL / GPU tích hợp / fallback → low; còn lại medium', () => {
+  it('initialTier: chỉ card rời chắc chắn → medium; WebGL / tích hợp / fallback / không rõ → low', () => {
     expect(initialTier('webgl', undefined)).toBe('low');
     expect(initialTier('webgpu', { vendor: 'intel', architecture: 'gen-12lp' })).toBe('low');
+    expect(initialTier('webgpu', { vendor: 'intel', architecture: 'xe-lpg', description: 'Intel(R) Arc(TM) Graphics' })).toBe('low');
+    expect(initialTier('webgpu', { vendor: 'intel', architecture: 'xe-hpg' })).toBe('medium');
     expect(initialTier('webgpu', { vendor: 'nvidia', architecture: 'lovelace', isFallbackAdapter: true })).toBe('low');
     expect(initialTier('webgpu', { vendor: 'nvidia', architecture: 'lovelace' })).toBe('medium');
-    expect(initialTier('webgpu', undefined)).toBe('medium');
+    expect(initialTier('webgpu', { vendor: 'amd', architecture: 'rdna-3' })).toBe('low');
+    expect(initialTier('webgpu', { vendor: 'amd', description: 'AMD Radeon RX 7600' })).toBe('medium');
+    expect(initialTier('webgpu', { vendor: '', architecture: '' })).toBe('low');
+    expect(initialTier('webgpu', undefined)).toBe('low');
+    expect(initialTier('unknown', undefined)).toBe('low');
+  });
+
+  it('bootTier: mức chọn tay → mức đo lần trước → low', () => {
+    localStorage.clear();
+    expect(bootTier()).toBe('low');
+    localStorage.setItem(AUTO_TIER_KEY, 'medium');
+    expect(bootTier()).toBe('medium');
+    localStorage.setItem(TIER_MODE_KEY, 'high');
+    expect(bootTier()).toBe('high');
+    localStorage.setItem(TIER_MODE_KEY, 'auto');
+    localStorage.setItem(AUTO_TIER_KEY, 'rác');
+    expect(bootTier()).toBe('low');
+    localStorage.clear();
   });
 
   it('tierSsgi: tier là nguồn cuối; medium giữ SSGI_PARAMS (đã ghép renderLook)', () => {
@@ -47,6 +79,20 @@ describe('tiers', () => {
     onDeviceLost({ reason: 'unknown' });
     expect(useRealism.getState().tier).toBe('low');
     expect(useDeviceEpoch.getState().epoch).toBe(1);
+  });
+
+  it('sceneTier: cảnh (AA, MRT, bóng, đèn) theo mức lúc tải; đổi mức giữa phiên không đổi cấu hình cảnh', () => {
+    window.localStorage.setItem(TIER_MODE_KEY, 'low');
+    initTier({ backend: { device: { adapterInfo: { vendor: 'nvidia', description: 'GeForce RTX 4050' } } } });
+    expect(useRealism.getState().tier).toBe('low');
+    expect(sceneTier()).toBe('low');
+    expect(traaEnabled()).toBe(false);
+    setTierMode('medium');
+    expect(useRealism.getState().tier).toBe('medium');
+    expect(sceneTier()).toBe('low');
+    expect(traaEnabled()).toBe(false);
+    setTierMode('auto');
+    expect(sceneTier()).toBe('low');
   });
 
   it('sự kiện frame_p95 / tier_change hợp schema', () => {

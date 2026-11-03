@@ -40,7 +40,14 @@ import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
 import { splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
 import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
 import { isServerModel } from '@/lib/pascal/furnitureCatalog';
-import { dismissableNodeIdsOf, saveableModelSrc, saveableRef, type PascalIdBook } from '@/lib/pascal/toSpatial';
+import {
+  adoptableRoomOf,
+  dismissableNodeIdsOf,
+  isAutoSurface,
+  saveableModelSrc,
+  saveableRef,
+  type PascalIdBook,
+} from '@/lib/pascal/toSpatial';
 import type { PascalScene } from '@/lib/pascal/types';
 import { buildSplitRoomCommandFromWalls } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
 import { useStore } from '@/store';
@@ -115,12 +122,83 @@ export const commitOfScenes = (
 
   if (isEmptyDiff(diff)) return null;
 
-  return {
-    origin: 'local',
-    changedNodeIds: [...diff.upsert.map((node) => node.id), ...diff.remove],
-    removedNodeIds: diff.remove,
-  };
+  // Sàn/trần Pascal tự đặt theo tường (`isAutoSurface`) không phải phần sửa của người dùng.
+  const auto = (nodeId: string) => isAutoSurface(previous.nodes[nodeId]) || isAutoSurface(next.nodes[nodeId]);
+  const upserted = diff.upsert.map((node) => node.id).filter((nodeId) => !auto(nodeId));
+  const removed = diff.remove.filter((nodeId) => !auto(nodeId));
+
+  if (upserted.length === 0 && removed.length === 0) return null;
+
+  return { origin: 'local', changedNodeIds: [...upserted, ...removed], removedNodeIds: removed };
 };
+
+/** Câu khi người dùng xoá món bày sẵn mà bản vẽ chưa nhớ được (đèn trần, nhánh tủ chữ L…): chặn, món về chỗ cũ. */
+export const GENERATED_DELETE_BLOCKED =
+  'Món đồ bày sẵn này chưa xoá được: nó tự có theo phòng nên mở lại sẽ hiện lại. Món đã được đặt về chỗ cũ.';
+
+/**
+ * H4 — xoá món tự bày zone khai (`dressIds`) thì lưu được (`Room.dressingOff`); đèn trần, nhánh tủ chữ L
+ * thì chưa. Xoá chúng trước đây chỉ "ẩn" trên màn rồi hiện lại ở lượt mở sau — nay chặn hẳn. Món mất
+ * theo cha (xoá trần kéo theo đèn) không tính: cha mới là thứ người dùng xoá.
+ */
+export const blockedGeneratedDeletes = (previous: PascalScene, next: PascalScene, removed: readonly string[]): string[] => {
+  const dismissable = dismissableNodeIdsOf(previous);
+
+  return removed.filter((nodeId) => {
+    const parentId = previous.nodes[nodeId]?.parentId ?? null;
+
+    return isGeneratedNodeId(nodeId) && !dismissable.has(nodeId) && (parentId === null || next.nodes[parentId] !== undefined);
+  });
+};
+
+/**
+ * Câu khi người dùng sửa (kéo cỡ, dời, xoay) đồ máy gợi ý chưa xác nhận — tấm viền mờ `DRESS-suggested-…`
+ * (toPascal `suggestedOutlineOf`). Không ngầm "nhận gợi ý": tấm viền chỉ là chỗ máy đoán (có khi nhận nhầm
+ * loại, vd. thảm thành "bàn"), nhận hay bỏ là việc duyệt ở bước "Duyệt cửa và nội thất".
+ */
+export const UNCONFIRMED_EDIT_BLOCKED =
+  'Đồ máy gợi ý (chưa xác nhận) chưa sửa được ở màn 3D. Vào bước "Duyệt cửa và nội thất", bấm "Nhận gợi ý" rồi mới sửa, hoặc "Bỏ gợi ý" nếu máy nhận nhầm. Món đã về như cũ.';
+/** Câu khi người dùng sửa một món tự bày không nhận nuôi được (đèn trần, lan can lô gia…): chặn, món về như cũ. */
+export const GENERATED_EDIT_BLOCKED =
+  'Món đồ bày sẵn này chưa sửa được: nó tự có theo bản vẽ nên mở lại sẽ về như cũ. Món đã được đặt về như cũ.';
+
+const isUnconfirmedNode = (node: unknown): boolean => fieldsOf(fieldsOf(node)['metadata'])['unconfirmed'] === true;
+
+/** Câu chặn cho các node tự sinh: đồ gợi ý chưa xác nhận có câu riêng. */
+export const generatedBlockReason = (scene: PascalScene, nodeIds: readonly string[], fallback: string): string =>
+  nodeIds.some((nodeId) => isUnconfirmedNode(scene.nodes[nodeId])) ? UNCONFIRMED_EDIT_BLOCKED : fallback;
+
+const TRANSFORM_FIELDS = ['position', 'rotation', 'scale'] as const;
+const vec3Of = (value: unknown, fallback: number): readonly number[] =>
+  Array.isArray(value) ? value.map((v) => (typeof v === 'number' ? v : Number.NaN)) : [fallback, fallback, fallback];
+/** 1e-4 (0,1 mm / 0,0001 rad / 0,01 % tỉ lệ): lớn hơn sai số dấu phẩy động, nhỏ hơn mọi lượt sửa thật. */
+const transformDiffers = (before: unknown, after: unknown): boolean =>
+  TRANSFORM_FIELDS.some((key) => {
+    const fallback = key === 'scale' ? 1 : 0;
+    const a = vec3Of(fieldsOf(before)[key], fallback);
+    const b = vec3Of(fieldsOf(after)[key], fallback);
+    return a.length !== b.length || a.some((v, i) => !(Math.abs(v - (b[i] ?? Number.NaN)) < 1e-4));
+  });
+
+/**
+ * Lượt sửa (dời / xoay / kéo cỡ) một món tự sinh mà lượt về không nhận nuôi được (`toSpatial.collectItem` bỏ
+ * qua mọi node `DRESS-`/đèn không có phòng nhận nuôi; `fromPascal.kindOfNode` coi là "kết cấu") — trước đây ra
+ * `PASCAL_NO_CHANGE`, tức mất lặng lẽ khi tải lại. Nay chặn cả lượt như `blockedGeneratedDeletes`.
+ * ponytail: chỉ so vị trí/góc/tỉ lệ (thẻ chủ nhà, tay cầm, bảng Pascal); sơn khe món tự sinh chưa chặn.
+ */
+export const blockedGeneratedEdits = (previous: PascalScene, next: PascalScene, changed: readonly string[]): string[] =>
+  changed.filter((nodeId) => {
+    const before = previous.nodes[nodeId];
+    const after = next.nodes[nodeId];
+
+    return (
+      before !== undefined &&
+      after?.type === 'item' &&
+      isGeneratedNodeId(nodeId) &&
+      adoptableRoomOf(after) === null &&
+      transformDiffers(before, after)
+    );
+  });
 
 const PAINT_FIELDS = ['slots', 'material', 'materialPreset'] as const;
 /** Màu tự pha (vật liệu riêng của node) — bản vẽ chưa có chỗ chứa. */
@@ -191,17 +269,7 @@ export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): st
     }
   }
 
-  // H4 — món tự bày mà zone khai (`dressIds`) xoá thì lưu được (`Room.dressingOff`); đèn trần, nhánh tủ chữ L thì chưa.
-  const dismissable = dismissableNodeIdsOf(previous);
-
-  if (
-    Object.keys(previous.nodes).some(
-      (nodeId) => next.nodes[nodeId] === undefined && isGeneratedNodeId(nodeId) && !dismissable.has(nodeId),
-    )
-  ) {
-    labels.add('xoá đồ bày sẵn');
-  }
-
+  // Xoá món bày sẵn chưa nhớ được không tới đây: `blockedGeneratedDeletes` chặn cả lượt.
   return [...labels];
 }
 
@@ -293,6 +361,26 @@ export function usePascalEdits({
       if (!gate.hasLoaded()) gate.acknowledgeLoad();
 
       const removed = pascalCommit.removedNodeIds ?? [];
+
+      const blockedDeletes = blockedGeneratedDeletes(previous, scene, removed);
+      const blockedEdits = blockedGeneratedEdits(previous, scene, pascalCommit.changedNodeIds);
+
+      if (blockedDeletes.length > 0 || blockedEdits.length > 0) {
+        const reason = generatedBlockReason(
+          previous,
+          [...blockedDeletes, ...blockedEdits],
+          blockedDeletes.length > 0 ? GENERATED_DELETE_BLOCKED : GENERATED_EDIT_BLOCKED,
+        );
+        const blocked: PascalEditResult = {
+          ok: false,
+          error: { type: 'pascal.edit', code: 'PASCAL_UNKNOWN_NODE', reasons: [reason] },
+        };
+
+        lastVerdict.current = { scene, result: blocked, massDelete: null, notices: [] };
+
+        return blocked;
+      }
+
       const confirmed = confirmedRemoval.current;
       const gateVerdict = gate.admit(pascalCommit, previous);
       const massDelete = !gateVerdict.admitted && gateVerdict.code === 'PASCAL_MASS_DELETE';

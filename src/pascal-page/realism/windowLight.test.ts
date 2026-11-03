@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DAY_THEME_ID } from '../renderLook';
-import { insetPoint, paneFromBox, pickWindows, windowIntensity, windowLightsOn, WINDOW_LIGHT_MAX, WINDOW_LIGHT_PER_M2 } from './windowLight';
+import { insetPoint, paneFromBox, pickWindows, windowIntensity, windowLightsOn, windowPoolSize, WINDOW_LIGHT_MAX, WINDOW_LIGHT_PER_M2 } from './windowLight';
 
 describe('windowLight', () => {
   it('chỉ bật ở Ban ngày, chủ đề sáng, mức Vừa/Cao', () => {
@@ -42,5 +42,12 @@ describe('windowLight', () => {
     expect(q.y).toBeCloseTo(p.y);
     const r = insetPoint(paneFromBox({ x: 0, y: 1, z: -0.1 }, { x: 1.2, y: 2, z: 0 }), { x: 0, z: 5 }, 0.7); // tường bắc
     expect(r.z).toBeCloseTo(-0.05 + 0.7);
+  });
+
+  it('pool theo số cửa (≤ max), không giảm', () => {
+    expect(windowPoolSize(0, 3)).toBe(3);
+    expect(windowPoolSize(0, 20)).toBe(WINDOW_LIGHT_MAX);
+    expect(windowPoolSize(5, 2)).toBe(5);
+    expect(windowPoolSize(0, 0)).toBe(0);
   });
 });

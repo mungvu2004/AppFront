@@ -19,12 +19,14 @@ describe('ObjectLayerBulkApproveBar (UX-06)', () => {
 
     expect(onApproveConfident).toHaveBeenCalledTimes(1);
     expect(screen.getByText(props.breakdownLabel)).toBeInTheDocument();
+    /* Ít nút: còn món chắc chắn thì nút món chưa chắc chờ lượt sau. */
+    expect(screen.queryByRole('button', { name: props.remainingLabel })).not.toBeInTheDocument();
   });
 
   it('nút máy chưa chắc hỏi lại, nêu số mục; "Thôi" không duyệt, "Vẫn duyệt" mới duyệt', () => {
     const onApproveRemaining = vi.fn();
 
-    render(<ObjectLayerBulkApproveBar {...props} onApproveConfident={vi.fn()} onApproveRemaining={onApproveRemaining} />);
+    render(<ObjectLayerBulkApproveBar {...props} confidentLabel={null} onApproveRemaining={onApproveRemaining} />);
     fireEvent.click(screen.getByRole('button', { name: props.remainingLabel }));
 
     expect(onApproveRemaining).not.toHaveBeenCalled();

@@ -859,6 +859,8 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
     fireEvent.click(screen.getAllByRole('option')[0] as HTMLElement);
 
     expect(screen.queryByText(/Bấm lên ranh phòng/u)).toBeNull();
+    /* Tách + sang lớp tường là việc hiếm: nằm trong mục gập "Thông số nâng cao" của panel phải. */
+    fireEvent.click(await screen.findByRole('button', { name: 'Thông số nâng cao' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Sang lớp tường' }));
 
     expect(onNavigate).toHaveBeenCalledWith(expect.stringContaining('/walls'));

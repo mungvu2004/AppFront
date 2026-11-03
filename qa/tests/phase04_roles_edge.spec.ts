@@ -92,7 +92,7 @@ const WALL = {
   canvasNote:
     'Bản vẽ vẫn xem và phóng to được, nhưng không chọn hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.', // WCV:FORBIDDEN_DESCRIPTION
   canvasNoteId: 'wall-layer-canvas-forbidden', // WCV:FORBIDDEN_DESCRIPTION_ID
-  legend: 'Lọc theo độ dày tường', // WallThicknessLegend role=group
+  legend: 'Chú giải tường', // WallLayerLegendTray role=group, right panel "Tầng này" (read-only)
   emptyTitle: 'Chưa có đoạn tường nào', // WL:EMPTY_LIST_TITLE
   emptyNotice:
     'Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.', // UW emptyNotice
@@ -272,7 +272,7 @@ const openOn = async (flow: Flow, url: string, projectId: string, floorId: strin
 
 const wallOptions = (page: Page): Locator => page.getByRole('listbox', { name: WALL.list, exact: true }).getByRole('option');
 /** L23: every inspector lives in the ask card anchored on the canvas (QcAskCard); no card while nothing is selected. */
-const askCard = (page: Page): Locator => page.getByRole('region', { name: 'Thẻ hỏi của mục đang chọn', exact: true });
+const askCard = (page: Page): Locator => page.getByRole('region', { name: 'Chi tiết mục đang chọn', exact: true });
 const wallInspector = askCard;
 const objectInspector = askCard;
 const roomInspector = askCard;

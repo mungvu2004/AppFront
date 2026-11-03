@@ -10,7 +10,7 @@
 import { create } from 'zustand';
 
 import { backendOf } from './backend';
-import { useRealism, type RealismTier } from './store';
+import { AUTO_TIER_KEY, TIER_MODE_KEY, useRealism, type RealismTier } from './store';
 import { emitRealism } from './telemetry';
 import { compileActiveSince } from './warm';
 
@@ -53,6 +53,14 @@ const TIER_QUIET_OFF =
 /** Đọc mức ngoài React (lúc dựng pipeline). */
 export const currentTier = (): RealismTier => useRealism.getState().tier;
 export const tierConfig = (tier: RealismTier): TierConfig => TIERS[tier];
+/**
+ * Mức của CẢNH = mức lúc tải trang (hoặc lúc dựng lại canvas sau mất thiết bị). Mọi thứ vào khoá vật liệu/context
+ * chọn theo nó: khử răng cưa (TRAA hay MSAA), tập MRT, `shadowMap.enabled`, bộ đèn phòng/cửa sổ — đổi một thứ là dựng
+ * lại mọi vật liệu cảnh (~40-60 lần dựng, 16-20 s khựng, đo 2026-11-04). Đổi mức giữa phiên (tự hạ hay nút) chỉ đổi
+ * DPR + hậu kỳ; phần còn lại áp ở lần mở trang sau (`autoTier` đã lưu).
+ */
+let loadTier: RealismTier | null = null;
+export const sceneTier = (): RealismTier => loadTier ?? useRealism.getState().tier;
 /** Hook cho vendor: mức đang dùng. */
 export const useTier = (): RealismTier => useRealism((s) => s.tier);
 
@@ -86,18 +94,26 @@ interface AdapterInfoLike {
   isFallbackAdapter?: boolean;
 }
 
-/** Mức khởi đầu: WebGL hoặc GPU tích hợp/fallback → low, còn lại medium. */
+/**
+ * Card rời chắc chắn: NVIDIA, Intel Arc A (kiến trúc xe-hpg), Radeon RX/Pro. Không khớp chữ "arc": iGPU
+ * Meteor Lake tên "Intel Arc Graphics" (xe-lpg). AMD trơn có thể là APU → không tính.
+ */
+const DISCRETE = /nvidia|geforce|quadro|xe-hpg|radeon rx|radeon pro|discrete/;
+const INTEGRATED = /integrated|swiftshader|llvmpipe|basic render/;
+
+/**
+ * Mức khởi đầu: chỉ card rời chắc chắn → medium; WebGL, fallback, tích hợp, hay KHÔNG đọc được adapter → low.
+ * iGPU p50 382 ms có SSGI vs 49 ms không (R-R3T.md): đoán nhầm 'medium' đắt hơn nhiều so với nhầm 'low'.
+ */
 export function initialTier(backend: 'webgpu' | 'webgl' | 'unknown', info: AdapterInfoLike | undefined): RealismTier {
-  if (backend === 'webgl') return 'low';
-  if (!info) return 'medium';
-  if (info.isFallbackAdapter) return 'low';
+  if (backend === 'webgl' || !info || info.isFallbackAdapter) return 'low';
   const text = `${info.vendor ?? ''} ${info.architecture ?? ''} ${info.description ?? ''} ${info.device ?? ''}`.toLowerCase();
-  return /intel|integrated|swiftshader|llvmpipe|basic render/.test(text) ? 'low' : 'medium';
+  return DISCRETE.test(text) && !INTEGRATED.test(text) ? 'medium' : 'low';
 }
 
 /* --------------------------- trạng thái + vòng đo --------------------------- */
 
-const MODE_KEY = 'pascal.realism.tierMode';
+const MODE_KEY = TIER_MODE_KEY;
 type TierMode = 'auto' | RealismTier;
 
 function readMode(): TierMode {
@@ -122,7 +138,7 @@ function setTier(to: RealismTier, auto: boolean): void {
 }
 
 /** Người dùng chọn mức (UI); 'auto' trả về mức khởi đầu đã đo. Nhớ theo máy. */
-let autoStart: RealismTier = 'medium';
+let autoStart: RealismTier = 'low';
 export function setTierMode(mode: TierMode): void {
   try {
     window.localStorage.setItem(MODE_KEY, mode);
@@ -140,9 +156,15 @@ export function initTier(renderer: unknown): void {
   started = true;
   const backend = (renderer as { backend?: { device?: { adapterInfo?: AdapterInfoLike } } } | null)?.backend;
   autoStart = initialTier(backendOf(renderer), backend?.device?.adapterInfo);
+  try {
+    window.localStorage.setItem(AUTO_TIER_KEY, autoStart);
+  } catch {
+    // không lưu được thì lần sau lại bắt đầu từ 'low'
+  }
   const mode = readMode();
   useRealism.setState({ tierMode: mode });
   setTier(mode === 'auto' ? autoStart : mode, mode === 'auto');
+  loadTier = useRealism.getState().tier;
   startLoop();
 }
 
@@ -150,6 +172,8 @@ export function initTier(renderer: unknown): void {
 export function onDeviceLost(info: { reason?: string | null } | undefined): void {
   if (info?.reason === 'destroyed') return;
   setTier('low', true);
+  // Canvas dựng lại từ đầu (renderer mới) → cảnh cũng theo low.
+  loadTier = 'low';
   useDeviceEpoch.setState((s) => ({ epoch: s.epoch + 1 }));
 }
 

@@ -46,7 +46,6 @@ import { BuildTab } from './components/build-tab'
 import { CanvasHelp, MeasureClearButton } from './components/canvas-help'
 import {
   BottomDock,
-  CommunityViewerToolbarLeft,
   CommunityViewerToolbarRight,
 } from './components/viewer-toolbar'
 import { installDragNotSelect } from './lib/drag-not-select'
@@ -66,6 +65,19 @@ function EditorItemsPanel() {
   return <ItemsPanel showSourceFilter={false} showTagFilters={false} />
 }
 
+// AppFront (wall-review-ux): the rail showed bare icons and users asked "what is this for?" —
+// a short caption under each icon (the button keeps its aria-label + hover tooltip).
+function railIcon(src: string, label: string) {
+  return (
+    <span className="flex flex-col items-center gap-0.5">
+      <Image alt="" className="h-6 w-6 object-contain" height={24} src={src} width={24} />
+      <span aria-hidden="true" className="whitespace-nowrap text-[10px] leading-none">
+        {label}
+      </span>
+    </span>
+  )
+}
+
 const SIDEBAR_TABS = [
   {
     id: 'site',
@@ -73,15 +85,7 @@ const SIDEBAR_TABS = [
     component: () => null,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Layers className="h-5 w-5" />,
-    icon: (
-      <Image
-        alt=""
-        className="h-8 w-8 object-contain"
-        height={32}
-        src="/icons/scene.webp"
-        width={32}
-      />
-    ),
+    icon: railIcon('/icons/scene.webp', 'Cảnh'),
   },
   {
     id: 'build',
@@ -89,15 +93,7 @@ const SIDEBAR_TABS = [
     component: BuildTab,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Hammer className="h-5 w-5" />,
-    icon: (
-      <Image
-        alt=""
-        className="h-8 w-8 object-contain"
-        height={32}
-        src="/icons/build.webp"
-        width={32}
-      />
-    ),
+    icon: railIcon('/icons/build.webp', 'Dựng'),
   },
   {
     id: 'items',
@@ -105,15 +101,7 @@ const SIDEBAR_TABS = [
     component: EditorItemsPanel,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Package className="h-5 w-5" />,
-    icon: (
-      <Image
-        alt=""
-        className="h-8 w-8 object-contain"
-        height={32}
-        src="/icons/couch.webp"
-        width={32}
-      />
-    ),
+    icon: railIcon('/icons/couch.webp', 'Đồ vật'),
   },
   {
     id: 'settings',
@@ -121,15 +109,7 @@ const SIDEBAR_TABS = [
     component: () => null,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Settings className="h-5 w-5" />,
-    icon: (
-      <Image
-        alt=""
-        className="h-8 w-8 object-contain"
-        height={32}
-        src="/icons/settings.webp"
-        width={32}
-      />
-    ),
+    icon: railIcon('/icons/settings.webp', 'Cài đặt'),
   },
 ]
 
@@ -140,7 +120,10 @@ export interface HomeProps {
   onLoad: NonNullable<EditorProps['onLoad']>
   onSave?: EditorProps['onSave']
   readOnly: boolean
+  /** Head of the left panel (back link, steps, sidebar toggle) — the editor has no top bar. */
   backCard?: ReactNode
+  /** Extra controls of the right "Xem" panel (style/lighting menu, placement chip, selection cards). */
+  viewPanel?: ReactNode
   /** Shown in the Preview header (G5-15); from the bridge. */
   projectName?: string | undefined
 }
@@ -320,14 +303,36 @@ const NARROW_PX = 1100
  * AppFront edit (R3d, G5-11): under 1100 px the 344 px sidebar pushes the toolbars off screen.
  * Collapse it once the saved state is loaded and whenever the window narrows past 1100 px.
  * Never re-opens it: a user who opens it again on a tablet keeps it open.
- * UX-R2 K35: the page opens to LOOK at the model, so the build panel starts collapsed at every
- * width; the rail's "Dựng" or the "Sửa mô hình" button (../EditModelButton.tsx) opens it.
+ * UX-R2 K35: the page opens to LOOK at the model, so it never opens on the build panel.
+ * wall-review-ux (fewer buttons, open workspace): it opens COLLAPSED at every width — the head (back
+ * link, steps) floats by the rail and the scene tree is one click away. Within one tab session the
+ * last open/closed choice wins from 1100 px (reopens on "Cảnh", never on the build panel — K35).
  */
+const PANEL_OPEN_KEY = 'appfront.pascal.panelOpen'
+
 function useAutoCollapseSidebar() {
   useEffect(() => {
     const collapse = () => useSidebarStore.getState().setIsCollapsed(true)
     let wasNarrow = window.innerWidth < NARROW_PX
-    const onHydrated = collapse
+    let ready = false
+    const onHydrated = () => {
+      let open = false
+      try {
+        open = sessionStorage.getItem(PANEL_OPEN_KEY) === '1'
+      } catch {}
+      if (window.innerWidth < NARROW_PX || !open) collapse()
+      else {
+        useEditor.getState().setActiveSidebarPanel('site')
+        useSidebarStore.getState().setIsCollapsed(false)
+      }
+      ready = true
+    }
+    const stopRemember = useSidebarStore.subscribe((state, prev) => {
+      if (!ready || state.isCollapsed === prev.isCollapsed) return
+      try {
+        sessionStorage.setItem(PANEL_OPEN_KEY, state.isCollapsed ? '0' : '1')
+      } catch {}
+    })
     const onResize = () => {
       const narrow = window.innerWidth < NARROW_PX
       if (narrow && !wasNarrow) collapse()
@@ -338,6 +343,7 @@ function useAutoCollapseSidebar() {
     window.addEventListener('resize', onResize)
     return () => {
       unsubscribe()
+      stopRemember()
       window.removeEventListener('resize', onResize)
     }
   }, [])
@@ -368,7 +374,7 @@ function PreviewHeader({ projectName }: { projectName?: string | undefined }) {
 /** V1 (viewer-measure): người xem không dựng/đặt đồ — bỏ tab Dựng + Đồ vật; đo nằm ở thanh hành động. */
 const READ_ONLY_SIDEBAR_TABS = SIDEBAR_TABS.filter((tab) => tab.id !== 'build' && tab.id !== 'items')
 
-export default function Home({ projectId, onLoad, onSave, readOnly, backCard, projectName }: HomeProps) {
+export default function Home({ projectId, onLoad, onSave, readOnly, backCard, viewPanel, projectName }: HomeProps) {
   useEditorPreferencesPersistence()
   usePascalVi()
   useEscapeExits()
@@ -409,13 +415,12 @@ export default function Home({ projectId, onLoad, onSave, readOnly, backCard, pr
         }}
         projectId={projectId}
         sidebarTabs={readOnly ? READ_ONLY_SIDEBAR_TABS : SIDEBAR_TABS}
-        viewerToolbarLeft={
-          <>
-            {backCard}
-            <CommunityViewerToolbarLeft />
-          </>
+        viewerToolbarLeft={backCard}
+        viewerToolbarRight={
+          <CommunityViewerToolbarRight vrButton={null} vrLabel="Enter VR">
+            {viewPanel}
+          </CommunityViewerToolbarRight>
         }
-        viewerToolbarRight={<CommunityViewerToolbarRight vrButton={null} vrLabel="Enter VR" />}
       />
       <PreviewHeader projectName={projectName} />
       <CanvasHelp banner={<ScaleBanner projectId={projectId} readOnly={readOnly} />} />

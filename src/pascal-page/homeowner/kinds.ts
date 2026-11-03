@@ -15,6 +15,8 @@ export interface HomeownerNode {
   readonly parentId?: string | null;
   readonly rotation?: Vec3;
   readonly asset?: { readonly name?: string };
+  /** `unconfirmed: true` = tấm viền đồ máy gợi ý chưa xác nhận (toPascal `suggestedOutlineOf`). */
+  readonly metadata?: { readonly unconfirmed?: unknown };
   // cửa đi
   readonly doorType?: string;
   readonly leafCount?: number;

@@ -116,7 +116,6 @@ import {
   pendingSuggestionsLabel,
   approvableObjectsOf,
   approveConfidentLabelOf,
-  confidentRowLabelOf,
   approveUnsureLabelOf,
   confirmUnsureLabelOf,
   reviewBreakdownLabelOf,
@@ -189,13 +188,14 @@ import {
   type CanvasFitView,
 } from '../shared/canvasFit';
 import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { isQcCompare, setQcCompare, useQcCompare } from '../shared/qcCompare';
 import { SCALE_LOCK_REASON } from '../shared/floorReviewGateModel';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { useScaleLock } from '../shared/useScaleLock';
 import { arrowStepHandler } from '../WallLayerReview/listArrowKeys';
 
 import { layerGateOf } from './layerGate';
-import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
+import { focusBoundsOf, useQcViewMode } from '../shared/qcViewMode';
 import { useLayerRuleIssues } from '../shared/useLayerRuleIssues';
 import { objectReasonRank } from './objectReviewReasons';
 
@@ -1248,6 +1248,26 @@ export function useObjectLayerReview(
   /* Món vừa vẽ (B3): chọn nó và đưa focus vào ô loại khi nó đã hiện trong danh sách. */
   const [drawnEntityId, setDrawnEntityId] = useState<string | null>(null);
   const [focusKindToken, setFocusKindToken] = useState(0);
+  /* Ô chọn loại cạnh hộp vừa vẽ (wall-review-ux): mã hiển thị của món, `null` = đóng. */
+  const [kindPickerId, setKindPickerId] = useState<string | null>(null);
+  const onCloseKindPicker = useCallback(() => setKindPickerId(null), []);
+  const kindPicker = useMemo(
+    () =>
+      kindPickerId === null || !canEdit
+        ? null
+        : {
+            onPick: (kind: FurnitureKind, variant: FurnitureVariant | null) => {
+              setKindPickerId(null);
+              onChangeFurnitureKind(kindPickerId, kind, variant);
+            },
+            onMore: () => {
+              setKindPickerId(null);
+              setFocusKindToken((token) => token + 1);
+            },
+            onClose: onCloseKindPicker,
+          },
+    [canEdit, kindPickerId, onChangeFurnitureKind, onCloseKindPicker],
+  );
 
   const onPlaceAt = useCallback(
     (point: PixelPoint, corner?: PixelPoint) => {
@@ -1311,6 +1331,7 @@ export function useObjectLayerReview(
     setDrawnEntityId(null);
     onSelect(drawn.id);
     setFocusKindToken((token) => token + 1);
+    setKindPickerId(drawn.id);
   }, [drawnEntityId, objects, onSelect]);
 
   /* Đổi cỡ / xoay nội thất (B3) — `furniture.resize` / `furniture.rotate`, mỗi lượt một bước hoàn tác. */
@@ -1514,6 +1535,9 @@ export function useObjectLayerReview(
    */
   const [frameSizePx, setFrameSizePx] = useState<CanvasFitSize | null>(null);
   const [flownWallId, setFlownWallId] = useState<WallId | null>(null);
+  const flownWallIdRef = useRef(flownWallId);
+  flownWallIdRef.current = flownWallId;
+  const isComparing = useQcCompare();
   preferredWallRef.current = flownWallId;
   const onFrameResize = useCallback((size: CanvasFitSize) => {
     setFrameSizePx((previous) =>
@@ -1802,6 +1826,13 @@ export function useObjectLayerReview(
       scope: 'canvas',
       description: 'Đóng thanh tra đối tượng',
       onTrigger: () => {
+        /* Không còn gì để đóng mà đang "So sánh hai bên": Esc thoát so sánh. */
+        if (selectedObjectIdRef.current === null && flownWallIdRef.current === null && isQcCompare()) {
+          setQcCompare(false);
+
+          return;
+        }
+
         onSelect(null);
 
         /* Bay tới tường chủ mà chưa chọn đối tượng nào: bỏ chọn không đổi gì, nên tự kết thúc lượt bay. */
@@ -1810,7 +1841,7 @@ export function useObjectLayerReview(
         }
       },
     },
-    { ...shortcutOptions, enabled: selectedObjectId !== null || flownWallId !== null },
+    { ...shortcutOptions, enabled: selectedObjectId !== null || flownWallId !== null || isComparing },
   );
   /*
    * BUG-589: xoá bằng phím như màn tường (Backspace), cộng Delete — không chỉ chuột phải.
@@ -2094,6 +2125,8 @@ export function useObjectLayerReview(
    */
   const viewMode = useQcViewMode();
   const viewFlightRef = useRef<string | null>(null);
+  /* Mục Từng việc vừa bay tới: nó biến mất (hoàn tác "Thêm đồ vật", xoá) thì trả về vừa khung, không kẹt ở chỗ trống. */
+  const viewFlownObjectRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (frameSizePx === null) {
@@ -2109,6 +2142,7 @@ export function useObjectLayerReview(
 
     if (viewMode === 'overview') {
       viewFlightRef.current = key;
+      viewFlownObjectRef.current = null;
       endFlight();
       return;
     }
@@ -2117,6 +2151,12 @@ export function useObjectLayerReview(
 
     if (selectedObjectId === null) {
       viewFlightRef.current = key;
+      const flown = viewFlownObjectRef.current;
+      viewFlownObjectRef.current = null;
+
+      if (flown !== null && !objects.some((object) => object.id === flown)) {
+        endFlight();
+      }
       return;
     }
 
@@ -2126,12 +2166,13 @@ export function useObjectLayerReview(
     }
 
     viewFlightRef.current = key;
+    viewFlownObjectRef.current = selectedObjectId;
     const box = focusBoundsOf(rotatedBounds(placement.boundsPx, placement.angleDeg), surfacePx);
     const min = toFramePoint(fitView, { x: box.x, y: box.y });
     const max = toFramePoint(fitView, { x: box.x + box.width, y: box.y + box.height });
 
-    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, focusFrameOf(frameSizePx).width, frameSizePx.height);
-  }, [endFlight, fitView, flyToBounds, frameSizePx, placements, selectedObjectId, surfacePx, viewMode]);
+    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, frameSizePx.width, frameSizePx.height);
+  }, [endFlight, fitView, flyToBounds, frameSizePx, objects, placements, selectedObjectId, surfacePx, viewMode]);
 
   /*
    * Lỗi quy chuẩn của lớp (P03). Mở từ nút "Sửa" hay bấm một dòng: bay tới chỗ lỗi (khung
@@ -2170,7 +2211,7 @@ export function useObjectLayerReview(
     const min = toFramePoint(fitView, { x: centre.x - half, y: centre.y - half });
     const max = toFramePoint(fitView, { x: centre.x + half, y: centre.y + half });
 
-    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, focusFrameOf(frameSizePx).width, frameSizePx.height);
+    flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, frameSizePx.width, frameSizePx.height);
   }, [fitView, flyToBounds, focusedIssue, frameSizePx, isLoading, level, objects, onSelect, selectedObjectId]);
 
   /* `?tool=door|window` của nút "Sửa": bật sẵn "Vẽ cửa đi/cửa sổ" một lần khi lớp đã đọc xong. */
@@ -2369,11 +2410,12 @@ export function useObjectLayerReview(
     onResize,
     onRotate,
     focusKindToken,
+    kindPicker,
     suggestionCount: canEdit ? suggestions.length : 0,
     suggestionLabel: pendingSuggestionsLabel(suggestions.length),
     onAcceptAllSuggestions,
     onRejectAllSuggestions,
-    approveConfidentLabel: canApproveConfident ? confidentRowLabelOf(confidentObjects.length) : null,
+    approveConfidentLabel: canApproveConfident ? approveConfidentLabelOf(confidentObjects.length) : null,
     ...(canApproveConfident ? { onApproveConfident } : {}),
     approveRemainingLabel: canApproveRemaining ? approveUnsureLabelOf(unsureObjects.length) : null,
     approveRemainingConfirm: canApproveRemaining ? confirmUnsureLabelOf(unsureObjects.length) : null,

@@ -64,13 +64,13 @@ test('đường nạp thật: màn liệt kê đúng ô mở và nội thất c�
 /*
  * B-V6-10 (ba nút nhóm khoá cứng lúc đầu) giữ nguyên ý: ba nút nhóm trên ray bấm được bằng chuột
  * ngay từ đầu. UX-R2 (98752ba3, K07) đổi ba nút "Chọn nhóm … (phím C/S/N)" thành ba công cụ vẽ
- * "Vẽ cửa đi / Vẽ cửa sổ / Vẽ nội thất": nút làm đúng việc ghi trên nhãn (bật chế độ vẽ). Chọn nhóm
+ * "Vẽ cửa đi / Vẽ cửa sổ / Thêm đồ vật": nút làm đúng việc ghi trên nhãn (bật chế độ vẽ). Chọn nhóm
  * nay chỉ còn ở phím C/S/N — ca ngay dưới.
  */
 test('[bơm] ba nút nhóm trên ray ("Vẽ …") bấm được bằng chuột ngay từ đầu (B-V6-10, K07)', async ({ page }) => {
   await openSeeded(page);
 
-  for (const name of ['Vẽ cửa đi', 'Vẽ cửa sổ', 'Vẽ nội thất']) {
+  for (const name of ['Vẽ cửa đi', 'Vẽ cửa sổ', 'Thêm đồ vật']) {
     await expect(rail(page).getByRole('button', { name, exact: true })).toBeEnabled();
   }
 

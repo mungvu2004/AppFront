@@ -2,6 +2,8 @@
  * S5 (render-look B): AO rẻ khi SSGI tắt + AO chỉ làm tối phần gián tiếp (`@pascal-realism/ao`).
  * - Mức `low` (iGPU) tắt SSGI → trước đây không có AO nào. Nay: GTAO của three (nửa độ phân giải, 6 mẫu),
  *   ghép như nhánh SSGI (mờ dần ở xa như `aoFarFade`). Cần MRT pháp tuyến + albedo → `needsNormalMRT` gồm GTAO.
+ *   GTAO chỉ khi scene pass 1 mẫu (TRAA bật): pass MSAA cho depth multisampled, `textureGather` của GTAO không
+ *   nhận → shader hỏng, AO rác (mức low trước đây). `gtaoOn` tự kiểm TRAA như `traaOn` của r3-traa.
  *   WebGL2 không dựng chuỗi hậu kỳ (`isWebGpuBackend`) → không AO, như cũ. Dựng GTAO lỗi → bỏ AO, giữ chuỗi.
  * - Cả hai nhánh: `scene * ao` → `scene * aoIndirect(ao, scene, albedo)` — chỗ nắng/đèn trực tiếp không bị AO làm tối.
  * Tên tệp `r10-` xếp ngay sau `r1-backend` (sắp theo chuỗi): neo lấy từ mã sau `pascal-render` + r1, các luật sau
@@ -50,7 +52,7 @@ export const RULES = {
     [ATMO, `${ATMO}\n${IMPORTS}`],
     [
       '    const needsNormalMRT = ssgiEnabled || inkEnabled\n',
-      '    const gtaoEnabled = gtaoOn(shading, ssgiEnabled)\n    const needsNormalMRT = ssgiEnabled || inkEnabled || gtaoEnabled\n',
+      '    const gtaoEnabled = gtaoOn(shading, ssgiEnabled, transparentBackground)\n    const needsNormalMRT = ssgiEnabled || inkEnabled || gtaoEnabled\n',
     ],
     [
       'add(scenePassColor.rgb.mul(ao), add(zonePass.rgb, scenePassDiffuse.rgb.mul(gi)))',

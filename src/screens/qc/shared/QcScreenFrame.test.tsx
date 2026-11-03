@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { QC_BODY_CLASS, QC_NO_CHANGES_LABEL, QC_UNDO_LABEL, QcCanvasFrame, QcScreenFrame, QcStatusBar, QcWorkspace } from './QcScreenFrame';
@@ -87,6 +87,58 @@ describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
       expect(drawer()?.className).toContain('xl:w-[240px]');
       expect(drawer()?.className.split(' ')).not.toContain('hidden');
     });
+  });
+});
+
+describe('[figma-layout] QcWorkspace column: hai panel neo cùng cỡ', () => {
+  const dock = () => screen.getByTestId('qc-inspector-dock');
+
+  it('cột trái và panel phải cùng 260/280/320; không còn nút "Hiện/Ẩn chi tiết"', () => {
+    render(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>chi tiết</p>} left={<p>trái</p>} selectionKey="a" />);
+    for (const element of [screen.getByText('trái').parentElement, dock()]) {
+      expect(element?.className).toContain('lg:w-[260px] xl:w-[280px] 2xl:w-[320px]');
+    }
+    expect(dock().className).not.toContain('lg:max-xl:hidden');
+    expect(screen.queryByRole('button', { name: 'Hiện chi tiết' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ẩn chi tiết' })).toBeNull();
+  });
+
+  it('dưới 1024: tấm đáy ≤ 45 %, ẩn khi chưa chọn gì', () => {
+    const { rerender } = render(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>chi tiết</p>} selectionKey={null} />);
+    expect(dock()).toHaveClass('max-lg:absolute', 'max-lg:bottom-2', 'max-lg:max-h-[45%]', 'max-lg:hidden');
+    rerender(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>chi tiết</p>} selectionKey="a" />);
+    expect(dock()).not.toHaveClass('max-lg:hidden');
+  });
+
+  it('thu gọn ẩn cả hai panel', () => {
+    render(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" collapsed column inspector={<p>chi tiết</p>} left={<p>trái</p>} selectionKey="a" />);
+    expect(screen.queryByText('chi tiết')).toBeNull();
+    expect(screen.queryByText('trái')).toBeNull();
+  });
+
+  it('dưới 1024, chưa chọn: nút "Chi tiết" mở tấm đáy "Tầng này", Esc đóng; đang chọn thì không có nút', () => {
+    const tree = (key: string | null) => <QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>Tầng này</p>} selectionKey={key} />;
+    const { rerender } = render(tree(null));
+    const toggle = screen.getByRole('button', { name: 'Chi tiết' });
+    expect(toggle).toHaveClass('lg:hidden', 'min-h-8');
+    expect(toggle).toHaveAttribute('aria-controls', dock().id);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(dock()).not.toHaveClass('max-lg:hidden');
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(dock()).toHaveClass('max-lg:hidden');
+
+    rerender(tree('a'));
+    expect(screen.queryByRole('button', { name: 'Chi tiết' })).toBeNull();
+    expect(dock()).not.toHaveClass('max-lg:hidden');
+    rerender(tree(null));
+    expect(screen.getByRole('button', { name: 'Chi tiết' })).toHaveAttribute('aria-expanded', 'false');
   });
 });
 

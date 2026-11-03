@@ -1,41 +1,74 @@
 /**
- * R4: nạp HDRI sau khi cảnh đã lên, đặt làm `scene.environment` cho chủ đề sáng. Vendor
- * `scene-environment.tsx` gọi qua `@pascal-realism/lighting-hdri` (vá `scripts/realism/r4-lighting.mjs`).
- * Lỗi / quá 10 s / không WebGPU / cờ tắt → giữ nguyên môi trường cũ.
+ * R4: HDRI cho chủ đề sáng. Vendor `scene-environment.tsx` gọi qua `@pascal-realism/lighting-hdri`
+ * (vá `scripts/realism/r4-lighting.mjs`). Lỗi / quá 10 s / không WebGPU / cờ tắt → giữ nguyên môi trường cũ.
+ *
+ * Tốc độ mở trang: đổi `scene.environment` sau lượt vẽ đầu làm three tạo nút môi trường MỚI (id mới) →
+ * khoá cache của mọi RenderObject có ánh sáng đổi → dựng lại + biên dịch lại pipeline (25–40/75 lượt).
+ * Nên cài MỘT `PMREMNode` làm `scene.environmentNode` ngay lúc cài (giữ trời gradient), HDRI về thì chỉ
+ * đổi `envNode.value` — PMREM tính lại, không vật liệu nào dựng lại. Byte HDRI tải từ lúc mở trang
+ * (`prefetchHdri` trong `main.tsx`), không còn đợi trình duyệt rảnh.
  */
-import { EquirectangularReflectionMapping, FloatType, type Scene, type Texture } from 'three';
+import { EquirectangularReflectionMapping, FileLoader, FloatType, type Scene, type Texture } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+import { pmremTexture } from 'three/tsl';
 
 import { HDRI_SCALE, HDRI_TIMEOUT_MS, HDRI_VARIANT, type HdriVariant, hdriAutoScale, hdriUrlFor, mixGradient, shouldLoadHdri } from './lighting';
 import { makeSkyTexture, setHdriSky } from './reflect';
 import { useRealism } from './store';
 
-/** Chờ trình duyệt rảnh tối đa 3 s; không có requestIdleCallback thì đợi 1 s (thời gian chờ, không phải chuyển động). */
-const IDLE_TIMEOUT_MS = 3000;
-const IDLE_FALLBACK_MS = 1000;
+/** `?hdri=pure|gradient|off` để chấm mù hai biến thể (không có = HDRI_VARIANT). */
+const askedHdri = () => (typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('hdri'));
+
+const buffers = new Map<string, Promise<ArrayBuffer>>();
+
+/** Byte thô của HDRI theo chủ đề, tải một lần (đổi chủ đề qua lại không tải lại). Lỗi → lần sau thử lại. */
+function hdriBytes(themeId: string): Promise<ArrayBuffer> {
+  const url = hdriUrlFor(themeId);
+  let pending = buffers.get(url);
+  if (!pending) {
+    pending = new FileLoader().setResponseType('arraybuffer').loadAsync(url) as Promise<ArrayBuffer>;
+    pending.catch(() => buffers.delete(url));
+    buffers.set(url, pending);
+  }
+  return pending;
+}
+
+/**
+ * Gọi lúc mở trang: tải trước HDRI nếu chủ đề hiện tại sẽ dùng. Backend thật chưa biết (renderer chưa
+ * init) → coi `navigator.gpu` là WebGPU; đoán sai chỉ tốn một lượt tải ~1 MB.
+ */
+export function prefetchHdri(themeId: string, appearance: string): void {
+  const gpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
+  const flag = useRealism.getState().flags.hdri;
+  if (askedHdri() === 'off' || !shouldLoadHdri({ backend: gpu ? 'webgpu' : 'webgl', flag, appearance })) return;
+  hdriBytes(themeId).catch(() => {});
+}
 
 /** Trả hàm dọn (gỡ HDRI, trả môi trường cũ). `themeId` chọn HDRI (Ban ngày khác Nắng chiều, gói 2B). */
 export function installHdri(scene: Scene, appearance: string, themeId = ''): () => void {
   const { backend, flags } = useRealism.getState();
-  // `?hdri=pure|gradient|off` để chấm mù hai biến thể (không có = HDRI_VARIANT).
-  const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('hdri');
+  const asked = askedHdri();
   if (asked === 'off' || !shouldLoadHdri({ backend, flag: flags.hdri, appearance })) return () => {};
   const variant: HdriVariant = asked === 'pure' || asked === 'gradient' ? asked : HDRI_VARIANT;
   let done = false;
   let hdr: Texture | null = null;
   let sky: Texture | null = null;
-  let previous: Scene['environment'] = null;
+  const previousNode = scene.environmentNode;
+  // Nút môi trường cố định từ lượt vẽ đầu: bọc trời gradient vendor đang đặt ở `scene.environment`.
+  let envNode = scene.environment ? pmremTexture(scene.environment) : null;
+  if (envNode) scene.environmentNode = envNode;
   const timer = setTimeout(() => {
     if (!hdr) done = true;
   }, HDRI_TIMEOUT_MS);
-  // "Sau khi cảnh sẵn sàng": đợi trình duyệt rảnh (vật liệu/mô hình đã đòi xong) rồi mới tải.
-  const idle = (cb: () => void) =>
-    typeof requestIdleCallback === 'function' ? requestIdleCallback(cb, { timeout: IDLE_TIMEOUT_MS }) : setTimeout(cb, IDLE_FALLBACK_MS);
-  idle(() => {
+  const warn = (error: unknown) => console.warn('[pascal-realism] HDRI không tải được, giữ môi trường cũ', error);
+  hdriBytes(themeId).then((buffer) => {
     if (done) return;
+    // Blob URL giữ nguyên cách HDRLoader dựng texture (lọc, lật, không mipmap).
+    const url = URL.createObjectURL(new Blob([buffer]));
     new HDRLoader().setDataType(FloatType).load(
-      hdriUrlFor(themeId),
+      url,
       (texture) => {
+        URL.revokeObjectURL(url);
         if (done) return texture.dispose();
         clearTimeout(timer);
         const { data, width, height } = texture.image as { data: Float32Array; width: number; height: number };
@@ -46,18 +79,23 @@ export function installHdri(scene: Scene, appearance: string, themeId = ''): () 
         texture.mapping = EquirectangularReflectionMapping;
         texture.needsUpdate = true;
         hdr = texture;
-        previous = scene.environment;
-        scene.environment = texture;
+        // Cùng nút → khoá cache vật liệu không đổi; không có trời cũ thì đặt nút lần đầu (như trước).
+        if (envNode) envNode.value = texture;
+        else scene.environmentNode = envNode = pmremTexture(texture);
         setHdriSky(sky);
       },
       undefined,
-      (error) => console.warn('[pascal-realism] HDRI không tải được, giữ môi trường cũ', error),
+      (error) => {
+        URL.revokeObjectURL(url);
+        warn(error);
+      },
     );
-  });
+  }, warn);
   return () => {
     done = true;
     clearTimeout(timer);
-    if (hdr && scene.environment === hdr) scene.environment = previous;
+    if (envNode && scene.environmentNode === envNode) scene.environmentNode = previousNode;
+    envNode?.dispose();
     if (sky) setHdriSky(null);
     hdr?.dispose();
     sky?.dispose();

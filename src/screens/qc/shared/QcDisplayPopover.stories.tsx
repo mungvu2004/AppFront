@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { ListFilter } from 'lucide-react';
 import { useState } from 'react';
 
 import { QcDisplayPopover } from './QcDisplayPopover';
@@ -46,4 +47,24 @@ function Stateful() {
 export const Default: StoryObj<typeof QcDisplayPopover> = {
   name: 'Hai nhóm công tắc',
   render: () => <Stateful />,
+};
+
+function FilterStateful() {
+  const [on, setOn] = useState<Record<string, boolean>>({ unreviewed: true, low: false });
+  const toggle = (key: string, label: string) => ({ key, label, checked: on[key] ?? false, onToggle: () => setOn((prev) => ({ ...prev, [key]: !(prev[key] ?? false) })) });
+  return (
+    <QcDisplayPopover
+      groups={[{ title: 'Lọc danh sách', items: [toggle('unreviewed', 'Chỉ hiện chưa duyệt'), toggle('low', 'Chỉ hiện chỗ máy chưa chắc')] }]}
+      icon={<ListFilter aria-hidden="true" className="h-4 w-4" />}
+      label="Lọc"
+      popoverLabel="Lọc danh sách"
+      showActiveCount
+      variant="flat"
+    />
+  );
+}
+
+export const Filter: StoryObj<typeof QcDisplayPopover> = {
+  name: 'Nút Lọc phẳng của cột việc (đếm bộ lọc đang bật)',
+  render: () => <FilterStateful />,
 };

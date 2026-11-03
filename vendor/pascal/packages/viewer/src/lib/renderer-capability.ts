@@ -69,7 +69,35 @@ function withTimeout<Result>(promise: Promise<Result>, timeoutMs: number, operat
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeout))
 }
 
-async function requestWebGpuDevice(gpu: RendererGpu, powerPreference?: RendererPowerPreference) {
+let prewarmed: {
+  gpu: RendererGpu
+  powerPreference: RendererPowerPreference | undefined
+  device: Promise<unknown>
+} | null = null
+
+/**
+ * Starts the adapter/device request early (page boot) so it overlaps network
+ * loading; the next matching request takes it, a mismatched one releases it.
+ */
+export function prewarmWebGpuDevice(powerPreference?: RendererPowerPreference): void {
+  const gpu = browserGpu()
+  if (!gpu || prewarmed) return
+  const device = requestFreshWebGpuDevice(gpu, powerPreference)
+  device.catch(() => {})
+  prewarmed = { gpu, powerPreference, device }
+}
+
+function requestWebGpuDevice(gpu: RendererGpu, powerPreference?: RendererPowerPreference) {
+  const early = prewarmed
+  prewarmed = null
+  if (early?.gpu === gpu && early.powerPreference === powerPreference) {
+    return early.device.catch(() => requestFreshWebGpuDevice(gpu, powerPreference))
+  }
+  early?.device.then(releaseDevice, () => {})
+  return requestFreshWebGpuDevice(gpu, powerPreference)
+}
+
+async function requestFreshWebGpuDevice(gpu: RendererGpu, powerPreference?: RendererPowerPreference) {
   const adapter = await gpu.requestAdapter({
     featureLevel: 'compatibility',
     ...(powerPreference ? { powerPreference } : {}),

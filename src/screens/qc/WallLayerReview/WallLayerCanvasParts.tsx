@@ -1,18 +1,20 @@
 /**
  * Mảnh con của `WallLayerCanvas` (tách cho trần 400 dòng): ảnh nền, nét xem trước,
- * chú giải độ dày, bản đồ nhỏ (menu + toạ độ con trỏ ở `wallLayerCanvasActions.ts`).
+ * bản đồ nhỏ (menu + toạ độ con trỏ ở `wallLayerCanvasActions.ts`).
  * Cùng luật view thuần của canvas: không một phép hình học nào, toạ độ do trình duyệt đổi.
  */
 
 import { useState } from 'react';
 
+import { wallConfidenceToken } from '@/components/canvas/materialMap';
 import { MiniMap } from '@/components/canvas/MiniMap';
 
 import { backgroundFrameRect } from '../shared/canvasFit';
+import { useQcCompare } from '../shared/qcCompare';
 
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
-import { BACKGROUND_IMAGE_OPACITY, toSvgPoints, wallThicknessFillToken } from './wallLayerHatch';
-import { WallLayerLegendTray } from './WallLayerLegendTray';
+import { BACKGROUND_IMAGE_OPACITY, toSvgPoints } from './wallLayerHatch';
+import type { WallDrawSnapKind } from './wallDrawSnap';
 
 type Props = WallLayerCanvasViewProps;
 
@@ -27,9 +29,12 @@ const FIT_ZOOM_PERCENT = 100;
 export function WallDrawingBackground({
   backgroundImageAlt,
   backgroundImageUrl,
+  opacity = BACKGROUND_IMAGE_OPACITY,
   surface,
   surfaceRectPx,
 }: Pick<Props, 'backgroundImageAlt' | 'backgroundImageUrl' | 'surfaceRectPx'> & {
+  /** Nửa trái của "So sánh hai bên" vẽ ảnh rõ nét (1). */
+  readonly opacity?: number;
   readonly surface: WallLayerRectPx | null;
 }) {
   const [loadedImage, setLoadedImage] = useState<{
@@ -63,54 +68,71 @@ export function WallDrawingBackground({
         setLoadedImage({ url: backgroundImageUrl, width: naturalWidth, height: naturalHeight });
       }}
       src={backgroundImageUrl}
-      style={{ ...box, opacity: BACKGROUND_IMAGE_OPACITY }}
+      style={{ ...box, opacity }}
     />
   );
 }
 
-/** G4a-23: nét xem trước của Vẽ tường / dấu cắt của Tách đoạn — accent, nét đứt. */
+/** G4a-23: nét xem trước của Vẽ tường / dấu cắt của Tách đoạn — accent, nét đứt; vòng nam châm khi bắt vào tường. */
 export function WallDraftGuide({
   draftGuidePx,
   unitPx,
 }: {
-  readonly draftGuidePx: NonNullable<Props['draftGuidePx']>;
+  /* `snapKind` do hook gắn thêm (`wallDrawSnap.ts`); kiểu gốc ở `wallLayerHatch.ts` chưa khai. */
+  readonly draftGuidePx: NonNullable<Props['draftGuidePx']> & { readonly snapKind?: WallDrawSnapKind | null };
   readonly unitPx: number;
 }) {
-  return draftGuidePx.fromPx === null ? (
-    <circle
-      cx={draftGuidePx.toPx.x}
-      cy={draftGuidePx.toPx.y}
-      data-testid="wall-draft-guide"
-      fill="none"
-      pointerEvents="none"
-      r={6 * unitPx}
-      stroke="var(--accent)"
-      strokeDasharray={`${3 * unitPx} ${2 * unitPx}`}
-      strokeWidth={2 * unitPx}
-    />
-  ) : (
-    <line
-      data-testid="wall-draft-guide"
-      pointerEvents="none"
-      stroke="var(--accent)"
-      strokeDasharray={`${6 * unitPx} ${4 * unitPx}`}
-      strokeWidth={2 * unitPx}
-      x1={draftGuidePx.fromPx.x}
-      x2={draftGuidePx.toPx.x}
-      y1={draftGuidePx.fromPx.y}
-      y2={draftGuidePx.toPx.y}
-    />
-  );
-}
+  const { fromPx, toPx, snapKind = null } = draftGuidePx;
 
-/** Chú giải hình (Z/S-15): mẫu cùng hình với tường trên bản vẽ — xem `WallLayerLegendTray`. */
-export function WallLayerLegend(props: Pick<Props, 'isWallLayerVisible' | 'legendLevels' | 'shapes' | 'state'>) {
-  return <WallLayerLegendTray {...props} />;
+  if (fromPx === null && snapKind === null) {
+    return (
+      <circle
+        cx={toPx.x}
+        cy={toPx.y}
+        data-testid="wall-draft-guide"
+        fill="none"
+        pointerEvents="none"
+        r={6 * unitPx}
+        stroke="var(--accent)"
+        strokeDasharray={`${3 * unitPx} ${2 * unitPx}`}
+        strokeWidth={2 * unitPx}
+      />
+    );
+  }
+
+  return (
+    <g data-testid="wall-draft-guide" pointerEvents="none">
+      {fromPx === null ? null : (
+        <line
+          stroke="var(--accent)"
+          strokeDasharray={`${6 * unitPx} ${4 * unitPx}`}
+          strokeWidth={2 * unitPx}
+          x1={fromPx.x}
+          x2={toPx.x}
+          y1={fromPx.y}
+          y2={toPx.y}
+        />
+      )}
+      {snapKind === null ? null : (
+        <circle
+          cx={toPx.x}
+          cy={toPx.y}
+          data-snap-kind={snapKind}
+          data-testid="wall-draft-snap"
+          fill="none"
+          r={(snapKind === 'wallVertex' ? 7 : 5) * unitPx}
+          stroke="var(--accent)"
+          strokeWidth={2.5 * unitPx}
+        />
+      )}
+    </g>
+  );
 }
 
 /**
  * Bản đồ nhỏ. Ở "vừa khung" (100%) cả mặt bằng đã nằm trong khung: không có gì để chỉ, chỉ
  * đè góc trên phải bản vẽ (khung tên). Phóng to qua 100% thì hiện.
+ * "So sánh hai bên" thì ẩn: nửa trái đã cho ngữ cảnh, bản đồ chỉ đè lên bản vẽ của nửa phải hẹp.
  */
 export function WallLayerMiniMap({
   miniMapViewport,
@@ -121,9 +143,13 @@ export function WallLayerMiniMap({
 }: Pick<Props, 'miniMapViewport' | 'onMiniMapViewportChange' | 'shapes' | 'zoomPercent'> & {
   readonly surface: WallLayerRectPx | null;
 }) {
+  const isComparing = useQcCompare();
+
   return (
     <MiniMap
-      isVisible={surface !== null && zoomPercent > FIT_ZOOM_PERCENT}
+      /* Bản đồ nhỏ góc trên trái, dưới nút "Từng việc / Tổng thể". */
+      className="top-[60px] right-auto left-3"
+      isVisible={surface !== null && zoomPercent > FIT_ZOOM_PERCENT && !isComparing}
       onViewportChange={onMiniMapViewportChange}
       viewport={miniMapViewport}
     >
@@ -135,7 +161,7 @@ export function WallLayerMiniMap({
           viewBox={`${surface.x} ${surface.y} ${surface.width} ${surface.height}`}
         >
           {shapes.map((shape) => (
-            <polygon fill={wallThicknessFillToken(shape.thicknessMm)} key={shape.id} points={toSvgPoints(shape.outline)} />
+            <polygon fill={wallConfidenceToken(shape.confidenceTier)} key={shape.id} points={toSvgPoints(shape.outline)} />
           ))}
         </svg>
       )}

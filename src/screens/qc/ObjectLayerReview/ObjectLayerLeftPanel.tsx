@@ -1,33 +1,35 @@
 /**
- * Bộ lọc của panel trái màn "Duyệt cửa và nội thất" (demo Z/S-16): ba nút bật/tắt theo
- * loại (Cửa đi · Cửa sổ · Nội thất, mỗi nút một số đếm) và menu "Loại con" gom tám chip
- * loại con (chín chip làm panel quá dài).
+ * Thanh đầu cột việc của màn "Duyệt cửa và nội thất", gọn như bước Tường: MỘT nút "Lọc" (gấp sẵn) và nút
+ * "⚠ n" lỗi quy chuẩn. Mở "Lọc" là thấy: công tắc "Chỉ hiện chỗ máy chưa chắc", ba nút loại (Cửa đi ·
+ * Cửa sổ · Nội thất, mỗi nút một số đếm) và các chip "Loại con". Số bộ lọc đang áp hiện cạnh chữ "Lọc".
  *
- * View THUẦN (R-60): mọi thứ vào bằng {@link ObjectLayerLeftPanelViewProps}, ra bằng hai
- * callback. Ba số đếm đọc từ `counts` — hàm DUY NHẤT cộng ba lớp con là
- * `createObjectLayerCounts`, nên tổng ở dòng trạng thái luôn bằng tổng ba nút.
+ * View THUẦN (R-60): mọi thứ vào bằng {@link ObjectLayerLeftPanelViewProps}, ra bằng callback. Ba số đếm
+ * đọc từ `counts` — hàm DUY NHẤT cộng ba lớp con là `createObjectLayerCounts`, nên tổng ở dòng trạng thái
+ * luôn bằng tổng ba nút.
  *
  * Chip đếm CHỈ là bộ lọc (K07): bấm "Cửa đi 6" là chỉ hiện cửa đi, bấm lại là hiện cả ba.
  * `aria-pressed` bật khi chip đang lọc. Ẩn/hiện lớp trên bản vẽ không ở đây.
- * Menu "Loại con" chỉ liệt kê loại có mặt trên tầng (hoặc đang bật).
+ * Chip loại con chỉ liệt kê loại có mặt trên tầng (hoặc đang bật).
  */
 
 import { lowerFirst } from '@/lib/format/sentence';
-import { AppWindow, ChevronDown, DoorOpen, Sofa, type LucideIcon } from 'lucide-react';
+import { AppWindow, ChevronDown, DoorOpen, ListFilter, Sofa, type LucideIcon } from 'lucide-react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { cn } from '@/lib/utils';
 
-import { QcRuleIssues } from '../shared/QcRuleIssues';
+import { QcRuleIssueFocus, QcRuleIssuesBadge } from '../shared/QcRuleIssues';
 
 import type { ObjectLayerLeftPanelViewProps } from './objectLayerSymbols';
 import type { ObjectLayerCounts, ObjectLayerId, ObjectSubtype } from './objectLayerTypes';
 import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS, OBJECT_SUBTYPES, OBJECT_SUBTYPE_LABELS } from './objectLayerTypes';
 
+const FILTER_BUTTON = 'Lọc';
 const FILTER_ROW_LABEL = 'Lọc theo loại';
 const SUBTYPE_MENU_LABEL = 'Loại con';
 const SUBTYPE_GROUP_LABEL = 'Lọc theo loại con';
 const FILTER_LAYER_PREFIX = 'Chỉ hiện ';
+const LOW_CONFIDENCE_FILTER = 'Chỉ hiện chỗ máy chưa chắc';
 
 /** Số đếm của một lớp con, đọc từ `counts` — không cộng lại ở view. */
 const LAYER_COUNT_READERS: Readonly<Record<ObjectLayerId, (counts: ObjectLayerCounts) => number>> = {
@@ -43,96 +45,133 @@ const LAYER_ICONS: Readonly<Record<ObjectLayerId, LucideIcon>> = {
   furniture: Sofa,
 };
 
-const CHIP_CLASS = cn(
-  'inline-flex h-8 items-center gap-1.5 rounded-lg border px-2 text-[13px]',
-  'transition-colors duration-120',
-  'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-);
+const FOCUS_RING = 'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+const CHIP_CLASS = cn('inline-flex h-8 items-center gap-1.5 rounded-lg border px-2 text-[13px] transition-colors duration-120', FOCUS_RING);
+const PILL_CLASS = cn('rounded-full border px-2.5 py-1 text-[12px] transition-colors duration-120', FOCUS_RING);
+const ON_CLASS = 'border-accent bg-accent-wash text-accent';
+const OFF_CLASS = 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary';
 
-/** Lỗi quy chuẩn không chặn duyệt đồ: gấp sẵn, nói rõ là xem sau cũng được. */
+/** Lỗi quy chuẩn không chặn duyệt đồ: nói rõ là xem sau cũng được. */
 const ruleWarningTitleOf = (count: number): string => `Cảnh báo quy chuẩn (${count}) — xem sau cũng được`;
 
 export function ObjectLayerLeftPanel({
   availableSubtypes,
   counts,
   furnitureAttentionNotice,
+  isLowConfidenceOnly,
   listLayerFilter,
   onFilterLayer,
+  onToggleLowConfidenceOnly,
   onToggleSubtypeFilter,
   ruleIssues,
   subtypeFilters,
 }: ObjectLayerLeftPanelViewProps) {
   const subtypes = OBJECT_SUBTYPES.filter((subtype) => subtypeFilters.has(subtype) || availableSubtypes.has(subtype));
+  const activeCount = (listLayerFilter === null ? 0 : 1) + subtypeFilters.size + (isLowConfidenceOnly ? 1 : 0);
 
   return (
-    <div className="flex flex-col gap-3 border-b border-border-default px-4 py-3">
-      {/* Mở từ nút "Sửa" của Quy chuẩn: nói lỗi gì, cách sửa, trước bộ lọc (P03). */}
-      {ruleIssues === undefined ? null : <QcRuleIssues {...ruleIssues} titleOf={ruleWarningTitleOf} />}
+    <div className="flex flex-col border-b border-border-default">
+      <div className="flex items-start gap-1 px-2 py-1">
+        {/* `details` gấp sẵn: một nút trên màn, mở ra ngay dưới thanh (không phủ lên danh sách). */}
+        <details className="group min-w-0 flex-1">
+          <summary
+            className={cn(
+              'inline-flex h-8 cursor-pointer list-none items-center gap-1 whitespace-nowrap rounded-lg px-1.5 text-body-sm font-medium text-text-primary',
+              'transition-colors duration-120 hover:bg-bg-hover [&::-webkit-details-marker]:hidden',
+              FOCUS_RING,
+              activeCount > 0 && 'bg-accent-wash text-accent',
+            )}
+          >
+            <ListFilter aria-hidden="true" className="h-4 w-4" />
+            {FILTER_BUTTON}
+            {activeCount > 0 ? (
+              <>
+                <span aria-hidden="true" className="rounded-full bg-accent px-1.5 text-caption tabular-nums text-white">
+                  {activeCount}
+                </span>
+                <span className="sr-only">{`: ${activeCount} đang bật`}</span>
+              </>
+            ) : null}
+            <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 text-text-muted transition-transform duration-120 group-open:rotate-180" />
+          </summary>
 
-      <div aria-label={FILTER_ROW_LABEL} className="flex flex-wrap gap-2" role="group">
-        {OBJECT_LAYER_IDS.map((layer) => {
-          const Icon = LAYER_ICONS[layer];
-          const label = OBJECT_LAYER_LABELS[layer];
-          const isFiltering = listLayerFilter === layer;
-
-          return (
-            <button
-              aria-label={`${FILTER_LAYER_PREFIX}${lowerFirst(label)}`}
-              aria-pressed={isFiltering}
-              className={cn(
-                CHIP_CLASS,
-                isFiltering
-                  ? 'border-accent bg-accent-wash text-text-primary'
-                  : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-              )}
-              key={layer}
-              onClick={() => onFilterLayer(layer)}
-              type="button"
-            >
-              <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-              <span>{label}</span>
-              <span className="tabular-nums text-text-secondary">{LAYER_COUNT_READERS[layer](counts)}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Nhánh nội thất lỗi trong khi cửa vẫn xong (trạng thái 3b): một hàng cần chú ý, không chặn cả màn. */}
-      {furnitureAttentionNotice === null ? null : <InlineAlert level="attention" message={furnitureAttentionNotice} />}
-
-      <details className="group">
-        <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 rounded-sm text-[13px] text-text-secondary outline-hidden hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
-          {SUBTYPE_MENU_LABEL}
-          {subtypeFilters.size === 0 ? null : <span className="tabular-nums text-accent">{subtypeFilters.size}</span>}
-          <ChevronDown aria-hidden="true" className="h-4 w-4 transition-transform duration-120 group-open:rotate-180" />
-        </summary>
-        {/* Chip đang bật mang `aria-pressed`: trạng thái lọc không chỉ nằm ở màu. */}
-        <div aria-label={SUBTYPE_GROUP_LABEL} className="mt-2 flex flex-wrap gap-1.5" role="group">
-          {/* Chỉ loại có mặt trên tầng (K07): chip xám "không có đối tượng" chỉ làm dài menu. */}
-          {subtypes.map((subtype: ObjectSubtype) => {
-            const isOn = subtypeFilters.has(subtype);
-
-            return (
+          <div className="flex flex-col gap-3 px-1.5 pb-2 pt-2">
+            {/* Còn bật thì ô còn, để tắt được (BUG-584). */}
+            {onToggleLowConfidenceOnly === null ? null : (
               <button
-                aria-pressed={isOn}
-                className={cn(
-                  'rounded-full border px-2.5 py-1 text-[12px]',
-                  'transition-colors duration-120',
-                  'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                  isOn
-                    ? 'border-accent bg-accent-wash text-accent'
-                    : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-                )}
-                key={subtype}
-                onClick={() => onToggleSubtypeFilter(subtype)}
+                aria-pressed={isLowConfidenceOnly}
+                className={cn('self-start', PILL_CLASS, isLowConfidenceOnly ? ON_CLASS : OFF_CLASS)}
+                onClick={onToggleLowConfidenceOnly}
                 type="button"
               >
-                {OBJECT_SUBTYPE_LABELS[subtype]}
+                {LOW_CONFIDENCE_FILTER}
               </button>
-            );
-          })}
+            )}
+
+            <div aria-label={FILTER_ROW_LABEL} className="flex flex-wrap gap-2" role="group">
+              {OBJECT_LAYER_IDS.map((layer) => {
+                const Icon = LAYER_ICONS[layer];
+                const label = OBJECT_LAYER_LABELS[layer];
+                const isFiltering = listLayerFilter === layer;
+
+                return (
+                  <button
+                    aria-label={`${FILTER_LAYER_PREFIX}${lowerFirst(label)}`}
+                    aria-pressed={isFiltering}
+                    className={cn(CHIP_CLASS, isFiltering ? 'border-accent bg-accent-wash text-text-primary' : OFF_CLASS)}
+                    key={layer}
+                    onClick={() => onFilterLayer(layer)}
+                    type="button"
+                  >
+                    <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+                    <span>{label}</span>
+                    <span className="tabular-nums text-text-secondary">{LAYER_COUNT_READERS[layer](counts)}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Chỉ loại có mặt trên tầng (K07); chip đang bật mang `aria-pressed`, không chỉ đổi màu. */}
+            {subtypes.length === 0 ? null : (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-caption font-medium uppercase tracking-[0.06em] text-text-muted">{SUBTYPE_MENU_LABEL}</p>
+                <div aria-label={SUBTYPE_GROUP_LABEL} className="flex flex-wrap gap-1.5" role="group">
+                  {subtypes.map((subtype: ObjectSubtype) => {
+                    const isOn = subtypeFilters.has(subtype);
+
+                    return (
+                      <button
+                        aria-pressed={isOn}
+                        className={cn(PILL_CLASS, isOn ? ON_CLASS : OFF_CLASS)}
+                        key={subtype}
+                        onClick={() => onToggleSubtypeFilter(subtype)}
+                        type="button"
+                      >
+                        {OBJECT_SUBTYPE_LABELS[subtype]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </details>
+        {ruleIssues === undefined ? null : <QcRuleIssuesBadge {...ruleIssues} titleOf={ruleWarningTitleOf} />}
+      </div>
+
+      {/* P03: mở từ nút "Sửa" của Quy chuẩn thì lỗi đó nói ngay trên danh sách — lỗi gì, sửa thế nào. */}
+      {ruleIssues !== undefined && (ruleIssues.focused !== null || ruleIssues.focusResolved) ? (
+        <div className="px-3 pb-2">
+          <QcRuleIssueFocus {...ruleIssues} />
         </div>
-      </details>
+      ) : null}
+
+      {/* Nhánh nội thất lỗi trong khi cửa vẫn xong (trạng thái 3b): một hàng cần chú ý, không chặn cả màn. */}
+      {furnitureAttentionNotice === null ? null : (
+        <div className="px-3 pb-2">
+          <InlineAlert level="attention" message={furnitureAttentionNotice} />
+        </div>
+      )}
     </div>
   );
 }

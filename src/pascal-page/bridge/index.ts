@@ -32,10 +32,10 @@ import type { ProjectRole } from '@/types/project';
 
 import { scaleStatusOf } from '../useScaleStatus';
 import { resolveBackHref } from './backHref';
-import type { PascalBridge, PascalConfirm, PascalSaveStatus, PascalSceneGraph } from './types';
+import type { PascalBridge, PascalConfirm, PascalNotice, PascalSaveStatus, PascalSceneGraph } from './types';
 
 export { LAST_APP_PATH_KEY, rememberAppPath, RETURN_TO_PARAM } from './backHref';
-export type { PascalBridge, PascalConfirm, PascalSaveStatus, PascalSceneGraph } from './types';
+export type { PascalBridge, PascalConfirm, PascalNotice, PascalSaveStatus, PascalSceneGraph } from './types';
 
 export const BRIDGE_SESSION_ERROR = 'Phiên đăng nhập đã hết. Đăng nhập lại rồi mở lại mô hình 3D.';
 export const BRIDGE_NOT_FOUND_ERROR = 'Không tìm thấy dự án này, hoặc bạn chưa được thêm vào dự án.';
@@ -314,17 +314,9 @@ async function loadProject(projectId: string): Promise<{
   return { projectName: project.name, style, additions: concept?.additions ?? [], furnish: furnishModeOf(concept) };
 }
 
-interface NoticeState {
-  /** Lời từ chối của lượt sửa vừa rồi (N1) — thẻ hiện như cảnh báo. */
-  readonly alert: string | null;
-  readonly unsaved: readonly string[];
-  readonly messages: readonly string[];
-}
-
-const EMPTY_NOTICE: NoticeState = { alert: null, unsaved: [], messages: [] };
-
-const noticeTextOf = ({ alert, messages, unsaved }: NoticeState): string =>
-  [alert, unsaved.length > 0 ? unsavedNoticeOf(unsaved) : null, ...messages].filter((part) => part !== null).join(' ');
+/** Giữ tối đa chừng này thông báo nổi; câu cũ nhất rơi ra trước. */
+const MAX_NOTICES = 3;
+let nextNoticeId = 1;
 
 interface LoadState {
   readonly status: PascalBridge['status'];
@@ -373,26 +365,40 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
   const { autosave, isFloorBlocked, label: savedLabel, reloadFloor, saveBlock } = useFloorLayerAutosave({ projectId });
   const engineState = useSyncExternalStore(autosave.subscribe, autosave.getState, autosave.getState);
 
-  /* Phần sửa chưa lưu được: mỗi nhãn báo một lần mỗi phiên, GỘP vào một câu với các nhãn đang hiện.
-     C1/F-01: câu giữ tới khi người dùng đóng — lượt sửa sau không gỡ nó. */
-  const [notice, setNotice] = useState<NoticeState | null>(null);
+  /* Thông báo nổi: mỗi câu một mục (id, giọng, lúc tạo), không gộp — câu báo thường dính câu lỗi
+     từng bị nhuộm đỏ cả cụm. Thẻ tự gỡ (BackToProjectCard). Câu trùng câu đang hiện thì không thêm. */
+  const [notices, setNotices] = useState<readonly PascalNotice[]>([]);
+  const push = useCallback((tone: PascalNotice['tone'], text: string) => {
+    setNotices((current) =>
+      current.some((item) => item.text === text)
+        ? current
+        : [...current, { id: nextNoticeId++, tone, text, createdAt: Date.now() }].slice(-MAX_NOTICES),
+    );
+  }, []);
+  /* Phần sửa chưa lưu được: mỗi nhãn báo một lần mỗi phiên. */
   const noticed = useRef(new Set<string>());
   const noticedMessages = useRef(new Set<string>());
-  const onUnsaved = useCallback((labels: readonly string[]) => {
-    const fresh = labels.filter((item) => !noticed.current.has(item));
+  const onUnsaved = useCallback(
+    (labels: readonly string[]) => {
+      const fresh = labels.filter((item) => !noticed.current.has(item));
 
-    if (fresh.length === 0) return;
-    fresh.forEach((item) => noticed.current.add(item));
-    setNotice((current) => ({ ...(current ?? EMPTY_NOTICE), unsaved: [...(current?.unsaved ?? []), ...fresh] }));
-  }, []);
-  // Lời báo của lượt sửa (vd. vách mới cần tách phòng — W3d): mỗi câu một lần mỗi phiên, nối vào thẻ.
-  const onNotice = useCallback((message: string) => {
-    if (noticedMessages.current.has(message)) return;
-    noticedMessages.current.add(message);
-    setNotice((current) => ({ ...(current ?? EMPTY_NOTICE), messages: [...(current?.messages ?? []), message] }));
-  }, []);
-  const showAlert = useCallback((alert: string) => setNotice((current) => ({ ...(current ?? EMPTY_NOTICE), alert })), []);
-  const dismissNotice = useCallback(() => setNotice(null), []);
+      if (fresh.length === 0) return;
+      fresh.forEach((item) => noticed.current.add(item));
+      push('info', unsavedNoticeOf(fresh));
+    },
+    [push],
+  );
+  // Lời báo của lượt sửa (vd. vách mới cần tách phòng — W3d): mỗi câu một lần mỗi phiên.
+  const onNotice = useCallback(
+    (message: string) => {
+      if (noticedMessages.current.has(message)) return;
+      noticedMessages.current.add(message);
+      push('info', message);
+    },
+    [push],
+  );
+  const showAlert = useCallback((alert: string) => push('alert', alert), [push]);
+  const dismissNotice = useCallback((id: number) => setNotices((current) => current.filter((item) => item.id !== id)), []);
 
   // C4/A2-07: hỏi trước khi "Tải lại tầng" bỏ phần sửa chưa lưu.
   const [askReload, setAskReload] = useState(false);
@@ -477,6 +483,12 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
     return scene;
   }, [projectId, sceneFromStore]);
 
+  /* `applyScene` đổi đúng phần chênh (main.tsx), không dựng lại cả mô hình. */
+  const revertToStore = useCallback(() => {
+    const restored = sceneFromStore();
+    if (restored !== null) applyScene?.(restored);
+  }, [applyScene, sceneFromStore]);
+
   const onSave = useCallback(
     async (scene: unknown): Promise<void> => {
       if (readOnly) return;
@@ -489,10 +501,10 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
       const pending = onSceneCommit(scene as PascalScene).then(async (ok) => {
         // `false` mà không có lời từ chối là "không có gì để ghi" (sửa node sinh ra) — vẫn là thành công.
         if (!ok && rejection.current !== null) {
-          /* Lượt bị từ chối (luật toàn vẹn, node lạ, lệnh hỏng): kho không đổi, nên dựng lại cảnh
-             từ kho để 3D khớp dữ liệu thật thay vì giữ phần sửa ma. */
-          const restored = sceneFromStore();
-          if (restored !== null) applyScene?.(restored);
+          /* Lượt bị từ chối (luật toàn vẹn, node lạ, lệnh hỏng): kho không đổi, nên đặt lại cảnh
+             từ kho để 3D khớp dữ liệu thật thay vì giữ phần sửa ma. Lượt xoá nhiều đang chờ hộp hỏi
+             thì giữ nguyên cảnh đã xoá: "Xoá" không phải đặt lại gì, "Huỷ" mới đặt về kho. */
+          if (massDeleteRef.current?.reason !== rejection.current) revertToStore();
           throw new Error(rejection.current);
         }
         if (!ok) return;
@@ -505,20 +517,25 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
       lastSave = pending;
       await pending;
     },
-    [applyScene, autosave, isFloorBlocked, onSceneCommit, readOnly, sceneFromStore, validateCommit],
+    [autosave, isFloorBlocked, onSceneCommit, readOnly, revertToStore, validateCommit],
   );
 
-  /* Đã xác nhận xoá nhiều: mở cổng cho đúng các node ấy, đặt lại cảnh sau lượt xoá vào editor rồi lưu
-     (bản sao nông để không trúng phán quyết đã nhớ của cảnh cũ). */
+  /* Đã xác nhận xoá nhiều: mở cổng cho đúng các node ấy rồi lưu (bản sao nông để không trúng phán
+     quyết đã nhớ của cảnh cũ). Cảnh trong editor vẫn là cảnh đã xoá (lượt chờ hỏi không đặt lại), nên
+     không nạp lại gì — trước đây `setScene` cả cây ở đây làm cả mô hình nháy. */
   const confirmMassDeleteNow = useCallback(() => {
     const request = massDelete;
     setMassDelete(null);
     massDeleteRef.current = null;
     if (request === null || request.scene === null) return;
     confirmMassDelete(request.nodeIds);
-    applyScene?.(request.scene as PascalSceneGraph);
     void onSave({ ...(request.scene as object) }).catch(() => undefined);
-  }, [applyScene, confirmMassDelete, massDelete, onSave]);
+  }, [confirmMassDelete, massDelete, onSave]);
+  const cancelMassDelete = useCallback(() => {
+    setMassDelete(null);
+    massDeleteRef.current = null;
+    revertToStore();
+  }, [revertToStore]);
 
   const confirm: PascalConfirm | null = askReload
     ? {
@@ -537,10 +554,7 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
           body: massDeleteBodyOf(massDelete.nodeIds.length),
           confirmLabel: 'Xoá',
           onConfirm: confirmMassDeleteNow,
-          onCancel: () => {
-            setMassDelete(null);
-            massDeleteRef.current = null;
-          },
+          onCancel: cancelMassDelete,
         }
       : null;
 
@@ -564,8 +578,7 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
       if (useStore.getState().unsavedFloorIds.length > 0) setAskReload(true);
       else void reloadBlockedFloor();
     },
-    notice: notice === null ? null : noticeTextOf(notice),
-    noticeTone: notice !== null && notice.alert !== null ? 'alert' : 'info',
+    notices,
     dismissNotice,
     loginHref: loginHrefOf(projectId),
     confirm,

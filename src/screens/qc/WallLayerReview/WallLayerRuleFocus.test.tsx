@@ -86,9 +86,8 @@ describe('P03 — lỗi quy chuẩn trong lớp tường', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Vẽ tường (phím W)' })).toHaveAttribute('aria-pressed', 'true');
     });
-    await waitFor(() => {
-      expect(screen.queryByText(/Chọn một đoạn tường trên bản vẽ/u)).toBeNull();
-    });
+    /* Chọn tường lỗi chạy khi khung đã có cỡ — jsdom không đo khung, nên không kiểm ở đây (trước đây phép
+       kiểm "không có câu gợi ý" đúng hiển nhiên vì panel phải chỉ có khi đang chọn). */
   });
 });
 
@@ -123,6 +122,7 @@ describe('Ô "Chiều dài" của thanh tra', () => {
     const onChangeLength = vi.fn();
 
     renderWithProviders(<WallLayerInspector panel={panelWith(onChangeLength)} />);
+    fireEvent.click(screen.getByRole('button', { name: /Thông số nâng cao/u }));
     const input = screen.getByRole('textbox', { name: 'Chiều dài tường' });
 
     fireEvent.change(input, { target: { value: '0' } });
@@ -142,6 +142,7 @@ describe('Ô "Chiều dài" của thanh tra', () => {
     const onChangeLength = vi.fn();
 
     renderWithProviders(<WallLayerInspector panel={panelWith(onChangeLength, 'm')} />);
+    fireEvent.click(screen.getByRole('button', { name: /Thông số nâng cao/u }));
     const input = screen.getByRole('textbox', { name: 'Chiều dài tường' });
 
     fireEvent.change(input, { target: { value: '5,5' } });

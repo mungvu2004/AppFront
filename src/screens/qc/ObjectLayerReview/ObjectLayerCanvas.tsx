@@ -24,16 +24,15 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
-import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
-import { ZoomCluster } from '@/components/canvas/ZoomCluster';
+import { useCanvasZoomPan, type CanvasZoomPanState } from '@/components/canvas/useCanvasZoomPan';
 import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 
-import { QcAskAnchor } from '../shared/QcAskCard';
 import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
-import { pointInFrame, rectInFrame, useQcAskSlot } from '../shared/qcAsk';
+import { pointInFrame, rectInFrame } from '../shared/qcAsk';
 import { QcViewLayer } from '../shared/QcViewLayer';
+import { QcZoomMenu } from '../shared/QcZoomMenu';
 import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
 
 import {
@@ -47,7 +46,8 @@ import {
   selectionHandleRects,
   type ObjectLayerCanvasViewProps,
 } from './objectLayerSymbols';
-import type { PixelPoint } from './objectLayerTypes';
+import { ObjectLayerKindPicker, type KindPickerAnchor } from './ObjectLayerKindPicker';
+import type { ObjectLayerReviewModel, PixelPoint } from './objectLayerTypes';
 import { ObjectSymbolFigure } from './ObjectLayerSymbolFigure';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
@@ -78,6 +78,7 @@ export function ObjectLayerCanvas({
   hoveredObjectId,
   isInteractive,
   isLoading = false,
+  kindPicker = null,
   layerVisibility,
   onAttachToNearestWall,
   onApprove,
@@ -95,11 +96,14 @@ export function ObjectLayerCanvas({
   viewBoxPx,
   viewPins,
   wallOutlines,
-}: ObjectLayerCanvasViewProps) {
+  zoomPan,
+}: ObjectLayerCanvasViewProps & { readonly kindPicker?: ObjectLayerReviewModel['kindPicker']; readonly zoomPan?: CanvasZoomPanState | undefined }) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   /* Kéo bản vẽ: chuột giữa hoặc giữ Space + kéo (G4a-28, G4b-08; P06 mục 1). */
   /* Cụm zoom góc phải dưới như màn Tường (Impeccable A3): 100% là "vừa khung", lăn chuột cũng phóng. */
-  const { pan, scale, zoomCluster } = useCanvasZoomPan();
+  /* `zoomPan` từ nơi gọi: "So sánh hai bên" cho nửa trái dùng chung khung nhìn (ObjectLayerReview.tsx). */
+  const ownZoomPan = useCanvasZoomPan();
+  const { pan, scale, zoomCluster } = zoomPan ?? ownZoomPan;
   const setPanEl = pan.ref;
   const setFrameRef = useCallback(
     (element: HTMLDivElement | null) => {
@@ -135,7 +139,6 @@ export function ObjectLayerCanvas({
   const focusRectPx = selectedObjectId === null || haloRectPx === null || frameView === null ? null : rectInFrame(haloRectPx, frameView);
 
   const halo = useSelectionHalo();
-  const ask = useQcAskSlot();
   const menu = useContextMenu();
   const { select: haloSelect, hover: haloHover, deselect: haloDeselect } = halo;
   const { openMenu } = menu;
@@ -186,6 +189,7 @@ export function ObjectLayerCanvas({
    */
   const isDrawing = isInteractive && drawLayer !== null && onPlaceAt !== undefined && viewBoxPx !== null;
   const [drag, setDrag] = useState<DrawDrag | null>(null);
+  const [placedAt, setPlacedAt] = useState<KindPickerAnchor | null>(null);
   const pointAt = (event: ReactMouseEvent<SVGRectElement>): PixelPoint | null => {
     const svg = event.currentTarget.ownerSVGElement;
 
@@ -219,6 +223,15 @@ export function ObjectLayerCanvas({
     const isClick =
       drawLayer !== 'furniture' ||
       Math.hypot(event.clientX - drag.clientX, event.clientY - drag.clientY) < DRAG_CLICK_TOLERANCE_PX;
+
+    if (drawLayer === 'furniture') {
+      const frame = frameRef.current?.getBoundingClientRect() ?? null;
+
+      setPlacedAt({
+        pointer: { x: Math.max(event.clientX, drag.clientX), y: Math.min(event.clientY, drag.clientY) },
+        frame: frame === null ? null : { left: frame.left, top: frame.top },
+      });
+    }
 
     if (isClick) {
       onPlaceAt(drag.start);
@@ -392,9 +405,14 @@ export function ObjectLayerCanvas({
         )}
       </div>
 
-      {/* Thẻ hỏi và lớp làm tối đứng NGOÀI lớp phóng: chữ thẻ không to theo mức phóng, mặt nạ phủ đủ khung. */}
-      <QcAskAnchor rect={focusRectPx}>{ask}</QcAskAnchor>
-      <QcViewLayer focus={focusRectPx} onPick={onSelect} pins={frameView === null ? [] : viewPins.map((pin) => pointInFrame(pin, frameView))} selectedId={selectedObjectId} />
+      {/* Lớp làm tối + chấm số đứng NGOÀI lớp phóng; đang vẽ thì chấm số không chặn con trỏ. */}
+      <QcViewLayer
+        focus={focusRectPx}
+        onPick={onSelect}
+        pins={frameView === null ? [] : viewPins.map((pin) => pointInFrame(pin, frameView))}
+        pinsInteractive={!isDrawing}
+        selectedId={selectedObjectId}
+      />
 
       {placements.length === 0 && !isLoading ? (
         <p className="absolute inset-x-0 top-1/2 text-center text-[13px] text-text-muted">
@@ -408,7 +426,12 @@ export function ObjectLayerCanvas({
         </p>
       ) : null}
 
-      <ZoomCluster {...zoomCluster} />
+      <QcZoomMenu {...zoomCluster} compare viewMode />
+
+      {/* Vẽ xong là hỏi loại ngay cạnh hộp mới (đã được chọn, nên `focusRectPx` là hộp ấy). */}
+      {kindPicker === null || placedAt === null ? null : (
+        <ObjectLayerKindPicker {...kindPicker} anchor={placedAt} boxRect={focusRectPx} />
+      )}
 
       <ContextMenu
         groups={menu.groups}

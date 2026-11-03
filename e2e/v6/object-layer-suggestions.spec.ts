@@ -60,12 +60,13 @@ test('bơm hai gợi ý: nét đứt + nhãn, nhận tất cả, kéo vẽ một
   await expect(page.locator('svg text', { hasText: 'Gợi ý' })).toHaveCount(2);
   await page.screenshot({ path: testInfo.outputPath('s13-suggestions-1440.png') });
 
+  await page.locator('summary', { hasText: '2 gợi ý của máy đang chờ' }).click(); // the bar is folded by default
   await page.getByRole('button', { name: 'Nhận tất cả gợi ý' }).click();
   await expect(page.getByText('2 gợi ý của máy đang chờ')).toHaveCount(0);
   await expect(page.locator('svg text', { hasText: 'Gợi ý' })).toHaveCount(0);
 
-  /* Kéo để vẽ: bật "Vẽ nội thất" trên rail, kéo 120 × 80 px trên bản vẽ. */
-  await page.getByRole('toolbar', { name: 'Công cụ lớp đối tượng' }).getByRole('button', { name: /Vẽ nội thất/u }).click();
+  /* Kéo để vẽ: bật "Thêm đồ vật" trên rail, kéo 120 × 80 px trên bản vẽ. */
+  await page.getByRole('toolbar', { name: 'Công cụ lớp đối tượng' }).getByRole('button', { name: /Thêm đồ vật/u }).click();
   const surface = page.getByTestId('object-draw-surface');
   const box = await surface.boundingBox();
 

@@ -5,8 +5,8 @@ import { PascalTour } from '../PascalTour';
 import {
   HINT_BOTTOM_PX,
   HINT_TEXT,
-  isSceneReady,
   isDialogOpen,
+  isSceneReady,
   isSelectionCardShown,
   markDone,
   placeCard,
@@ -97,6 +97,18 @@ describe('isSceneReady', () => {
     const loader = addLoader();
     Object.defineProperty(loader, 'checkVisibility', { value: () => false });
     expect(isSceneReady()).toBe(true);
+  });
+
+  it('tường đã vẽ (warm structDrawnAt) thì thôi chờ màn chờ đang mờ dần', () => {
+    addCanvas();
+    addLoader();
+    const w = window as { __pascalWarm?: () => { structDrawnAt: number } };
+    w.__pascalWarm = () => ({ structDrawnAt: 0 });
+    expect(isSceneReady()).toBe(false);
+    w.__pascalWarm = () => ({ structDrawnAt: 3900 });
+    expect(isSceneReady()).toBe(true);
+    expect(isSceneReady(document, () => false)).toBe(false);
+    delete w.__pascalWarm;
   });
 });
 
