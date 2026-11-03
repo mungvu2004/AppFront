@@ -36,7 +36,7 @@ import { useSceneLoader } from './sceneLoader';
 import { SwapModelCard } from './SwapModelCard';
 import { PascalTour } from './tour/PascalTour';
 import { openBuildTabWithoutArming } from './upstream/components/build-tab';
-import { CommunityViewerToolbarLeft } from './upstream/components/viewer-toolbar';
+import { CommunityViewerToolbarLeft, DisplayMenu } from './upstream/components/viewer-toolbar';
 import Home from './upstream/page';
 import { ViewMenu } from './ViewMenu';
 // CSS của trang (Tailwind 4, không bọc phạm vi) — bản dựng xuất thành `/assets/pascal/style.css`.
@@ -126,6 +126,16 @@ function EditModel() {
   return <EditModelButton collapsed={collapsed} onOpen={open} />;
 }
 
+/** Bảng trái đang mở thẻ nào (`html[data-appfront-panel]`): thẻ "Cảnh" đã liệt kê tầng nên ẩn chip tầng (pascal-chrome.css). */
+function PanelFlag() {
+  const tab = useEditor((state) => state.activeSidebarPanel);
+  const collapsed = useSidebarStore((state) => state.isCollapsed);
+  useEffect(() => {
+    document.documentElement.dataset.appfrontPanel = collapsed ? 'none' : tab;
+  }, [tab, collapsed]);
+  return null;
+}
+
 /* Lượt sửa bị từ chối → đặt lại cảnh từ kho mà KHÔNG ghi bước hoàn tác và không xoá lịch sử
    (khác `applySceneGraphToEditor`): Ctrl+Z ngay sau đó về đúng cảnh trước lượt bị từ chối (no-op).
    Chỉ đổi các node khác (`nodeChangesTo`) — `setScene` cả cây làm cả mô hình dựng lại như tải trang.
@@ -205,6 +215,14 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
   }
   if (!booted) return <LoadingNotice />;
 
+  const itemCards = (
+    <>
+      <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
+      <ModelCreditCard stores={{ useScene, useViewer }} />
+      <ItemTrustCard stores={{ useScene, useViewer }} />
+    </>
+  );
+
   return (
     <>
     <Home
@@ -221,12 +239,14 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
           </div>
         </>
       }
-      // Bảng Xem góc phải: menu Xem (phong cách, ánh sáng, chất lượng, nướng), lỗi đặt đồ, thẻ của món đang chọn.
+      // Bảng Xem góc phải: MỘT menu Xem (phong cách, ánh sáng, chất lượng, nướng, hiển thị) + chip lỗi đặt đồ (chỉ khi có lỗi).
+      // Thẻ của món đang chọn nằm ở thẻ thao tác nhanh (HomeownerCard); người xem không có thẻ đó nên thẻ ở lại đây.
       viewPanel={
         <>
           {/* UI-1023 V-01: các chỉnh cảnh là một cụm liền khối (pascal-chrome.css `[data-appfront-cluster]`). */}
           <div aria-label="Cảnh" className="inline-flex shrink-0 items-center" data-appfront-cluster="" role="group">
             <ViewMenu
+              display={<DisplayMenu />}
               flushAutosaves={flushAutosaves}
               projectId={projectId}
               reload={() => window.location.reload()}
@@ -235,9 +255,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
               {...(readOnly ? {} : { exportGlb: exportSceneGlb })}
             />
             <PlacementIssuesChip useViewer={useViewer} />
-            <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
-            <ModelCreditCard stores={{ useScene, useViewer }} />
-            <ItemTrustCard stores={{ useScene, useViewer }} />
+            {readOnly ? itemCards : null}
           </div>
         </>
       }
@@ -247,8 +265,9 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
       projectName={bridge.projectName}
       readOnly={readOnly}
     />
+    <PanelFlag />
     <PascalTour hasModel={hasWalls} />
-    <HomeownerCardMount readOnly={readOnly} />
+    <HomeownerCardMount extra={readOnly ? null : itemCards} readOnly={readOnly} />
     </>
   );
 }

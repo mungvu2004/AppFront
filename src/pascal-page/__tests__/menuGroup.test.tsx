@@ -58,6 +58,18 @@ describe('installMenuGroup', () => {
     expect(get('b').open).toBe(false);
   });
 
+  it('bấm trong menu Radix cổng ra body (mục Hiển thị của Xem) không đóng menu', () => {
+    const { get, open } = setup();
+    open(get('b'));
+    const popper = document.createElement('div');
+    popper.setAttribute('data-radix-popper-content-wrapper', '');
+    const item = popper.appendChild(document.createElement('button'));
+    document.body.append(popper);
+    fireEvent.pointerDown(item);
+    expect(get('b').open).toBe(true);
+    popper.remove();
+  });
+
   it('Esc đóng menu trong cùng trước, tiêu điểm về nút', () => {
     const { get, open } = setup();
     open(get('a'));

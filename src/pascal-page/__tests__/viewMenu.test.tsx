@@ -40,6 +40,13 @@ describe('ViewMenu', () => {
     }
   });
 
+  it('mục Hiển thị (cài đặt của Pascal) nằm cuối cùng menu, không thành nút riêng', () => {
+    const { container } = render(<ViewMenu {...base} display={<button type="button">Lưới, bóng</button>} />);
+    const details = container.querySelector('details[data-appfront-menu]')!;
+    expect(details.textContent).toContain('Hiển thị');
+    expect(screen.getByRole('button', { name: 'Lưới, bóng' }).closest('details')).toBe(details);
+  });
+
   it('chỉ xem: không có mục Nướng ánh sáng', () => {
     render(<ViewMenu {...base} />);
     expect(screen.queryByRole('region', { name: 'Nướng ánh sáng' })).toBeNull();

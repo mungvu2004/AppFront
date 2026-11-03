@@ -333,3 +333,20 @@ button[data-slot="button"]:has(> svg.lucide-volume-x) {
 html:has([data-appfront-panel-head="floating"]) .absolute.top-14.left-3.z-20 {
   top: 6rem;
 }
+/* Thẻ "Cảnh" của bảng trái đã liệt kê các tầng (main.tsx `PanelFlag`): bỏ chip tầng trùng. */
+html[data-appfront-panel="site"] .absolute.top-14.left-3.z-20 {
+  display: none;
+}
+/* Đầu bảng nổi (bảng trái thu gọn, 768/1024) chiếm góc trên trái: cột trợ giúp giữa canvas xuống dưới nó,
+ * không đè hàng bước. Đầu bảng ở trong bảng (≥1100) thì cột giữ top-14, ngay dưới bảng Xem một hàng. */
+html:has([data-appfront-panel-head="floating"]) .appfront-canvas-help {
+  top: 6rem;
+}
+/* Thẻ của món đang chọn nằm trong thẻ thao tác nhanh ở đáy màn: menu của chúng mở lên trên. */
+[data-appfront-homeowner-card] details > div,
+[data-appfront-homeowner-card] details > ol {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}

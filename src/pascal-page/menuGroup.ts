@@ -27,6 +27,8 @@ export function installMenuGroup(doc: Document): () => void {
   const onPointerDown = (event: Event) => {
     const target = event.target;
     if (!(target instanceof Node)) return;
+    // Menu Radix mở từ trong một menu (mục "Hiển thị" của "Xem") cổng ra `body`: bấm trong đó không phải bấm ra ngoài.
+    if (target instanceof Element && target.closest('[data-radix-popper-content-wrapper]') !== null) return;
     for (const menu of openMenus(doc)) {
       if (!menu.contains(target)) menu.open = false;
     }

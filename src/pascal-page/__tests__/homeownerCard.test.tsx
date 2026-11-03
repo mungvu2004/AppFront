@@ -267,7 +267,14 @@ describe('HomeownerCard', () => {
     expect(document.querySelector('[data-appfront-homeowner-card]')).toBeNull();
   });
 
-  it('main.tsx gắn thẻ với cờ chỉ đọc', () => {
-    expect(read('src/pascal-page/main.tsx')).toContain('<HomeownerCardMount readOnly={readOnly} />');
+  it('main.tsx gắn thẻ với cờ chỉ đọc và thẻ của món đang chọn', () => {
+    expect(read('src/pascal-page/main.tsx')).toContain('<HomeownerCardMount extra={readOnly ? null : itemCards} readOnly={readOnly} />');
+  });
+
+  it('thẻ của món đang chọn (Đổi mẫu, Nguồn mẫu, Độ tin) nằm cuối hàng nút', () => {
+    const { stores } = storesWith([PLAN_ITEM]);
+    render(<HomeownerCard extra={<button type="button">Đổi mẫu</button>} readOnly={false} stores={stores} />);
+    const card = document.querySelector('[data-appfront-homeowner-card]')!;
+    expect(card.querySelector('button:last-of-type')?.textContent).toBe('Đổi mẫu');
   });
 });

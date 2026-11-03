@@ -231,9 +231,11 @@ function SizeRow({
 export interface HomeownerCardProps {
   readonly stores: HomeownerCardStores;
   readonly readOnly: boolean;
+  /** Thẻ của món đang chọn (Đổi mẫu, Nguồn mẫu, Độ tin — main.tsx), cuối hàng nút; trước nằm trên thanh trên. */
+  readonly extra?: ReactNode;
 }
 
-export function HomeownerCard({ stores, readOnly }: HomeownerCardProps) {
+export function HomeownerCard({ stores, readOnly, extra }: HomeownerCardProps) {
   const ids = stores.useViewer((s) => s.selection.selectedIds);
   const node = stores.useScene((s) =>
     ids.length === 1 ? (s.nodes as Record<string, HomeownerNode | undefined>)[ids[0] as string] : undefined,
@@ -335,6 +337,7 @@ export function HomeownerCard({ stores, readOnly }: HomeownerCardProps) {
         <button className={BTN} onClick={() => stores.undo()} type="button">
           Hoàn tác
         </button>
+        {extra}
       </div>
     </section>,
     document.body,

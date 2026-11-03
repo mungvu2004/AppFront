@@ -5,6 +5,7 @@
 import { useInteractive, useScene } from '@pascal-app/core';
 import { runUndo, useEditor } from '@pascal-app/editor';
 import { useViewer } from '@pascal-app/viewer';
+import type { ReactNode } from 'react';
 
 import { HomeownerCard, type HomeownerCardStores } from './HomeownerCard';
 
@@ -17,6 +18,6 @@ const stores = {
   forgetDoorOpenState: (id: string) => useInteractive.getState().removeDoorOpenState(id as never),
 } as unknown as HomeownerCardStores;
 
-export function HomeownerCardMount({ readOnly }: { readonly readOnly: boolean }) {
-  return <HomeownerCard readOnly={readOnly} stores={stores} />;
+export function HomeownerCardMount({ readOnly, extra }: { readonly readOnly: boolean; readonly extra?: ReactNode }) {
+  return <HomeownerCard extra={extra} readOnly={readOnly} stores={stores} />;
 }

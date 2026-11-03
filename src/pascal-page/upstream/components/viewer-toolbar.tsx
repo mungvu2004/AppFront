@@ -106,7 +106,6 @@ const BTN_ON = 'bg-[var(--pa-selected)] text-[var(--pa-accent)] hover:bg-[var(--
 const TOOLBAR_BTN = `flex w-8 items-center justify-center ${BTN_GHOST}`
 // Label wrappers: icon-only (sr-only text) below the given bar width.
 const LABEL_WIDE = 'sr-only @min-[1500px]/appbar:not-sr-only'
-const LABEL_MID = 'sr-only @min-[1200px]/appbar:not-sr-only'
 // Editor3D (01/11, K9): Hoàn tác/Làm lại and the camera group live in the bottom dock beside the tool bar
 // (the top bar overlapped at 1440). Camera labels show from 1280 px of window; below, icons + tooltips.
 const LABEL_CAMERA = 'dock-label sr-only xl:not-sr-only'
@@ -244,34 +243,38 @@ const FLOORPLAN_WALL_DIMENSION_REFERENCE_OPTIONS = [
   { id: 'stud-faces', name: 'Mặt kết cấu', detail: 'Mặt lõi kết cấu' },
 ] as const
 
+// wall-review-ux (fewer buttons): one "3D ▾" trigger instead of three side-by-side buttons.
 function ViewModeControl() {
   const viewMode = useEditor((state) => state.viewMode)
   const setViewMode = useEditor((state) => state.setViewMode)
+  const current = VIEW_MODES.find((mode) => mode.id === viewMode) ?? VIEW_MODES[0]!
 
   return (
-    <div className={TOOLBAR_CONTAINER}>
-      {VIEW_MODES.map((mode) => {
-        const isActive = viewMode === mode.id
-        return (
-          <ToolbarTooltip key={mode.id} label={mode.label}>
-            <button
-              aria-label={mode.label}
-              aria-pressed={isActive}
-              className={cn(
-                'flex min-w-8 items-center justify-center gap-1.5 px-2 font-medium text-[13px]',
-                BTN_GHOST,
-                isActive && BTN_ON,
-              )}
-              onClick={() => setViewMode(mode.id)}
-              type="button"
-            >
-              {mode.icon}
-              <span className={LABEL_MID}>{mode.label}</span>
-            </button>
-          </ToolbarTooltip>
-        )
-      })}
-    </div>
+    <DropdownMenu>
+      <ToolbarTooltip label="Cách xem: 3D, 2D hoặc chia đôi">
+        <DropdownMenuTrigger asChild>
+          <button
+            aria-label={`Cách xem: ${current.label}`}
+            className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2 font-medium text-[13px]')}
+            data-appfront-viewmode=""
+            type="button"
+          >
+            {current.icon}
+            <span>{current.label}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
+          </button>
+        </DropdownMenuTrigger>
+      </ToolbarTooltip>
+      <DropdownMenuContent align="end" className={SUBMENU_CONTENT_CLASS} side="bottom" sideOffset={8}>
+        {VIEW_MODES.map((mode) => (
+          <DropdownMenuItem key={mode.id} onSelect={() => setViewMode(mode.id)}>
+            {mode.icon}
+            <span>{mode.label}</span>
+            {viewMode === mode.id ? <Check className="ml-auto h-4 w-4" /> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -357,9 +360,11 @@ function LevelModeToggle() {
   )
 }
 
+// wall-review-ux (fewer buttons): one "Tường: Cắt ▾" trigger; each mode keeps its hint in the menu.
 function WallModeToggle() {
   const wallMode = useViewer((state) => state.wallMode)
   const setWallMode = useViewer((state) => state.setWallMode)
+  const current = WALL_SEGMENTS.find((segment) => segment.mode === wallMode)
 
   const choose = (mode: WallMode) => {
     setWallMode(mode)
@@ -367,22 +372,32 @@ function WallModeToggle() {
   }
 
   return (
-    <div aria-label="Tường" className="flex items-stretch" role="group">
-      <span className="flex items-center pr-1 pl-2 font-medium text-[13px] text-[var(--pa-text-3)]">Tường</span>
-      {WALL_SEGMENTS.map((segment) => (
-        <ToolbarTooltip key={segment.mode} label={segment.hint}>
+    <DropdownMenu>
+      <ToolbarTooltip label={current?.hint ?? 'Cách hiện tường'}>
+        <DropdownMenuTrigger asChild>
           <button
-            aria-label={segment.hint}
-            aria-pressed={wallMode === segment.mode}
-            className={cn(TOOLBAR_BTN, 'w-auto min-w-8 px-2 font-medium text-[13px]', wallMode === segment.mode && BTN_ON)}
-            onClick={() => choose(segment.mode)}
+            aria-label={`Tường: ${current?.label ?? 'khác'}`}
+            className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1 px-2 font-medium text-[13px]')}
             type="button"
           >
-            {segment.label}
+            <span className="text-[var(--pa-text-3)]">Tường:</span>
+            <span className="text-[var(--pa-text)]">{current?.label ?? 'khác'}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
           </button>
-        </ToolbarTooltip>
-      ))}
-    </div>
+        </DropdownMenuTrigger>
+      </ToolbarTooltip>
+      <DropdownMenuContent align="end" className={SUBMENU_CONTENT_CLASS} side="bottom" sideOffset={8}>
+        {WALL_SEGMENTS.map((segment) => (
+          <DropdownMenuItem key={segment.mode} onSelect={() => choose(segment.mode)}>
+            <div className="flex flex-col">
+              <span className="text-foreground">{segment.label}</span>
+              <span className="text-muted-foreground text-xs">{segment.hint}</span>
+            </div>
+            {wallMode === segment.mode ? <Check className="ml-auto h-4 w-4 text-foreground" /> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -464,7 +479,7 @@ function RoomJumpMenu() {
   )
 }
 
-function DisplayMenu() {
+export function DisplayMenu() {
   const viewMode = useEditor((state) => state.viewMode)
   const showGrid = useViewer((state) => state.showGrid)
   const setShowGrid = useViewer((state) => state.setShowGrid)
@@ -510,22 +525,25 @@ function DisplayMenu() {
 
   return (
     <DropdownMenu>
-      <ToolbarTooltip label="Cài đặt hiển thị">
-        <DropdownMenuTrigger asChild>
-          <button
-            aria-label="Cài đặt hiển thị"
-            className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1.5 px-2')}
-            type="button"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
-            <span className={`font-medium text-[13px] ${LABEL_WIDE}`}>Hiển thị</span>
-          </button>
-        </DropdownMenuTrigger>
-      </ToolbarTooltip>
+      {/* wall-review-ux (fewer buttons): a row inside the page's "Xem" menu (../../ViewMenu.tsx), not a bar button. */}
+      <DropdownMenuTrigger asChild>
+        <button
+          aria-label="Cài đặt hiển thị: lưới, bóng, đơn vị, kết xuất"
+          className={cn(
+            'flex h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-[13px] text-[var(--pa-text-2)] hover:bg-[var(--pa-sunken)] hover:text-[var(--pa-text)]',
+            BTN_FOCUS,
+          )}
+          type="button"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">Lưới, bóng, đơn vị, kết xuất</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 -rotate-90 text-[var(--pa-text-3)]" />
+        </button>
+      </DropdownMenuTrigger>
       <DropdownMenuContent
-        align="end"
+        align="start"
         className="w-60 rounded-xl border-[var(--pa-border)] bg-[var(--pa-surface)] shadow-[var(--pa-shadow-overlay)]"
-        side="bottom"
+        side="left"
         sideOffset={8}
       >
         <DropdownMenuItem onSelect={(e) => keepOpen(e, () => setShowGrid(!showGrid))}>
@@ -1016,7 +1034,6 @@ function PreviewButton() {
         type="button"
       >
         <Eye className="h-3.5 w-3.5 shrink-0" />
-        <span aria-hidden="true" className="hidden @min-[1500px]/appbar:inline">Xem trước</span>
       </button>
     </ToolbarTooltip>
   )
@@ -1219,9 +1236,10 @@ export function BottomDock({ projectId, readOnly = false }: { projectId: string;
 }
 
 /**
- * wall-review-ux (no top bar, Figma-style): the right group is a "Xem" panel at the canvas's top right —
- * 3D/2D/Chia đôi + Xem trước, then the wall modes, then `children` (the page's Xem menu, placement chip and
- * the selection cards, main.tsx) beside Tầng/Hiển thị. The left group moved into the left panel's head.
+ * wall-review-ux (no top bar, fewer buttons): the right group is a small "Xem" panel at the canvas's top
+ * right, one row: "3D ▾", "Tường: Cắt ▾", `children` (the page's "Xem ▾" menu — style, lighting, quality,
+ * bake and the display settings — plus the placement chip when there are issues, main.tsx), "Tầng ▾" (2+
+ * floors only) and the Xem trước eye. The left group moved into the left panel's head.
  */
 export function CommunityViewerToolbarRight({
   children,
@@ -1241,35 +1259,25 @@ export function CommunityViewerToolbarRight({
   return (
     <section
       aria-label="Xem"
-      className="flex w-max max-w-[calc(100vw-2rem)] flex-col items-end gap-1.5 rounded-2xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1.5 shadow-[var(--pa-shadow-float)]"
+      className="flex w-max max-w-[calc(100vw-2rem)] flex-wrap items-center justify-end gap-1 rounded-2xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 shadow-[var(--pa-shadow-float)]"
       data-appfront-bar=""
+      data-appfront-viewpanel=""
     >
-      <div className="flex items-center gap-1.5">
-        <ViewModeControl />
-        <div className={TOOLBAR_CONTAINER}>
-          <PreviewButton />
-        </div>
-      </div>
       <div className={TOOLBAR_CONTAINER}>
+        <ViewModeControl />
+        <div className="my-1.5 w-px bg-[var(--pa-border)]" />
         <WallModeToggle />
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-1.5" data-appfront-viewpanel="">
-        {children}
-        <div className={TOOLBAR_CONTAINER}>
-          <LevelModeToggle />
-          <DisplayMenu />
-          {onVRToggle || vrButton
-            ? (vrButton ??
-              (onVRToggle ? (
-                <VRButton
-                  active={vrActive}
-                  disabled={vrDisabled}
-                  label={vrLabel}
-                  onToggle={onVRToggle}
-                />
-              ) : null))
-            : null}
-        </div>
+      {children}
+      <div className={TOOLBAR_CONTAINER}>
+        <LevelModeToggle />
+        <PreviewButton />
+        {onVRToggle || vrButton
+          ? (vrButton ??
+            (onVRToggle ? (
+              <VRButton active={vrActive} disabled={vrDisabled} label={vrLabel} onToggle={onVRToggle} />
+            ) : null))
+          : null}
       </div>
     </section>
   )

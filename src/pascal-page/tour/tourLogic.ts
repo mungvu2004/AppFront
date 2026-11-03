@@ -32,14 +32,14 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     title: 'Đổi tầng và chế độ xem 3D/2D',
-    body: 'Chọn tầng ở ô tầng bên trái. Nhóm nút 3D, 2D và Chia đôi ở thanh trên đổi cách xem mô hình.',
-    anchor: { selector: 'button[aria-label="3D"]', up: 1 },
+    body: 'Chọn tầng ở thẻ Cảnh của bảng trái. Nút 3D ▾ ở bảng Xem góc phải đổi cách xem mô hình (3D, 2D, Chia đôi); nút Tường ▾ cạnh đó đổi cách hiện tường.',
+    anchor: { selector: 'button[data-appfront-viewmode]', up: 1 },
   },
   {
     title: 'Đổi diện mạo cảnh rồi sang bước sau',
-    body: 'Hai nút Phong cách và Ánh sáng ở thanh trên đổi diện mạo cảnh. Đồ đạc, tường, cửa sổ và vật liệu trong thư viện được lưu tự động; chip cạnh nút về dự án cho biết đã lưu chưa. Kiểu cửa, màu trần, màu tự pha và việc xoá đồ gợi ý hiện chưa lưu được. Xong thì bấm "Sang Quy chuẩn"; nếu cạnh đó có nút "Đặt tỷ lệ" thì nên đặt tỷ lệ trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
-    // Nhóm Phong cách (thẻ `<details>`); Ánh sáng nằm ngay cạnh.
-    anchor: { selector: 'summary[aria-label^="Phong cách"]', up: 1 },
+    body: 'Menu Xem ở góc phải đổi phong cách, ánh sáng, chất lượng hình và cách hiển thị. Đồ đạc, tường, cửa sổ và vật liệu trong thư viện được lưu tự động; chấm cạnh nút về dự án (đầu bảng trái) cho biết đã lưu chưa. Kiểu cửa, màu trần, màu tự pha và việc xoá đồ gợi ý hiện chưa lưu được. Xong thì bấm "Sang Quy chuẩn"; nếu cạnh đó có nút "Đặt tỷ lệ" thì nên đặt tỷ lệ trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
+    // Menu Xem (thẻ `<details>`, ViewMenu.tsx).
+    anchor: { selector: 'summary[aria-label^="Xem"]', up: 1 },
   },
 ];
 
