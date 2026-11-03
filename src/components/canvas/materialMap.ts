@@ -133,6 +133,13 @@ export function selectionFillToken(): string {
   return 'var(--accent-wash)';
 }
 
+/**
+ * Viền tách 1 px màu nền canvas quanh viền chọn (bốn bóng sắc, không nhoè): viền `--accent` không
+ * bao giờ chìm vào ruột tường, kể cả khi màu tường gần màu nhấn (bảng "Chì và nâu đất").
+ */
+export const SELECTION_SEPARATOR_FILTER =
+  'drop-shadow(1px 0 0 var(--wall-conf-cut)) drop-shadow(-1px 0 0 var(--wall-conf-cut)) drop-shadow(0 1px 0 var(--wall-conf-cut)) drop-shadow(0 -1px 0 var(--wall-conf-cut))';
+
 // ─── Confidence ────────────────────────────────────────────────────────────
 
 /**
@@ -173,3 +180,17 @@ export function wallConfidenceToken(tier: WallConfidenceTier): string {
       return 'var(--wall-220)';
   }
 }
+
+/**
+ * Mép khắc của tường CHƯA CHẮC: nét 2 px màu nền canvas, gạch 1 px cách 4 px, không co giãn theo
+ * phóng. Nửa nét nằm trong đa giác nên mỗi vết khắc ăn ~1 px mép ruột — ruột vẫn đặc, không phải
+ * tường rỗng/nét đứt. Tín hiệu không-màu cho người khó phân biệt màu (cùng gạch chéo + chấm vàng).
+ */
+export const WALL_LOW_EDGE_CUT = {
+  stroke: 'var(--wall-conf-cut)',
+  strokeWidth: 2,
+  strokeDasharray: '1 4',
+  strokeLinecap: 'butt',
+  strokeLinejoin: 'round',
+  vectorEffect: 'non-scaling-stroke',
+} as const;

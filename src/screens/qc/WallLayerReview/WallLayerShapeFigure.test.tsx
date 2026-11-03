@@ -107,3 +107,50 @@ describe('[WRU-B] ruột tường tô theo bậc tin cậy', () => {
     expect(fillOf({ ...SHAPE, confidenceTier: 'reviewed', isReviewed: true })).toBe('var(--state-verified-tint)');
   });
 });
+
+/* Bảng "Chì và nâu đất": chưa chắc = ruột đặc + mép khắc màu nền; bậc khác không có nét; viền chọn có viền tách. */
+describe('[WRU-B] mép khắc tường chưa chắc + viền tách quanh viền chọn', () => {
+  const figure = (shape: WallLayerCanvasShape, isSelected = false) =>
+    render(
+      <svg>
+        <WallShapeFigure
+          isHovered={false}
+          isInteractive={false}
+          isSelected={isSelected}
+          onHover={vi.fn()}
+          onOpenMenu={vi.fn()}
+          onSelect={vi.fn()}
+          onToggleSelect={vi.fn()}
+          shape={shape}
+          showCentrelines={false}
+          unitPx={1}
+        />
+      </svg>,
+    ).container;
+
+  it('ruột chưa chắc đặc, có nét khắc màu nền gạch 1/4 không co giãn', () => {
+    const body = figure(SHAPE).querySelector('polygon')!;
+
+    expect(body.getAttribute('fill')).toBe('var(--wall-conf-low)');
+    expect(body.getAttribute('fill-opacity')).toBeNull();
+    expect(body.getAttribute('stroke')).toBe('var(--wall-conf-cut)');
+    expect(body.getAttribute('stroke-width')).toBe('2');
+    expect(body.getAttribute('stroke-dasharray')).toBe('1 4');
+    expect(body.getAttribute('stroke-linecap')).toBe('butt');
+    expect(body.getAttribute('vector-effect')).toBe('non-scaling-stroke');
+  });
+
+  it('chắc chắn và khá chắc không có nét khắc', () => {
+    for (const confidenceTier of ['certain', 'suggested'] as const) {
+      const body = figure({ ...SHAPE, confidenceTier, isLowConfidence: false } as WallLayerCanvasShape).querySelector('polygon')!;
+      expect(body.getAttribute('stroke')).toBeNull();
+    }
+  });
+
+  it('viền chọn --accent mang viền tách màu nền; ẩn thì không gắn bộ lọc', () => {
+    const outline = (c: HTMLElement) => c.querySelector('polygon[stroke="var(--accent)"]') as SVGElement;
+
+    expect(outline(figure(SHAPE, true)).style.filter).toContain('drop-shadow');
+    expect(outline(figure(SHAPE)).style.filter).toBe('');
+  });
+});

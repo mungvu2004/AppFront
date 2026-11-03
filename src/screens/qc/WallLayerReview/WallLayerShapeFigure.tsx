@@ -16,7 +16,13 @@
 import { memo } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 
-import { selectionBorderToken, wallConfidenceToken, type WallConfidenceTier } from '@/components/canvas/materialMap';
+import {
+  SELECTION_SEPARATOR_FILTER,
+  WALL_LOW_EDGE_CUT,
+  selectionBorderToken,
+  wallConfidenceToken,
+  type WallConfidenceTier,
+} from '@/components/canvas/materialMap';
 import { cn } from '@/lib/utils';
 
 import type { WallLayerCanvasShape, WallLayerCanvasViewProps } from './wallLayerHatch';
@@ -100,8 +106,9 @@ const NON_STANDARD_OUTLINE_TOKEN = 'var(--text-primary)';
 const NON_STANDARD_STRIPE_TOKEN = 'var(--bg-surface)';
 
 /**
- * Ruột tô theo BẬC TIN CẬY (WRU-B): chắc chắn xám đậm · khá chắc vàng · chưa chắc gỉ sắt · đã duyệt
- * nền xanh nhạt + viền xanh (A5: chỉ việc của người duyệt). Độ dày đọc từ bề rộng thật của đa giác;
+ * Ruột tô theo BẬC TIN CẬY (WRU-B, bảng "Chì và nâu đất"): chắc chắn chì đậm · khá chắc xám · chưa
+ * chắc nâu đất có mép khắc màu nền (`WALL_LOW_EDGE_CUT`) · đã duyệt nền xanh nhạt + viền xanh (A5: chỉ
+ * việc của người duyệt). Độ dày đọc từ bề rộng thật của đa giác;
  * độ dày không chuẩn thêm sọc giấy + viền đậm làm tín hiệu phụ. Cùng màu với `WallThicknessSwatch`.
  */
 function WallBody({ points, thicknessMm, tier }: { readonly points: string; readonly thicknessMm: number; readonly tier: WallConfidenceTier }) {
@@ -112,7 +119,8 @@ function WallBody({ points, thicknessMm, tier }: { readonly points: string; read
     return <polygon className={colour} fill="var(--state-verified-tint)" points={points} stroke="var(--state-verified)" strokeWidth={1.5} {...line} />;
   }
 
-  const body = <polygon className={colour} fill={wallConfidenceToken(tier)} points={points} />;
+  const cut = tier === 'needsReview' ? WALL_LOW_EDGE_CUT : null;
+  const body = <polygon className={colour} fill={wallConfidenceToken(tier)} points={points} {...cut} />;
 
   if (wallThicknessColorGroupOf(thicknessMm) !== null) {
     return body;
@@ -208,6 +216,8 @@ export const WallShapeFigure = memo(function WallShapeFigure({
         points={points}
         stroke={selectionBorderToken()}
         strokeWidth={isSelected ? 2 : 1}
+        /* Viền tách màu nền chỉ gắn khi viền hiện — đỡ trăm bộ lọc vô hình trên tầng nhiều tường. */
+        style={isSelected || isHovered ? { filter: SELECTION_SEPARATOR_FILTER } : undefined}
         vectorEffect="non-scaling-stroke"
       />
     </g>

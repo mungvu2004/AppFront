@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { CONFIDENCE_CERTAIN_THRESHOLD, CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 
-import { isLowConfidence, wallConfidenceToken } from './materialMap';
+import { SELECTION_SEPARATOR_FILTER, WALL_LOW_EDGE_CUT, isLowConfidence, wallConfidenceToken } from './materialMap';
 
 describe('isLowConfidence', () => {
   it('hatches only below the "cần kiểm tra" boundary', () => {
@@ -51,5 +51,24 @@ describe('wallConfidenceToken', () => {
 
     expect(new Set(tokens).size).toBe(4);
     expect(tokens).toEqual(['var(--wall-conf-high)', 'var(--wall-conf-mid)', 'var(--wall-conf-low)', 'var(--state-verified)']);
+  });
+});
+
+/* Bảng "Chì và nâu đất": mép khắc + viền tách đều là màu nền canvas, không phải một màu bậc mới. */
+describe('WALL_LOW_EDGE_CUT / SELECTION_SEPARATOR_FILTER', () => {
+  it('mép khắc: nét 2 px màu nền, gạch 1 cách 4, không co giãn theo phóng', () => {
+    expect(WALL_LOW_EDGE_CUT).toEqual({
+      stroke: 'var(--wall-conf-cut)',
+      strokeWidth: 2,
+      strokeDasharray: '1 4',
+      strokeLinecap: 'butt',
+      strokeLinejoin: 'round',
+      vectorEffect: 'non-scaling-stroke',
+    });
+  });
+
+  it('viền tách quanh viền chọn: bốn bóng sắc 1 px màu nền', () => {
+    expect(SELECTION_SEPARATOR_FILTER.match(/drop-shadow\([^)]*var\(--wall-conf-cut\)\)/g)).toHaveLength(4);
+    expect(SELECTION_SEPARATOR_FILTER).not.toMatch(/ [1-9]px var/); // bán kính nhoè luôn 0
   });
 });

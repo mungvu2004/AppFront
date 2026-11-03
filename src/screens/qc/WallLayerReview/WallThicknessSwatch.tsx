@@ -1,10 +1,10 @@
 /**
  * Mẫu hình của một tường — CÙNG màu/hình với tường trên bản vẽ (`WallShapeFigure`): ô đặc theo
- * bậc tin cậy (`wallConfidenceToken`), đã duyệt nền xanh nhạt + viền + dấu tích, không chuẩn sọc
+ * bậc tin cậy (`wallConfidenceToken`), chưa chắc thêm mép khắc màu nền như trên bản vẽ, đã duyệt nền xanh nhạt + viền + dấu tích, không chuẩn sọc
  * giấy + viền đậm (che chữ vẫn phân biệt được, demo Z/S-15 vòng 7).
  */
 
-import { wallConfidenceToken, type WallConfidenceTier } from '@/components/canvas/materialMap';
+import { WALL_LOW_EDGE_CUT, wallConfidenceToken, type WallConfidenceTier } from '@/components/canvas/materialMap';
 
 export type WallSwatchKind = WallConfidenceTier | 'nonStandard';
 
@@ -28,7 +28,8 @@ export function WallThicknessSwatch({ kind, className }: { readonly kind: WallSw
           <path d="M6 6.5l2.5 2.5L14 3.5" fill="none" stroke="var(--state-verified-text)" strokeWidth={1.6} />
         </>
       ) : (
-        <rect fill={wallConfidenceToken(kind)} height={H} width={W} />
+        /* Nét mép khắc nằm nửa ngoài khung svg (bị cắt) — còn đúng ~1 px khắc vào mép như trên bản vẽ. */
+        <rect fill={wallConfidenceToken(kind)} height={H} width={W} {...(kind === 'needsReview' ? WALL_LOW_EDGE_CUT : null)} />
       )}
     </svg>
   );
