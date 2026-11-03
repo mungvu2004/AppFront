@@ -1313,11 +1313,15 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       });
 
       await test.step('[16-B-032] ⚑ The legend lists only the bands present plus "Không chuẩn" for other thicknesses (BUG-416)', async () => {
-        const legend = canvasFrame(page).getByRole('group', { name: 'Lọc theo độ dày tường', exact: true });
+        // WallLayerLegendTray: read-only legend in the right panel "Tầng này"; filtering by band lives in "Lọc" (left column).
+        const legend = page.getByRole('region', { name: 'Tầng này', exact: true }).getByRole('group', { name: 'Chú giải tường', exact: true });
         await expect.soft(legend).toBeVisible();
-        // WallLayerLegendTray: three colour bands '100/150 mm', '200/220 mm', '300/400 mm', counted on unreviewed walls only
+        // three colour bands '100/150 mm', '200/220 mm', '300/400 mm', counted on unreviewed walls only
         await expect.soft(legend.getByText('200/220 mm', { exact: true })).toBeVisible();
-        await expect.soft(legend.getByRole('button', { name: 'Lọc theo 200/220 mm', exact: true })).toBeVisible();
+        await expect.soft(legend.getByRole('button')).toHaveCount(0);
+        await page.getByRole('button', { name: /^Lọc/u }).click();
+        await expect.soft(page.getByRole('checkbox', { name: 'Chỉ hiện 200/220 mm', exact: true })).toBeVisible();
+        await page.keyboard.press('Escape');
         await expect.soft(legend.getByText('Không chuẩn', { exact: true })).toBeVisible(); // the 260 and 65 mm walls
         await expect.soft(legend.getByText('Đã duyệt', { exact: true })).toBeVisible(); // the reviewed 340 mm wall
         await expect.soft(legend.getByText('100/150 mm', { exact: true })).toHaveCount(0);
@@ -1399,7 +1403,13 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       const { page } = run;
       const onFloor = { projectId: seeded.project.projectId, floorId: floor.id };
       const zoomLabel = (): Promise<string> => page.getByRole('button', { name: /^Mức thu phóng / }).getAttribute('aria-label').then((label) => label ?? '');
-      const zoomButton = (name: string): Locator => canvasFrame(page).getByRole('button', { name, exact: true });
+      const zoomMenu = (): Locator => page.getByRole('button', { name: /^Mức thu phóng / });
+      /** The zoom cluster is one "N% ▾" menu (QcZoomMenu): open it first when the item is not shown. */
+      const zoomButton = async (name: string): Promise<Locator> => {
+        const item = canvasFrame(page).getByRole('button', { name, exact: true });
+        if (!(await item.isVisible())) await zoomMenu().click();
+        return item;
+      };
       /** Union of the wall polygons in page space, plus the frame box. */
       const extent = async (): Promise<{ left: number; top: number; right: number; bottom: number; frame: Box }> =>
         canvasSvg(page).evaluate((svg) => {
@@ -1457,42 +1467,42 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       });
 
       await test.step('[16-A-071] "Phóng to" / "Thu nhỏ" step 25 %, clamped 10 %..1000 %', async () => {
-        await zoomButton('Phóng to').click();
-        expect.soft(await zoomLabel()).toBe('Mức thu phóng 125%, bấm để về 100%');
+        await (await zoomButton('Phóng to')).click();
+        expect.soft(await zoomLabel()).toBe('Mức thu phóng 125%: mở danh sách phóng và chế độ nhìn (đang Từng việc)');
         await ev(page, '16-A-071', 'zoom-125');
-        for (let i = 0; i < 8; i += 1) await zoomButton('Thu nhỏ').click();
-        expect.soft(await zoomLabel(), 'clamped at the minimum').toBe('Mức thu phóng 10%, bấm để về 100%');
-        for (let i = 0; i < 45; i += 1) await zoomButton('Phóng to').click();
-        expect.soft(await zoomLabel(), 'clamped at the maximum').toBe('Mức thu phóng 1000%, bấm để về 100%');
+        for (let i = 0; i < 8; i += 1) await (await zoomButton('Thu nhỏ')).click();
+        expect.soft(await zoomLabel(), 'clamped at the minimum').toBe('Mức thu phóng 10%: mở danh sách phóng và chế độ nhìn (đang Từng việc)');
+        for (let i = 0; i < 45; i += 1) await (await zoomButton('Phóng to')).click();
+        expect.soft(await zoomLabel(), 'clamped at the maximum').toBe('Mức thu phóng 1000%: mở danh sách phóng và chế độ nhìn (đang Từng việc)');
       });
 
       await test.step('[16-A-072] The zoom % button resets to 100 %; "Vừa khung nhìn" fits the selected wall, else every wall', async () => {
-        await page.getByRole('button', { name: /^Mức thu phóng / }).click();
-        expect.soft(await zoomLabel()).toBe('Mức thu phóng 100%, bấm để về 100%');
+        await (await zoomButton('Về 100%')).click();
+        expect.soft(await zoomLabel()).toBe('Mức thu phóng 100%: mở danh sách phóng và chế độ nhìn (đang Từng việc)');
         const target = code(130);
         await selectByKeys(page, 130, target);
-        await zoomButton('Vừa khung nhìn').click();
+        await (await zoomButton('Vừa khung nhìn')).click();
         const box = await polygonBox(page, target);
         const frame = (await extent()).frame;
         expect.soft(Math.abs(box.x + box.width / 2 - (frame.x + frame.width / 2)), 'selected wall centred horizontally').toBeLessThan(60);
         expect.soft(Math.abs(box.y + box.height / 2 - (frame.y + frame.height / 2)), 'selected wall centred vertically').toBeLessThan(60);
         await ev(page, '16-A-072', 'fit-selected-wall');
         await page.keyboard.press('Escape');
-        await zoomButton('Vừa khung nhìn').click();
+        await (await zoomButton('Vừa khung nhìn')).click();
         const all = await extent();
         expect.soft(all.left, 'every wall left of the fit').toBeGreaterThanOrEqual(all.frame.x - 1);
         expect.soft(all.right, 'every wall right of the fit').toBeLessThanOrEqual(all.frame.x + all.frame.width + 1);
       });
 
       await test.step('[16-A-073] The F key fits the selected wall (or the whole layer)', async () => {
-        await page.getByRole('button', { name: /^Mức thu phóng / }).click();
+        await (await zoomButton('Về 100%')).click();
         const target = code(40);
         await selectByKeys(page, 40, target);
         await page.keyboard.press('f');
         const box = await polygonBox(page, target);
         const frame = (await extent()).frame;
         expect.soft(Math.abs(box.x + box.width / 2 - (frame.x + frame.width / 2)), 'F centres the selected wall').toBeLessThan(60);
-        expect.soft(await zoomLabel(), 'F zooms in').not.toBe('Mức thu phóng 100%, bấm để về 100%');
+        expect.soft(await zoomLabel(), 'F zooms in').not.toBe('Mức thu phóng 100%: mở danh sách phóng và chế độ nhìn (đang Từng việc)');
         await ev(page, '16-A-073', 'f-key-fit');
         await page.keyboard.press('Escape');
         await page.keyboard.press('f');
@@ -1502,10 +1512,10 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       });
 
       await test.step('[16-A-075] Mini map: click / drag moves the view; Enter or Space centres', async () => {
-        await page.getByRole('button', { name: /^Mức thu phóng / }).click();
-        await zoomButton('Phóng to').click();
-        await zoomButton('Phóng to').click();
-        await zoomButton('Phóng to').click();
+        await (await zoomButton('Về 100%')).click();
+        await (await zoomButton('Phóng to')).click();
+        await (await zoomButton('Phóng to')).click();
+        await (await zoomButton('Phóng to')).click();
         const map = page.getByRole('region', { name: 'Bản đồ thu nhỏ', exact: true });
         const surface = map.getByRole('button', { name: 'Bấm để di chuyển vùng nhìn', exact: true });
         const frameRect = map.locator('div.border-accent');
@@ -1544,7 +1554,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       });
 
       await test.step('[16-A-015] Hover a row ↔ hover the polygon (cross highlight)', async () => {
-        await page.getByRole('button', { name: /^Mức thu phóng / }).click();
+        await (await zoomButton('Về 100%')).click();
         await page.keyboard.press('f');
         const target = code(3);
         await page.keyboard.press('Escape');

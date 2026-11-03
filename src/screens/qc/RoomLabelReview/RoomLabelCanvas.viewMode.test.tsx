@@ -3,10 +3,9 @@
  * (chưa có tên trước, máy đề xuất sau); nút đổi chế độ luôn có trên bản vẽ.
  */
 
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { QcInspectorEmpty } from '../shared/QcInspectorSection';
 import { setQcViewMode } from '../shared/qcViewMode';
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import type { RoomLabelStatus, RoomLabelViewModel } from './roomLabelTypes';
@@ -77,13 +76,15 @@ describe('RoomLabelCanvas — chế độ nhìn', () => {
     expect(parseFloat(pins[0]!.style.left)).toBeGreaterThan(parseFloat(pins[1]!.style.left));
   });
 
-  it('nút đổi chế độ nhìn không nổi trên bản vẽ: nó ở thanh đầu panel phải (cạnh "Hiển thị")', () => {
+  it('bản vẽ chỉ còn MỘT nút "N% ▾": phóng và chế độ nhìn nằm trong menu của nó', () => {
     renderCanvas();
     expect(screen.queryByRole('group', { name: 'Chế độ nhìn' })).toBeNull();
-    cleanup();
+    expect(screen.queryByRole('button', { name: 'Phóng to' })).toBeNull();
 
-    render(<QcInspectorEmpty title="Tầng này" />);
-    expect(within(screen.getByRole('region', { name: 'Tầng này' })).getByRole('group', { name: 'Chế độ nhìn' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tổng thể' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Mức thu phóng .*chế độ nhìn \(đang Từng việc\)$/u }));
+    expect(screen.getByRole('button', { name: 'Phóng to' })).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('group', { name: 'Chế độ nhìn' })).getByRole('button', { name: 'Tổng thể' }));
+    expect(screen.queryByRole('group', { name: 'Chế độ nhìn' })).toBeNull();
+    expect(screen.getByRole('button', { name: /đang Tổng thể/u })).toBeTruthy();
   });
 });

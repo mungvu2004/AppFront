@@ -30,8 +30,8 @@ import { useFloorReview } from './useFloorReview';
  * Phím `]` / `[` sang bước sau / về bước trước của tầng (U19), hiện trong bảng `?`.
  * Trong khung soạn thảo (`useEditorChrome()` khác null — 4 màn duyệt tầng không còn header, không còn hàng
  * trên cùng, kiểu Figma): bản đặt ở đầu màn chỉ giữ H1 ẩn + phím tắt; bản `stacked` (truyền vào
- * `QcStepColumn.fileHeader`) vẽ khối đầu cột: dự án ▾ + chuông · chip bước dự án · tầng ▾ · bốn bước xếp dọc
- * (số, chấm, đếm). Nút đi tiếp chỉ có ở đáy cột việc. Ngoài khung soạn thảo `stacked` không vẽ gì.
+ * `QcStepColumn.fileHeader`) vẽ khối đầu cột: dự án ▾ (gồm đổi tầng, bước dự án, thông báo) · dòng vị trí ·
+ * tên tầng (chữ) · bốn bước xếp dọc (số, chấm, đếm). Nút đi tiếp chỉ có ở đáy cột việc. Ngoài khung soạn thảo `stacked` không vẽ gì.
  * Gắn: `<QcFloorNav floorId={floorId} layer="rooms" projectId={projectId} />` (cần nằm trong Router).
  */
 export interface QcFloorNavFloor {
@@ -225,13 +225,8 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
     return key === activeStep ? 'step' : undefined;
   };
 
-  const floorMenu = (
-    /* key: đổi tầng/màn thì menu đóng lại. */
-    <NavMenu
-      key={`floor:${floorId}:${layer}`}
-      label={`Đổi tầng: đang ở ${floorLabel}`}
-      summary={<span className="font-medium text-text-primary">{floorLabel}</span>}
-    >
+  const floorItems = (
+    <>
       {floors.map((floor) => (
         <FloorMenuItem key={floor.id} floor={floor} isCurrent={floor.id === floorId} layer={current.key} projectId={projectId} />
       ))}
@@ -240,6 +235,16 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
           {ALL_FLOORS_LABEL}
         </Link>
       </li>
+    </>
+  );
+  const floorMenu = (
+    /* key: đổi tầng/màn thì menu đóng lại. */
+    <NavMenu
+      key={`floor:${floorId}:${layer}`}
+      label={`Đổi tầng: đang ở ${floorLabel}`}
+      summary={<span className="font-medium text-text-primary">{floorLabel}</span>}
+    >
+      {floorItems}
     </NavMenu>
   );
   const stepNav = (
@@ -291,12 +296,10 @@ export function QcFloorNav({ projectId, floorId, layer, floors = [], progress, t
     /* Đầu cột việc kiểu Figma: tên tệp ▾ + chuông, dòng mờ vị trí (bước dự án), rồi "trang" = tầng ▾ và bốn bước. */
     return (
       <div className="flex shrink-0 flex-col gap-1 border-b border-border-default px-2 py-2" data-testid="qc-panel-nav">
-        <div className="flex items-center gap-1">
-          <div className="min-w-0 flex-1">{chrome.fileMenu}</div>
-          {chrome.bell}
-        </div>
+        {/* Đổi tầng và chuông nằm trong menu dự án: đầu cột chỉ còn MỘT nút menu. */}
+        {chrome.fileMenu(floorItems)}
         {chrome.stepLabel}
-        <div className="mt-1 border-t border-border-default pt-1">{floorMenu}</div>
+        <p className="mt-1 truncate border-t border-border-default px-2 pt-2 text-[13px] font-medium text-text-primary">{floorLabel}</p>
         {stepNav}
       </div>
     );

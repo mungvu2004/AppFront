@@ -1,7 +1,8 @@
 /**
  * Vỏ thu gọn cho bốn màn duyệt tầng dạng trình biên tập (`isFloorEditorPath`): ở đó `AppLayout` không vẽ
- * {@link AppHeader}, mà đưa ba mảnh qua context để đầu cột việc (QcFloorNav `stacked`) tự đặt — menu tệp
- * (tên dự án ▾, gồm cả sáu bước của dự án), dòng mờ vị trí ("Bước 3 · Duyệt tầng", chữ, không nút) và chuông.
+ * {@link AppHeader}, mà đưa hai mảnh qua context để đầu cột việc (QcFloorNav `stacked`) tự đặt — menu tệp
+ * (tên dự án ▾: đổi tầng, sáu bước của dự án, màn phụ, thông báo, tài khoản; chuông không còn nút riêng, chỉ
+ * còn chấm chưa đọc trên tên dự án) và dòng mờ vị trí ("Bước 3 · Duyệt tầng", chữ, không nút).
  * Ngoài bốn màn đó context là null.
  *
  * ponytail: menu dùng `<details>` gốc như header (Esc đóng, không đóng khi bấm ra ngoài); cần thì đổi sang Popover.
@@ -20,9 +21,9 @@ import { SignOutConfirm, StepMarker } from './AppHeader';
 import { ProjectNav } from './ProjectNav';
 
 export interface EditorChrome {
-  readonly fileMenu: ReactNode;
+  /** Menu tệp; `floors` = danh sách đổi tầng của màn (đặt trong menu, không thành nút riêng). */
+  readonly fileMenu: (floors?: ReactNode) => ReactNode;
   readonly stepLabel: ReactNode;
-  readonly bell: ReactNode;
 }
 
 const EditorChromeContext = createContext<EditorChrome | null>(null);
@@ -61,10 +62,20 @@ export interface EditorFileMenuProps {
   readonly onSignOut: () => void;
   /** Sáu bước của dự án (`EditorStepList`), giữa lối về và màn phụ. */
   readonly steps?: ReactNode;
+  /** Danh sách tầng (các `<li>` của màn), mục đầu menu. */
+  readonly floors?: ReactNode;
+  /**
+   * Chuông thông báo: gắn ẨN trong menu chỉ để đếm chưa đọc — không còn nút riêng. Có chưa đọc (chuông vẽ
+   * huy hiệu) thì tên dự án và mục "Thông báo" mang chấm nhỏ.
+   */
+  readonly bell?: ReactNode;
 }
 
+/* ponytail: chấm đọc huy hiệu của chuông ẩn bằng `:has` — đổi markup chuông thì chấm tắt im lặng; cần thì nâng bộ đếm lên hook chung. */
+const UNREAD_DOT_CLASS = 'hidden h-2 w-2 shrink-0 rounded-full bg-accent [details:has([data-editor-bell]_button>span)_&]:inline-block';
+
 /** Menu tệp: tên dự án ▾ gom mọi lối của header chung (danh sách dự án, quản trị, bước dự án, màn phụ, tài khoản, đăng xuất). */
-export function EditorFileMenu({ projectId, projectName, showAdmin, accountInitials, accountLabel, onSignOut, steps }: EditorFileMenuProps) {
+export function EditorFileMenu({ projectId, projectName, showAdmin, accountInitials, accountLabel, onSignOut, steps, floors, bell }: EditorFileMenuProps) {
   const location = useLocation();
   const [confirmOut, setConfirmOut] = useState(false);
   return (
@@ -78,9 +89,16 @@ export function EditorFileMenu({ projectId, projectName, showAdmin, accountIniti
               {projectName}
             </span>
           )}
+          <span aria-hidden="true" className={UNREAD_DOT_CLASS} />
           <ChevronDown size={14} aria-hidden="true" className="shrink-0 text-text-muted" />
         </summary>
-        <div className={PANEL_CLASS}>
+        <div className={cn(PANEL_CLASS, 'max-h-[calc(100dvh-5rem)] overflow-y-auto')}>
+          {floors == null ? null : (
+            <>
+              <ul aria-label="Tầng">{floors}</ul>
+              <div className="my-1 border-t border-border-default" />
+            </>
+          )}
           <Link to={ROUTES.dashboard} className={ITEM_CLASS}>
             Về danh sách dự án
           </Link>
@@ -98,6 +116,12 @@ export function EditorFileMenu({ projectId, projectName, showAdmin, accountIniti
           <div className="my-1 border-t border-border-default" />
           <ProjectNav projectId={projectId} pathname={location.pathname} search={location.search} />
           <div className="my-1 border-t border-border-default" />
+          <Link to={ROUTES.notifications} className={ITEM_CLASS}>
+            Thông báo
+            <span className={cn(UNREAD_DOT_CLASS, 'ml-auto')}>
+              <span className="sr-only">: có thông báo chưa đọc</span>
+            </span>
+          </Link>
           <Link to={ROUTES.account} className={ITEM_CLASS} title={accountLabel}>
             <span aria-hidden="true" className="contents">
               <Avatar alt="" {...(accountInitials ? { initials: accountInitials } : {})} />
@@ -108,6 +132,11 @@ export function EditorFileMenu({ projectId, projectName, showAdmin, accountIniti
             <LogOut size={16} aria-hidden="true" />
             Đăng xuất
           </button>
+          {bell == null ? null : (
+            <span className="hidden" data-editor-bell="">
+              {bell}
+            </span>
+          )}
         </div>
       </details>
       <SignOutConfirm isOpen={confirmOut} onClose={() => setConfirmOut(false)} onSignOut={onSignOut} />

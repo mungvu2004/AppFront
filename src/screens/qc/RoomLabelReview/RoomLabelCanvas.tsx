@@ -47,13 +47,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
 import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
-import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { MOTION_EASINGS, cssDurationMs } from '@/lib/motion';
 
 import { focusBoundsOf, useQcViewMode } from '../shared/qcViewMode';
 import { QcViewLayer } from '../shared/QcViewLayer';
+import { QcZoomMenu } from '../shared/QcZoomMenu';
 import { RoomLabelCanvasRoomFigure } from './RoomLabelCanvasRoomFigure';
 import {
   BACKGROUND_IMAGE_OPACITY,
@@ -342,7 +342,7 @@ export function RoomLabelCanvas({
       )}
       <QcViewLayer focus={askRect} onPick={(id) => onSelect(id as RoomLabelRoomId)} pins={pins} selectedId={selectedRoomId} />
 
-      <ZoomCluster {...zoomCluster} />
+      <QcZoomMenu {...zoomCluster} viewMode />
 
       {isInteractive ? null : (
         <p className="sr-only" id={FORBIDDEN_DESCRIPTION_ID}>

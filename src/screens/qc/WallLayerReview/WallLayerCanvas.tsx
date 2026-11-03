@@ -28,7 +28,6 @@ import { GridLayer } from '@/components/canvas/GridLayer';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
 import { useCanvasPan } from '@/components/canvas/useCanvasPan';
-import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
@@ -36,6 +35,7 @@ import { cn } from '@/lib/utils';
 
 import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
 import { QcViewLayer } from '../shared/QcViewLayer';
+import { QcZoomMenu } from '../shared/QcZoomMenu';
 import { WallDraftGuide, WallDrawingBackground, WallLayerMiniMap } from './WallLayerCanvasParts';
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
@@ -402,7 +402,8 @@ export function WallLayerCanvas({
         </>
       )}
 
-      <ZoomCluster
+      <QcZoomMenu
+        viewMode={viewLayer !== null}
         onFitToScreen={onFitToScreen}
         onResetZoom={onResetZoom}
         onZoomIn={onZoomIn}

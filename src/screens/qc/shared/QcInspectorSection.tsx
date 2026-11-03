@@ -3,12 +3,10 @@ import { useId, useState, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { QcViewModeSwitch } from './QcViewLayer';
-
 /**
  * Mảnh của panel phải neo (bố cục hai panel kiểu Figma, `docs/figma-layout-spec.md`): một khối
  * `bg-surface` không bóng, các mục xếp dọc, kẻ mảnh giữa mục, không thẻ lồng thẻ.
- * - `QcInspectorShell`: khung panel + thanh đầu mang "Từng việc | Tổng thể" và trigger "Hiển thị" (dùng chung với `QcAskCard`);
+ * - `QcInspectorShell`: khung panel + thanh đầu mang trigger "Hiển thị" (chế độ nhìn ở danh sách phóng `QcZoomMenu`) (dùng chung với `QcAskCard`);
  * - `QcInspectorEmpty`: chưa chọn gì ("Tầng này"): tiêu đề, gợi ý, các mục bên dưới;
  * - `QcInspectorSection`: một mục ("Kích thước", "Độ tin cậy"…) kiểu panel Design của Figma.
  */
@@ -17,7 +15,7 @@ const FOCUS_RING = 'focus-visible:outline-solid focus-visible:outline-2 focus-vi
 
 interface QcInspectorShellProps {
   readonly label: string;
-  /** Trigger "Hiển thị" (popover, biến thể không nổi): ở thanh đầu panel, cạnh nút chế độ nhìn. */
+  /** Trigger "Hiển thị" (popover, biến thể không nổi): ở thanh đầu panel. Vắng thì không có thanh. */
   readonly display?: ReactNode;
   readonly children: ReactNode;
   readonly className?: string;
@@ -27,11 +25,9 @@ interface QcInspectorShellProps {
 export function QcInspectorShell({ label, display, children, className }: QcInspectorShellProps) {
   return (
     <section aria-label={label} className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden bg-bg-surface', className)}>
-      {/* Thanh đầu: chế độ nhìn trái, "Hiển thị" phải — mọi nút xem của màn ở đây, bản vẽ chỉ còn cụm phóng. */}
-      <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border-default px-3">
-        <QcViewModeSwitch />
-        {display}
-      </div>
+      {display == null ? null : (
+        <div className="flex h-11 shrink-0 items-center justify-end gap-2 border-b border-border-default px-3">{display}</div>
+      )}
       {children}
     </section>
   );

@@ -4,13 +4,13 @@ import { useShortcut } from '@/hooks/useShortcut';
 import { cn } from '@/lib/utils';
 
 import type { QcAskRect } from './qcAsk';
-import { focusPadOf, setQcViewMode, toggleQcViewMode, useQcViewMode, type QcPin, type QcViewMode } from './qcViewMode';
+import { focusPadOf, toggleQcViewMode, useQcViewMode, type QcPin } from './qcViewMode';
 
 /**
  * Lớp chế độ nhìn trên bản vẽ L23 (`qcViewMode.ts`), đặt trong khung bản vẽ của màn:
  * phủ mờ quanh mục đang chọn (Từng việc),
  * ghim số trên các mục còn cần xem (Tổng thể). Màn tự lo phóng/vừa khung theo chế độ. Nút đổi chế độ
- * (`QcViewModeSwitch`) ở thanh đầu panel phải, không nổi trên bản vẽ; phím F vẫn ở đây.
+ * nằm trong danh sách phóng của bản vẽ (`QcZoomMenu`); phím F vẫn ở đây.
  */
 export interface QcViewLayerProps {
   /** Hộp của mục đang chọn, pixel khung. */
@@ -23,11 +23,6 @@ export interface QcViewLayerProps {
   readonly pinsInteractive?: boolean;
 }
 
-const MODES: readonly { readonly key: QcViewMode; readonly label: string }[] = [
-  { key: 'task', label: 'Từng việc' },
-  { key: 'overview', label: 'Tổng thể' },
-];
-const SWITCH_LABEL = 'Chế độ nhìn';
 const SHORTCUT_DESCRIPTION = 'Đổi chế độ nhìn Từng việc / Tổng thể';
 /** Phủ mờ bằng token lớp phủ (28 % ở nền sáng, mock: ≤ 35 %): vẫn đọc được bản vẽ quanh mục. */
 const DIM_FILL = 'var(--bg-overlay)';
@@ -86,30 +81,5 @@ export function QcViewLayer({ focus, pins, selectedId, onPick, pinsInteractive =
           ))
         : null}
     </>
-  );
-}
-
-/** Nút đổi "Từng việc | Tổng thể" ở thanh đầu panel phải (cạnh "Hiển thị"); phím F đăng ký ở `QcViewLayer`. */
-export function QcViewModeSwitch() {
-  const mode = useQcViewMode();
-  return (
-    <div aria-label={SWITCH_LABEL} className="flex items-center gap-0.5 rounded-md bg-bg-sunken p-0.5" role="group">
-      {MODES.map((item) => (
-        <button
-          aria-pressed={mode === item.key}
-          className={cn(
-            'h-7 whitespace-nowrap rounded px-1.5 text-body-sm',
-            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent',
-            mode === item.key ? 'bg-bg-surface font-medium text-text-primary shadow-float' : 'text-text-secondary hover:text-text-primary',
-          )}
-          key={item.key}
-          onClick={() => setQcViewMode(item.key)}
-          title={`${item.label} (F)`}
-          type="button"
-        >
-          {item.label}
-        </button>
-      ))}
-    </div>
   );
 }

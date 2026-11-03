@@ -19,6 +19,7 @@ import { QcDisplayPopover } from '../shared/QcDisplayPopover';
 import { QcRuleIssueFocus, QcRuleIssuesBadge, type QcRuleIssuesProps } from '../shared/QcRuleIssues';
 import { WallLayerList } from './WallLayerList';
 import type { WallLayerFilterKey, WallLayerViewProps, WallRowViewModel } from './types';
+import { WALL_THICKNESS_GROUP_LABELS, type WallLayerLegendLevels } from './wallLayerHatch';
 import type { WallReviewQueue } from './wallReviewQueue';
 
 /** Bốn lớp khác ngoài "Tường" — đúng năm khoá của `i18n.fragment.json#layerTree`. */
@@ -55,6 +56,8 @@ export interface WallLayerLeftPanelProps {
   readonly queue?: WallReviewQueue | undefined;
   /** Số hàng đợi của tường còn chờ, cùng thứ tự với thẻ hỏi và ghim số. */
   readonly queueNumbers?: ReadonlyMap<WallRowViewModel['id'], number> | undefined;
+  /** Lọc theo dải độ dày (trước ở chú giải panel phải, nay chú giải chỉ đọc): nhóm thứ hai của "Lọc". */
+  readonly thickness?: WallLayerLegendLevels | undefined;
 }
 
 const FILTER_LABELS: Readonly<Record<WallLayerFilterKey, string>> = {
@@ -64,11 +67,12 @@ const FILTER_LABELS: Readonly<Record<WallLayerFilterKey, string>> = {
 };
 const FILTER_BUTTON = 'Lọc';
 const FILTER_GROUP = 'Lọc danh sách';
+const THICKNESS_GROUP = 'Độ dày tường';
 const COLUMN_CODE = 'Đoạn';
 const COLUMN_LENGTH = 'Dài, mm';
 const COLUMN_THICKNESS = 'Dày';
 
-export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers }: WallLayerLeftPanelProps) {
+export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers, thickness }: WallLayerLeftPanelProps) {
   const { filters, onToggleFilter } = panel;
   /* Mọi đoạn cùng độ tin cậy thì lọc theo nó không giúp gì: ẩn (vẫn hiện khi đang bật để tắt được). */
   const filterKeys: readonly WallLayerFilterKey[] = [
@@ -100,6 +104,23 @@ export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers }: WallL
               title: FILTER_GROUP,
               items: filterKeys.map((key) => ({ key, label: FILTER_LABELS[key], checked: filters[key], onToggle: () => onToggleFilter(key) })),
             },
+            ...(thickness?.onFilterChange === undefined
+              ? []
+              : [
+                  {
+                    title: THICKNESS_GROUP,
+                    /* Một dải mỗi lần (như chú giải cũ): bật dải này là thay dải đang lọc, bấm lại là bỏ lọc. */
+                    items: thickness.levels.map((band) => {
+                      const checked = thickness.activeFilter === band;
+                      return {
+                        key: `band-${band}`,
+                        label: `Chỉ hiện ${WALL_THICKNESS_GROUP_LABELS[String(band)] ?? `${band} mm`}`,
+                        checked,
+                        onToggle: () => thickness.onFilterChange?.(checked ? null : band),
+                      };
+                    }),
+                  },
+                ]),
           ]}
           icon={<ListFilter aria-hidden="true" className="h-4 w-4" />}
           label={FILTER_BUTTON}

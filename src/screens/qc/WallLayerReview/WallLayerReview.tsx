@@ -181,6 +181,7 @@ export function WallLayerReview({
       panel={panel}
       queue={queue}
       queueNumbers={queueNumbersOf(queueItems)}
+      thickness={legend?.legendLevels}
     />
   );
 

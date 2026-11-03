@@ -1029,6 +1029,8 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     const mounted = mountScreen(harness.gateway);
     await settle(mounted);
 
+    /* Một nút "N% ▾" trên bản vẽ; các mục phóng nằm trong danh sách của nó. */
+    fireEvent.click(screen.getByRole('button', { name: /^Mức thu phóng / }));
     const zoomIn = screen.getByRole('button', { name: 'Phóng to' });
     fireEvent.pointerDown(zoomIn, { button: 0, clientX: 700, clientY: 700, pointerId: 1 });
     fireEvent.click(zoomIn);

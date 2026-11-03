@@ -3,8 +3,8 @@
  * hai panel, `docs/figma-layout-spec.md`; không còn nổi trên bản vẽ). Hiện khi lớp Tường bật, xếp dọc.
  *
  * Nhóm một: màu tường = bậc tin cậy (`WallThicknessSwatch`, cùng màu với bản vẽ) kèm số tường —
- * Máy chắc chắn · Máy khá chắc · Máy chưa chắc · Đã duyệt. Nhóm hai: các dải độ dày là nút lọc chữ
- * (bấm lại để bỏ lọc), cùng tên nhóm "Lọc theo độ dày tường"; Không chuẩn có mẫu sọc. Chữ "lệch
+ * Máy chắc chắn · Máy khá chắc · Máy chưa chắc · Đã duyệt. Nhóm hai: các dải độ dày kèm số đoạn chờ duyệt;
+ * Không chuẩn có mẫu sọc. CHỈ ĐỌC — không nút: lọc theo dải độ dày nằm trong "Lọc" của cột việc. Chữ "lệch
  * không quá … mm" đọc từ hằng domain (không gõ số).
  */
 
@@ -25,13 +25,12 @@ import { WallThicknessSwatch } from './WallThicknessSwatch';
 type Props = Pick<WallLayerCanvasViewProps, 'isWallLayerVisible' | 'legendLevels' | 'shapes' | 'state'>;
 
 const TRAY = 'flex flex-col';
-const GROUP_LABEL = 'Lọc theo độ dày tường';
+const GROUP_LABEL = 'Chú giải tường';
 const NON_STANDARD_LABEL = 'Không chuẩn';
-const CLEAR_LABEL = 'Xoá lọc';
 const ITEM = 'flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-body-sm text-text-primary';
 const COUNT = 'ml-auto tabular-nums text-text-secondary';
 
-export function WallLayerLegendTray({ isWallLayerVisible, legendLevels, shapes, state }: Props) {
+export function WallLayerLegendTray({ isWallLayerVisible, shapes, state }: Props) {
   const counts = useMemo(() => {
     const pending = shapes.filter((shape) => !shape.isReviewed);
     const tiers = new Map(WALL_CONFIDENCE_LEGEND_TIERS.map((tier) => [tier, shapes.filter((shape) => shape.confidenceTier === tier).length]));
@@ -61,8 +60,6 @@ export function WallLayerLegendTray({ isWallLayerVisible, legendLevels, shapes, 
     );
   }
 
-  const { activeFilter, onFilterChange } = legendLevels;
-
   return (
     <div aria-label={GROUP_LABEL} className={TRAY} role="group" title={`Chuẩn: lệch không quá ${THICKNESS_TOLERANCE_MM} mm`}>
       <div className="flex flex-col">
@@ -75,29 +72,12 @@ export function WallLayerLegendTray({ isWallLayerVisible, legendLevels, shapes, 
         ))}
       </div>
       <div className="mt-1 flex flex-col border-t border-border-default pt-1">
-        {[...counts.bands].map(([band, count]) => {
-          const isActive = activeFilter === band;
-          const label = WALL_THICKNESS_GROUP_LABELS[String(band)] ?? `${band} mm`;
-
-          return (
-            <button
-              aria-label={`${isActive ? 'Đang lọc' : 'Lọc theo'} ${label}`}
-              aria-pressed={isActive}
-              className={cn(
-                ITEM,
-                'text-left transition-colors duration-180 hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                isActive && 'bg-accent-wash',
-                activeFilter != null && !isActive && 'opacity-60',
-              )}
-              key={band}
-              onClick={() => onFilterChange?.(isActive ? null : band)}
-              type="button"
-            >
-              <span className="tabular-nums">{label}</span>
-              <span className={COUNT}>{count}</span>
-            </button>
-          );
-        })}
+        {[...counts.bands].map(([band, count]) => (
+          <span className={ITEM} key={band}>
+            <span className="tabular-nums">{WALL_THICKNESS_GROUP_LABELS[String(band)] ?? `${band} mm`}</span>
+            <span className={COUNT}>{count}</span>
+          </span>
+        ))}
         {counts.unbanded > 0 ? (
           <span className={ITEM}>
             <WallThicknessSwatch kind="nonStandard" />
@@ -105,15 +85,6 @@ export function WallLayerLegendTray({ isWallLayerVisible, legendLevels, shapes, 
             <span className={COUNT}>{counts.unbanded}</span>
           </span>
         ) : null}
-        {activeFilter == null ? null : (
-          <button
-            className="h-8 self-start rounded-md px-1.5 text-caption text-accent hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            onClick={() => onFilterChange?.(null)}
-            type="button"
-          >
-            {CLEAR_LABEL}
-          </button>
-        )}
       </div>
     </div>
   );

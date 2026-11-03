@@ -25,7 +25,6 @@ import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
 import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
-import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
@@ -33,6 +32,7 @@ import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
 import { pointInFrame, rectInFrame } from '../shared/qcAsk';
 import { QcViewLayer } from '../shared/QcViewLayer';
+import { QcZoomMenu } from '../shared/QcZoomMenu';
 import { QC_BACKGROUND_OPACITY } from '../shared/qcBackground';
 
 import {
@@ -423,7 +423,7 @@ export function ObjectLayerCanvas({
         </p>
       ) : null}
 
-      <ZoomCluster {...zoomCluster} />
+      <QcZoomMenu {...zoomCluster} viewMode />
 
       {/* Vẽ xong là hỏi loại ngay cạnh hộp mới (đã được chọn, nên `focusRectPx` là hộp ấy). */}
       {kindPicker === null || placedAt === null ? null : (

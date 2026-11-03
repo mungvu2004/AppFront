@@ -322,12 +322,12 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
       loading: { kind: 'label', name: 'Đang tải chú giải' },
       /* Đọc lớp hỏng: cả màn là trạng thái lỗi một lối ra, không dựng chú giải hỏng (BUG-326). */
       error: { kind: 'absent', name: 'Không tải được chú giải' },
-      partial: { kind: 'group', name: 'Lọc theo độ dày tường' },
-      success: { kind: 'group', name: 'Lọc theo độ dày tường' },
+      partial: { kind: 'group', name: 'Chú giải tường' },
+      success: { kind: 'group', name: 'Chú giải tường' },
       /* Hai trạng thái ánh xạ CHỆCH: chú giải ĐẦY ĐỦ, không phải chữ "T" thu gọn. */
-      forbidden: { kind: 'group', name: 'Lọc theo độ dày tường' },
+      forbidden: { kind: 'group', name: 'Chú giải tường' },
       /* Thu gọn ẩn cả hai panel — chú giải ở panel phải ẩn theo (bố cục hai panel). */
-      collapsed: { kind: 'hidden', name: 'Lọc theo độ dày tường' },
+      collapsed: { kind: 'hidden', name: 'Chú giải tường' },
     };
 
   it.each(SEVEN_STATES)('trạng thái %s: chú giải có mặt', async (state) => {
@@ -369,14 +369,14 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
    * ca có tường ngoài danh mục (260 mm) khoá ở wallThicknessScale.test.ts. Xong hết thì còn "Đã duyệt". */
   it('[BUG-416] bộ mẫu toàn độ dày trong danh mục: không có "Không chuẩn"; xong hết thì chú giải còn "Đã duyệt"', async () => {
     const partial = renderState('partial');
-    const legend = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
+    const legend = await screen.findByRole('group', { name: 'Chú giải tường' });
 
     expect(within(legend).queryByText('Không chuẩn')).toBeNull();
     expect(within(legend).getByText('Đã duyệt')).toBeInTheDocument();
     partial.unmount();
 
     renderState('success');
-    const done = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
+    const done = await screen.findByRole('group', { name: 'Chú giải tường' });
 
     expect(within(done).queryByText('Không chuẩn')).toBeNull();
     expect(within(done).getByText('Đã duyệt')).toBeInTheDocument();
@@ -385,7 +385,7 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
   it('lớp Tường TẮT là điều kiện duy nhất chú giải được ẩn', async () => {
     renderState('partial');
 
-    expect(await screen.findByRole('group', { name: 'Lọc theo độ dày tường' })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'Chú giải tường' })).toBeInTheDocument();
 
     await act(async () => {
       useStore.getState().toggleLayerVisibility('wall');
@@ -393,7 +393,7 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('group', { name: 'Lọc theo độ dày tường' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('group', { name: 'Chú giải tường' })).not.toBeInTheDocument();
     });
 
     await act(async () => {
@@ -659,7 +659,7 @@ describe('lớp Tường bật tắt được từ ô "Lớp tường" của pop
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole('group', { name: 'Lọc theo độ dày tường' })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'Chú giải tường' })).toBeInTheDocument();
 
     /* K29: một ô đánh dấu thật, không còn hàng cây lớp chết bên cạnh nút con mắt. */
     expect(screen.queryByRole('treeitem', { name: 'Tường' })).toBeNull();
@@ -673,7 +673,7 @@ describe('lớp Tường bật tắt được từ ô "Lớp tường" của pop
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole('group', { name: 'Lọc theo độ dày tường' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('group', { name: 'Chú giải tường' })).not.toBeInTheDocument();
     });
     const toggleBack = await findDisplayToggle('Lớp tường');
 
@@ -685,7 +685,7 @@ describe('lớp Tường bật tắt được từ ô "Lớp tường" của pop
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('group', { name: 'Lọc theo độ dày tường' })).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'Chú giải tường' })).toBeInTheDocument();
     });
   });
 });
@@ -1222,9 +1222,10 @@ describe('chế độ nhìn L23 (Từng việc / Tổng thể)', () => {
     expect(numbers).toEqual(pins.slice(0, numbers.length).map((_, index) => String(index + 1)));
   });
 
-  it('có nút đổi chế độ nhìn trên bản vẽ', async () => {
+  it('chế độ nhìn nằm trong danh sách phóng của bản vẽ (một nút "N% ▾")', async () => {
     renderScreen();
 
+    fireEvent.click(await screen.findByRole('button', { name: /^Mức thu phóng .*chế độ nhìn/u }));
     expect(await screen.findByRole('group', { name: 'Chế độ nhìn' })).toBeInTheDocument();
   });
 });

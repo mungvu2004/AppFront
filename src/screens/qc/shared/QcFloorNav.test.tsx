@@ -64,9 +64,13 @@ describe('QcFloorNav (UX-R1 K25, UX-R2 K04)', () => {
   it('trong khung soạn thảo: không hàng trên cùng — bản đầu màn chỉ còn H1 ẩn; bản stacked là khối đầu cột', () => {
     review.scale = 'confirmed';
     const chrome: EditorChrome = {
-      fileMenu: <button type="button">Tệp</button>,
+      fileMenu: (floors) => (
+        <details open>
+          <summary>Tệp</summary>
+          <ul aria-label="Tầng">{floors}</ul>
+        </details>
+      ),
       stepLabel: <p>Bước 3 · Duyệt tầng</p>,
-      bell: <button type="button">Thông báo</button>,
     };
     const floors = [
       { id: 'f1', label: 'Tầng 1' },
@@ -89,9 +93,11 @@ describe('QcFloorNav (UX-R1 K25, UX-R2 K04)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Duyệt tường · Tầng 1' }).parentElement).not.toBe(screen.getByTestId('cot'));
     expect(screen.getByTestId('cot')).toContainElement(block);
     expect(block).toContainElement(steps);
-    expect(within(block).getByRole('button', { name: 'Tệp' })).toBeInTheDocument();
-    expect(within(block).getByRole('button', { name: 'Thông báo' })).toBeInTheDocument();
-    expect(within(block).getByLabelText('Đổi tầng: đang ở Tầng 1')).toBeInTheDocument();
+    expect(within(block).getByText('Tệp')).toBeInTheDocument();
+    /* Đổi tầng nằm TRONG menu dự án, không còn nút "Tầng ▾" riêng; tên tầng đứng làm chữ. */
+    expect(within(block).queryByLabelText('Đổi tầng: đang ở Tầng 1')).toBeNull();
+    expect(within(within(block).getByRole('list', { name: 'Tầng' })).getByRole('link', { name: 'Tầng 2' })).toHaveAttribute('href', expect.stringContaining('f2'));
+    expect(within(block).getByText('Tầng 1', { selector: 'p' })).toBeInTheDocument();
     expect(steps.textContent).toMatch(/^1Tỷ lệ.*2Tường3Cửa và nội thất4Phòng/u);
     /* Không còn nút đi tiếp ở đây: nút đó chỉ ở đáy cột việc (cả khi cột là ngăn kéo dưới lg). */
     expect(within(block).queryByRole('link', { name: /^Tiếp:/u })).toBeNull();

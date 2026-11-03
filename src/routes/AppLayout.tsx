@@ -191,13 +191,13 @@ export function AppLayout() {
       <LazyNotificationBell />
     </Suspense>
   );
-  // Bốn màn duyệt tầng dạng trình biên tập: không header chung, đầu cột việc tự đặt menu tệp (kèm sáu bước) + dòng vị trí + chuông.
+  // Bốn màn duyệt tầng dạng trình biên tập: không header chung, đầu cột việc tự đặt menu tệp (kèm tầng, sáu bước, chuông ẩn đếm chưa đọc) + dòng vị trí.
   const editorProject =
     location === null ? null : { id: location.projectId, stepIndex: location.stepIndex, floorId: location.floorId, lastFloorPath, stepStates };
   const editorChrome: EditorChrome | null =
     location !== null && editorProject !== null && isFloorEditorPath(routerLocation.pathname)
       ? {
-          fileMenu: (
+          fileMenu: (floors) => (
             <EditorFileMenu
               projectId={location.projectId}
               projectName={projectName}
@@ -206,10 +206,11 @@ export function AppLayout() {
               accountLabel={accountLabel}
               onSignOut={handleSignOut}
               steps={<EditorStepList project={editorProject} />}
+              floors={floors}
+              bell={notificationBell}
             />
           ),
           stepLabel: <EditorStepLabel project={editorProject} />,
-          bell: notificationBell,
         }
       : null;
 
