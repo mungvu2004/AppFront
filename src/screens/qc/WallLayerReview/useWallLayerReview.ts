@@ -205,6 +205,7 @@ import {
 } from '../shared/canvasFit';
 import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
+import { isQcCompare, setQcCompare, useQcCompare } from '../shared/qcCompare';
 import { focusBoundsOf, focusFrameOf, useQcViewMode } from '../shared/qcViewMode';
 import { useLayerRuleIssues } from '../shared/useLayerRuleIssues';
 import { useScaleLock } from '../shared/useScaleLock';
@@ -1775,6 +1776,7 @@ export function useWallLayerReview(
    */
   const committedMeasurementRef = useRef(committedMeasurement);
   committedMeasurementRef.current = committedMeasurement;
+  const isComparing = useQcCompare();
   const gestureInFlight =
     toolState.values.length > 0 || toolState.pending !== null || committedMeasurement !== null;
 
@@ -1805,10 +1807,17 @@ export function useWallLayerReview(
           return;
         }
 
+        /* Hết thứ để bỏ chọn mà đang "So sánh hai bên": Esc lần cuối thoát so sánh. */
+        if (selectedRef.current === null && isQcCompare()) {
+          setQcCompare(false);
+
+          return;
+        }
+
         onSelect(null);
       },
     },
-    { ...shortcutOptions, enabled: gestureInFlight || toolState.tool !== 'select' || selectedWallId !== null },
+    { ...shortcutOptions, enabled: gestureInFlight || toolState.tool !== 'select' || selectedWallId !== null || isComparing },
   );
 
   const thicknessRef = useRef(onChangeThickness);

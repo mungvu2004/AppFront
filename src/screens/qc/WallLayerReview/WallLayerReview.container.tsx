@@ -89,7 +89,7 @@ import { ROUTES } from '@/routes/paths';
 import { EditorTourContainer } from '@/screens/system/EditorTour';
 import type { ProjectRole } from '@/types/project';
 
-import { WallLayerCanvas } from './WallLayerCanvas';
+import { WallLayerCompareCanvas } from './WallLayerCompareCanvas';
 import type { WallLayerOtherKind } from './WallLayerLeftPanel';
 import { WallLayerReview } from './WallLayerReview';
 import type { WallLayerReviewGateway } from './wallLayerReviewGateway';
@@ -247,7 +247,7 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
     <WallLayerReview
       canvas={canvas}
       legend={canvas}
-      canvasSlot={<WallLayerCanvas {...canvas} />}
+      canvasSlot={<WallLayerCompareCanvas {...canvas} canPick={toolRail.activeTool === 'select'} />}
       floorNav={{ projectId, floorId }}
       leftPanel={leftPanel}
       onNavigateLayer={onNavigateLayer}

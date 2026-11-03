@@ -3,6 +3,7 @@ import { useState, type FocusEvent, type KeyboardEvent, type SyntheticEvent } fr
 
 import { cn } from '@/lib/utils';
 
+import { setQcCompare, useQcCompare } from './qcCompare';
 import { setQcViewMode, useQcViewMode, type QcViewMode } from './qcViewMode';
 
 /**
@@ -24,6 +25,8 @@ export interface QcZoomMenuProps {
   readonly fitShortcut?: string | undefined;
   /** Màn có hai chế độ nhìn L23 (Tường, Cửa và nội thất, Phòng). */
   readonly viewMode?: boolean | undefined;
+  /** Màn có "So sánh hai bên" (Tường, Cửa và nội thất): mục bật/tắt dưới chế độ nhìn, không thêm nút nào. */
+  readonly compare?: boolean | undefined;
   /** Đè lên các khoá cũ của `ZoomCluster` khi màn trải nguyên props của nó. */
   readonly isVisible?: boolean | undefined;
 }
@@ -47,10 +50,12 @@ export function QcZoomMenu({
   onFitToScreen,
   fitShortcut,
   viewMode = false,
+  compare = false,
   isVisible = true,
 }: QcZoomMenuProps) {
   const [open, setOpen] = useState(false);
   const mode = useQcViewMode();
+  const isComparing = useQcCompare();
   if (!isVisible) return null;
   const close = () => setOpen(false);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -142,6 +147,23 @@ export function QcZoomMenu({
                   <span aria-hidden="true" className={KEY_CLASS}>F</span>
                 </button>
               ))}
+            </div>
+          ) : null}
+          {compare ? (
+            <div className="mt-1 border-t border-border-default pt-1">
+              <button
+                aria-pressed={isComparing}
+                className={ITEM_CLASS}
+                onClick={() => {
+                  setQcCompare(!isComparing);
+                  close();
+                }}
+                title="Trái: bản vẽ gốc · Phải: đã nhận diện. Esc để thoát"
+                type="button"
+              >
+                <Check aria-hidden="true" className={cn('h-3.5 w-3.5', isComparing ? 'text-accent' : 'invisible')} />
+                So sánh hai bên
+              </button>
             </div>
           ) : null}
         </div>

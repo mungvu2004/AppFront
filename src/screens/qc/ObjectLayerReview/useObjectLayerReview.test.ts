@@ -56,6 +56,8 @@ import {
   useObjectLayerReview,
   type UseObjectLayerReviewOptions,
 } from './useObjectLayerReview';
+import { isQcCompare, setQcCompare } from '../shared/qcCompare';
+
 import { ObjectLayerReview } from './ObjectLayerReview';
 import {
   attachOrphanToNearestWall,
@@ -352,6 +354,20 @@ describe('[N3-08] ?select= chọn sẵn đối tượng', () => {
     const mounted = await mountSettled({ focusId: entityIdOf('D-003', 'door') });
 
     await waitFor(() => expect(mounted.result.current.selectedObjectId).toBe('D-003'));
+    mounted.unmount();
+  });
+
+  it('Escape đang "So sánh hai bên": lần đầu bỏ chọn, lần sau mới thoát so sánh', async () => {
+    setQcCompare(true);
+    const mounted = await mountSettled({ focusId: 'D-003' });
+
+    await waitFor(() => expect(mounted.result.current.selectedObjectId).toBe('D-003'));
+    await pressKey(mounted.registry, 'Escape');
+    expect(mounted.result.current.selectedObjectId).toBeNull();
+    expect(isQcCompare()).toBe(true);
+
+    await pressKey(mounted.registry, 'Escape');
+    expect(isQcCompare()).toBe(false);
     mounted.unmount();
   });
 

@@ -28,9 +28,12 @@ const FIT_ZOOM_PERCENT = 100;
 export function WallDrawingBackground({
   backgroundImageAlt,
   backgroundImageUrl,
+  opacity = BACKGROUND_IMAGE_OPACITY,
   surface,
   surfaceRectPx,
 }: Pick<Props, 'backgroundImageAlt' | 'backgroundImageUrl' | 'surfaceRectPx'> & {
+  /** Nửa trái của "So sánh hai bên" vẽ ảnh rõ nét (1). */
+  readonly opacity?: number;
   readonly surface: WallLayerRectPx | null;
 }) {
   const [loadedImage, setLoadedImage] = useState<{
@@ -64,7 +67,7 @@ export function WallDrawingBackground({
         setLoadedImage({ url: backgroundImageUrl, width: naturalWidth, height: naturalHeight });
       }}
       src={backgroundImageUrl}
-      style={{ ...box, opacity: BACKGROUND_IMAGE_OPACITY }}
+      style={{ ...box, opacity }}
     />
   );
 }

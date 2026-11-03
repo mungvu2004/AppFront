@@ -24,7 +24,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
-import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
+import { useCanvasZoomPan, type CanvasZoomPanState } from '@/components/canvas/useCanvasZoomPan';
 import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
@@ -96,11 +96,14 @@ export function ObjectLayerCanvas({
   viewBoxPx,
   viewPins,
   wallOutlines,
-}: ObjectLayerCanvasViewProps & { readonly kindPicker?: ObjectLayerReviewModel['kindPicker'] }) {
+  zoomPan,
+}: ObjectLayerCanvasViewProps & { readonly kindPicker?: ObjectLayerReviewModel['kindPicker']; readonly zoomPan?: CanvasZoomPanState | undefined }) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   /* Kéo bản vẽ: chuột giữa hoặc giữ Space + kéo (G4a-28, G4b-08; P06 mục 1). */
   /* Cụm zoom góc phải dưới như màn Tường (Impeccable A3): 100% là "vừa khung", lăn chuột cũng phóng. */
-  const { pan, scale, zoomCluster } = useCanvasZoomPan();
+  /* `zoomPan` từ nơi gọi: "So sánh hai bên" cho nửa trái dùng chung khung nhìn (ObjectLayerReview.tsx). */
+  const ownZoomPan = useCanvasZoomPan();
+  const { pan, scale, zoomCluster } = zoomPan ?? ownZoomPan;
   const setPanEl = pan.ref;
   const setFrameRef = useCallback(
     (element: HTMLDivElement | null) => {
@@ -423,7 +426,7 @@ export function ObjectLayerCanvas({
         </p>
       ) : null}
 
-      <QcZoomMenu {...zoomCluster} viewMode />
+      <QcZoomMenu {...zoomCluster} compare viewMode />
 
       {/* Vẽ xong là hỏi loại ngay cạnh hộp mới (đã được chọn, nên `focusRectPx` là hộp ấy). */}
       {kindPicker === null || placedAt === null ? null : (

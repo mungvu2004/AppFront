@@ -84,6 +84,8 @@ import {
   WALL_LAYER_FIXTURE_TOTAL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
+import { isQcCompare, setQcCompare } from '../shared/qcCompare';
+
 import { WALL_DRAW_MUST_CONNECT_TEXT } from './wallDrawConnect';
 import { WALL_LAYER_REVIEW_SCENARIOS } from './wallLayerReviewScenarios';
 import type { WallThicknessChoice } from './types';
@@ -532,6 +534,21 @@ describe('nghiệm thu bàn phím', () => {
     await pressKey(mounted.registry, 'Escape');
 
     expect(mounted.result.current.panel.selectedWallId).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('Escape đang "So sánh hai bên": lần đầu bỏ chọn, lần sau mới thoát so sánh', async () => {
+    setQcCompare(true);
+    const mounted = await mountSettled();
+
+    await pressKey(mounted.registry, 'J');
+    await pressKey(mounted.registry, 'Escape');
+    expect(mounted.result.current.panel.selectedWallId).toBeNull();
+    expect(isQcCompare()).toBe(true);
+
+    await pressKey(mounted.registry, 'Escape');
+    expect(isQcCompare()).toBe(false);
 
     mounted.unmount();
   });

@@ -35,6 +35,7 @@
  * ra.
  */
 
+import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -42,6 +43,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcCompareSplit } from '../shared/QcCompareSplit';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
 import { QcStepColumn } from '../shared/QcStepColumn';
@@ -215,33 +217,57 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
         onPlaceAt: model.onPlaceAt,
         kindPicker: model.kindPicker,
       };
+  /* "So sánh hai bên": một khung nhìn cho cả hai nửa — nửa trái đặt ảnh rõ nét trong cùng lớp phóng. */
+  const zoomPan = useCanvasZoomPan();
+  const { pan, scale } = zoomPan;
+  const image = model.backgroundImageUrl === null ? null : model.surfaceRectPx;
 
   return (
-    <ObjectLayerCanvas
-      backgroundImageAlt={model.backgroundImageAlt}
-      backgroundImageUrl={model.backgroundImageUrl}
-      dragMeasurement={model.dragMeasurement}
-      haloRectPx={model.haloRectPx}
-      highlightedWallId={model.highlightedWallId}
-      hoveredObjectId={model.hoveredObjectId}
-      isInteractive={!readOnly}
-      isLoading={model.state === 'loading'}
-      layerVisibility={model.layerVisibility}
-      millimetresPerPixel={model.millimetresPerPixel}
-      objects={model.objects}
-      onFrameResize={model.onFrameResize}
-      onHover={model.onHover}
-      onSelect={model.onSelect}
-      placements={model.placements}
-      ruleIssueMarker={model.ruleIssueMarker}
-      selectedObjectId={model.selectedObjectId}
-      surfaceRectPx={model.surfaceRectPx}
-      unitPx={model.unitPx}
-      viewBoxPx={model.viewBoxPx}
-      wallOutlines={model.wallOutlines}
-      viewPins={model.viewPins}
-      {...editing}
-    />
+    <QcCompareSplit
+      canPick={!readOnly && model.drawLayer === null}
+      drawing={
+        model.backgroundImageUrl === null ? null : (
+          <img
+            alt={model.backgroundImageAlt}
+            className="absolute block max-w-none select-none"
+            draggable={false}
+            src={model.backgroundImageUrl}
+            style={image === null ? undefined : { height: image.height, left: image.x, top: image.y, width: image.width }}
+          />
+        )
+      }
+      haloRect={model.selectedObjectId === null ? null : model.haloRectPx}
+      layerTransform={`${pan.transform} scale(${scale})`}
+      onPanBy={(dx, dy) => pan.panTo({ x: pan.offset.x + dx, y: pan.offset.y + dy })}
+      onZoom={(direction) => (direction > 0 ? zoomPan.zoomCluster.onZoomIn() : zoomPan.zoomCluster.onZoomOut())}
+    >
+      <ObjectLayerCanvas
+        backgroundImageAlt={model.backgroundImageAlt}
+        backgroundImageUrl={model.backgroundImageUrl}
+        dragMeasurement={model.dragMeasurement}
+        haloRectPx={model.haloRectPx}
+        highlightedWallId={model.highlightedWallId}
+        hoveredObjectId={model.hoveredObjectId}
+        isInteractive={!readOnly}
+        isLoading={model.state === 'loading'}
+        layerVisibility={model.layerVisibility}
+        millimetresPerPixel={model.millimetresPerPixel}
+        objects={model.objects}
+        onFrameResize={model.onFrameResize}
+        onHover={model.onHover}
+        onSelect={model.onSelect}
+        placements={model.placements}
+        ruleIssueMarker={model.ruleIssueMarker}
+        selectedObjectId={model.selectedObjectId}
+        surfaceRectPx={model.surfaceRectPx}
+        unitPx={model.unitPx}
+        viewBoxPx={model.viewBoxPx}
+        wallOutlines={model.wallOutlines}
+        viewPins={model.viewPins}
+        zoomPan={zoomPan}
+        {...editing}
+      />
+    </QcCompareSplit>
   );
 }
 

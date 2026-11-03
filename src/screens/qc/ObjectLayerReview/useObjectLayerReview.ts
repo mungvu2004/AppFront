@@ -188,6 +188,7 @@ import {
   type CanvasFitView,
 } from '../shared/canvasFit';
 import { SAVE_BLOCKED_LABEL, useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { isQcCompare, setQcCompare, useQcCompare } from '../shared/qcCompare';
 import { SCALE_LOCK_REASON } from '../shared/floorReviewGateModel';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { useScaleLock } from '../shared/useScaleLock';
@@ -1534,6 +1535,9 @@ export function useObjectLayerReview(
    */
   const [frameSizePx, setFrameSizePx] = useState<CanvasFitSize | null>(null);
   const [flownWallId, setFlownWallId] = useState<WallId | null>(null);
+  const flownWallIdRef = useRef(flownWallId);
+  flownWallIdRef.current = flownWallId;
+  const isComparing = useQcCompare();
   preferredWallRef.current = flownWallId;
   const onFrameResize = useCallback((size: CanvasFitSize) => {
     setFrameSizePx((previous) =>
@@ -1822,6 +1826,13 @@ export function useObjectLayerReview(
       scope: 'canvas',
       description: 'Đóng thanh tra đối tượng',
       onTrigger: () => {
+        /* Không còn gì để đóng mà đang "So sánh hai bên": Esc thoát so sánh. */
+        if (selectedObjectIdRef.current === null && flownWallIdRef.current === null && isQcCompare()) {
+          setQcCompare(false);
+
+          return;
+        }
+
         onSelect(null);
 
         /* Bay tới tường chủ mà chưa chọn đối tượng nào: bỏ chọn không đổi gì, nên tự kết thúc lượt bay. */
@@ -1830,7 +1841,7 @@ export function useObjectLayerReview(
         }
       },
     },
-    { ...shortcutOptions, enabled: selectedObjectId !== null || flownWallId !== null },
+    { ...shortcutOptions, enabled: selectedObjectId !== null || flownWallId !== null || isComparing },
   );
   /*
    * BUG-589: xoá bằng phím như màn tường (Backspace), cộng Delete — không chỉ chuột phải.

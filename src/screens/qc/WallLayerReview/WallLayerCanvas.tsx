@@ -403,6 +403,7 @@ export function WallLayerCanvas({
       )}
 
       <QcZoomMenu
+        compare={viewLayer !== null}
         viewMode={viewLayer !== null}
         onFitToScreen={onFitToScreen}
         onResetZoom={onResetZoom}
