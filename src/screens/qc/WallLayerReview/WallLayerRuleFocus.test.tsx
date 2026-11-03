@@ -123,6 +123,7 @@ describe('Ô "Chiều dài" của thanh tra', () => {
     const onChangeLength = vi.fn();
 
     renderWithProviders(<WallLayerInspector panel={panelWith(onChangeLength)} />);
+    fireEvent.click(screen.getByRole('button', { name: /Thông số nâng cao/u }));
     const input = screen.getByRole('textbox', { name: 'Chiều dài tường' });
 
     fireEvent.change(input, { target: { value: '0' } });
@@ -142,6 +143,7 @@ describe('Ô "Chiều dài" của thanh tra', () => {
     const onChangeLength = vi.fn();
 
     renderWithProviders(<WallLayerInspector panel={panelWith(onChangeLength, 'm')} />);
+    fireEvent.click(screen.getByRole('button', { name: /Thông số nâng cao/u }));
     const input = screen.getByRole('textbox', { name: 'Chiều dài tường' });
 
     fireEvent.change(input, { target: { value: '5,5' } });

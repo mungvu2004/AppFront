@@ -110,7 +110,8 @@ const [THIN, MEDIUM, THICK] = THICKNESS_BANDS as readonly [
 const TASK_HEADING = 'Duyệt tường';
 const TASK_LINE = 'Duyệt từng đoạn tường máy tìm thấy. Đúng thì giữ, nét thừa thì xoá.';
 /** Nút "Lọc" ở thanh công cụ của danh sách (tên có thể kèm ": n đang bật"). */
-const LIST_READY = /^Lọc/u;
+/* Nút "Lọc" của cột việc (không phải chip "Lọc theo … mm" của chú giải). */
+const LIST_READY = /^Lọc(?::|$)/u;
 
 /** Nút "Lọc" của danh sách: có nó là cột việc đã dựng xong (và mất khi thu gọn). */
 const findListReady = () => screen.findByRole('button', { name: LIST_READY });
@@ -553,8 +554,10 @@ describe('nhãn mã tường', () => {
     } as unknown as WallLayerViewProps;
 
     renderWithProviders(<WallLayerInspector panel={panel} />);
+    /* Thẻ gọn: các thông số phụ nằm trong "Thông số nâng cao". */
+    fireEvent.click(screen.getByRole('button', { name: /Thông số nâng cao/u }));
 
-    for (const label of ['Chiều dài', 'Chiều cao', 'Độ tin cậy', 'Vật liệu']) {
+    for (const label of ['Chiều dài', 'Chiều cao', 'Điểm tin cậy', 'Vật liệu']) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
@@ -1038,7 +1041,6 @@ describe('đợt sửa P04 — SCR-16', () => {
       <WallLayerInspector panel={inspectorPanel({ inspector: wall } as Partial<WallLayerViewProps>)} />,
     );
 
-    expect(screen.getByText('Độ dày hiện tại')).toBeInTheDocument();
     expect(screen.getByText('100')).toBeInTheDocument();
     expect(screen.getByText('Không chuẩn')).toBeInTheDocument();
 

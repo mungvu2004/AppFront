@@ -6,6 +6,7 @@
  */
 
 import type { Point, Wall, WallId } from '@/domain/spatial/types';
+import type { PointMm } from '@/domain/units/compare';
 import { snapToTargets, SNAP_THRESHOLDS, type SnapTarget } from '@/domain/units/snap';
 import { millimetres } from '@/domain/units/types';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/commandTypes';
@@ -27,12 +28,15 @@ export const DEFAULT_DRAW_SNAP_RADIUS_MM: number = SNAP_THRESHOLDS.captureRadius
 
 const VERTEX_SUFFIX = '#';
 
+/** `Point` của đồ thị mang số trơn; bộ bắt điểm cần `PointMm`. */
+const toMm = (point: Point): PointMm => ({ x: millimetres(point.x), y: millimetres(point.y) });
+
 /** Đích bắt của một tầng: hai đầu mỗi tường + tim tường (vuông góc). */
 export function wallDrawSnapTargets(walls: readonly Wall[]): readonly SnapTarget[] {
   return walls.flatMap((wall): SnapTarget[] => [
-    { kind: 'wallVertex', id: `${wall.id}${VERTEX_SUFFIX}start`, position: wall.centreline.start },
-    { kind: 'wallVertex', id: `${wall.id}${VERTEX_SUFFIX}end`, position: wall.centreline.end },
-    { kind: 'perpendicular', id: wall.id, segment: wall.centreline },
+    { kind: 'wallVertex', id: `${wall.id}${VERTEX_SUFFIX}start`, position: toMm(wall.centreline.start) },
+    { kind: 'wallVertex', id: `${wall.id}${VERTEX_SUFFIX}end`, position: toMm(wall.centreline.end) },
+    { kind: 'perpendicular', id: wall.id, segment: { start: toMm(wall.centreline.start), end: toMm(wall.centreline.end) } },
   ]);
 }
 
@@ -43,7 +47,7 @@ const roundPoint = (point: Point): Point => ({
 
 /** Bắt một điểm (mm) vào đầu/thân tường trong bán kính; không lưới. */
 export function snapDrawPoint(point: Point, targets: readonly SnapTarget[], radiusMm: number): WallDrawSnap {
-  const result = snapToTargets(point, targets, { captureRadiusMm: millimetres(radiusMm), gridEnabled: false });
+  const result = snapToTargets(toMm(point), targets, { captureRadiusMm: millimetres(radiusMm), gridEnabled: false });
   const kind = result.kind === 'wallVertex' || result.kind === 'perpendicular' ? result.kind : null;
   const id = result.targetId;
   const wallId =

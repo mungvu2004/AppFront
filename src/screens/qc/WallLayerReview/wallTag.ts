@@ -10,7 +10,7 @@ import type { WallLayerCanvasShape, WallLayerSizePx, WallTagView } from './wallL
 import { WALL_CONFIDENCE_TIER_TEXT } from './wallLayerHatch';
 import type { WallRowExtra } from './wallReviewQueue';
 
-type PointPx = { readonly x: number; readonly y: number };
+interface PointPx { readonly x: number; readonly y: number }
 
 /** Chip cách tim tường bao xa theo pháp tuyến. */
 export const WALL_TAG_OFFSET_PX = 32;
