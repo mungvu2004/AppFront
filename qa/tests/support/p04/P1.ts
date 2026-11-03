@@ -371,7 +371,7 @@ export const wallOption = (page: Page, code: string): Locator =>
   wallList(page).getByRole('option', { name: new RegExp(`^${esc(code)} — `, 'u') });
 export const selectedRows = (page: Page): Locator => wallList(page).getByRole('option', { selected: true });
 /** L23 (QcAskCard): chi tiết mục đang chọn nằm trong thẻ hỏi neo trên bản vẽ; chưa chọn gì thì thẻ không hiện. */
-export const ASK_CARD = 'Thẻ hỏi của mục đang chọn';
+export const ASK_CARD = 'Chi tiết mục đang chọn';
 export const inspector = (page: Page): Locator => page.getByRole('region', { name: ASK_CARD, exact: true });
 export const rail = (page: Page): Locator => page.getByRole('toolbar', { name: WALL.rail, exact: true });
 export const railButton = (page: Page, name: string | RegExp): Locator => rail(page).getByRole('button', { name });

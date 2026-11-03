@@ -327,7 +327,7 @@ const selectedWall = (): Locator => wallList().getByRole('option', { selected: t
 const wallOption = (code: string): Locator =>
   wallList().getByRole('option', { name: new RegExp(`^${escapeRegExp(code)} — `, 'u') });
 /** L23: the wall inspector lives in the ask card anchored on the canvas (QcAskCard). */
-const wallInspector = (): Locator => page.getByRole('region', { name: 'Thẻ hỏi của mục đang chọn', exact: true });
+const wallInspector = (): Locator => page.getByRole('region', { name: 'Chi tiết mục đang chọn', exact: true });
 const approveWallButton = (): Locator => page.getByRole('button', { name: 'Duyệt đoạn này', exact: true });
 const thicknessGroup = (): Locator => page.getByRole('radiogroup', { name: 'Độ dày tường', exact: true });
 const wallRail = (): Locator => page.getByRole('toolbar', { name: 'Công cụ lớp tường', exact: true });
@@ -989,7 +989,7 @@ test.describe('SCR-20 Room Label Review', () => {
 
       await row.click();
       await expect.soft(row).toHaveAttribute('aria-selected', 'true');
-      await expect.soft(page.getByRole('region', { name: 'Thẻ hỏi của mục đang chọn', exact: true }).getByRole('heading', { name: 'Phòng', exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('region', { name: 'Chi tiết mục đang chọn', exact: true }).getByRole('heading', { name: 'Phòng', exact: true })).toBeVisible();
       await expect(name).toBeVisible();
     });
 
