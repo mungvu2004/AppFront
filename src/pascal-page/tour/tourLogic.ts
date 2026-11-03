@@ -106,6 +106,15 @@ export const HINT_TEXT = 'Kéo chuột để xoay, lăn chuột để phóng to.
 export const SELECTION_CARD = '[data-appfront-homeowner-card]';
 export const isSelectionCardShown = (root: ParentNode = document): boolean => root.querySelector(SELECTION_CARD) !== null;
 /**
+ * HIG-A vòng 4: hộp thoại đang mở (Cài đặt › Phím tắt…) — gợi ý lần đầu (z cao) đè dòng cuối của nó, nên nhường.
+ * Radix Dialog của Pascal (`primitives/dialog.tsx`, mà `keyboard-shortcuts-dialog.tsx` dùng) gắn `data-slot` + `data-state`;
+ * `role="alertdialog"` / `aria-modal="true"` phủ các hộp thoại khác.
+ * Không dùng `[role="dialog"]` trần: popover Radix và thẻ tour (`aria-modal="false"`) cũng mang role đó.
+ */
+export const OPEN_DIALOG =
+  '[data-slot="dialog-content"][data-state="open"], [data-slot="alert-dialog-content"][data-state="open"], [role="alertdialog"], [role="dialog"][aria-modal="true"]';
+export const isDialogOpen = (root: ParentNode = document): boolean => root.querySelector(OPEN_DIALOG) !== null;
+/**
  * UX-R2 K38: gợi ý lần đầu đứng giữa cạnh dưới, ngay trên thanh công cụ dưới (`fixed bottom-6`, cao
  * ~52px) — không còn dưới cụm trợ giúp đầu cảnh, nơi nó đè lên mô hình.
  */

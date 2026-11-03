@@ -33,6 +33,8 @@ const OPEN_KEY = 'appfront-3d-help-open:v1'
 
 // The upstream shortcut panel: `pointer-events-none fixed top-1/2 right-4 … max-w-[260px]`.
 const SHORTCUT_PANEL = '.fixed.top-1\\/2.right-4.max-w-\\[260px\\]'
+// The selected node's properties panel (`ui/panels/panel-wrapper.tsx`, desktop): `fixed top-20 right-4 z-50`, 280–340px.
+const PROPERTIES_PANEL = 'div.fixed.top-20.right-4.z-50'
 
 // G5-11 / G5-12: the upstream bottom action bar (`action-menu/index.tsx`, desktop branch). Its
 // camera group (Orbit Left/Right, Top View) is hidden; `CameraButtons` in the top-right toolbar
@@ -67,6 +69,11 @@ const SCOPED_CSS = `
 @media (prefers-reduced-motion: reduce) { .appfront-help-btn { transition: none; } }
 section[aria-label="Camera controls hint"], section[aria-label="Gợi ý điều khiển camera"] { display: none !important; }
 [data-appfront-help="closed"] ${SHORTCUT_PANEL} { display: none !important; }
+/* HIG: panel-wrapper và contextual-helper-panel cùng right-4 (z-50 > z-40), nên bảng thuộc tính của vật
+ * đang chọn che bảng trợ giúp. Khi có bảng thuộc tính, đẩy bảng trợ giúp sang trái: 352px = rộng tối đa
+ * 340px + 12px khe. Màn < 1280px thì cột 3D quá hẹp cho hai bảng cạnh nhau, nên ẩn bảng trợ giúp. */
+html:has(${PROPERTIES_PANEL}) ${SHORTCUT_PANEL} { right: calc(1rem + 352px) !important; }
+@media (max-width: 1279px) { html:has(${PROPERTIES_PANEL}) ${SHORTCUT_PANEL} { display: none !important; } }
 button[title="Thêm tầng phía trên"], button[title="Thêm tầng phía dưới"] {
   width: 1.5rem !important; height: 1.5rem !important; /* ≥ 24px vùng bấm (WCAG 2.5.8) */
   color: var(--foreground) !important;

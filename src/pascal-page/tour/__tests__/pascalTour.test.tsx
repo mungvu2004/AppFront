@@ -6,6 +6,7 @@ import {
   HINT_BOTTOM_PX,
   HINT_TEXT,
   isSceneReady,
+  isDialogOpen,
   isSelectionCardShown,
   markDone,
   placeCard,
@@ -210,6 +211,22 @@ describe('HIG 04/11 — gợi ý lần đầu nhường thẻ vật đang chọn
     document.body.appendChild(card);
     return card;
   };
+
+  it('isDialogOpen: hộp thoại Radix đang mở thì đúng; popover và thẻ tour (aria-modal=false) thì không', () => {
+    const add = (attrs: Record<string, string>) => {
+      const el = document.createElement('div');
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      document.body.appendChild(el);
+      return el;
+    };
+    const popover = add({ role: 'dialog', 'data-slot': 'popover-content', 'data-state': 'open' });
+    const tourCard = add({ role: 'dialog', 'aria-modal': 'false' });
+    const closing = add({ role: 'dialog', 'data-slot': 'dialog-content', 'data-state': 'closed' });
+    expect(isDialogOpen(document)).toBe(false);
+    const shortcuts = add({ role: 'dialog', 'data-slot': 'dialog-content', 'data-state': 'open' });
+    expect(isDialogOpen(document)).toBe(true);
+    for (const el of [popover, tourCard, closing, shortcuts]) el.remove();
+  });
 
   it('isSelectionCardShown chỉ đúng khi thẻ thao tác nhanh có trong DOM', () => {
     expect(isSelectionCardShown(document)).toBe(false);
