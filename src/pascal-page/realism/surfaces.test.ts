@@ -34,7 +34,7 @@ describe('bề mặt dùng chung', () => {
     lamp.position.set(1, 2.7, 1);
     scene.add(lamp);
     const sources = new Map([
-      ['k', { key: 'k', nodeId: 'item_LIGHT-r1', color: '#ffd9a0', getIntensity: () => 2, isEligible: () => true }],
+      ['k', { key: 'k', nodeId: 'item_LIGHT-r1', color: 'white', getIntensity: () => 2, isEligible: () => true }],
     ]);
     const objects = new Map([['item_LIGHT-r1', lamp]]);
     const nodes = { 'item_LIGHT-r1': { asset: { recessed: true } } };
