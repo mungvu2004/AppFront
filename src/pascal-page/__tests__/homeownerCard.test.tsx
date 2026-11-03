@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { create } from 'zustand';
 
-import { HomeownerCard, type HomeownerCardStores } from '../HomeownerCard';
+import { HomeownerCard, type HomeownerCardStores, UNCONFIRMED_NOTE } from '../HomeownerCard';
 import type { SizedItem } from '../itemSize';
 import {
   doorFlipUpdate,
@@ -28,6 +28,7 @@ const PLAN_ITEM = 'item_F-000003ABCDEFGHIJ';
 const DRESS_ITEM = 'item_DRESS-pillow-R-000004ABCDEFGHIJ-1';
 const USER_ITEM = 'item_k3j2h1';
 const BED_ITEM = 'item_F-000005ABCDEFGHIJ';
+const OUTLINE_ITEM = 'item_DRESS-suggested-F-000006ABCDEFGHIJ';
 
 const NODES: Record<string, HomeownerNode> = {
   [DOOR_ID]: { id: DOOR_ID, type: 'door', parentId: 'wall_x', doorType: 'hinged', leafCount: 1, openingKind: 'door', swingAngle: 1.22 },
@@ -36,6 +37,14 @@ const NODES: Record<string, HomeownerNode> = {
   [DRESS_ITEM]: { id: DRESS_ITEM, type: 'item', asset: { name: 'Gối', dimensions: [0.5, 0.15, 0.3] }, scale: [1, 1, 1] } as HomeownerNode,
   // Pascal: dimensions [rộng x, cao y, sâu z] (m) × scale.
   [BED_ITEM]: { id: BED_ITEM, type: 'item', name: 'Giường', asset: { name: 'Giường', category: 'bed', dimensions: [1.2, 2, 0.6] }, scale: [1.5, 1, 1] } as HomeownerNode,
+  [OUTLINE_ITEM]: {
+    id: OUTLINE_ITEM,
+    type: 'item',
+    name: 'bàn (chưa xác nhận)',
+    asset: { name: 'Thảm', dimensions: [1.829, 0.004, 0.972] },
+    scale: [1, 1, 1],
+    metadata: { unconfirmed: true },
+  } as HomeownerNode,
   wall_x: { id: 'wall_x', type: 'wall' },
 };
 
@@ -154,6 +163,17 @@ describe('HomeownerCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
     expect(scene.getState().nodes[DRESS_ITEM]).toBeUndefined();
     expect(viewer.getState().selection.selectedIds).toEqual([]);
+  });
+
+  it('đồ máy gợi ý chưa xác nhận: không có ô kích thước / Xoay / Xoá, nói rõ lý do và chỗ nhận gợi ý', () => {
+    const { stores } = storesWith([OUTLINE_ITEM]);
+    render(<HomeownerCard readOnly={false} stores={stores} />);
+    const card = screen.getByRole('region', { name: 'Thao tác nhanh: bàn (chưa xác nhận)' });
+    expect(card.textContent).toContain(UNCONFIRMED_NOTE);
+    expect(screen.queryByLabelText('Dài (mm)')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xoay 90°' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xoá' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Hoàn tác' })).toBeTruthy();
   });
 
   it('kích thước: Dài × Rộng × Cao (mm) = dimensions × scale, nhóm nghìn kiểu Việt; cửa không có hàng này', () => {
