@@ -19,6 +19,23 @@ export function itemLightIntensity(value: number, sceneTheme?: string): number {
   return sceneTheme === DAY_THEME_ID ? 0 : value * ITEM_LIGHT_SCALE;
 }
 
+/** Pool gốc của vendor (`item-light-system.tsx`). */
+export const ITEM_LIGHT_POOL = 12;
+
+/**
+ * Số PointLight của pool đèn đồ. TSL (three r186) sinh mã cho từng đèn bất kể cường độ, nên 12 đèn
+ * cường độ 0 ban ngày vẫn nằm trong mọi shader có ánh sáng. Ban ngày + cờ `materials` (đèn đồ tắt,
+ * `itemLightIntensity` = 0) → 0 đèn. Đổi chủ đề là thao tác người dùng: đổi số đèn → dựng lại shader một lần.
+ */
+export function itemLightPoolSize(sceneTheme: string | undefined, materials = on()): number {
+  return materials && sceneTheme === DAY_THEME_ID ? 0 : ITEM_LIGHT_POOL;
+}
+
+/** Hook cho vendor: theo dõi cả cờ `materials` để bật/tắt cờ thì pool đúng lại. */
+export function useItemLightPoolSize(sceneTheme: string | undefined): number {
+  return itemLightPoolSize(sceneTheme, useRealism((s) => s.flags.materials));
+}
+
 export function itemLightDistance(distance: number): number {
   return on() && (distance <= 0 || distance > ITEM_LIGHT_DISTANCE) ? ITEM_LIGHT_DISTANCE : distance;
 }

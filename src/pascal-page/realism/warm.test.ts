@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { coversScreen, screenSize } from './build-order';
-import { BUILD_BUDGET_MS, compileActiveSince, installAsyncNodeBuilds, installAsyncPipelines, installLazyDispose, liveFrame, warmStats } from './warm';
+import { beginFirstLoad, BUILD_BUDGET_MS, compileActiveSince, endFirstLoad, installAsyncNodeBuilds, installAsyncPipelines, installLazyDispose, liveFrame, LOAD_DRAW_MS, warmStats } from './warm';
 
 describe('installAsyncPipelines', () => {
   it('chỉ vật của cảnh chính trong khung sống tạo pipeline bất đồng bộ, và đếm lúc xong', async () => {
@@ -115,6 +115,52 @@ describe('installAsyncNodeBuilds', () => {
     frame();
     expect(seenTargets).toHaveLength(1);
     expect(warmStats().buildsPending).toBeGreaterThan(0);
+  });
+
+  it('lần nạp đầu: ngân sách vô hạn (dựng hết trong một khung), chỉ vẽ mỗi LOAD_DRAW_MS', () => {
+    const { draw, seenTargets } = setup(BUILD_BUDGET_MS + 2);
+    const scene = {};
+    const t = performance.now();
+    beginFirstLoad(t);
+    let draws = 0;
+    const frame = (at: number) =>
+      liveFrame(scene, () => {
+        draws++;
+        draw(scene, { key: 'p' }, { key: 'q' });
+      }, at);
+    frame(t);
+    frame(t + 10); // bỏ: chưa đủ LOAD_DRAW_MS
+    expect(draws).toBe(1);
+    frame(t + LOAD_DRAW_MS);
+    expect(draws).toBe(2);
+    expect(seenTargets).toHaveLength(2);
+    endFirstLoad();
+    frame(t + LOAD_DRAW_MS + 1);
+    expect(draws).toBe(3);
+  });
+
+  it('vật liệu còn ảnh đang nạp: chưa dựng; ảnh về (texturesready) thì dựng', async () => {
+    const { renderer, seenTargets } = setup();
+    const scene = {};
+    const listeners: (() => void)[] = [];
+    const mat = {
+      userData: { texPending: 1 },
+      addEventListener: (_: string, f: () => void) => void listeners.push(f),
+      removeEventListener: () => undefined,
+    };
+    const frame = () => liveFrame(scene, () => renderer._renderObjectDirect({ key: 'tex' }, mat, scene));
+    frame();
+    frame();
+    expect(seenTargets).toHaveLength(0);
+    expect(warmStats().texWaiting).toBe(1);
+    mat.userData.texPending = 0;
+    for (const f of listeners) f();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(warmStats().texWaiting).toBe(0);
+    frame();
+    frame();
+    expect(seenTargets).toHaveLength(1);
   });
 });
 

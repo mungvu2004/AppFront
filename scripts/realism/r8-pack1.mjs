@@ -26,10 +26,22 @@ export const RULES = {
     ['          roughness: 0.1,\n          metalness: 0.1,', '          roughness: 0.05,\n          metalness: 0,'],
     ['  texture.flipY = props.flipY\n', '  texture.flipY = props.flipY\n  texture.anisotropy = 8\n'],
   ],
+  // Pool đèn đồ theo chủ đề (perf nạp editor): ban ngày đèn đồ tắt → 0 PointLight; TSL sinh mã cho mọi
+  // đèn kể cả cường độ 0, nên 12 đèn thừa nằm trong mọi shader có ánh sáng (`itemLightPoolSize`).
   'viewer/src/systems/item-light/item-light-system.tsx': [
-    ["\nimport useViewer from '../../store/use-viewer'\n", "\nimport useViewer from '../../store/use-viewer'\n" + ITEM_LIGHT_IMPORT],
+    [
+      "\nimport useViewer from '../../store/use-viewer'\n",
+      "\nimport useViewer from '../../store/use-viewer'\n" +
+        "import { itemLightDistance, itemLightIntensity, useItemLightPoolSize } from '@pascal-realism/itemLights'\n",
+    ],
     ['light.distance = reg.distance\n', 'light.distance = itemLightDistance(reg.distance)\n', 2],
     ['? reg.getIntensity() : 0', '? itemLightIntensity(reg.getIntensity(), useViewer.getState().sceneTheme) : 0'],
+    [
+      '  const bakedOwner = useItemLightPool((state) => state.bakedCanvases.has(scene))\n',
+      '  const bakedOwner = useItemLightPool((state) => state.bakedCanvases.has(scene))\n' +
+        '  const poolSize = useItemLightPoolSize(useViewer((state) => state.sceneTheme))\n',
+    ],
+    ['      {Array.from({ length: POOL_SIZE }, (_, i) => (', '      {Array.from({ length: poolSize }, (_, i) => ('],
   ],
   'viewer/src/components/viewer/glb-interactive.tsx': [
     ["\nimport useViewer from '../../store/use-viewer'\n", "\nimport useViewer from '../../store/use-viewer'\n" + ITEM_LIGHT_IMPORT],

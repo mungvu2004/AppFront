@@ -13,12 +13,11 @@ import {
   DataTexture,
   EquirectangularReflectionMapping,
   FloatType,
-  Group,
   HalfFloatType,
   LinearFilter,
   LinearSRGBColorSpace,
   CubeUVReflectionMapping,
-  Mesh,
+  type Mesh,
   PerspectiveCamera,
   type Material,
   type Object3D,
@@ -34,6 +33,7 @@ import { MeshStandardNodeMaterial, type Node, PMREMGenerator, type WebGPURendere
 import { glassTwinParams, isGlossy, isLambertGlass, probeStep, reflectProbeWanted } from './reflectRules';
 import { useRealism } from './store';
 import { currentTier } from './tiers';
+import { isFirstLoad } from './warm';
 
 // Ảnh giữ chỗ cùng kiểu với HDRI (RGBA float) → đổi `value` không đổi bố cục binding.
 const placeholder = new DataTexture(new Float32Array(4), 1, 1, RGBAFormat, FloatType);
@@ -176,18 +176,6 @@ function makeProbeTarget(): RenderTarget {
   return rt;
 }
 
-// Bản sao vật liệu bóng có envMap = probe, chỉ để biên dịch trước (giữ sống → pipeline không bị thu hồi).
-const envClones = new WeakMap<Material, Material>();
-function withEnv(m: Material, env: Texture): Material {
-  let c = envClones.get(m);
-  if (!c) {
-    c = m.clone();
-    envClones.set(m, c);
-  }
-  (c as EnvMaterial).envMap = env;
-  return c;
-}
-
 const cubeCam = new PerspectiveCamera(90, 1, 0.05, 60);
 const FACES: [number, number, number][] = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
 let busy = false;
@@ -196,29 +184,13 @@ const at = new Vector3();
 let wantInside = false;
 
 /**
- * Biên dịch trước (bất đồng bộ, khung vẫn chạy) mọi pipeline mà `finish` sẽ cần: kính bản thay và vật liệu
- * bóng mang envMap probe ở đích chính (qua mesh giả cùng geometry), cả cảnh ở đích probe theo 6 hướng.
+ * Biên dịch trước (bất đồng bộ, khung vẫn chạy) cả cảnh ở đích probe theo 6 hướng. Không biên dịch trước
+ * kính bản thay/vật liệu bóng mang envMap cho đích chính nữa: `compileAsync` dựng cho đích xuất (không MRT
+ * của hậu kỳ, không lượt bóng) → khoá khác lượt vẽ thật, công cốc; W2 (`warm.ts`) dựng chúng bất đồng bộ.
  */
-async function warm(r: WebGPURenderer, scene: Scene, camera: PerspectiveCamera, p: Vector3, inside: boolean): Promise<void> {
+async function warm(r: WebGPURenderer, scene: Scene, p: Vector3, inside: boolean): Promise<void> {
   const t0 = performance.now();
   probeRT ??= makeProbeTarget();
-  const env = probeRT.texture;
-  const g = new Group();
-  scene.traverse((o) => {
-    const mesh = o as Mesh;
-    if (!mesh.isMesh || !o.layers.isEnabled(0)) return;
-    for (const m of [mesh.material ?? []].flat() as Material[]) {
-      const twin = (isLambertGlass(m) ? glassTwin(m) : m) as EnvMaterial;
-      const want = inside && isGlossy(twin) && twin.envMap !== env ? withEnv(twin, env) : twin !== m ? twin : null;
-      if (!want) continue;
-      const proxy = new Mesh(mesh.geometry, want);
-      proxy.matrixAutoUpdate = false;
-      proxy.matrixWorld.copy(o.matrixWorld);
-      proxy.frustumCulled = false;
-      g.add(proxy);
-    }
-  });
-  if (g.children.length) await r.compileAsync(g, camera, scene);
   if (inside) {
     const old = r.getRenderTarget();
     const bg = scene.background;
@@ -289,6 +261,9 @@ export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: Per
     ready = false;
     return;
   }
+  // Lần nạp đầu (lớp che `loadOverlay`): đồ đạc còn đổ về → số node đổi liên tục, mỗi lần chụp lại đổi
+  // envMap → dựng lại shader vật bóng. Đợi nạp xong, lần đứng yên kế tiếp mới chụp (lastCount cũ → "đổi").
+  if (isFirstLoad()) return;
   const count = registry.nodes.size;
   const changed = count !== lastCount || last.distanceToSquared(p) >= 2.25;
   const step = probeStep({ busy, ready, moving: moving || (ready && at.distanceToSquared(p) > 1e-6), changed });
@@ -309,7 +284,7 @@ export function syncReflectionProbe(renderer: unknown, scene: Scene, camera: Per
   const ceilings = [...(registry.byType.ceiling ?? [])].map((id) => registry.nodes.get(id)).filter(Boolean) as Object3D[];
   wantInside = reflectProbeWanted(p, ceilings);
   busy = true;
-  warm(renderer as WebGPURenderer, scene, camera, at.clone(), wantInside)
+  warm(renderer as WebGPURenderer, scene, at.clone(), wantInside)
     .catch(() => undefined) // biên dịch trước hỏng thì vẫn chụp (đồng bộ như cũ)
     .finally(() => {
       busy = false;

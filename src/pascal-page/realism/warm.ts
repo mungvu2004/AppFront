@@ -28,6 +28,8 @@
  */
 import { coversScreen, screenSize } from './build-order';
 import { markDirty } from './idle';
+import { installLoadOverlay, LOAD_CAP_MS } from './loadOverlay';
+import { hasPendingTextures, whenTexturesReady } from './texturePreload';
 
 interface RenderObjectLike {
   scene: unknown;
@@ -44,6 +46,7 @@ const URL_OFF = DISABLED.includes('warm');
 const NODE_BUILD_OFF = DISABLED.includes('nodebuild');
 const LAZY_DISPOSE_OFF = DISABLED.includes('lazydispose');
 const ORDER_OFF = DISABLED.includes('buildorder');
+const OVERLAY_OFF = DISABLED.includes('loadoverlay');
 
 /**
  * Ngân sách mỗi khung cho đoạn dựng đồng bộ đầu của các bản dựng mới (ms); `?buildbudget=` để so.
@@ -53,7 +56,35 @@ const ORDER_OFF = DISABLED.includes('buildorder');
  */
 export const BUILD_BUDGET_MS = Number(typeof location !== 'undefined' ? new URLSearchParams(location.search).get('buildbudget') : null) || 150;
 
-const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0, lastActivityAt: -Infinity, lazyDisposed: 0 };
+const stats = { started: 0, done: 0, lastDoneAt: 0, builds: 0, buildsDone: 0, skipped: 0, lastBuildAt: 0, lastActivityAt: -Infinity, lazyDisposed: 0, texWaiting: 0, texStale: 0 };
+
+/**
+ * Vật liệu còn ảnh đang nạp (`texturePreload.ts`: `userData.texPending`): ảnh về là gán mọi map một lượt
+ * → khoá node đổi → dựng lần hai. Không dựng tới khi `texturesready` (hoặc quá 10 s: đếm cũ trên bản clone
+ * ngoài `queueTextureAssignment`, vd. vật liệu tô sáng tường — đếm `texStale`, dựng luôn).
+ */
+const texState = new WeakMap<object, 'wait' | 'stale'>();
+function texturesPending(material: unknown): boolean {
+  const m = material as Parameters<typeof hasPendingTextures>[0];
+  if (!m?.userData || !hasPendingTextures(m)) return false;
+  const st = texState.get(m);
+  if (st === 'stale') return false;
+  if (st === undefined) {
+    texState.set(m, 'wait');
+    stats.texWaiting++;
+    touch();
+    void whenTexturesReady(m).then(() => {
+      stats.texWaiting--;
+      if (hasPendingTextures(m)) {
+        texState.set(m, 'stale');
+        stats.texStale++;
+      } else texState.delete(m);
+      touch();
+      markDirty('textures');
+    });
+  }
+  return true;
+}
 
 /** Mốc biên dịch gần nhất (pipeline/dựng shader bắt đầu, xong, hay còn chờ) — `tiers.ts` không tính giây ấy là chậm. */
 export function compileActiveSince(nowMs = performance.now()): number {
@@ -62,6 +93,26 @@ export function compileActiveSince(nowMs = performance.now()): number {
 const touch = () => {
   stats.lastActivityAt = performance.now();
 };
+/**
+ * Lần nạp đầu (che bằng `loadOverlay.ts`): mọi bản dựng đục khởi động trong vài khung (ngân sách vô hạn)
+ * và chỉ vẽ ~1 khung mỗi `LOAD_DRAW_MS` — mỗi khung vẽ lại mã hoá cả cảnh (~25–30 ms) mà lớp che đã giấu
+ * cảnh, nên ~125 khung vẽ lúc nạp chỉ tốn luồng chính. Hết khi lớp che gỡ, hoặc tự hết sau `LOAD_CAP_MS`.
+ */
+let firstLoadUntil = 0;
+let lastLoadDraw = -Infinity;
+export const LOAD_DRAW_MS = 200;
+export function beginFirstLoad(nowMs = performance.now()): void {
+  firstLoadUntil = nowMs + LOAD_CAP_MS;
+  lastLoadDraw = -Infinity;
+}
+export function endFirstLoad(): void {
+  if (firstLoadUntil === 0) return;
+  firstLoadUntil = 0;
+  markDirty('load-ready');
+}
+export const isFirstLoad = (nowMs = performance.now()): boolean => nowMs < firstLoadUntil;
+const budget = (): number => (isFirstLoad() ? Infinity : BUILD_BUDGET_MS);
+
 /** Thời gian dựng node đã tiêu trong khung sống hiện tại. */
 let frameSpent = 0;
 /** Renderer proxy cho bản dựng đang khởi động (đọc trong `_createNodeBuilder`); ngoài lúc ấy là `null`. */
@@ -72,7 +123,12 @@ const pendingKeys = new Set<string>();
 let liveScene: unknown = null;
 
 /** Bọc lệnh vẽ khung sống của viewport (vendor `post-processing.tsx`). */
-export function liveFrame(scene: unknown, draw: () => void): void {
+export function liveFrame(scene: unknown, draw: () => void, nowMs = performance.now()): void {
+  if (isFirstLoad(nowMs)) {
+    // Bỏ khung này; giữ vòng vẽ theo nhu cầu chạy để khung sau (≥ LOAD_DRAW_MS) khởi động/hoàn tất tiếp.
+    if (nowMs - lastLoadDraw < LOAD_DRAW_MS) return void markDirty('load-wait');
+    lastLoadDraw = nowMs;
+  }
   liveScene = scene;
   frameSpent = 0;
   try {
@@ -88,6 +144,12 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
   const pipelines = (renderer as { _pipelines?: PipelinesLike })._pipelines;
   if (off || !pipelines || pipelines.__asyncW1) return;
   pipelines.__asyncW1 = true;
+  // Mỗi renderer mới (vào editor) một lớp che nạp đầu; node test không có `document`.
+  const host = (renderer as { domElement?: HTMLElement }).domElement?.parentElement;
+  if (!OVERLAY_OFF && typeof document !== 'undefined' && host) {
+    beginFirstLoad();
+    installLoadOverlay(host, warmStats, endFirstLoad);
+  }
   const sink: Promise<unknown>[] = [];
   const onDone = () => {
     stats.done++;
@@ -163,7 +225,7 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
       const key = nodes.getForRenderCacheKey(ro);
       if (nodes.get(ro).nodeBuilderState === undefined && !nodes.nodeBuilderCache.has(key)) {
         stats.skipped++;
-        if (pendingKeys.has(key)) return;
+        if (pendingKeys.has(key) || texturesPending(material)) return;
         const m = (material ?? {}) as { isShadowPassMaterial?: boolean; transparent?: boolean };
         // Thứ tự (`build-order.ts`): vật đục lượt chính lớn trên màn hình trước; bóng đổ và vật trong suốt
         // chờ tới khi hàng ấy hết; vật phủ màn hình (nền) dựng ngay. Mọi bản dựng vẫn khởi động ngay tại
@@ -171,7 +233,7 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
         // trong suốt, ngữ cảnh pass), dựng lúc khác là sai shader (đã thử: F1 ra nền đen, tối cả cảnh).
         const cover = coversScreen(object);
         const opaqueMain = !ORDER_OFF && !cover && m.isShadowPassMaterial !== true && m.transparent !== true;
-        if (opaqueMain && (!chosen.has(key) || frameSpent >= BUILD_BUDGET_MS)) {
+        if (opaqueMain && (!chosen.has(key) || frameSpent >= budget())) {
           // Xếp hạng ở khung này, khởi động ở khung sau ngay tại chỗ vẽ (trạng thái renderer đúng lượt).
           const size = screenSize(object, camera);
           if ((ranked.get(key) ?? -1) < size) ranked.set(key, size);
@@ -179,7 +241,7 @@ export function installAsyncNodeBuilds(renderer: unknown, off = URL_OFF || NODE_
         }
         if (!opaqueMain && !ORDER_OFF && !cover && mainBacklog > 0) return void markDirty('node-build');
         // Hết ngân sách khung này: khung sau khởi động tiếp (vòng vẽ theo nhu cầu phải còn chạy).
-        if (frameSpent >= BUILD_BUDGET_MS) return void markDirty('node-build');
+        if (frameSpent >= budget()) return void markDirty('node-build');
         startBuild(nodes, ro, key, snapshotRenderer(r));
         return;
       }
@@ -201,7 +263,7 @@ let mainBacklog = 0;
 function rankFrame(): void {
   mainBacklog = ranked.size;
   chosen.clear();
-  const take = Math.max(1, Math.floor(BUILD_BUDGET_MS / avgBuildMs));
+  const take = Math.max(1, Math.floor(budget() / avgBuildMs));
   for (const [key] of [...ranked].sort((a, b) => b[1] - a[1]).slice(0, take)) chosen.add(key);
   ranked.clear();
   if (mainBacklog > 0) markDirty('node-build');

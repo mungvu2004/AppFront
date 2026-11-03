@@ -4,7 +4,7 @@
  * `WINDOW_LIGHT_MAX`) có một PointLight không đổ bóng ở tâm ô cửa, cường độ theo diện tích ô, màu
  * trời (màu bầu trời của hemisphereLight); ambient/hemi phẳng giảm theo `WINDOW_AMBIENT_SCALE`.
  * Đèn lùi vào trong phòng `WINDOW_LIGHT_INSET_M` theo pháp tuyến ô cửa.
- * Pool đèn cố định (đèn thừa cường độ 0) → số đèn không đổi theo khung, không biên dịch lại shader.
+ * Pool = số cửa sổ (≤ max), chỉ tăng; đèn thừa cường độ 0 → số đèn không đổi theo khung, không biên dịch lại shader.
  * Vendor gọi qua luật `scripts/realism/r9w-window-light.mjs`. Mức Thấp, chủ đề khác: không gì cả.
  */
 import { Box3, type HemisphereLight, type Object3D, PointLight, type Scene, Vector3 } from 'three';
@@ -51,7 +51,10 @@ export function pickWindows(panes: readonly WindowPane[], cam: { x: number; y: n
     .map(([, i]) => i);
 }
 
-export const windowIntensity = (area: number): number => Math.min(Math.max(area, 0), 6) * WINDOW_LIGHT_PER_M2;
+/** Cỡ pool đèn cửa sổ: theo số cửa (≤ max), không bao giờ giảm (giữ khoá đèn của shader ổn định). */
+export const windowPoolSize = (current: number, windows: number): number => Math.max(current, Math.min(windows, WINDOW_LIGHT_MAX));
+
+export const windowIntensity =(area: number): number => Math.min(Math.max(area, 0), 6) * WINDOW_LIGHT_PER_M2;
 
 /** Ô cửa từ hộp bao: cửa nằm trong mặt tường → rộng = cạnh ngang lớn hơn, cao = dy. */
 export function paneFromBox(min: { x: number; y: number; z: number }, max: { x: number; y: number; z: number }): WindowPane {
@@ -109,19 +112,19 @@ export function syncWindowLights(
     }
     return;
   }
-  if (!pool.length) {
-    pool = Array.from({ length: WINDOW_LIGHT_MAX }, () => {
-      const l = new PointLight(0xffffff, 0, WINDOW_LIGHT_RANGE_M, 2);
-      l.castShadow = false;
-      l.name = 'realism-window-light';
-      return l;
-    });
+  const objs = [...(registry.byType.window ?? [])].map((id) => registry.nodes.get(id)).filter(Boolean) as Object3D[];
+  // Số đèn = số cửa sổ (≤ max), chỉ tăng: TSL sinh mã cho mọi đèn kể cả cường độ 0, và đổi số đèn là dựng
+  // lại mọi shader có ánh sáng — nên không bớt khi cửa ít đi, và nhà ít cửa không mang 8 đèn thừa.
+  for (let n = windowPoolSize(pool.length, objs.length); pool.length < n; ) {
+    const l = new PointLight(0xffffff, 0, WINDOW_LIGHT_RANGE_M, 2);
+    l.castShadow = false;
+    l.name = 'realism-window-light';
+    pool.push(l);
   }
   for (const l of pool) if (l.parent !== scene) scene.add(l);
-  const objs = [...(registry.byType.window ?? [])].map((id) => registry.nodes.get(id)).filter(Boolean) as Object3D[];
   const panes = objs.map(paneOf);
   camera.getWorldPosition(camPos);
-  const picked = pickWindows(panes, camPos);
+  const picked = pickWindows(panes, camPos, pool.length);
   // ponytail: "trong nhà" = tâm các cửa sổ; nhà chữ L/U lệch nhiều có thể sai phía — khi đó dùng zone.
   const inside = panes.length > 1
     ? { x: panes.reduce((a, p) => a + p.x, 0) / panes.length, z: panes.reduce((a, p) => a + p.z, 0) / panes.length }
