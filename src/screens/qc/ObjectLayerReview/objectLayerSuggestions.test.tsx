@@ -202,6 +202,41 @@ describe('vẽ nội thất bị sót (B3)', () => {
     expect(mounted.result.current.focusKindToken).toBe(1);
     expect(mounted.result.current.drawLayer).toBeNull();
 
+    /* Ô chọn loại mở ngay sau khi đặt; chọn "Sofa" đổi loại và đóng ô. */
+    expect(mounted.result.current.kindPicker).not.toBeNull();
+    await run(() => mounted.result.current.kindPicker?.onPick('chair', 'sofa'));
+    await waitFor(() => {
+      expect(storedFurniture(added.id)).toMatchObject({ kind: 'chair', variant: 'sofa' });
+    });
+    expect(mounted.result.current.kindPicker).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('ô chọn loại: đóng thì món giữ loại "khác"; "Khác…" đóng ô và đòi focus ô loại', async () => {
+    const mounted = await mountSettled();
+    const scale = scaleOfLevel(OBJECT_LAYER_SAMPLE_LEVEL);
+    const before = furnitureIds();
+    const placeOne = async () => {
+      await run(() => mounted.result.current.onStartDraw('furniture'));
+      await run(() => mounted.result.current.onPlaceAt(toPixelPoint({ x: 13000, y: 3000 }, scale)));
+      await waitFor(() => {
+        expect(mounted.result.current.kindPicker).not.toBeNull();
+      });
+    };
+
+    await placeOne();
+    await run(() => mounted.result.current.kindPicker?.onClose());
+    expect(mounted.result.current.kindPicker).toBeNull();
+    expect(newFurniture(before)?.kind).toBe('other');
+
+    await placeOne();
+    const token = mounted.result.current.focusKindToken ?? 0;
+
+    await run(() => mounted.result.current.kindPicker?.onMore());
+    expect(mounted.result.current.kindPicker).toBeNull();
+    expect(mounted.result.current.focusKindToken).toBe(token + 1);
+
     mounted.unmount();
   });
 
@@ -366,7 +401,10 @@ describe('gợi ý của máy (B3)', () => {
 
 const VIEW_BOX = { x: 0, y: 0, width: 400, height: 400 };
 
-function renderCanvas(onPlaceAt: (point: { x: number; y: number }, corner?: { x: number; y: number }) => void) {
+function renderCanvas(
+  onPlaceAt: (point: { x: number; y: number }, corner?: { x: number; y: number }) => void,
+  kindPicker: ObjectLayerReviewModel['kindPicker'] = null,
+) {
   render(
     <ObjectLayerCanvas
       backgroundImageAlt=""
@@ -377,6 +415,7 @@ function renderCanvas(onPlaceAt: (point: { x: number; y: number }, corner?: { x:
       highlightedWallId={null}
       hoveredObjectId={null}
       isInteractive
+      kindPicker={kindPicker}
       layerVisibility={{ door: true, window: true, furniture: true }}
       millimetresPerPixel={OBJECT_LAYER_SAMPLE_LEVEL.scaleMillimetresPerPixel as never}
       objects={[]}
@@ -431,6 +470,26 @@ describe('canvas vẽ (B3)', () => {
 
     expect(onPlaceAt).toHaveBeenCalledWith({ x: 100, y: 100 }, { x: 180, y: 160 });
     expect(screen.queryByTestId('object-draw-preview')).toBeNull();
+  });
+
+  it('vẽ xong: ô chọn loại hiện cạnh hộp kéo, bấm "Giường" gọi onPick', () => {
+    const onPick = vi.fn();
+
+    /* jsdom: khung nhìn 0 × 0 thì ContextMenu kẹp vị trí về 8 px. */
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1440);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(900);
+    const surface = renderCanvas(vi.fn(), { onPick, onMore: vi.fn(), onClose: vi.fn() });
+
+    fireEvent.mouseDown(surface, { button: 0, clientX: 100, clientY: 100 });
+    fireEvent.mouseMove(surface, { clientX: 180, clientY: 160 });
+    fireEvent.mouseUp(surface, { clientX: 180, clientY: 160 });
+
+    const menu = screen.getByRole('menu');
+
+    expect(menu.style.left).toBe('188px');
+    expect(menu.style.top).toBe('100px');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Giường' }));
+    expect(onPick).toHaveBeenCalledWith('bed', null);
   });
 
   it('ô số: Enter ghi rộng × sâu mới, số không hợp lệ trả về số cũ', () => {

@@ -46,6 +46,7 @@ import type {
   WallThicknessChoice,
 } from './types';
 import { WALL_THICKNESS_CHOICES } from './types';
+import type { OpeningSymbolPx } from '../shared/openingSymbols';
 import type { QcViewLayerProps } from '../shared/QcViewLayer';
 
 /* -------------------------------------------------------------------------- */
@@ -390,8 +391,16 @@ export interface WallTagView {
 }
 
 /** Mọi thứ view canvas nhận. Thuần cộng thêm lên `WallLayerCanvasProps`. */
+/** Cờ lớp "Cửa đi / cửa sổ" của popover Hiển thị (bước Tường); vắng = không có mục. */
+export interface WallOpeningLayerToggle {
+  readonly isOpeningLayerVisible?: boolean;
+  readonly onToggleOpeningLayer?: () => void;
+}
+
 export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly shapes: readonly WallLayerCanvasShape[];
+  /** Cửa đi / cửa sổ vẽ chỉ-đọc, mờ, trên tường (pixel bản vẽ); rỗng khi lớp tắt. Vắng = không vẽ. */
+  readonly openings?: readonly OpeningSymbolPx[];
   /** Mọi tường đang chọn (Ctrl-bấm để nối đoạn) — canvas tô viền cả nhóm, không chỉ tường chính (G73b). */
   readonly selectedWallIds?: readonly WallId[];
   /** Lượt mở menu bằng bàn phím từ danh sách — `seq` đổi mỗi lượt để mở lại cùng tường (G74). */

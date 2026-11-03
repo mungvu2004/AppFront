@@ -248,6 +248,7 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
         onDelete: model.onDelete,
         drawLayer: model.drawLayer,
         onPlaceAt: model.onPlaceAt,
+        kindPicker: model.kindPicker,
       };
 
   return (

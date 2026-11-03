@@ -549,6 +549,14 @@ export const FURNITURE_KIND_OPTIONS: { label: string; value: FurnitureKindChoice
   { label: 'Nội thất khác', value: 'other' },
 ];
 
+/** Ô chọn loại mở ngay sau khi vẽ xong một món nội thất (wall-review-ux). */
+export interface ObjectLayerKindPickerModel {
+  readonly onPick: (kind: FurnitureKind, variant: FurnitureVariant | null) => void;
+  /** "Khác…": đóng ô, đưa focus vào ô loại đầy đủ ở panel phải. */
+  readonly onMore: () => void;
+  readonly onClose: () => void;
+}
+
 /** Mọi thứ view panel phải (inspector) nhận. */
 export interface ObjectLayerInspectorProps {
   readonly inspector: ObjectInspectorViewModel | null;
@@ -764,6 +772,8 @@ export interface ObjectLayerReviewModel {
   readonly onResize?: ObjectLayerInspectorProps['onResize'];
   readonly onRotate?: ObjectLayerInspectorProps['onRotate'];
   readonly focusKindToken?: number | undefined;
+  /** Ô chọn loại cạnh hộp vừa vẽ (wall-review-ux); `null` = đóng, món giữ loại "khác". */
+  readonly kindPicker?: ObjectLayerKindPickerModel | null | undefined;
   /** Số gợi ý của máy chưa nhận trên tầng (B3); `0` ở vai chỉ xem. */
   readonly suggestionCount?: number | undefined;
   /** "3 gợi ý của máy đang chờ" — đã ghép sẵn (A15). */

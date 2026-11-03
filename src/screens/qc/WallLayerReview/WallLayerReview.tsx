@@ -74,13 +74,14 @@ import {
 import { WallLayerStatusBar, type WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { WallLayerToolRail, type WallLayerToolRailProps } from './WallLayerToolRail';
 import type { WallLayerCanvasProps, WallLayerReviewProps } from './types';
+import type { WallOpeningLayerToggle } from './wallLayerHatch';
 import { approveAllLabelOf, WALL_REASON_TITLE, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
 
 export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly toolRail: WallLayerToolRailProps;
   readonly statusBar: WallLayerStatusBarProps;
   /** Nhóm mở rộng thứ tư: điều hướng tầng, tim tường, cờ lớp Tường, hàng đang nháy. */
-  readonly leftPanel: WallLayerLeftPanelExtras;
+  readonly leftPanel: WallLayerLeftPanelExtras & WallOpeningLayerToggle;
   /** Vùng canvas thật. Vắng thì dùng dự phòng dựng từ `canvas` (xem đầu file). */
   readonly canvasSlot?: ReactNode | undefined;
   readonly onNavigateLayer?: ((layer: WallLayerOtherKind) => void) | undefined;
@@ -106,6 +107,7 @@ const VIEWER_TASK = 'Xem từng đoạn tường máy tìm thấy.';
 const LAYER_GROUP = 'Lớp của bước';
 const WALL_LAYER = 'Lớp tường';
 const CENTRELINES = 'Tim tường';
+const OPENINGS = 'Cửa đi / cửa sổ';
 const reasonTitleOf = (reason: WallReviewReason | null | undefined): string | null =>
   reason == null ? null : WALL_REASON_TITLE[reason];
 const CANVAS_REGION_FALLBACK_ALT = 'Chưa có ảnh nền để xem';
@@ -216,6 +218,9 @@ export function WallLayerReview({
                 items: [
                   { key: 'walls', label: WALL_LAYER, checked: leftPanel.isWallLayerVisible, onToggle: leftPanel.onToggleWallLayer },
                   { key: 'centrelines', label: CENTRELINES, checked: leftPanel.showCentrelines, onToggle: leftPanel.onToggleCentrelines },
+                  ...(leftPanel.onToggleOpeningLayer === undefined
+                    ? []
+                    : [{ key: 'openings', label: OPENINGS, checked: leftPanel.isOpeningLayerVisible ?? true, onToggle: leftPanel.onToggleOpeningLayer }]),
                 ],
               },
             ]}

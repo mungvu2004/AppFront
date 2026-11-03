@@ -1248,6 +1248,26 @@ export function useObjectLayerReview(
   /* Món vừa vẽ (B3): chọn nó và đưa focus vào ô loại khi nó đã hiện trong danh sách. */
   const [drawnEntityId, setDrawnEntityId] = useState<string | null>(null);
   const [focusKindToken, setFocusKindToken] = useState(0);
+  /* Ô chọn loại cạnh hộp vừa vẽ (wall-review-ux): mã hiển thị của món, `null` = đóng. */
+  const [kindPickerId, setKindPickerId] = useState<string | null>(null);
+  const onCloseKindPicker = useCallback(() => setKindPickerId(null), []);
+  const kindPicker = useMemo(
+    () =>
+      kindPickerId === null || !canEdit
+        ? null
+        : {
+            onPick: (kind: FurnitureKind, variant: FurnitureVariant | null) => {
+              setKindPickerId(null);
+              onChangeFurnitureKind(kindPickerId, kind, variant);
+            },
+            onMore: () => {
+              setKindPickerId(null);
+              setFocusKindToken((token) => token + 1);
+            },
+            onClose: onCloseKindPicker,
+          },
+    [canEdit, kindPickerId, onChangeFurnitureKind, onCloseKindPicker],
+  );
 
   const onPlaceAt = useCallback(
     (point: PixelPoint, corner?: PixelPoint) => {
@@ -1311,6 +1331,7 @@ export function useObjectLayerReview(
     setDrawnEntityId(null);
     onSelect(drawn.id);
     setFocusKindToken((token) => token + 1);
+    setKindPickerId(drawn.id);
   }, [drawnEntityId, objects, onSelect]);
 
   /* Đổi cỡ / xoay nội thất (B3) — `furniture.resize` / `furniture.rotate`, mỗi lượt một bước hoàn tác. */
@@ -2369,6 +2390,7 @@ export function useObjectLayerReview(
     onResize,
     onRotate,
     focusKindToken,
+    kindPicker,
     suggestionCount: canEdit ? suggestions.length : 0,
     suggestionLabel: pendingSuggestionsLabel(suggestions.length),
     onAcceptAllSuggestions,

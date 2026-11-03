@@ -146,6 +146,8 @@ export function WallLayerMiniMap({
 }) {
   return (
     <MiniMap
+      /* Góc trên phải là chỗ thẻ hỏi neo — bản đồ nhỏ xuống dưới nút "Từng việc / Tổng thể". */
+      className="top-[60px] right-auto left-3"
       isVisible={surface !== null && zoomPercent > FIT_ZOOM_PERCENT}
       onViewportChange={onMiniMapViewportChange}
       viewport={miniMapViewport}

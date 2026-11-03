@@ -47,7 +47,8 @@ import {
   selectionHandleRects,
   type ObjectLayerCanvasViewProps,
 } from './objectLayerSymbols';
-import type { PixelPoint } from './objectLayerTypes';
+import { ObjectLayerKindPicker, type KindPickerAnchor } from './ObjectLayerKindPicker';
+import type { ObjectLayerReviewModel, PixelPoint } from './objectLayerTypes';
 import { ObjectSymbolFigure } from './ObjectLayerSymbolFigure';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
@@ -78,6 +79,7 @@ export function ObjectLayerCanvas({
   hoveredObjectId,
   isInteractive,
   isLoading = false,
+  kindPicker = null,
   layerVisibility,
   onAttachToNearestWall,
   onApprove,
@@ -95,7 +97,7 @@ export function ObjectLayerCanvas({
   viewBoxPx,
   viewPins,
   wallOutlines,
-}: ObjectLayerCanvasViewProps) {
+}: ObjectLayerCanvasViewProps & { readonly kindPicker?: ObjectLayerReviewModel['kindPicker'] }) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   /* Kéo bản vẽ: chuột giữa hoặc giữ Space + kéo (G4a-28, G4b-08; P06 mục 1). */
   /* Cụm zoom góc phải dưới như màn Tường (Impeccable A3): 100% là "vừa khung", lăn chuột cũng phóng. */
@@ -186,6 +188,7 @@ export function ObjectLayerCanvas({
    */
   const isDrawing = isInteractive && drawLayer !== null && onPlaceAt !== undefined && viewBoxPx !== null;
   const [drag, setDrag] = useState<DrawDrag | null>(null);
+  const [placedAt, setPlacedAt] = useState<KindPickerAnchor | null>(null);
   const pointAt = (event: ReactMouseEvent<SVGRectElement>): PixelPoint | null => {
     const svg = event.currentTarget.ownerSVGElement;
 
@@ -219,6 +222,15 @@ export function ObjectLayerCanvas({
     const isClick =
       drawLayer !== 'furniture' ||
       Math.hypot(event.clientX - drag.clientX, event.clientY - drag.clientY) < DRAG_CLICK_TOLERANCE_PX;
+
+    if (drawLayer === 'furniture') {
+      const frame = frameRef.current?.getBoundingClientRect() ?? null;
+
+      setPlacedAt({
+        pointer: { x: Math.max(event.clientX, drag.clientX), y: Math.min(event.clientY, drag.clientY) },
+        frame: frame === null ? null : { left: frame.left, top: frame.top },
+      });
+    }
 
     if (isClick) {
       onPlaceAt(drag.start);
@@ -409,6 +421,11 @@ export function ObjectLayerCanvas({
       ) : null}
 
       <ZoomCluster {...zoomCluster} />
+
+      {/* Vẽ xong là hỏi loại ngay cạnh hộp mới (đã được chọn, nên `focusRectPx` là hộp ấy). */}
+      {kindPicker === null || placedAt === null ? null : (
+        <ObjectLayerKindPicker {...kindPicker} anchor={placedAt} boxRect={focusRectPx} />
+      )}
 
       <ContextMenu
         groups={menu.groups}

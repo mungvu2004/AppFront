@@ -209,7 +209,8 @@ import { useLayerRuleIssues } from '../shared/useLayerRuleIssues';
 import { useScaleLock } from '../shared/useScaleLock';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import { wallThicknessColorGroupOf } from './wallLayerHatch';
-import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
+import type { WallLayerCanvasViewProps, WallLayerMeasurementPx, WallOpeningLayerToggle } from './wallLayerHatch';
+import { openingSymbolsOf } from '../shared/openingSymbols';
 import type { WallLayerToolId, WallLayerToolRailProps } from './WallLayerToolRail';
 import type {
   WallLayerFilterKey,
@@ -352,7 +353,7 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
   readonly toolRail: WallLayerToolRailProps;
   readonly statusBar: WallLayerStatusBarProps;
   /** Những gì panel trái cần mà `WallLayerViewProps` (đã đóng băng) không mang. */
-  readonly leftPanel: WallLayerLeftPanelExtras;
+  readonly leftPanel: WallLayerLeftPanelExtras & WallOpeningLayerToggle;
   /** Hàng đợi duyệt (demo Z/S-15): nhóm danh sách, cổng, đổi về chuẩn — `useWallReviewQueue`. */
   readonly queue: WallReviewQueue;
   /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
@@ -2544,8 +2545,17 @@ export function useWallLayerReview(
     return { x: centre.x, y: centre.y, radius: Math.max(RULE_MARKER_MIN_FRAME_PX / viewport.zoom, markPx) };
   })();
 
+  /* Cửa đi / cửa sổ chỉ-đọc trên tường đang vẽ (lớp 'opening' của kho, mặc định bật). */
+  const isOpeningLayerVisible = !hiddenLayers.includes('opening');
+  const onToggleOpeningLayer = useCallback(() => toggleLayerVisibility('opening'), [toggleLayerVisibility]);
+  const openingSymbols = useMemo(
+    () => (isOpeningLayerVisible ? openingSymbolsOf(graph, thicknessFilteredWalls, level, scaleOfLevel(level)) : []),
+    [graph, isOpeningLayerVisible, level, thicknessFilteredWalls],
+  );
+
   const canvas: WallLayerCanvasViewProps = {
     shapes,
+    openings: openingSymbols,
     ruleMarkerPx,
     selectedWallId,
     selectedWallIds,
@@ -2599,12 +2609,14 @@ export function useWallLayerReview(
     onToggleSelect,
   };
 
-  const leftPanel: WallLayerLeftPanelExtras = {
+  const leftPanel: WallLayerLeftPanelExtras & WallOpeningLayerToggle = {
     floors,
     showCentrelines,
     onToggleCentrelines,
     isWallLayerVisible,
     onToggleWallLayer,
+    isOpeningLayerVisible,
+    onToggleOpeningLayer,
     flashingWallId,
     onToggleSelect,
     ruleIssues,

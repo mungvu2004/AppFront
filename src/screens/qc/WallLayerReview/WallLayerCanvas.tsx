@@ -41,6 +41,7 @@ import { QcViewLayer } from '../shared/QcViewLayer';
 import { WallDraftGuide, WallDrawingBackground, WallLayerLegend, WallLayerMiniMap } from './WallLayerCanvasParts';
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
+import { WallLayerOpenings } from './WallLayerOpenings';
 import { WallLayerTag } from './WallLayerTag';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 
@@ -106,6 +107,7 @@ export function WallLayerCanvas({
   selectedWallIds = NO_SELECTED_WALLS,
   menuRequest,
   draftGuidePx = null,
+  openings = [],
   shapes,
   showCentrelines,
   state,
@@ -370,6 +372,7 @@ export function WallLayerCanvas({
                   />
                 ))}
 
+                <WallLayerOpenings openings={openings} />
                 {draftGuidePx === null ? null : <WallDraftGuide draftGuidePx={draftGuidePx} unitPx={unitPx} />}
                 {ruleMarkerPx === null ? null : <QcRuleIssueMarker {...ruleMarkerPx} />}
               </svg>
