@@ -14,16 +14,15 @@ import { cn } from '@/lib/utils';
 import { QcQueueNumber } from '../shared/QcQueueNumber';
 
 import type { WallRowViewModel } from './types';
-import { wallThicknessColorGroupOf } from './wallLayerHatch';
+import { WALL_CONFIDENCE_TIER_TEXT, wallConfidenceTierOf, type WallConfidenceTier } from './wallLayerHatch';
 import type { WallRowExtra } from './wallReviewQueue';
-import { WallThicknessSwatch, type WallSwatchKind } from './WallThicknessSwatch';
+import { WallThicknessSwatch } from './WallThicknessSwatch';
 
 type WallId = WallRowViewModel['id'];
 
 export const LIST_ROW_HEIGHT_PX = 36;
 
 const REVIEWED_TITLE = 'Đã duyệt';
-const NON_STANDARD_TITLE = 'Không chuẩn';
 /** Tên trạng thái trong tên truy cập của hàng — cùng bộ chữ với các màn duyệt lớp khác (qa đọc nó). */
 const STATUS_LABEL: Readonly<Record<WallRowViewModel['statusCode'], string>> = {
   verified: 'Đã duyệt',
@@ -56,10 +55,9 @@ export interface WallLayerListRowProps {
   readonly style: CSSProperties;
 }
 
-function swatchOf(row: WallRowViewModel): WallSwatchKind {
-  const band = wallThicknessColorGroupOf(row.thicknessMm);
-
-  return band ?? 'nonStandard';
+/** Ô màu đầu hàng = bậc tin cậy, cùng màu với tường trên bản vẽ (WRU-B). */
+function swatchOf(row: WallRowViewModel): WallConfidenceTier {
+  return wallConfidenceTierOf(row.isReviewed, row.isLowConfidence, row.confidence);
 }
 
 export function WallLayerListRow({
@@ -82,7 +80,7 @@ export function WallLayerListRow({
   const pick = (withModifier: boolean) => (withModifier ? onToggleSelect(row.id) : onSelect(row.id));
   const showUnapprove = row.isReviewed && onUnapprove !== undefined;
   const swatch = swatchOf(row);
-  const swatchTitle = swatch === 'nonStandard' ? NON_STANDARD_TITLE : `Chuẩn ${swatch} mm`;
+  const swatchTitle = WALL_CONFIDENCE_TIER_TEXT[swatch];
   const isUncertain = showConfidence && row.isLowConfidence && !row.isReviewed;
 
   return (

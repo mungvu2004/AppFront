@@ -20,6 +20,7 @@ const SHAPE = {
   attentionDotPx: { x: 2000, y: 100 },
   isLowConfidence: true,
   isReviewed: false,
+  confidenceTier: 'needsReview',
 } as unknown as WallLayerCanvasShape;
 
 /* Tầng chưa hiệu chỉnh vừa khung ở hệ số ~0,05: 1 px màn = 20 px bản vẽ (review-1 #3). */
@@ -73,5 +74,36 @@ describe('[16-A-042] bấm vào đường tim tường vẫn tới tường', ()
     expect(line).not.toBeNull();
     fireEvent.click(line!);
     expect(onSelect).toHaveBeenCalledWith('W-001');
+  });
+});
+
+/* WRU-B: màu tường nói độ tin cậy của máy, không phải độ dày; đã duyệt vẫn là xanh của người duyệt (A5). */
+describe('[WRU-B] ruột tường tô theo bậc tin cậy', () => {
+  const fillOf = (shape: WallLayerCanvasShape) => {
+    const { container } = render(
+      <svg>
+        <WallShapeFigure
+          isHovered={false}
+          isInteractive={false}
+          isSelected={false}
+          onHover={vi.fn()}
+          onOpenMenu={vi.fn()}
+          onSelect={vi.fn()}
+          onToggleSelect={vi.fn()}
+          shape={shape}
+          showCentrelines={false}
+          unitPx={1}
+        />
+      </svg>,
+    );
+
+    return container.querySelector('polygon')?.getAttribute('fill');
+  };
+
+  it('ba bậc máy cho ba token, đã duyệt giữ nền xanh nhạt', () => {
+    expect(fillOf({ ...SHAPE, confidenceTier: 'certain' })).toBe('var(--wall-conf-high)');
+    expect(fillOf({ ...SHAPE, confidenceTier: 'suggested' })).toBe('var(--wall-conf-mid)');
+    expect(fillOf({ ...SHAPE, confidenceTier: 'needsReview' })).toBe('var(--wall-conf-low)');
+    expect(fillOf({ ...SHAPE, confidenceTier: 'reviewed', isReviewed: true })).toBe('var(--state-verified-tint)');
   });
 });

@@ -41,6 +41,7 @@ import { QcViewLayer } from '../shared/QcViewLayer';
 import { WallDraftGuide, WallDrawingBackground, WallLayerLegend, WallLayerMiniMap } from './WallLayerCanvasParts';
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
+import { WallLayerTag } from './WallLayerTag';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
@@ -113,6 +114,7 @@ export function WallLayerCanvas({
   viewBoxPx,
   viewport,
   viewLayer = null,
+  wallTag = null,
   zoomPercent,
 }: WallLayerCanvasViewProps) {
   const ask = useQcAskSlot();
@@ -386,6 +388,7 @@ export function WallLayerCanvas({
 
               <QcAskAnchor rect={selectedWallId === null ? null : haloRectPx}>{ask}</QcAskAnchor>
               {viewLayer === null ? null : <QcViewLayer {...viewLayer} />}
+              {wallTag === null || !isWallLayerVisible ? null : <WallLayerTag {...wallTag} />}
 
               {measurement === null ? null : (
                 <MeasurementLabel

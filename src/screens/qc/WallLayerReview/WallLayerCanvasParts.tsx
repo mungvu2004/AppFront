@@ -6,12 +6,13 @@
 
 import { useState } from 'react';
 
+import { wallConfidenceToken } from '@/components/canvas/materialMap';
 import { MiniMap } from '@/components/canvas/MiniMap';
 
 import { backgroundFrameRect } from '../shared/canvasFit';
 
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
-import { BACKGROUND_IMAGE_OPACITY, toSvgPoints, wallThicknessFillToken } from './wallLayerHatch';
+import { BACKGROUND_IMAGE_OPACITY, toSvgPoints } from './wallLayerHatch';
 import { WallLayerLegendTray } from './WallLayerLegendTray';
 import type { WallDrawSnapKind } from './wallDrawSnap';
 
@@ -157,7 +158,7 @@ export function WallLayerMiniMap({
           viewBox={`${surface.x} ${surface.y} ${surface.width} ${surface.height}`}
         >
           {shapes.map((shape) => (
-            <polygon fill={wallThicknessFillToken(shape.thicknessMm)} key={shape.id} points={toSvgPoints(shape.outline)} />
+            <polygon fill={wallConfidenceToken(shape.confidenceTier)} key={shape.id} points={toSvgPoints(shape.outline)} />
           ))}
         </svg>
       )}

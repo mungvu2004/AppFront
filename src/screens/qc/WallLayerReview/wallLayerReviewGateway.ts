@@ -125,7 +125,7 @@ import {
   WALL_LAYER_FIXTURE_LEVEL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
-import { WALL_THICKNESS_COLOR_GROUPS, wallThicknessBandOf, wallThicknessColorGroupOf } from './wallLayerHatch';
+import { WALL_THICKNESS_COLOR_GROUPS, wallConfidenceTierOf, wallThicknessBandOf, wallThicknessColorGroupOf } from './wallLayerHatch';
 import type {
   WallLayerCanvasShape,
   WallLayerLegendLevels,
@@ -1143,6 +1143,7 @@ export function toCanvasShapes(
       attentionDotPx: centreOfBounds(bounds),
       isLowConfidence: isLowConfidence(wall, threshold, suspectIds),
       isReviewed: wall.reviewed,
+      confidenceTier: wallConfidenceTierOf(wall.reviewed, isLowConfidence(wall, threshold, suspectIds), wall.confidence),
     });
   }
 

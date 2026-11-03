@@ -224,6 +224,7 @@ import type {
 import { arrowStepHandler } from './listArrowKeys';
 import { useFrameState } from '@/hooks/useFrameState';
 import { useWallReviewQueue } from './useWallReviewQueue';
+import { wallTagOf } from './wallTag';
 import { nextUnreviewedWallId, sortByReviewQueue, type WallReviewQueue, type WallReviewReason } from './wallReviewQueue';
 
 /* -------------------------------------------------------------------------- */
@@ -2501,6 +2502,9 @@ export function useWallLayerReview(
     surfaceRectPx: surfacePx === null ? null : toFrameRect(viewport, surfacePx),
     haloRectPx: activeWall === null ? null : toFrameRect(viewport, activeWall.boundsPx),
   };
+  /* WRU-B: nhãn dài × dày · tin cậy cạnh tường đang chọn/rê (`wallTag.ts`), pixel KHUNG. */
+  const wallTag =
+    activeWall === null || frameSizePx === null ? null : wallTagOf(activeWall, queue.extras.get(activeWall.id), viewport, frameSizePx);
   /* L23: ghim số cho tường còn chờ, cùng thứ tự hàng đợi của thẻ hỏi (`rows` chưa duyệt). */
   const viewLayer = {
     focus: selectedWallId === null ? null : frameLayer.haloRectPx,
@@ -2573,6 +2577,7 @@ export function useWallLayerReview(
     measurement: frameMeasurement,
     ...frameLayer,
     viewLayer,
+    wallTag,
     onApprove,
     onRequestThicknessChange,
     onRequestSplit,
