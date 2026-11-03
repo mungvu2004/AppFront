@@ -1,23 +1,22 @@
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 
-import { Kbd } from '@/components/ui/Kbd';
 import type { CommandItem } from '@/hooks/useCommandPalette';
 import { useScreenCommands } from '@/hooks/useScreenCommands';
 import { cn } from '@/lib/utils';
 
 import { QC_COMMAND_GROUP } from './qcLayout';
-import { askCardWidthFor, askNavOf, stableAskPlacement, type AskCardPlace, type QcAskRect } from './qcAsk';
+import { askCardPlacement, askCardWidthFor, askNavOf, type QcAskRect } from './qcAsk';
 
 /**
  * Thẻ hỏi neo cạnh đối tượng (bố cục L23, đợt 2): thay panel chi tiết phải. Màn đặt nội dung thẻ
- * (thanh tra sẵn có) vào `QcAskSlot`; bản vẽ đọc khe đó và đặt thẻ cạnh hộp chọn của nó
- * (`QcAskAnchor`), lật sang trái khi bên phải không đủ chỗ.
+ * (thanh tra sẵn có) vào `QcAskSlot`; bản vẽ đọc khe đó và neo thẻ ở mép phải khung (`QcAskAnchor`),
+ * trong dải mà Từng việc chừa ra khi phóng tới mục (`focusFrameOf`).
  */
 /** Khung bản vẽ không nhận cú bấm/kéo/lăn bắt đầu trong thẻ (kéo nền, bỏ chọn, thu phóng). */
 const stop = (event: SyntheticEvent) => event.stopPropagation();
 
-/** Đặt thẻ ở khung toạ độ của hộp chọn; tự đo khung chứa (phần tử cha định vị). */
+/** Neo thẻ ở mép phải khung chứa (phần tử cha định vị, tự đo); `rect` = hộp mục đang chọn, `null` thì ẩn thẻ. */
 export function QcAskAnchor({ rect, children }: { readonly rect: QcAskRect | null; readonly children: ReactNode }) {
   const probeRef = useRef<HTMLDivElement>(null);
   const [frame, setFrame] = useState<{ width: number; height: number } | null>(null);
@@ -30,14 +29,9 @@ export function QcAskAnchor({ rect, children }: { readonly rect: QcAskRect | nul
     observer.observe(probe);
     return () => observer.disconnect();
   }, []);
-  /* U12: chỗ lần trước — thẻ đứng yên khi đi qua các mục, nút duyệt không đổi chỗ. */
-  const lastPlaceRef = useRef<AskCardPlace | null>(null);
   const width = frame === null ? 0 : askCardWidthFor(frame.width);
   /* Khung đo luôn được vẽ (kể cả khi chưa có thẻ), để lần chọn đầu đã có khổ khung. */
-  const place = children != null && rect !== null && frame !== null && frame.width > 0 ? stableAskPlacement(lastPlaceRef.current, rect, frame, width) : null;
-  useEffect(() => {
-    if (place !== null) lastPlaceRef.current = place;
-  });
+  const place = children != null && rect !== null && frame !== null && frame.width > 0 ? askCardPlacement(frame, width) : null;
 
   return (
     <>
@@ -82,18 +76,19 @@ const NEXT_LABEL = 'Mục kế tiếp';
 const CARD_LABEL = 'Thẻ hỏi của mục đang chọn';
 const CLOSE_LABEL = 'Đóng thẻ';
 
+/* Nút vuông chỉ có biểu tượng: thẻ 300 px còn chỗ cho dòng "Đoạn 12 trong 30 cần xem"; phím ở `title` + `aria-keyshortcuts`. */
 function NavButton({ label, kbd, onClick, children }: { readonly label: string; readonly kbd: string; readonly onClick: (() => void) | undefined; readonly children: ReactNode }) {
   return (
     <button
+      aria-keyshortcuts={kbd === 'Esc' ? 'Escape' : kbd}
       aria-label={label}
-      className="flex h-7 items-center gap-1 rounded-md border border-border-control px-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent"
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-border-control text-text-secondary hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent"
       disabled={onClick === undefined}
       onClick={onClick}
       title={`${label} (${kbd})`}
       type="button"
     >
       {children}
-      <Kbd>{kbd}</Kbd>
     </button>
   );
 }
@@ -109,8 +104,8 @@ export function QcAskCard({ eyebrow, reason, code, onPrev, onNext, onClose, chil
         '[&>div:last-child>div]:h-auto [&>div:last-child>div]:min-h-0 [&>div:last-child>div]:shrink [&>div:last-child>div]:rounded-none [&>div:last-child>div]:shadow-none',
       )}
     >
-      <div className="flex shrink-0 items-center gap-2 border-b border-border-default px-4 py-2.5">
-        <p className="min-w-0 flex-1 truncate text-body-sm text-text-secondary">
+      <div className="flex shrink-0 items-center gap-1.5 border-b border-border-default py-2 pl-4 pr-2">
+        <p className="min-w-0 flex-1 truncate text-body-sm text-text-secondary" title={eyebrow}>
           {eyebrow}
           {code === undefined ? null : <span className="ml-2 rounded-sm bg-bg-sunken px-1.5 py-0.5 font-mono text-[12px] text-text-primary">{code}</span>}
         </p>
@@ -126,11 +121,9 @@ export function QcAskCard({ eyebrow, reason, code, onPrev, onNext, onClose, chil
           </NavButton>
         )}
       </div>
-      {/* U12: dòng lý do luôn giữ một khe cao cố định (có hay không có lý do), nút duyệt không nhảy. */}
-      {reason == null ? (
-        <div aria-hidden="true" className="h-9 shrink-0 border-b border-border-default" data-testid="qc-ask-reason-slot" />
-      ) : (
-        <p className="h-9 shrink-0 truncate border-b border-border-default bg-state-attention-tint px-4 py-2 text-body-sm font-medium text-state-attention-text" title={reason}>{reason}</p>
+      {/* Dòng lý do chỉ có khi máy nêu lý do; thẻ neo mép phải nên nút duyệt không còn đổi chỗ theo mục. */}
+      {reason == null ? null : (
+        <p className="shrink-0 truncate border-b border-border-default bg-state-attention-tint px-4 py-2 text-body-sm font-medium text-state-attention-text" title={reason}>{reason}</p>
       )}
       {/* U20: thân không tự cuộn — thanh tra bên trong cuộn phần giữa, giữ hàng nút đáy trong thẻ. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>

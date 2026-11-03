@@ -2,45 +2,41 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { QcAskAnchor, QcAskCard } from './QcAskCard';
-import { ASK_CARD_WIDTH, ASK_CARD_WIDTH_NARROW, askCardPlacement, askCardWidthFor, askNavOf, rectInFrame, stableAskPlacement } from './qcAsk';
+import { ASK_CARD_WIDTH, ASK_CARD_WIDTH_NARROW, askCardPlacement, askCardWidthFor, askNavOf, rectInFrame } from './qcAsk';
+import { focusBoundsOf, focusFrameOf } from './qcViewMode';
 
 const FRAME = { width: 1400, height: 900 };
 
-describe('askCardPlacement (thẻ hỏi neo cạnh đối tượng)', () => {
-  it('đủ chỗ bên phải: đặt sát phải hộp chọn', () => {
-    expect(askCardPlacement({ x: 200, y: 300, width: 60, height: 40 }, FRAME).left).toBe(276);
+describe('askCardPlacement (thẻ hỏi neo mép phải khung)', () => {
+  it('sát mép phải, dưới nút Hiển thị; cao tới trên cụm thu phóng', () => {
+    expect(askCardPlacement(FRAME)).toEqual({ left: 1400 - 12 - ASK_CARD_WIDTH, top: 60, maxHeight: 900 - 60 - 72 });
   });
 
-  it('bên phải hết chỗ: lật sang trái', () => {
-    const place = askCardPlacement({ x: 1200, y: 300, width: 60, height: 40 }, FRAME);
-    expect(place.left).toBe(1200 - 16 - ASK_CARD_WIDTH);
-  });
-
-  it('không bên nào đủ: sát mép phải, không tràn khung; đỉnh nằm trong khung', () => {
-    const place = askCardPlacement({ x: 100, y: -500, width: 300, height: 40 }, { width: 600, height: 500 });
-    expect(place.left).toBe(600 - 12 - ASK_CARD_WIDTH);
-    expect(place.top).toBe(60);
-    expect(place.maxHeight).toBeLessThanOrEqual(500 - 60 - 72);
-  });
-});
-
-describe('stableAskPlacement (U12: thẻ đứng yên giữa các mục)', () => {
-  it('mục mới không bị thẻ che: giữ đúng chỗ cũ', () => {
-    const first = stableAskPlacement(null, { x: 200, y: 300, width: 60, height: 40 }, FRAME);
-    const next = stableAskPlacement(first, { x: 150, y: 600, width: 40, height: 40 }, FRAME);
-    expect(next.left).toBe(first.left);
-    expect(next.top).toBe(first.top);
-  });
-
-  it('mục mới nằm dưới thẻ: tính chỗ mới', () => {
-    const first = stableAskPlacement(null, { x: 200, y: 300, width: 60, height: 40 }, FRAME);
-    const next = stableAskPlacement(first, { x: first.left + 20, y: 400, width: 40, height: 40 }, FRAME);
-    expect(next.left).not.toBe(first.left);
+  it('khung thấp: vẫn chừa tối thiểu 160 px cho thẻ', () => {
+    expect(askCardPlacement({ width: 600, height: 200 }).maxHeight).toBe(160);
   });
 
   it('khung hẹp (768 px): thẻ hẹp lại', () => {
     expect(askCardWidthFor(700)).toBe(ASK_CARD_WIDTH_NARROW);
     expect(askCardWidthFor(1400)).toBe(ASK_CARD_WIDTH);
+  });
+});
+
+describe('focusFrameOf / focusBoundsOf (Từng việc canh mục ngoài dải thẻ)', () => {
+  it('dải chừa = rộng thẻ thật + hai lề: thẻ nằm gọn trong dải, không che vùng nhìn', () => {
+    const frame = focusFrameOf(FRAME);
+    expect(frame.width).toBe(1400 - ASK_CARD_WIDTH - 24);
+    expect(frame.width).toBeLessThanOrEqual(askCardPlacement(FRAME).left);
+  });
+
+  it('đoạn ngắn: nới mỗi phía 10 % cạnh dài của tầng', () => {
+    const box = focusBoundsOf({ x: 500, y: 500, width: 10, height: 4 }, { x: 0, y: 0, width: 1000, height: 800 });
+    expect(box).toEqual({ x: 400, y: 400, width: 210, height: 204 });
+  });
+
+  it('đoạn dài: nới mỗi phía nửa chiều dài của nó', () => {
+    const box = focusBoundsOf({ x: 100, y: 300, width: 600, height: 20 }, { x: 0, y: 0, width: 1000, height: 800 });
+    expect(box).toEqual({ x: -200, y: 0, width: 1200, height: 620 });
   });
 });
 
@@ -77,13 +73,19 @@ describe('QcAskCard', () => {
     expect(onNext).toHaveBeenCalledTimes(1);
   });
 
-  it('U12: không có lý do vẫn giữ khe dòng lý do, nút duyệt không nhảy', () => {
-    render(
+  it('dòng lý do chỉ có khi có lý do', () => {
+    const { rerender } = render(
       <QcAskCard eyebrow="Mục 1 trong 3 cần xem">
         <div>Thanh tra</div>
       </QcAskCard>,
     );
-    expect(screen.getByTestId('qc-ask-reason-slot')).toHaveClass('h-9');
+    expect(screen.queryByText('Ngắn hơn bề dày tường')).toBeNull();
+    rerender(
+      <QcAskCard eyebrow="Mục 1 trong 3 cần xem" reason="Ngắn hơn bề dày tường">
+        <div>Thanh tra</div>
+      </QcAskCard>,
+    );
+    expect(screen.getByText('Ngắn hơn bề dày tường')).toBeInTheDocument();
   });
 });
 

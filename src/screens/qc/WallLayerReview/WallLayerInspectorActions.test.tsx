@@ -99,6 +99,24 @@ describe('khoá tỷ lệ (useScaleLock) ở thanh tra', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Đặt tỷ lệ' }));
     expect(onOpenScale).toHaveBeenCalledTimes(1);
   });
+
+  it('thẻ gọn: chip độ dày/dài/tin cậy; chiều cao, vật liệu chỉ ở "Thông số nâng cao"; một hàng nút', () => {
+    const unlocked = { ...lockedPanel(vi.fn()), scaleLock: null, onDelete: vi.fn() } as unknown as WallLayerViewProps;
+
+    renderWithProviders(<WallLayerInspector panel={unlocked} />);
+
+    expect(screen.queryByRole('heading', { name: 'Đoạn tường' })).toBeNull();
+    expect(screen.getByText('Dài 5.757 mm')).toBeInTheDocument();
+    expect(screen.getByText('Máy chưa chắc')).toBeInTheDocument();
+    expect(screen.queryByText('Chiều cao')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thông số nâng cao' }));
+    expect(screen.getByText('Chiều cao')).toBeInTheDocument();
+    expect(screen.getByText('Vật liệu')).toBeInTheDocument();
+
+    const approve = screen.getByRole('button', { name: 'Duyệt đoạn này' });
+    expect(approve.parentElement).toBe(screen.getByRole('button', { name: 'Để sau' }).parentElement);
+    expect(approve.parentElement).toBe(screen.getByRole('button', { name: 'Xoá đoạn này' }).parentElement);
+  });
 });
 
 describe('U16: nút "Xoá đoạn này" ở thanh tra', () => {

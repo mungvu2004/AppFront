@@ -5,7 +5,7 @@ import { useShortcut } from '@/hooks/useShortcut';
 import { cn } from '@/lib/utils';
 
 import type { QcAskRect } from './qcAsk';
-import { setQcViewMode, toggleQcViewMode, useQcViewMode, type QcPin, type QcViewMode } from './qcViewMode';
+import { focusPadOf, setQcViewMode, toggleQcViewMode, useQcViewMode, type QcPin, type QcViewMode } from './qcViewMode';
 
 /**
  * Lớp chế độ nhìn trên bản vẽ L23 (`qcViewMode.ts`), đặt trong khung bản vẽ của màn:
@@ -37,6 +37,7 @@ const stop = (event: SyntheticEvent) => event.stopPropagation();
 export function QcViewLayer({ focus, pins, selectedId, onPick }: QcViewLayerProps) {
   const mode = useQcViewMode();
   const maskId = useId();
+  const pad = focus === null ? FOCUS_PAD : Math.max(FOCUS_PAD, focusPadOf(focus));
   useShortcut({ id: 'qc.viewMode', combo: 'F', description: SHORTCUT_DESCRIPTION, scope: 'canvas', onTrigger: toggleQcViewMode });
 
   return (
@@ -45,13 +46,14 @@ export function QcViewLayer({ focus, pins, selectedId, onPick }: QcViewLayerProp
         <svg aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 h-full w-full">
           <mask id={maskId}>
             <rect fill="white" height="100%" width="100%" />
+            {/* Lỗ không phủ = mục + lề ngữ cảnh như hộp phóng (`focusBoundsOf`): thấy rõ chỗ nối quanh mục. */}
             <rect
               fill="black"
-              height={focus.height + FOCUS_PAD * 2}
+              height={focus.height + pad * 2}
               rx={8}
-              width={focus.width + FOCUS_PAD * 2}
-              x={focus.x - FOCUS_PAD}
-              y={focus.y - FOCUS_PAD}
+              width={focus.width + pad * 2}
+              x={focus.x - pad}
+              y={focus.y - pad}
             />
           </mask>
           <rect fill={DIM_FILL} height="100%" mask={`url(#${maskId})`} width="100%" />
