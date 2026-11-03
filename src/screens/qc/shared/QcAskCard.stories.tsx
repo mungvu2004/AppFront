@@ -10,7 +10,7 @@ const meta: Meta<typeof QcAskCard> = {
   },
   decorators: [
     (Story) => (
-      <div style={{ width: 340 }}>
+      <div style={{ width: 300 }}>
         <Story />
       </div>
     ),

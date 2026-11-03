@@ -1,27 +1,26 @@
 /**
- * Panel phải — thanh tra đoạn đang chọn (demo Z/S-15): mã + trạng thái → khối độ dày đo (số lớn
- * + một câu so với chuẩn) → đổi độ dày → thông số → nút theo loại đoạn.
- *
- * View THUẦN (R-60): mọi chuỗi số (`lengthLabel`, câu so chuẩn…) đã định dạng ở hook (A15).
- * Độ dày là ô chọn trong thang chuẩn, cộng "Khác…" mở ô nhập mm (60–600) để giữ đúng số bản vẽ
- * (UX-10); sáu chip không vừa panel và chồng chữ (K16). Menu "Đổi độ dày" đưa focus vào ô chọn (BUG-604). "Độ tin cậy" nói bằng chữ, số ở
- * phần nâng cao; ẩn khi mọi đoạn cùng một giá trị (không giúp quyết định).
+ * Thân thẻ hỏi của đoạn tường đang chọn (L23), gọn để thẻ neo mép phải chỉ ~300 × 260 px:
+ * - một hàng chip: mã · trạng thái · "Dày 220 mm" · "Dài 3.450 mm" · lời độ tin cậy;
+ * - "Đổi độ dày": ô chọn trong thang chuẩn, cộng "Khác…" mở ô nhập mm (60–600, UX-10); menu "Đổi độ dày"
+ *   đưa focus vào ô chọn (BUG-604);
+ * - "Thông số nâng cao" (gập): chiều dài sửa được, chiều cao, vật liệu, điểm tin cậy, lệch Z, toạ độ;
+ * - chân thẻ: nút theo loại đoạn (`WallLayerInspectorActions`).
+ * View THUẦN (R-60): mọi chuỗi số đã định dạng ở hook (A15).
  */
 
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import { AnimatePresence, motion } from '@/components/motion';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { durationSeconds } from '@/lib/motion';
 import { WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 import { cn } from '@/lib/utils';
 
-import { CUSTOM_MAX_MM, CUSTOM_MIN_MM, parseCustomThickness } from './customThickness';
 import type { WallLayerViewProps } from './types';
 import { WallLayerInspectorActions } from './WallLayerInspectorActions';
+import { CustomThicknessField, LengthField } from './WallLayerInspectorFields';
 import { WallScaleLockNotice } from './WallScaleLockNotice';
 import type { WallReviewQueue } from './wallReviewQueue';
 
@@ -30,27 +29,20 @@ export interface WallLayerInspectorProps {
   readonly queue?: WallReviewQueue | undefined;
 }
 
-const PANEL_TITLE = 'Đoạn tường';
 const ADVANCED_TITLE = 'Thông số nâng cao';
 const LENGTH_LABEL = 'Chiều dài';
-const LENGTH_INPUT_LABEL = 'Chiều dài tường';
-const LENGTH_ERROR = 'Nhập một số lớn hơn 0.';
 const HEIGHT_LABEL = 'Chiều cao';
-const CONFIDENCE_LABEL = 'Độ tin cậy';
 const CONFIDENCE_SCORE_LABEL = 'Điểm tin cậy';
 const MATERIAL_LABEL = 'Vật liệu';
 const ELEVATION_OFFSET_LABEL = 'Lệch Z';
 const START_POINT_LABEL = 'Toạ độ đầu';
 const END_POINT_LABEL = 'Toạ độ cuối';
 const THICKNESS_ARIA_LABEL = 'Độ dày tường';
-// UX41 U48: số này có thể đã được người sửa — không gọi là "đo được". Số máy đo gốc chưa có trên wire.
-const MEASURED_LABEL = 'Độ dày hiện tại';
+const THICKNESS_FACT = 'Dày';
+const LENGTH_FACT = 'Dài';
 const CHANGE_THICKNESS_LABEL = 'Đổi độ dày';
 const CUSTOM_OPTION_VALUE = 'other';
 const CUSTOM_OPTION_LABEL = 'Khác…';
-const CUSTOM_INPUT_LABEL = 'Độ dày khác, mm';
-const CUSTOM_APPLY_LABEL = 'Áp dụng';
-const CUSTOM_RANGE_ERROR = `Nhập số từ ${CUSTOM_MIN_MM} đến ${CUSTOM_MAX_MM} mm.`;
 const NON_STANDARD_LABEL = 'Không chuẩn';
 const REVIEWED_LABEL = 'Đã duyệt';
 const UNREVIEWED_LABEL = 'Chưa duyệt';
@@ -65,129 +57,8 @@ function ValueRow({ label, value, isLast = false }: { readonly label: string; re
   );
 }
 
-function CustomThicknessField({
-  text,
-  errorId,
-  onTextChange,
-  onApply,
-}: {
-  readonly text: string;
-  readonly errorId: string;
-  readonly onTextChange: (text: string) => void;
-  readonly onApply: (value: number) => void;
-}) {
-  const value = parseCustomThickness(text);
-  const isInvalid = text.trim() !== '' && value === null;
-
-  return (
-    <form
-      className="mt-2 flex flex-col gap-1"
-      onSubmit={(event) => {
-        event.preventDefault();
-
-        if (value !== null) {
-          onApply(value);
-        }
-      }}
-    >
-      <div className="flex items-center gap-2">
-        <input
-          aria-describedby={isInvalid ? errorId : undefined}
-          aria-invalid={isInvalid}
-          aria-label={CUSTOM_INPUT_LABEL}
-          className="h-9 min-w-0 flex-1 rounded-md border border-border-default bg-bg-surface px-2 text-[14px] tabular-nums text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          inputMode="numeric"
-          max={CUSTOM_MAX_MM}
-          min={CUSTOM_MIN_MM}
-          onChange={(event) => onTextChange(event.target.value)}
-          step={1}
-          type="number"
-          value={text}
-        />
-        <span className="text-body-sm text-text-secondary">mm</span>
-        <Button disabled={value === null} type="submit" variant="secondary">
-          {CUSTOM_APPLY_LABEL}
-        </Button>
-      </div>
-      {isInvalid ? (
-        <p className="text-caption text-state-violation" id={errorId}>
-          {CUSTOM_RANGE_ERROR}
-        </p>
-      ) : null}
-    </form>
-  );
-}
-
-/**
- * Ô "Chiều dài" sửa được (P03): Enter hoặc rời ô thì áp, Esc trả số cũ. Số theo đơn vị dự án
- * (mm hoặc m, dấu phẩy thập phân được); `onCommit` nhận mm.
- */
-function LengthField({
-  edit,
-  onCommit,
-}: {
-  readonly edit: { readonly valueText: string; readonly unit: 'mm' | 'm' };
-  readonly onCommit: (lengthMm: number) => void;
-}) {
-  const [text, setText] = useState(edit.valueText);
-  const [error, setError] = useState<string | null>(null);
-  const committedRef = useRef(edit.valueText);
-  const errorId = useId();
-
-  const commit = () => {
-    if (text === committedRef.current) {
-      setError(null);
-      return;
-    }
-
-    /* mm: "4.250" là bốn nghìn hai trăm năm mươi (dấu chấm nghìn); dấu phẩy luôn là thập phân. */
-    const compact = text.replace(/\s/g, '');
-    const value = Number((edit.unit === 'mm' ? compact.replace(/\./g, '') : compact).replace(',', '.'));
-
-    if (text.trim() === '' || !Number.isFinite(value) || value <= 0) {
-      setError(LENGTH_ERROR);
-      return;
-    }
-
-    setError(null);
-    committedRef.current = text;
-    onCommit(edit.unit === 'm' ? value * 1000 : value);
-  };
-
-  return (
-    <div className="flex flex-col gap-1 py-1">
-      <div className="flex items-center gap-2">
-        <input
-          aria-describedby={error === null ? undefined : errorId}
-          aria-invalid={error !== null}
-          aria-label={LENGTH_INPUT_LABEL}
-          className="h-9 min-w-0 flex-1 rounded-md border border-border-default bg-bg-surface px-2 text-[14px] tabular-nums text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          inputMode="decimal"
-          onBlur={commit}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              commit();
-            } else if (event.key === 'Escape') {
-              /* Esc chỉ huỷ số đang gõ, không bỏ chọn đoạn. */
-              event.stopPropagation();
-              setText(committedRef.current);
-              setError(null);
-            }
-          }}
-          type="text"
-          value={text}
-        />
-        <span className="text-body-sm text-text-secondary">{edit.unit}</span>
-      </div>
-      {error === null ? null : (
-        <p className="text-caption text-state-violation" id={errorId}>
-          {error}
-        </p>
-      )}
-    </div>
-  );
+function Fact({ children }: { readonly children: ReactNode }) {
+  return <span className="inline-flex h-6 items-center gap-1 rounded-md bg-bg-sunken px-2 text-body-sm tabular-nums text-text-primary">{children}</span>;
 }
 
 export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
@@ -222,84 +93,74 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
   const lockText = scaleLock === null ? (queue?.lockText ?? null) : scaleLock.reason;
   const showLockHere = scaleLock === null && lockText !== null && !(isNonStandard && extra !== undefined && extra.targetMm !== null);
 
+  if (inspector === null) {
+    return (
+      <div className="order-2 flex w-full shrink-0 flex-col rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:w-full">
+        {/* Đệm dưới bằng đệm ngang: câu không sát đáy thẻ (BUG-329). */}
+        <p className="px-5 pb-5 pt-4 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="order-2 flex max-h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel xl:order-0 xl:h-full xl:w-full">
-      <div className="flex h-11 shrink-0 items-end px-5">
-        <h2 className="text-caption font-medium uppercase tracking-[0.06em] text-text-secondary">{PANEL_TITLE}</h2>
-      </div>
-
-      {inspector === null ? (
-        /* Đệm dưới bằng đệm ngang: câu không sát đáy thẻ (BUG-329). */
-        <div className="flex flex-col">
-          <p className="px-5 pb-5 pt-2 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-1 pt-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* K16: mã không gãy giữa "#W-" và "001". */}
+          <span className="whitespace-nowrap text-body-sm font-medium tabular-nums text-text-primary">{inspector.codeLabel}</span>
+          {isReviewed ? (
+            <Badge variant="verified">{REVIEWED_LABEL}</Badge>
+          ) : isNonStandard ? (
+            <Badge variant="attention">{NON_STANDARD_LABEL}</Badge>
+          ) : (
+            <Badge variant="neutral">{UNREVIEWED_LABEL}</Badge>
+          )}
+          {/* U30: dấu cách thật giữa chữ, số và đơn vị — chép/đọc màn hình không dính chữ. */}
+          <Fact>
+            {THICKNESS_FACT} <span className="font-medium">{inspector.thicknessMm}</span> mm
+          </Fact>
+          <Fact>{`${LENGTH_FACT} ${inspector.lengthLabel}`}</Fact>
+          {queue?.showConfidence === false ? null : <Fact>{inspector.confidenceText}</Fact>}
         </div>
-      ) : (
-        <>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="flex items-center gap-2 px-5 pb-3 pt-1">
-            {/* K16: mã không gãy giữa "#W-" và "001". */}
-            <p className="shrink-0 whitespace-nowrap text-title tabular-nums text-text-primary">{inspector.codeLabel}</p>
-            {isReviewed ? (
-              <Badge variant="verified">{REVIEWED_LABEL}</Badge>
-            ) : isNonStandard ? (
-              <Badge variant="attention">{NON_STANDARD_LABEL}</Badge>
-            ) : (
-              <Badge variant="neutral">{UNREVIEWED_LABEL}</Badge>
-            )}
-          </div>
-          {/* G4a-12: chọn nhiều thì nói rõ thông số bên dưới là của đoạn nào. */}
-          {selectedCount > 1 ? (
-            <p className="px-5 pb-3 text-[13px] text-text-secondary">
-              {`${selectedCount} đoạn đã chọn. Thông số dưới đây của ${inspector.codeLabel}.`}
-            </p>
-          ) : null}
+        {inspector.detectedNote ? <p className="text-caption text-text-secondary">{inspector.detectedNote}</p> : null}
+        {extra === undefined ? null : <p className="text-caption text-text-secondary">{extra.note}</p>}
+        {/* G4a-12: chọn nhiều thì nói rõ thông số là của đoạn nào. */}
+        {selectedCount > 1 ? (
+          <p className="text-caption text-text-secondary">{`${selectedCount} đoạn đã chọn. Thông số dưới đây của ${inspector.codeLabel}.`}</p>
+        ) : null}
 
-          <div className="mx-5 rounded-lg bg-bg-sunken px-4 py-3">
-            <p className="text-caption text-text-secondary">{MEASURED_LABEL}</p>
-            <p className="tabular-nums text-text-primary">
-              {/* U30: dấu cách thật giữa số, đơn vị và ghi chú — chép/đọc màn hình không dính chữ. */}
-              <span className="text-[32px] font-medium leading-10">{inspector.thicknessMm}</span>{' '}
-              <span className="text-body-sm text-text-secondary">mm</span>
-              {inspector.detectedNote ? <>{' '}<span className="ml-1 text-body-sm text-text-secondary">{inspector.detectedNote}</span></> : null}
-            </p>
-            {extra === undefined ? null : <p className="mt-1 text-body-sm text-text-secondary">{extra.note}</p>}
-          </div>
+        {/* U37: người xem không thấy ô đổi độ dày (trông như nút sửa) — số hiện tại đã ở hàng chip. */}
+        {isViewerRole ? null : (
+          <div>
+            <label className="flex items-center gap-3">
+              <span className="shrink-0 text-caption text-text-secondary">{CHANGE_THICKNESS_LABEL}</span>
+              <select
+                aria-describedby={showLockHere ? lockId : undefined}
+                aria-label={THICKNESS_ARIA_LABEL}
+                className="h-9 min-w-0 flex-1 rounded-md border border-border-default bg-bg-surface px-2 text-[14px] tabular-nums text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={lockText !== null}
+                onChange={(event) => {
+                  if (event.target.value === CUSTOM_OPTION_VALUE) {
+                    setCustomFor(inspector.id);
+                    setCustomText(String(inspector.thicknessMm));
+                    return;
+                  }
 
-          <div className="px-5 pb-2 pt-3">
-            {/* U37: người xem không thấy hàng "100 mm … 400 mm" (trông như nút sửa) — số hiện tại đã ở trên. */}
-            {isViewerRole ? null : (
-              <label className="flex items-center gap-3">
-                <span className="shrink-0 text-caption text-text-secondary">{CHANGE_THICKNESS_LABEL}</span>
-                <select
-                  aria-describedby={showLockHere ? lockId : undefined}
-                  aria-label={THICKNESS_ARIA_LABEL}
-                  className="h-9 min-w-0 flex-1 rounded-md border border-border-default bg-bg-surface px-2 text-[14px] tabular-nums text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={lockText !== null}
-                  onChange={(event) => {
-                    if (event.target.value === CUSTOM_OPTION_VALUE) {
-                      setCustomFor(inspector.id);
-                      setCustomText(String(inspector.thicknessMm));
-                      return;
-                    }
-
-                    setCustomFor(null);
-                    onChangeThickness(inspector.id, Number(event.target.value));
-                  }}
-                  ref={thicknessRef}
-                  value={customFor === inspector.id ? CUSTOM_OPTION_VALUE : String(inspector.thicknessMm)}
-                >
-                  {/* Độ dày đo không nằm trong thang: hiện đúng số đó, không chọn lại được. */}
-                  {isOffScale ? (
-                    <option disabled value={String(inspector.thicknessMm)}>{`${inspector.thicknessMm} mm`}</option>
-                  ) : null}
-                  {thicknessChoices.map((choice) => (
-                    <option key={choice} value={String(choice)}>{`${choice} mm`}</option>
-                  ))}
-                  <option value={CUSTOM_OPTION_VALUE}>{CUSTOM_OPTION_LABEL}</option>
-                </select>
-              </label>
-            )}
-            {!isViewerRole && lockText === null && customFor === inspector.id ? (
+                  setCustomFor(null);
+                  onChangeThickness(inspector.id, Number(event.target.value));
+                }}
+                ref={thicknessRef}
+                value={customFor === inspector.id ? CUSTOM_OPTION_VALUE : String(inspector.thicknessMm)}
+              >
+                {/* Độ dày đo không nằm trong thang: hiện đúng số đó, không chọn lại được. */}
+                {isOffScale ? <option disabled value={String(inspector.thicknessMm)}>{`${inspector.thicknessMm} mm`}</option> : null}
+                {thicknessChoices.map((choice) => (
+                  <option key={choice} value={String(choice)}>{`${choice} mm`}</option>
+                ))}
+                <option value={CUSTOM_OPTION_VALUE}>{CUSTOM_OPTION_LABEL}</option>
+              </select>
+            </label>
+            {lockText === null && customFor === inspector.id ? (
               <CustomThicknessField
                 errorId={customId}
                 onApply={(value) => {
@@ -310,87 +171,79 @@ export function WallLayerInspector({ panel, queue }: WallLayerInspectorProps) {
                 text={customText}
               />
             ) : null}
-            {showLockHere && !isViewerRole ? (
+            {showLockHere ? (
               <p className="mt-2 text-caption leading-snug text-state-violation" id={lockId}>
                 {lockText}
               </p>
             ) : null}
           </div>
+        )}
 
-          <div className="flex flex-col px-5">
-            {/* P03: cùng điều kiện với đổi độ dày (vai sửa, không khoá tỷ lệ); tường cong vẫn chỉ đọc. */}
-            {!isViewerRole && lockText === null && inspector.lengthEdit != null && panel.onChangeLength !== undefined ? (
-              <FieldRow label={LENGTH_LABEL}>
-                <LengthField
-                  edit={inspector.lengthEdit}
-                  key={`${inspector.id}:${inspector.lengthEdit.valueText}`}
-                  onCommit={(lengthMm) => panel.onChangeLength?.(inspector.id, lengthMm)}
-                />
-              </FieldRow>
-            ) : (
-              <ValueRow label={LENGTH_LABEL} value={inspector.lengthLabel} />
+        <div>
+          <button
+            aria-controls={advancedId}
+            aria-expanded={isAdvancedOpen}
+            className="flex w-full items-center justify-between rounded-md py-1.5 text-[13px] font-medium text-text-secondary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            onClick={() => setAdvancedOpen((open) => !open)}
+            type="button"
+          >
+            {ADVANCED_TITLE}
+            <ChevronDown aria-hidden="true" className={cn('h-4 w-4 transition-transform duration-180', isAdvancedOpen && 'rotate-180')} />
+          </button>
+
+          <AnimatePresence initial={false}>
+            {isAdvancedOpen && (
+              <motion.div
+                animate={{ height: 'auto', opacity: 1 }}
+                className="overflow-hidden"
+                exit={{ height: 0, opacity: 0 }}
+                id={advancedId}
+                initial={{ height: 0, opacity: 0 }}
+                transition={{ duration: durationSeconds('standard') }}
+              >
+                {/* P03: cùng điều kiện với đổi độ dày (vai sửa, không khoá tỷ lệ); tường cong vẫn chỉ đọc. */}
+                {!isViewerRole && lockText === null && inspector.lengthEdit != null && panel.onChangeLength !== undefined ? (
+                  <FieldRow label={LENGTH_LABEL}>
+                    <LengthField
+                      edit={inspector.lengthEdit}
+                      key={`${inspector.id}:${inspector.lengthEdit.valueText}`}
+                      onCommit={(lengthMm) => panel.onChangeLength?.(inspector.id, lengthMm)}
+                    />
+                  </FieldRow>
+                ) : (
+                  <ValueRow label={LENGTH_LABEL} value={inspector.lengthLabel} />
+                )}
+                <ValueRow label={HEIGHT_LABEL} value={inspector.heightLabel} />
+                <ValueRow label={MATERIAL_LABEL} value={inspector.kindLabel} />
+                <ValueRow label={CONFIDENCE_SCORE_LABEL} value={inspector.advanced.confidenceLabel} />
+                <ValueRow label={ELEVATION_OFFSET_LABEL} value={inspector.advanced.elevationOffsetLabel} />
+                <ValueRow label={START_POINT_LABEL} value={inspector.advanced.startPointLabel} />
+                <ValueRow isLast label={END_POINT_LABEL} value={inspector.advanced.endPointLabel} />
+              </motion.div>
             )}
-            <ValueRow label={HEIGHT_LABEL} value={inspector.heightLabel} />
-            {queue?.showConfidence === false ? null : <ValueRow label={CONFIDENCE_LABEL} value={inspector.confidenceText} />}
-            <FieldRow isLast label={MATERIAL_LABEL}>
-              <span className="flex h-9 items-center text-[14px] text-text-primary">{inspector.kindLabel}</span>
-            </FieldRow>
-          </div>
-
-          <div className="px-5 pt-2">
-            <button
-              aria-controls={advancedId}
-              aria-expanded={isAdvancedOpen}
-              className="flex w-full items-center justify-between rounded-md py-2 text-[13px] font-medium text-text-secondary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              onClick={() => setAdvancedOpen((open) => !open)}
-              type="button"
-            >
-              {ADVANCED_TITLE}
-              <ChevronDown aria-hidden="true" className={cn('h-4 w-4 transition-transform duration-180', isAdvancedOpen && 'rotate-180')} />
-            </button>
-
-            <AnimatePresence initial={false}>
-              {isAdvancedOpen && (
-                <motion.div
-                  animate={{ height: 'auto', opacity: 1 }}
-                  className="overflow-hidden"
-                  exit={{ height: 0, opacity: 0 }}
-                  id={advancedId}
-                  initial={{ height: 0, opacity: 0 }}
-                  transition={{ duration: durationSeconds('standard') }}
-                >
-                  <ValueRow label={CONFIDENCE_SCORE_LABEL} value={inspector.advanced.confidenceLabel} />
-                  <ValueRow label={ELEVATION_OFFSET_LABEL} value={inspector.advanced.elevationOffsetLabel} />
-                  <ValueRow label={START_POINT_LABEL} value={inspector.advanced.startPointLabel} />
-                  <ValueRow isLast label={END_POINT_LABEL} value={inspector.advanced.endPointLabel} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
+          </AnimatePresence>
         </div>
+      </div>
 
-          {/* U20: nút duyệt nằm ngoài vùng cuộn, đứng đáy thẻ — ở 768 px vẫn thấy ngay, không phải cuộn. */}
-          <div className="flex shrink-0 flex-col items-stretch gap-2 border-t border-border-default px-5 pb-5 pt-3">
-            {/* Khoá tỷ lệ: thay mọi nút sửa/duyệt bằng lý do + lối sang bước Tỷ lệ. */}
-            {scaleLock === null ? (
-              <WallLayerInspectorActions
-                confirmDelete={inspector.kindLabel === WALL_KIND_LABELS.envelope || inspector.isLongWall === true}
-                extra={extra}
-                isNonStandard={isNonStandard}
-                isReviewed={isReviewed}
-                lockText={queue?.lockText}
-                onStandardize={queue?.onStandardize}
-                panel={panel}
-                thicknessMm={inspector.thicknessMm}
-                wallId={inspector.id}
-              />
-            ) : (
-              <WallScaleLockNotice lock={scaleLock} />
-            )}
-          </div>
-        </>
-      )}
+      {/* U20: nút duyệt nằm ngoài vùng cuộn, đứng đáy thẻ — ở 768 px vẫn thấy ngay, không phải cuộn. */}
+      <div className="flex shrink-0 flex-col items-stretch gap-2 border-t border-border-default px-4 py-3">
+        {/* Khoá tỷ lệ: thay mọi nút sửa/duyệt bằng lý do + lối sang bước Tỷ lệ. */}
+        {scaleLock === null ? (
+          <WallLayerInspectorActions
+            confirmDelete={inspector.kindLabel === WALL_KIND_LABELS.envelope || inspector.isLongWall === true}
+            extra={extra}
+            isNonStandard={isNonStandard}
+            isReviewed={isReviewed}
+            lockText={queue?.lockText}
+            onStandardize={queue?.onStandardize}
+            panel={panel}
+            thicknessMm={inspector.thicknessMm}
+            wallId={inspector.id}
+          />
+        ) : (
+          <WallScaleLockNotice lock={scaleLock} />
+        )}
+      </div>
     </div>
   );
 }

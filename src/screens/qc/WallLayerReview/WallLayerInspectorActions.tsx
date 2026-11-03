@@ -4,11 +4,13 @@
  * - không chuẩn, dày/mỏng bất thường: "Giữ 509 mm" (chính, A) · "Để sau" (S);
  * - đúng chuẩn: "Duyệt đoạn này" (chính, A) · "Để sau" (S);
  * - đã duyệt: "Bỏ duyệt đoạn này"; vai người xem: một câu giải thích, không nút.
- * - mọi đoạn (trừ vai người xem): "Xoá đoạn này" (Delete) — xoá tức thì, toast có Hoàn tác (U16);
+ * - mọi đoạn (trừ vai người xem): nút thùng rác "Xoá đoạn này" (Delete) — xoá tức thì, toast có Hoàn tác (U16);
  *   tường bao thì hỏi lại một câu trước khi xoá (U50).
+ * Thẻ hỏi chỉ rộng 300 px: nút duyệt + "Để sau" + thùng rác đứng chung một hàng; "Đổi về" (khi có) một hàng riêng.
  * Tên truy cập của nút là nhãn trơn (`aria-label`), phím nằm ở `aria-keyshortcuts` + ô phím.
  */
 
+import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
@@ -60,7 +62,19 @@ export function WallLayerInspectorActions({
   }
 
   /* U16: nét thừa thì xoá — nút thấy được, không bắt đoán phím Delete. */
-  const deleteButton =
+  const deleteButton = (
+    <Button
+      aria-keyshortcuts="Delete"
+      aria-label={DELETE_LABEL}
+      iconBefore={<Trash2 aria-hidden="true" className="h-4 w-4" />}
+      iconOnly
+      onClick={() => (confirmDelete ? setConfirmingId(wallId) : onDelete(wallId))}
+      size="sm"
+      title={`${DELETE_LABEL} (Del)`}
+      variant="ghost"
+    />
+  );
+  const deleteConfirm =
     confirmDelete && confirmingId === wallId ? (
       <div className="flex flex-col gap-2 rounded-md border border-border-default p-3" role="alert">
         <p className="text-[13px] text-text-primary">{DELETE_CONFIRM_TEXT}</p>
@@ -70,36 +84,30 @@ export function WallLayerInspectorActions({
               setConfirmingId(null);
               onDelete(wallId);
             }}
+            size="sm"
             variant="secondary"
           >
             {DELETE_CONFIRM_LABEL}
           </Button>
-          <Button onClick={() => setConfirmingId(null)} variant="ghost">
+          <Button onClick={() => setConfirmingId(null)} size="sm" variant="ghost">
             {DELETE_CANCEL_LABEL}
           </Button>
         </div>
       </div>
-    ) : (
-      <Button
-        aria-keyshortcuts="Delete"
-        aria-label={DELETE_LABEL}
-        onClick={() => (confirmDelete ? setConfirmingId(wallId) : onDelete(wallId))}
-        shortcut="Del"
-        variant="ghost"
-      >
-        {DELETE_LABEL}
-      </Button>
-    );
+    ) : null;
 
   if (isReviewed) {
     return (
       <>
-        {onUnapprove === undefined ? null : (
-          <Button aria-label={UNAPPROVE_LABEL} fullWidth onClick={() => onUnapprove(wallId)} variant="secondary">
-            {UNAPPROVE_LABEL}
-          </Button>
-        )}
-        {deleteButton}
+        <div className="flex items-center gap-1.5">
+          {onUnapprove === undefined ? null : (
+            <Button aria-label={UNAPPROVE_LABEL} className="flex-1" onClick={() => onUnapprove(wallId)} size="sm" variant="secondary">
+              {UNAPPROVE_LABEL}
+            </Button>
+          )}
+          {deleteButton}
+        </div>
+        {deleteConfirm}
       </>
     );
   }
@@ -120,25 +128,31 @@ export function WallLayerInspectorActions({
           fullWidth
           onClick={() => onStandardize(wallId)}
           shortcut="C"
+          size="sm"
           variant="primary"
         >
           {`Đổi về ${targetMm} mm`}
         </Button>
       ) : null}
-      <Button
-        aria-keyshortcuts="A"
-        aria-label={approveLabel}
-        fullWidth
-        onClick={() => onApprove(wallId)}
-        shortcut="A"
-        variant={canStandardize ? 'secondary' : 'primary'}
-      >
-        {approveLabel}
-      </Button>
-      <Button aria-keyshortcuts="S" aria-label={LATER_LABEL} onClick={() => onSkip(wallId)} shortcut="S" variant="ghost">
-        {LATER_LABEL}
-      </Button>
-      {deleteButton}
+      <div className="flex items-center gap-1.5">
+        <Button
+          aria-keyshortcuts="A"
+          aria-label={approveLabel}
+          className="flex-1"
+          onClick={() => onApprove(wallId)}
+          shortcut="A"
+          size="sm"
+          variant={canStandardize ? 'secondary' : 'primary'}
+        >
+          {approveLabel}
+        </Button>
+        {/* Phím S ở `title` (không ô phím): hàng 300 px đủ chỗ cho cả ba nút. */}
+        <Button aria-keyshortcuts="S" aria-label={LATER_LABEL} onClick={() => onSkip(wallId)} size="sm" title={`${LATER_LABEL} (S)`} variant="ghost">
+          {LATER_LABEL}
+        </Button>
+        {deleteButton}
+      </div>
+      {deleteConfirm}
     </>
   );
 }
