@@ -134,6 +134,7 @@ import {
   withInheritedWallStyle,
   type WallDrawSnap,
 } from './wallDrawSnap';
+import { planConnectedDraw, runWallCommands } from './wallDrawConnect';
 import { ROUTES } from '@/routes/paths';
 import { thicknessLockTextOf } from '@/lib/viewmodel/provisionalScale';
 import { useStore } from '@/store';
@@ -383,10 +384,10 @@ const WALL_UNDO_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.undoRefused';
 const WALL_MERGE_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.mergeRefused';
 /* `mergeWalls` (domain/walls/edit.ts) đòi thẳng hàng, cùng dày/loại/cao độ; khe hở bao nhiêu cũng được. */
 const WALL_MERGE_REFUSED_TEXT = 'Chỉ nối được hai đoạn thẳng hàng, cùng độ dày và cùng loại.';
-/** Tường vừa vẽ không bắt vào tường nào — 3D ẩn tường trôi (`orphanWallIds`), nên phải nói ngay. */
-const WALL_DRAWN_ALONE_NOTIFICATION_TYPE = 'wallLayerReview.drawnAlone';
-const WALL_DRAWN_ALONE_TEXT = 'Tường mới không nối với tường nào — có thể bị ẩn ở mô hình 3D';
-const WALL_DRAWN_ALONE_DESCRIPTION = 'Ctrl+Z để hoàn tác, rồi vẽ lại từ đầu hoặc thân một tường có sẵn.';
+/** Nét vẽ bị từ chối (không nối tường nào, quá ngắn…) — nói ngay, cả ở thanh trạng thái lẫn toast (#9). */
+const WALL_DRAW_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.drawRefused';
+const WALL_DRAW_REFUSED_TITLE = 'Chưa vẽ được tường';
+const isCommandList = <T extends object>(value: T | readonly T[]): value is readonly T[] => Array.isArray(value);
 /** Bán kính bắt điểm khi vẽ tường, tính bằng px MÀN (đổi ra mm theo mức phóng). */
 const DRAW_SNAP_SCREEN_PX = 12;
 /* UX41 U09: phím A/Delete/đổi độ dày khi tầng chưa có tỷ lệ không được im lặng — nói lý do + lối ra. */
@@ -943,6 +944,11 @@ export function useWallLayerReview(
        */
       const toolNow = toolStateRef.current;
 
+      /* Vẽ tường: bấm lên tường là một ĐIỂM của nét (onCanvasPoint), không chọn — chọn kéo khung nhìn tới tường đó, điểm cuối lệch. */
+      if (toolNow.tool === 'drawWall') {
+        return;
+      }
+
       if (
         toolNow.tool === 'splitWall' &&
         TOOLS[toolNow.tool].steps[toolNow.values.length]?.kind === 'entity'
@@ -1030,7 +1036,11 @@ export function useWallLayerReview(
   }, [canEdit, options.notifications, scaleLock.reason]);
 
   const run = useCallback(
-    async (build: (context: ReturnType<typeof commandContextOf>) => ReturnType<typeof buildApproveWallCommand> | null) => {
+    async (
+      build: (
+        context: ReturnType<typeof commandContextOf>,
+      ) => ReturnType<typeof buildApproveWallCommand> | readonly ReturnType<typeof buildApproveWallCommand>[] | null,
+    ) => {
       const current = useStore.getState().spatial;
 
       if (isScaleLocked) {
@@ -1048,7 +1058,10 @@ export function useWallLayerReview(
         return false;
       }
 
-      const result = await runWallCommand(command, dispatchBundle);
+      /* Một lô (vẽ + cắt chữ T) đi chung một bước hoàn tác. */
+      const result = isCommandList(command)
+        ? await runWallCommands(command, dispatchBundle, command[command.length - 1]?.description ?? '')
+        : await runWallCommand(command, dispatchBundle);
 
       if (result.ok) {
         invalidate();
@@ -1387,6 +1400,8 @@ export function useWallLayerReview(
   /** Số đo ĐÃ CHỐT của công cụ đo; `null` cho tới khi có một lượt đo thật. */
   const [committedMeasurement, setCommittedMeasurement] =
     useState<WallLayerMeasurementPx | null>(null);
+  /** Lý do nét vẽ vừa rồi không thành tường; hiện ở thanh trạng thái tới lần bấm kế. */
+  const [drawRefusal, setDrawRefusal] = useState<string | null>(null);
 
   /**
    * Một sự kiện của máy công cụ, và kết quả nó sinh ra.
@@ -1410,6 +1425,7 @@ export function useWallLayerReview(
       /* Đổi công cụ là bỏ cử chỉ đang dở — nhãn đo cũ đi theo nó. */
       if (event.type === 'activate' || event.type === 'cancel') {
         setCommittedMeasurement(null);
+        setDrawRefusal(null);
         drawSnapsRef.current = { start: null, end: null };
       }
 
@@ -1445,17 +1461,34 @@ export function useWallLayerReview(
       const snaps = drawSnapsRef.current;
       const joinedId = snaps.start?.wallId ?? snaps.end?.wallId ?? null;
       const source = joinedId === null ? null : (wallsRef.current.find((wall) => wall.id === joinedId) ?? null);
-      const isDraw = outcome.kind === 'command' && outcome.request.type === WALL_COMMAND_TYPES.draw;
+      const styled = withInheritedWallStyle(outcome, source);
 
       drawSnapsRef.current = { start: null, end: null };
 
-      void run((context) => toolOutcomeToCommand(withInheritedWallStyle(outcome, source), context)).then((ok) => {
-        if (ok && isDraw && joinedId === null) {
-          notifications.publish({
-            type: WALL_DRAWN_ALONE_NOTIFICATION_TYPE,
-            title: WALL_DRAWN_ALONE_TEXT,
-            description: WALL_DRAWN_ALONE_DESCRIPTION,
-          });
+      if (styled.kind !== 'command' || styled.request.type !== WALL_COMMAND_TYPES.draw) {
+        void run((context) => toolOutcomeToCommand(styled, context));
+
+        return transition;
+      }
+
+      /* Vẽ: phải nối vào tường có sẵn; đầu bắt vào thân tường thì cắt tường đó (chữ T) — một bước hoàn tác. */
+      const drawInput = styled.request.input;
+      let refusal: string | null = null;
+
+      void run((context) => {
+        const plan = planConnectedDraw(drawInput, snaps, context, () => toolContextRef.current.nextId('wall'));
+
+        if (!plan.ok) {
+          refusal = plan.reason;
+
+          return null;
+        }
+
+        return plan.commands;
+      }).then(() => {
+        if (refusal !== null) {
+          setDrawRefusal(refusal);
+          notifications.publish({ type: WALL_DRAW_REFUSED_NOTIFICATION_TYPE, title: WALL_DRAW_REFUSED_TITLE, description: refusal });
         }
       });
 
@@ -1520,6 +1553,7 @@ export function useWallLayerReview(
       const exact = toMillimetrePoint({ x: at.xPx, y: at.yPx }, scaleOfLevel(currentLevel));
 
       if (toolStateRef.current.tool === 'drawWall') {
+        setDrawRefusal(null);
         const snap = snapDrawPoint(exact, drawSnapTargetsRef.current, drawSnapRadiusMmRef.current);
         const isStart = toolStateRef.current.values.length === 0;
 
@@ -2380,13 +2414,13 @@ export function useWallLayerReview(
       cursorLabel: [toolHintOf(toolState.tool, toolState.values.length), cursorLabelOf(pointerReading, scaleOfLevel(level))]
         .filter((part) => part !== '')
         .join(' · '),
-      toolHint: toolHintOf(toolState.tool, toolState.values.length),
+      toolHint: drawRefusal ?? toolHintOf(toolState.tool, toolState.values.length),
       scaleLabel: formatScaleLabel(level),
       /* P02: tầng bị khoá lưu (xung đột/từ chối) thì "sẽ thử lưu lại" là sai — chỉ về dải báo phía trên. */
       saveLabel: saveBlock === null ? saveIndicator.label : SAVE_BLOCKED_LABEL,
       saveFailed: saveBlock !== null || saveIndicator.state === 'failed',
     }),
-    [level, pointerReading, saveBlock, saveIndicator.label, saveIndicator.state, toolState.tool, toolState.values.length],
+    [drawRefusal, level, pointerReading, saveBlock, saveIndicator.label, saveIndicator.state, toolState.tool, toolState.values.length],
   );
 
   /** Menu chuột phải "Đổi độ dày": đưa tường vào thanh tra, và focus vào ba lựa chọn (BUG-604). */

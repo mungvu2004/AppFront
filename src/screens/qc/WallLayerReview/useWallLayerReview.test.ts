@@ -84,6 +84,7 @@ import {
   WALL_LAYER_FIXTURE_TOTAL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
+import { WALL_DRAW_MUST_CONNECT_TEXT } from './wallDrawConnect';
 import { WALL_LAYER_REVIEW_SCENARIOS } from './wallLayerReviewScenarios';
 import type { WallThicknessChoice } from './types';
 
@@ -1173,13 +1174,13 @@ describe('công cụ đã nối dây', () => {
     await pressKey(mounted.registry, shortcutForTool('drawWall'));
     expect(mounted.result.current.toolRail.activeTool).toBe('drawWall');
 
-    /* Hai điểm nằm ngoài lưới bộ mẫu, nên tường mới không đụng nút giao nào. */
+    /* Đoạn bộ mẫu cố ý bỏ: x=5.000, y 2.200→4.400 — hai đầu là đỉnh có sẵn, chỉ dùng chung đỉnh. */
     await act(async () => {
-      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000, y: 20000 }));
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 5000, y: 2200 }));
       await Promise.resolve();
     });
     await act(async () => {
-      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400, y: 20000 }));
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 5000, y: 4400 }));
       await Promise.resolve();
     });
 
@@ -1203,11 +1204,11 @@ describe('công cụ đã nối dây', () => {
 
     await pressKey(mounted.registry, shortcutForTool('drawWall'));
     await act(async () => {
-      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000.4, y: 20000.6 }));
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 5000.4, y: 2200.6 }));
       await Promise.resolve();
     });
     await act(async () => {
-      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400.7, y: 20000.3 }));
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 5000.7, y: 4400.3 }));
       await Promise.resolve();
     });
     await waitFor(() => {
@@ -2103,7 +2104,9 @@ describe('vẽ tường nối vào tường có sẵn', () => {
 
   it('hai lần bấm gần thân/đầu tường bắt đúng toạ độ, tường mới lấy dày + loại của tường ở điểm đầu', async () => {
     const bus: NotificationBus = createNotificationBus();
-    const mounted = await mountSettled({ notifications: bus });
+    /* Một cổng giả cố định: bộ đếm mã của cổng dựng lại mỗi lượt vẽ sẽ trùng mã giữa tường vẽ và mảnh cắt. */
+    const gateway = createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH });
+    const mounted = await mountSettled({ notifications: bus, gateway });
     /* W-006: (0, 2200) → (2500, 2200), dày 175, vách ngăn. */
     const source = FIXTURE_WALLS.find((wall) => wall.centreline.start.x === 0 && wall.centreline.start.y === 2200 && wall.centreline.end.y === 2200) as Wall;
 
@@ -2118,28 +2121,42 @@ describe('vẽ tường nối vào tường có sẵn', () => {
       mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 2501.6, y: 4401.3 }));
       await Promise.resolve();
     });
+    /* Đầu bắt vào THÂN W-006 → W-006 bị cắt tại (1250, 2200): tường vẽ + mảnh thứ hai. */
     await waitFor(() => {
-      expect(newWalls()).toHaveLength(1);
+      expect(newWalls()).toHaveLength(2);
     });
 
-    const drawn = newWalls()[0] as Wall;
+    const drawn = newWalls().find((wall) => wall.centreline.end.y === 4400) as Wall;
 
     expect(drawn.centreline.start).toEqual({ x: 1250, y: 2200 });
     expect(drawn.centreline.end).toEqual({ x: 2500, y: 4400 });
     expect(drawn.thicknessMm).toBe(source.thicknessMm);
     expect(drawn.kind).toBe(source.kind);
     expect(drawn.heightMm).toBe(source.heightMm);
-    /* Nối được thì không có toast "không nối với tường nào". */
-    expect(bus.list().map((item) => item.title)).not.toContain(
-      'Tường mới không nối với tường nào — có thể bị ẩn ở mô hình 3D',
-    );
+    /* Nối được thì không có toast từ chối. */
+    expect(bus.list().map((item) => item.title)).not.toContain('Chưa vẽ được tường');
 
     mounted.unmount();
   });
 
-  it('tường đứng trơ vẫn được vẽ nhưng có toast cảnh báo', async () => {
+  it('bấm lên tường khi đang vẽ không chọn tường (chọn sẽ kéo khung nhìn đi giữa hai lần bấm)', async () => {
+    const mounted = await mountSettled();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onSelect(wallAt(5).id);
+      await Promise.resolve();
+    });
+
+    expect(useStore.getState().selectedIds).toHaveLength(0);
+
+    mounted.unmount();
+  });
+
+  it('#9: tường đứng trơ KHÔNG được vẽ — câu lý do ở thanh trạng thái và toast, công cụ vẽ vẫn bật', async () => {
     const bus: NotificationBus = createNotificationBus();
     const mounted = await mountSettled({ notifications: bus });
+    const before = wallCount();
 
     await pressKey(mounted.registry, shortcutForTool('drawWall'));
     await act(async () => {
@@ -2151,13 +2168,66 @@ describe('vẽ tường nối vào tường có sẵn', () => {
       await Promise.resolve();
     });
     await waitFor(() => {
-      expect(newWalls()).toHaveLength(1);
+      expect(mounted.result.current.statusBar.toolHint).toBe(WALL_DRAW_MUST_CONNECT_TEXT);
+    });
+
+    expect(wallCount()).toBe(before);
+    expect(bus.list().map((item) => item.title)).toContain('Chưa vẽ được tường');
+    expect(mounted.result.current.toolRail.activeTool).toBe('drawWall');
+
+    /* Bấm điểm kế là bắt đầu nét mới — câu lý do nhường chỗ cho chỉ dẫn. */
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 5000, y: 2200 }));
+      await Promise.resolve();
+    });
+    expect(mounted.result.current.statusBar.toolHint).toContain('Bấm điểm cuối của tường');
+
+    mounted.unmount();
+  });
+
+  it('#5: hai đầu bắt vào THÂN hai tường → cả hai bị cắt (chữ T), PUT hợp lệ, một Ctrl+Z gỡ hết', async () => {
+    const apiClient = createMockApiClient();
+    const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
+    const gateway = createMockWallLayerReviewGateway({ apiClient, graph: FIXTURE_GRAPH });
+    const mounted = await mountSettled({ gateway });
+    const before = wallCount();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      /* Thân W-006 (y=2.200) và thân W-011 (y=4.400), lệch vài mm như chuột thật. */
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 1250.3, y: 2203.1 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 1249.6, y: 4398.2 }));
+      await Promise.resolve();
     });
     await waitFor(() => {
-      expect(bus.list().map((item) => item.title)).toContain(
-        'Tường mới không nối với tường nào — có thể bị ẩn ở mô hình 3D',
-      );
+      expect(wallCount()).toBe(before + 3);
     });
+
+    const spatial = useStore.getState().spatial;
+    const walls = (spatial?.byKind.wall ?? []).map((id) => spatial?.byId[id] as Wall);
+    const w006 = walls.find((wall) => wall.id === wallAt(5).id) as Wall;
+    const w011 = walls.find((wall) => wall.id === wallAt(10).id) as Wall;
+
+    expect(w006.centreline.end).toEqual({ x: 1250, y: 2200 });
+    expect(w011.centreline.end).toEqual({ x: 1250, y: 4400 });
+    expect(walls.some((wall) => wall.centreline.start.x === 1250 && wall.centreline.start.y === 2200 && wall.centreline.end.y === 4400)).toBe(true);
+
+    await act(async () => {
+      await flushAutosaves();
+    });
+    const sent = writeLayer.mock.calls[writeLayer.mock.calls.length - 1]?.[0] as unknown as { baseVersion: number; body: unknown };
+    const parsed = FloorLayerWriteSchema.safeParse({ baseVersion: sent.baseVersion, body: sent.body });
+    expect(parsed.success ? [] : parsed.error.issues, 'PUT body passes the write schema').toEqual([]);
+
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+    await waitFor(() => {
+      expect(wallCount()).toBe(before);
+    });
+    const restored = useStore.getState().spatial?.byId[wallAt(5).id] as Wall;
+    expect(restored.centreline.end).toEqual(wallAt(5).centreline.end);
 
     mounted.unmount();
   });
