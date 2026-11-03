@@ -117,23 +117,41 @@ export function compensate(target: readonly number[], mean: readonly number[]): 
 
 const meanCache = new Map<string, [number, number, number]>();
 
-/** null = ảnh chưa nạp. */
-function textureMean(tex: Texture): [number, number, number] | null {
+/** Nguồn `drawImage` vẽ được; ảnh KTX2/nén (`{width,height,mipmaps}`), DataTexture (`{data,…}`) thì không. */
+function drawable(img: unknown): img is CanvasImageSource {
+  return (
+    (typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement) ||
+    (typeof HTMLCanvasElement !== 'undefined' && img instanceof HTMLCanvasElement) ||
+    (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap) ||
+    (typeof OffscreenCanvas !== 'undefined' && img instanceof OffscreenCanvas)
+  );
+}
+
+/**
+ * Trung bình tuyến tính của ảnh vân; null = ảnh chưa nạp. Ảnh không vẽ được lên canvas (vân nén KTX2,
+ * ảnh hỏng) → [1,1,1] (màu = đích) thay vì để `drawImage` ném TypeError trong lúc dựng đồ vật
+ * (ErrorBoundary item-model bỏ cả món). DataTexture RGBA 8 bit đọc thẳng từ `data`.
+ */
+export function textureMean(tex: Texture): [number, number, number] | null {
   const hit = meanCache.get(tex.uuid);
   if (hit) return hit;
-  const img = tex.image as CanvasImageSource & { width?: number; complete?: boolean } | undefined;
+  const img = tex.image as { width?: number; complete?: boolean; data?: unknown } | null | undefined;
   if (!img?.width || img.complete === false || typeof document === 'undefined') return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = MEAN_SAMPLE_PX;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  ctx.drawImage(img, 0, 0, MEAN_SAMPLE_PX, MEAN_SAMPLE_PX);
-  let mean: [number, number, number];
-  try {
-    mean = meanLinear(ctx.getImageData(0, 0, MEAN_SAMPLE_PX, MEAN_SAMPLE_PX).data);
-  } catch {
-    // Ảnh khác nguồn không CORS → canvas bị "bẩn", không đọc được: coi trung bình = 1 (màu = đích).
-    mean = [1, 1, 1];
+  let mean: [number, number, number] = [1, 1, 1];
+  const data = img.data;
+  if (data instanceof Uint8Array || data instanceof Uint8ClampedArray) {
+    mean = meanLinear(data);
+  } else if (drawable(img)) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = MEAN_SAMPLE_PX;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    try {
+      ctx.drawImage(img, 0, 0, MEAN_SAMPLE_PX, MEAN_SAMPLE_PX);
+      mean = meanLinear(ctx.getImageData(0, 0, MEAN_SAMPLE_PX, MEAN_SAMPLE_PX).data);
+    } catch {
+      // Ảnh hỏng, hoặc khác nguồn không CORS (canvas "bẩn") → coi trung bình = 1 (màu = đích).
+    }
   }
   meanCache.set(tex.uuid, mean);
   return mean;
