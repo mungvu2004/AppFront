@@ -21,6 +21,7 @@ import {
   isHuge,
   isSceneReady,
   isSelectionCardShown,
+  isDialogOpen,
   markDone,
   placeCard,
   resolveAnchor,
@@ -138,6 +139,7 @@ function useSelectionCardShown(active: boolean): boolean {
     const check = () =>
       setShown(
         isSelectionCardShown(document) ||
+          isDialogOpen(document) ||
           !hintFits(window.innerWidth, getComputedStyle(document.documentElement).getPropertyValue('--appfront-viewer-left')),
       );
     check();
