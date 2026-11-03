@@ -25,7 +25,11 @@ export interface SceneStyle {
   readonly id: SceneStyleId;
   /** Tên hiển thị tiếng Việt. */
   readonly label: string;
-  /** Tham chiếu vật liệu sàn theo `finish`. */
+  /**
+   * Tham chiếu vật liệu sàn theo `finish`. `tile` là gạch/đá khổ lớn của khu sinh hoạt chung
+   * (khách, bếp, hành lang — `sceneDressing.USAGE_FINISH`), `mosaic` là gạch chống trơn WC/lô gia,
+   * `wood` là sàn phòng ngủ: ba khoá phải là ba vật liệu khác nhau.
+   */
   readonly floor: Readonly<Record<RoomFinish, string>>;
   readonly wall: { readonly interior: string; readonly exterior: string };
   readonly families: Readonly<Record<SlotFamily, string>>;

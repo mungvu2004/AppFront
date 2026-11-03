@@ -8,6 +8,7 @@ import { AdditiveBlending, CircleGeometry, Group, MathUtils, Mesh, type Object3D
 import { color, float, uv } from 'three/tsl';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 
+import { lowCutOn } from './cutSync';
 import { ITEM_LIGHT_SCALE, itemLightIntensity } from './itemLights';
 import { useRealism } from './store';
 
@@ -111,7 +112,8 @@ export function syncRecessedHalos(
     }
     object.getWorldPosition(_pos);
     halo.position.set(_pos.x, _pos.y - 0.004, _pos.z);
-    const level = shown(object) && src.isEligible() ? haloLevel(src.getIntensity(), sceneTheme) : 0;
+    // Cắt thấp: trần đã bị cắt → không còn mặt trần nào để hắt quầng (đèn vẫn sáng).
+    const level = shown(object) && src.isEligible() && !lowCutOn() ? haloLevel(src.getIntensity(), sceneTheme) : 0;
     const target = level * HALO_STRENGTH;
     if (level > 0) halo.scale.setScalar(haloRadius(level));
     const mat = halo.material as MeshBasicNodeMaterial;

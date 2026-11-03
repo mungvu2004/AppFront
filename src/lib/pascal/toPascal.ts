@@ -368,8 +368,12 @@ const openingPositionOf = (opening: Opening): PascalVec3 => [
   0,
 ];
 
-/** Góc hé cánh bản lề (~70°) để cửa đọc ra là cửa, không phải mảng tường. */
-const DOOR_SWING_ANGLE = 1.22;
+/**
+ * Góc hé cánh bản lề (30°): đủ để cửa đọc ra là cửa, không phải mảng tường. 70° cũ để cánh 0,8 m
+ * chìa ~0,75 m vào phòng; ở chế độ "Tường: cắt" (cắt 1 m) nó thành tấm đứng chéo giữa phòng —
+ * lỗi "cửa xoay lệch" người chấm bench-3d r3 nêu ở 24 ca, dù phía mở đúng luật ở 399/411 cửa.
+ */
+const DOOR_SWING_ANGLE = Math.PI / 6;
 
 /**
  * Cách mở cánh của AppFront, diễn sang các trường rời của Pascal. Mọi trường
