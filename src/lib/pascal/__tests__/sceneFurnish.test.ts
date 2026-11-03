@@ -77,8 +77,8 @@ const realSofa = (roomId: string, cx: number, cy: number): Furniture =>
     rotationDeg: 0,
   }) as Furniture;
 
-/** Món nằm chồng trên dãy tủ (tủ treo, chậu, mặt bếp mỏng): không xét chồng/vùng mở. */
-const STACKED = new Set(['upperRun', 'sink', 'hob']);
+/** Món nằm chồng trên món khác (tủ treo, chậu, mặt bếp mỏng, TV trên kệ): không xét chồng/vùng mở. */
+const STACKED = new Set(['upperRun', 'sink', 'hob', 'tv']);
 
 /** Mọi món sinh ra: trong outline lùi 100, cách nhau ≥ 50, không lấn vùng mở cửa. */
 const expectValid = (graph: SpatialGraph, all_: readonly Furniture[]): void => {
@@ -394,10 +394,10 @@ describe('furnishEmptyRooms', () => {
     expectValid(graph, items);
   });
 
-  it('phòng khách trống → sofa + bàn nước + đèn cây + bàn phụ cạnh sofa; đủ ~1 món / 4 m²', () => {
+  it('phòng khách trống (tầng có bếp riêng) → sofa + bàn nước + đèn cây + bàn phụ cạnh sofa; đủ ~1 món / 4 m²', () => {
     const r = square('R-LV', 'livingRoom', 0, 5000, 4000);
-    const graph = graphOf([r]);
-    const items = furnishEmptyRooms(graph, style);
+    const graph = graphOf([r, square('R-KX', 'kitchen', 6000, 3000, 3000)]);
+    const items = furnishEmptyRooms(graph, style).filter((f) => f.roomId === 'R-LV');
     const variants = items.map((f) => f.variant);
     expect(variants).toEqual(expect.arrayContaining(['sofa', 'floorLamp', 'sideTable']));
     expect(items.filter((f) => (f.liftMm ?? 0) === 0).length).toBeGreaterThanOrEqual(5);
