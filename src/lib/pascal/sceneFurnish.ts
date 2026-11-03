@@ -94,8 +94,18 @@ const RUN_HOB_MIN_MM = 1600;
 /** Lối đi giữa hai cửa (rộng) và chỗ kéo ghế quanh bàn ăn (mỗi phía). */
 const DOOR_PATH_MM = 900;
 const CHAIR_CLEAR_MM = 600;
-/** Phòng tắm từ mức này có thêm khu tắm vòi sen. */
-const SHOWER_MIN_M2 = 3;
+/** Phòng tắm từ mức này có thêm khu tắm vòi sen (góc tắm nhỏ 800 khi 900 không vừa). */
+const SHOWER_MIN_M2 = 2;
+/**
+ * Phòng 'other'/hành lang rộng từ mức này (m², cạnh ngắn hình chữ nhật trong lớn nhất mm) là
+ * phòng sinh hoạt bị gọi chung: bày như phòng khách (khu khách + khu ăn) thay vì để trống.
+ */
+const OPEN_LIVING_MIN_M2 = 25;
+const OPEN_LIVING_MIN_SHORT_MM = 2400;
+/** Khoảng trống sau lưng ghế ăn tới đồ khác (lối đi, chỗ đứng trước tủ bếp). */
+const DINING_BACK_CLEAR_MM = 600;
+/** Vùng xem TV trước sofa khi chưa có TV (sâu, mm). */
+const SOFA_VIEW_MM = 3000;
 /** Chậu dọc lan can: khe giữa hai chậu, tối đa số chậu mỗi phòng. */
 const PLANTER_SPACING_MM = 400;
 const MAX_PLANTERS = 6;
@@ -148,6 +158,7 @@ const HOB: Piece = { role: 'hob', kind: 'other', variant: 'hob', w: 600, d: 500,
 const WC: Piece = { role: 'wc', kind: 'sanitaryFixture', variant: 'wc', w: 400, d: 700 };
 const BASIN: Piece = { role: 'basin', kind: 'sanitaryFixture', variant: 'basin', w: 600, d: 450 };
 const SHOWER: Piece = { role: 'shower', kind: 'shower', variant: 'shower', w: 900, d: 900 };
+const SMALL_SHOWER: Piece = { ...SHOWER, w: 800, d: 800 };
 // Không variant: thiết bị vệ sinh dài ≥ 1,4 m → vai trò bồn tắm (sceneVariety, mẫu `bathtub`).
 const BATHTUB: Piece = { role: 'bathtub', kind: 'sanitaryFixture', w: 1700, d: 750 };
 // Bù mật độ: tủ thấp làm tủ chén ở phòng khách; hành lang có bàn console nông + ghế băng.
@@ -167,6 +178,10 @@ interface RankedEdge {
 
 interface Ctx {
   readonly room: Room;
+  /** Công năng lưu trong đồ thị (khác `room.usage` khi phòng 'other' rộng được bày như phòng khách). */
+  readonly storedUsage: Room['usage'];
+  /** Outline (mm) các phòng khác cùng tầng: đồ của phòng này không đứng (tâm) trong phòng khác. */
+  readonly others: readonly (readonly PointMm[])[];
   readonly swings: readonly Rect[];
   /** Thân tường cùng tầng (wallRects). */
   readonly walls: readonly Rect[];
@@ -268,6 +283,8 @@ const place = (ctx: Ctx, piece: Piece, at: Point, rotationDeg: number, n?: numbe
   const rect = rectOfFurniture(item);
   const valid =
     rectInsidePolygon(rect, ctx.room.outline, INSET_MM) &&
+    // Outline hai phòng chồng nhau (dò phòng lệch): không bày đồ của phòng này vào phòng kia.
+    !ctx.others.some((outline) => outlineContains(outline, toMm(item.centre))) &&
     !ctx.taken.some((other) => rectsOverlap(rect, other, GAP_MM)) &&
     !ctx.swings.some((swing) => rectsOverlap(rect, swing)) &&
     // Kể cả tường ngăn không nằm trên outline (bàn bếp F1 từng xuyên tường đông).
@@ -416,7 +433,7 @@ const furnishLiving = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
     const coffee = place(
       ctx,
       // Bếp mở: roleOf không đoán bàn thấp trong bếp là bàn trà (C2) → nói rõ bằng variant `table` thấp.
-      ctx.room.usage === 'livingRoom' ? COFFEE_TABLE : { ...COFFEE_TABLE, variant: 'table' },
+      ctx.storedUsage === 'livingRoom' ? COFFEE_TABLE : { ...COFFEE_TABLE, variant: 'table' },
       { x: sofa.centre.x + n.x * reach, y: sofa.centre.y + n.y * reach },
       spot.rotationDeg,
     );
@@ -473,9 +490,33 @@ const rectDistance = (p: Point, r: Rect): number => {
   return Math.hypot(lx, ly);
 };
 
+/** Vùng xem TV của bộ sofa đã sinh trong phòng: từ sofa tới TV (chưa có TV: sâu 3 m), rộng bằng sofa. */
+const viewZones = (ctx: Ctx): Rect[] => {
+  const mine = ctx.out.filter((f) => f.roomId === ctx.room.id);
+  const tv = mine.find((f) => f.variant === 'tv');
+  return mine
+    .filter((f) => f.variant === 'sofa')
+    .map((sofa) => {
+      const [, front] = axesOf(sofa.rotationDeg);
+      const depth = tv === undefined
+        ? SOFA_VIEW_MM
+        : Math.max(0, (tv.centre.x - sofa.centre.x) * front.x + (tv.centre.y - sofa.centre.y) * front.y);
+      return {
+        cx: sofa.centre.x + (front.x * depth) / 2,
+        cy: sofa.centre.y + (front.y * depth) / 2,
+        w: SOFA.w,
+        d: depth,
+        rotationDeg: sofa.rotationDeg,
+      };
+    });
+};
+
 /**
- * Bàn ăn ở chỗ thoáng nhất: quét lưới 200 mm các tâm trong phòng, chọn tâm xa tường/đồ nhất
- * (hoà thì x nhỏ rồi y nhỏ), cạnh dài song song cạnh dài nhất của phòng; tối đa 4 ghế quanh bàn.
+ * Bàn ăn gần tường chứ không trôi giữa phòng: quét lưới 200 mm các tâm trong phòng, lấy tâm GẦN
+ * tường nhất mà bàn + ghế hai phía vẫn vừa (sau lưng ghế còn 600 mm tới đồ khác), ngoài lối đi giữa
+ * các cửa và vùng xem TV trước sofa; hoà thì gần dãy tủ bếp, rồi xa đồ khác. Không chỗ nào đủ cả bộ
+ * ghế thì lùi về cách cũ: tâm xa tường/đồ nhất, ghế nào vừa thì đặt. Cạnh dài song song cạnh dài
+ * nhất của phòng; tối đa 4 ghế quanh bàn.
  */
 const furnishDining = (ctx: Ctx, edges: readonly RankedEdge[], small = false): boolean => {
   const tablePiece = small ? SMALL_TABLE : DINING_TABLE;
@@ -483,17 +524,33 @@ const furnishDining = (ctx: Ctx, edges: readonly RankedEdge[], small = false): b
   const outlineMm = outline.map(toMm);
   const xs = outline.map((p) => p.x);
   const ys = outline.map((p) => p.y);
-  const candidates: { at: Point; score: number }[] = [];
+  const kitchen = ctx.out.filter((f) => f.roomId === ctx.room.id && f.variant === 'baseRun').map(rectOfFurniture);
+  const candidates: { at: Point; score: number; wall: number; item: number; cook: number }[] = [];
   for (let x = Math.ceil(Math.min(...xs) / GRID_MM) * GRID_MM; x <= Math.max(...xs); x += GRID_MM) {
     for (let y = Math.ceil(Math.min(...ys) / GRID_MM) * GRID_MM; y <= Math.max(...ys); y += GRID_MM) {
       const at = { x, y };
       if (!outlineContains(outlineMm, toMm(at))) continue;
-      const walls = outline.map((a, i) => segmentDistance(at, a, outline[(i + 1) % outline.length] as Point));
-      const score = Math.min(...walls, ...ctx.taken.map((r) => rectDistance(at, r)));
-      if (score > tablePiece.d / 2) candidates.push({ at, score });
+      const wall = Math.min(...outline.map((a, i) => segmentDistance(at, a, outline[(i + 1) % outline.length] as Point)));
+      const item = Math.min(Infinity, ...ctx.taken.map((r) => rectDistance(at, r)));
+      const cook = Math.min(Infinity, ...kitchen.map((r) => rectDistance(at, r)));
+      const score = Math.min(wall, item);
+      if (score > tablePiece.d / 2) candidates.push({ at, score, wall, item, cook });
     }
   }
   candidates.sort((p, q) => q.score - p.score || p.at.x - q.at.x || p.at.y - q.at.y);
+  // Bàn + ghế hai phía: nửa sâu bàn + khe + ghế, cộng mức lùi tường / lối sau lưng ghế.
+  const seated = tablePiece.d / 2 + GAP_MM + SLACK_MM + CHAIR.d;
+  const nearWall = candidates
+    .filter((c) => c.wall >= seated + INSET_MM && c.item >= seated + DINING_BACK_CLEAR_MM)
+    .sort(
+      (p, q) =>
+        Math.floor(p.wall / GRID_MM) - Math.floor(q.wall / GRID_MM) ||
+        p.cook - q.cook ||
+        q.item - p.item ||
+        p.at.x - q.at.x ||
+        p.at.y - q.at.y,
+    );
+  const views = viewZones(ctx);
 
   // Lối đi 900 mm nối tâm từng cặp cửa đi của phòng: bàn + chỗ kéo ghế không được chắn.
   const doors = edges.flatMap(({ edge }) => {
@@ -512,10 +569,10 @@ const furnishDining = (ctx: Ctx, edges: readonly RankedEdge[], small = false): b
       rotationDeg: (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI,
     })),
   );
-  const blocksPath = (at: Point, rotationDeg: number): boolean => {
+  const blocksPath = (at: Point, rotationDeg: number, keepView: boolean): boolean => {
     const w = tablePiece.w + 2 * CHAIR_CLEAR_MM;
     const d = tablePiece.d + 2 * CHAIR_CLEAR_MM;
-    return paths.some((path) => rectsOverlap({ cx: at.x, cy: at.y, w, d, rotationDeg }, path));
+    return [...paths, ...(keepView ? views : [])].some((path) => rectsOverlap({ cx: at.x, cy: at.y, w, d, rotationDeg }, path));
   };
 
   const longest = [...edges].sort((p, q) => q.edge.lengthMm - p.edge.lengthMm)[0]?.edge;
@@ -534,20 +591,29 @@ const furnishDining = (ctx: Ctx, edges: readonly RankedEdge[], small = false): b
         [1, 1],
       ] as const);
 
-  for (const { at } of candidates) {
-    for (const rotationDeg of [along, turn(along, 90)]) {
-      if (blocksPath(at, rotationDeg)) continue;
-      const table = place(ctx, tablePiece, at, rotationDeg);
-      if (table === null) continue;
-      const [ex, ey] = axesOf(rotationDeg);
-      const ly = tablePiece.d / 2 + GAP_MM + SLACK_MM + CHAIR.d / 2;
-      seats.forEach(([sx, sy], i) => {
-        const lx = (sx * tablePiece.w) / 4;
-        const seat = { x: table.centre.x + ex.x * lx + ey.x * sy * ly, y: table.centre.y + ex.y * lx + ey.y * sy * ly };
-        // Ghế phía −y quay +y vào bàn; phía +y quay ngược lại.
-        place(ctx, CHAIR, seat, sy < 0 ? rotationDeg : turn(rotationDeg, 180), i + 1);
-      });
-      return true;
+  // Phòng chật: thà bàn đứng trong vùng xem TV còn hơn không có bàn (lượt cuối như trước).
+  for (const [list, allSeats, keepView] of [
+    [nearWall, true, true],
+    [candidates, false, true],
+    [candidates, false, false],
+  ] as const) {
+    for (const { at } of list) {
+      for (const rotationDeg of [along, turn(along, 90)]) {
+        if (blocksPath(at, rotationDeg, keepView)) continue;
+        const mark = ctx.out.length;
+        const table = place(ctx, tablePiece, at, rotationDeg);
+        if (table === null) continue;
+        const [ex, ey] = axesOf(rotationDeg);
+        const ly = tablePiece.d / 2 + GAP_MM + SLACK_MM + CHAIR.d / 2;
+        const placed = seats.filter(([sx, sy], i) => {
+          const lx = (sx * tablePiece.w) / 4;
+          const seat = { x: table.centre.x + ex.x * lx + ey.x * sy * ly, y: table.centre.y + ex.y * lx + ey.y * sy * ly };
+          // Ghế phía −y quay +y vào bàn; phía +y quay ngược lại.
+          return place(ctx, CHAIR, seat, sy < 0 ? rotationDeg : turn(rotationDeg, 180), i + 1) !== null;
+        }).length;
+        if (!allSeats || placed === seats.length) return true;
+        while (ctx.out.length > mark) unplaceLast(ctx);
+      }
     }
   }
   return false;
@@ -656,24 +722,42 @@ const furnishKitchenRun = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
  */
 const furnishBathroom = (ctx: Ctx, edges: readonly RankedEdge[], areaM2: number): void => {
   const spans = allSpans(edges.map(({ edge }) => edge));
-  alongWall(ctx, spans, WC, undefined, true);
-  alongWall(ctx, spans, BASIN);
-  if (areaM2 < SHOWER_MIN_M2) return;
-  const corners = spans
-    .flatMap(({ edge, span }) =>
-      lengthOf(span) < SHOWER.w ? [] : endsOf(span, SHOWER.w / 2).map((t) => againstEdge(edge, t, SHOWER)),
-    )
-    .map((spot) => ({ spot, far: Math.min(Infinity, ...ctx.swings.map((r) => rectDistance(spot.at, r))) }))
-    // Sắp ổn định: hoà khoảng cách thì giữ thứ tự đoạn.
-    .sort((p, q) => q.far - p.far);
-  corners.some(({ spot }) => place(ctx, SHOWER, spot.at, spot.rotationDeg) !== null);
+  // Dò tường thiếu (vách kính, khe tường): đoạn không tường là lựa chọn cuối, còn hơn phòng tắm trống.
+  const open = allSpans(
+    edges.map(({ edge }) => edge),
+    true,
+  );
+  // Thiết bị nào cũng ưu tiên góc (chừa giữa tường cho món sau), rồi giữa đoạn, rồi đoạn không tường.
+  const fixture = (piece: Piece): Furniture | null =>
+    alongWall(ctx, spans, piece, undefined, true)?.item ??
+    alongWall(ctx, spans, piece)?.item ??
+    alongWall(ctx, open, piece)?.item ??
+    null;
+  fixture(WC);
+  fixture(BASIN);
+  // Bồn tắm (phòng đủ rộng) đã là chỗ tắm: không thêm khu sen giành chỗ.
+  if (furnishBathtub(ctx, edges) || areaM2 < SHOWER_MIN_M2) return;
+  for (const shower of [SHOWER, SMALL_SHOWER]) {
+    const corners = [spans, open]
+      .flatMap((list) =>
+        list.flatMap(({ edge, span }) =>
+          lengthOf(span) < shower.w ? [] : endsOf(span, shower.w / 2).map((t) => againstEdge(edge, t, shower)),
+        ),
+      )
+      .map((spot) => ({ spot, far: Math.min(Infinity, ...ctx.swings.map((r) => rectDistance(spot.at, r))) }))
+      // Sắp ổn định: hoà khoảng cách thì giữ thứ tự đoạn.
+      .sort((p, q) => q.far - p.far);
+    if (corners.some(({ spot }) => place(ctx, shower, spot.at, spot.rotationDeg) !== null)) return;
+  }
+  // Không góc nào trống (bồn cầu, lavabo đã chiếm hai góc): khu sen nhỏ giữa một đoạn tường.
+  fixture(SMALL_SHOWER);
 };
 
 /** Bồn tắm dọc đoạn tường còn trống khi cạnh ngắn của phòng ≥ 1,7 m (sau thiết bị chính). */
-const furnishBathtub = (ctx: Ctx, edges: readonly RankedEdge[]): void => {
+const furnishBathtub = (ctx: Ctx, edges: readonly RankedEdge[]): boolean => {
   const inner = computeLargestInnerRectangle(ctx.room.outline.map(toMm));
-  if (inner === null || Math.min(inner.widthMm, inner.heightMm) < BATHTUB_MIN_SHORT_MM) return;
-  alongWall(ctx, allSpans(edges.map(({ edge }) => edge)), BATHTUB, undefined, true);
+  if (inner === null || Math.min(inner.widthMm, inner.heightMm) < BATHTUB_MIN_SHORT_MM) return false;
+  return alongWall(ctx, allSpans(edges.map(({ edge }) => edge)), BATHTUB, undefined, true) !== null;
 };
 
 interface FillEntry {
@@ -760,6 +844,18 @@ const isRug = (f: Furniture): boolean => {
 /** Ngoài trời: lát decking hoặc tên ban công/sân hiên — không bày đồ trong nhà. */
 const isOutdoor = (room: Room): boolean => room.finish === 'decking' || OUTDOOR_NAME.test(room.name);
 
+/**
+ * Phòng 'other'/hành lang trong nhà, rộng (≥ 25 m², cạnh ngắn ≥ 2,4 m): thực chất là phòng sinh
+ * hoạt chưa gọi tên — bày như phòng khách (sofa + TV + khu ăn) thay vì phòng đọc lẻ loi hay để trống.
+ */
+const isOpenLiving = (room: Room): boolean => {
+  if ((room.usage !== 'other' && room.usage !== 'corridor') || isOutdoor(room)) return false;
+  const outline = room.outline.map(toMm);
+  if (computeArea(outline) < OPEN_LIVING_MIN_M2) return false;
+  const inner = computeLargestInnerRectangle(outline);
+  return inner !== null && Math.min(inner.widthMm, inner.heightMm) >= OPEN_LIVING_MIN_SHORT_MM;
+};
+
 /** Món đứng trên sàn được tính vào mật độ: không thảm, không treo/đặt trên món khác. */
 const standsOnFloor = (f: Furniture): boolean => !isRug(f) && (f.liftMm ?? 0) <= 0;
 
@@ -767,7 +863,10 @@ const standsOnFloor = (f: Furniture): boolean => !isRug(f) && (f.liftMm ?? 0) <=
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): readonly Furniture[] => {
   const out: Furniture[] = [];
-  const rooms = [...graph.rooms].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
+  const stored = new Map(graph.rooms.map((r) => [r.id, r.usage]));
+  const rooms = [...graph.rooms]
+    .map((r) => (isOpenLiving(r) ? { ...r, usage: 'livingRoom' as const } : r))
+    .sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
   const outlinesMm = new Map(rooms.map((r) => [r.id, r.outline.map(toMm)]));
   const inRoom = (f: Furniture, room: Room): boolean =>
     f.roomId === room.id ||
@@ -827,6 +926,8 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
 
     const ctx: Ctx = {
       room,
+      storedUsage: stored.get(room.id) ?? room.usage,
+      others: rooms.filter((r) => r.levelId === room.levelId && r.id !== room.id).map((r) => outlinesMm.get(r.id) ?? []),
       swings: doorSwingRects(graph, room.levelId),
       walls: wallRects(graph, room.levelId),
       clearSpans: allSpans(edgesOf(room, graph)),
@@ -845,10 +946,7 @@ export const furnishEmptyRooms = (graph: SpatialGraph, _style: SceneStyle): read
     }
     if (needsOther) furnishStudy(ctx, edges);
     if (needsOutdoor) furnishOutdoor(ctx, edges, areaM2);
-    if (needsBath) {
-      furnishBathroom(ctx, edges, areaM2);
-      furnishBathtub(ctx, edges);
-    }
+    if (needsBath) furnishBathroom(ctx, edges, areaM2);
     if (needsFill) {
       const mine = (): Furniture[] => [...real, ...out.filter((f) => f.roomId === room.id)];
       if (room.usage === 'bedroom' && areaM2 >= BEDROOM_EXTRAS_MIN_M2) {
