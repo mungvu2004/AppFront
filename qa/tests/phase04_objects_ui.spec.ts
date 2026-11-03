@@ -24,6 +24,7 @@ import {
   at,
   attempt,
   chip,
+  openSubtypeMenu,
   closeSession,
   deferred,
   treeItem,
@@ -121,6 +122,7 @@ test('SCR-17 · FL-17-U1 objects states on one project', async ({ browser }) => 
     await test.step('[17-F-003] "Lọc theo loại" chip on · 4 widths', async () => {
       await verifyUi(page, 'U04_17-F-003_chip_on', async (p) => {
         await openFloor(pid, q1)(p);
+        await openSubtypeMenu(p);
         await chip(p, 'Cửa đơn').click();
         await expect.soft(chip(p, 'Cửa đơn')).toHaveAttribute('aria-pressed', 'true');
       });
@@ -277,6 +279,7 @@ test('SCR-17 · FL-17-U2 [mocked response] viewer, loading, narrow layout, canva
     await test.step('[17-E-020] Focus ring visible on rows, chips, eye and rail buttons', async () => {
       await page.setViewportSize({ width: 1440, height: 900 });
       await openObjects(page, pid, fid);
+      await openSubtypeMenu(page); // chips live in "Lọc"
       await page.keyboard.press('Tab'); // keyboard modality: a scripted focus() then matches :focus-visible
       const targets = {
         row: optionOf(page, '#D-001'),

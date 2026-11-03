@@ -60,6 +60,7 @@ test('bơm hai gợi ý: nét đứt + nhãn, nhận tất cả, kéo vẽ một
   await expect(page.locator('svg text', { hasText: 'Gợi ý' })).toHaveCount(2);
   await page.screenshot({ path: testInfo.outputPath('s13-suggestions-1440.png') });
 
+  await page.locator('summary', { hasText: '2 gợi ý của máy đang chờ' }).click(); // the bar is folded by default
   await page.getByRole('button', { name: 'Nhận tất cả gợi ý' }).click();
   await expect(page.getByText('2 gợi ý của máy đang chờ')).toHaveCount(0);
   await expect(page.locator('svg text', { hasText: 'Gợi ý' })).toHaveCount(0);

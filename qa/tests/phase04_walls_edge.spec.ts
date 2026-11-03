@@ -1494,21 +1494,24 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         expect.soft(all.right, 'every wall right of the fit').toBeLessThanOrEqual(all.frame.x + all.frame.width + 1);
       });
 
-      await test.step('[16-A-073] The F key fits the selected wall (or the whole layer)', async () => {
+      /* L23 (7b3bb681): F switches the view mode — Tổng thể fits every wall, Từng việc fits the selected wall. "Vừa khung nhìn" stays in the zoom menu (16-A-072). */
+      await test.step('[16-A-073] The F key toggles Tổng thể (fits every wall) and Từng việc (fits the selected wall)', async () => {
         await (await zoomButton('Về 100%')).click();
+        await page.keyboard.press('Escape'); // close the zoom menu, keep focus off its buttons
         const target = code(40);
         await selectByKeys(page, 40, target);
         await page.keyboard.press('f');
+        expect.soft(await zoomLabel(), 'F → Tổng thể at the fit level').toBe('Mức thu phóng 100%: mở danh sách phóng và chế độ nhìn (đang Tổng thể)');
+        const all = await extent();
+        expect.soft(all.left, 'every wall left of the fit').toBeGreaterThanOrEqual(all.frame.x - 1);
+        expect.soft(all.right, 'every wall right of the fit').toBeLessThanOrEqual(all.frame.x + all.frame.width + 1);
+        await ev(page, '16-A-073', 'f-key-overview');
+        await page.keyboard.press('f');
+        expect.soft(await zoomLabel(), 'F again → Từng việc, zoomed to the wall').toMatch(/^Mức thu phóng (?!100%)\d+%: .*\(đang Từng việc\)$/u);
         const box = await polygonBox(page, target);
         const frame = (await extent()).frame;
-        expect.soft(Math.abs(box.x + box.width / 2 - (frame.x + frame.width / 2)), 'F centres the selected wall').toBeLessThan(60);
-        expect.soft(await zoomLabel(), 'F zooms in').not.toBe('Mức thu phóng 100%: mở danh sách phóng và chế độ nhìn (đang Từng việc)');
-        await ev(page, '16-A-073', 'f-key-fit');
-        await page.keyboard.press('Escape');
-        await page.keyboard.press('f');
-        const all = await extent();
-        expect.soft(all.left).toBeGreaterThanOrEqual(all.frame.x - 1);
-        expect.soft(all.right).toBeLessThanOrEqual(all.frame.x + all.frame.width + 1);
+        expect.soft(Math.abs(box.x + box.width / 2 - (frame.x + frame.width / 2)), 'Từng việc centres the selected wall').toBeLessThan(60);
+        await ev(page, '16-A-073', 'f-key-task');
       });
 
       await test.step('[16-A-075] Mini map: click / drag moves the view; Enter or Space centres', async () => {
@@ -1578,7 +1581,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       await test.step('[16-A-013] Click a wall polygon on the canvas selects it and scrolls its row into view', async () => {
         const target = code(250);
         await selectByKeys(page, 250, target);
-        await page.keyboard.press('f'); // the canvas now shows wall 250 large
+        /* Từng việc already zooms to the selected wall; F would switch to Tổng thể (16-A-073). */
         await page.keyboard.press('Escape');
         await page.keyboard.press('j'); // the list scrolls back to the top; the canvas keeps its view
         await expect(wallOption(page, target)).toHaveCount(0);
@@ -1598,24 +1601,31 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await ev(page, '16-B-037', 'virtualised-last-row');
       });
 
-      await test.step('[16-B-033] ⚑ Collapsed legend sits right of the floating rail (BUG-398); "Mở lại hai panel" is not covered', async () => {
+      /* The legend moved into the right panel (7de489d4): collapsing hides both panels, so the canvas carries no legend at all. */
+      await test.step('[16-B-033] ⚑ Collapsed: no legend on the canvas, "Mở lại hai panel" is uncovered (BUG-398); expanding brings the legend back', async () => {
         await page.getByRole('button', { name: WALL.collapse, exact: true }).click();
-        const legend = canvasFrame(page).getByRole('group', { name: 'Lọc theo độ dày tường', exact: true });
-        const rows: { width: number; legendLeft: number; overlap: boolean }[] = [];
-        for (const width of [1440, 1024, 375]) {
-          await page.setViewportSize({ width, height: width === 375 ? 812 : width === 1024 ? 768 : 900 });
-          await expect(legend).toBeVisible();
-          const [legendBox, expandBox, frameBox] = [await legend.boundingBox(), await page.getByRole('button', { name: WALL.expand, exact: true }).boundingBox(), await canvasFrame(page).boundingBox()];
-          if (legendBox === null || expandBox === null || frameBox === null) throw new Error('collapsed layout has no boxes');
-          const overlap = legendBox.x < expandBox.x + expandBox.width && expandBox.x < legendBox.x + legendBox.width && legendBox.y < expandBox.y + expandBox.height && expandBox.y < legendBox.y + legendBox.height;
-          rows.push({ width, legendLeft: Math.round(legendBox.x - frameBox.x), overlap });
-          expect.soft(overlap, `${String(width)} px: the legend covers "Mở lại hai panel"`).toBe(false);
-          expect.soft(legendBox.x - frameBox.x, `${String(width)} px: legend left offset >= 64 px`).toBeGreaterThanOrEqual(63);
+        const legend = page.getByRole('group', { name: 'Chú giải tường', exact: true });
+        const expand = page.getByRole('button', { name: WALL.expand, exact: true });
+        const rows: { width: number; legends: number; uncovered: boolean }[] = [];
+        for (const width of [1440, 1024, 768]) {
+          await page.setViewportSize({ width, height: width === 768 ? 1024 : width === 1024 ? 768 : 900 });
+          await expect(expand).toBeVisible();
+          const legends = await legend.count();
+          /* The topmost element at the button's centre is the button (or inside it): nothing floats over it. */
+          const uncovered = await expand.evaluate((button) => {
+            const r = button.getBoundingClientRect();
+            const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+            return top !== null && button.contains(top);
+          });
+          rows.push({ width, legends, uncovered });
+          expect.soft(legends, `${String(width)} px: no legend while collapsed`).toBe(0);
+          expect.soft(uncovered, `${String(width)} px: "Mở lại hai panel" is covered`).toBe(true);
         }
         await attachJson('E04_16-B-033_collapsed-legend.json', { rows });
-        await ev(page, '16-B-033', 'collapsed-legend');
+        await ev(page, '16-B-033', 'collapsed-no-legend');
         await page.setViewportSize({ width: 1440, height: 900 });
-        await page.getByRole('button', { name: WALL.expand, exact: true }).click();
+        await expand.click();
+        await expect.soft(legend, 'legend back in the right panel').toBeVisible();
       });
 
       await test.step('[16-E-018] Reduced motion: polygon colour and outline transitions are off', async () => {

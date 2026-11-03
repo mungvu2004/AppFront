@@ -382,8 +382,9 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
       await test.step('[X4-A-006] SCR-17 "Lọc theo loại" chips are visibility toggles, not navigation (Z/S-16)', async () => {
         await hop('Cửa và nội thất');
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.objects(q2.projectId, one.id));
+        await page.locator('summary').filter({ hasText: /^Lọc/u }).click(); // the chips live in "Lọc"
         const objectsFilter = page.getByRole('group', { name: 'Lọc theo loại', exact: true });
-        const eye = objectsFilter.getByRole('button', { name: /^(Ẩn|Hiện) lớp cửa đi$/u });
+        const eye = objectsFilter.getByRole('button', { name: 'Chỉ hiện cửa đi', exact: true });
         await expect(eye).toBeVisible();
         const before = await eye.getAttribute('aria-pressed');
         await eye.click();

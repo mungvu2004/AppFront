@@ -44,7 +44,7 @@ const KEY_HINTS: readonly { readonly key: string; readonly label: string; readon
   { key: 'J', label: 'kế tiếp', edit: false },
 ];
 const ALL_KEYS_LABEL = 'Phím tắt';
-const ALL_KEYS_TITLE = 'Bấm ? để xem mọi phím tắt: S để sau, F vừa khung, 1 2 3 đặt độ dày, K đoạn trước.';
+const ALL_KEYS_TITLE = 'Bấm ? để xem mọi phím tắt: S để sau, F đổi Từng việc / Tổng thể, 1 2 3 đặt độ dày, K đoạn trước.';
 
 /** G4a-19: gợi ý kéo/phóng bản vẽ — khớp `wallLayerReview.statusBar.panHint`. */
 const PAN_HINT = 'Kéo nền hoặc giữ Space để di chuyển · lăn chuột để phóng';

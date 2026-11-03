@@ -111,9 +111,9 @@ const LAYER_CODE_PREFIX: Readonly<Record<string, string>> = { 'Cửa đi': 'D', 
 export const layerOptions = (page: Page, layerLabel: string): Locator =>
   listGroup(page).getByRole('option', { name: new RegExp(`^#${LAYER_CODE_PREFIX[layerLabel] ?? '?'}-`, 'u') });
 export const QUEUE = { pending: 'Cần duyệt', reviewed: 'Đã duyệt' } as const;
-/** Mở menu "Loại con" (details) để thấy tám chip loại con — gọi lại nhiều lần vẫn an toàn. */
+/** Mở "Lọc" (details ở thanh đầu cột việc): công tắc máy chưa chắc, ba nút loại, chip loại con — gọi lại nhiều lần vẫn an toàn. */
 export const openSubtypeMenu = async (page: Page): Promise<void> => {
-  const summary = page.locator('summary').filter({ hasText: 'Loại con' });
+  const summary = page.locator('summary').filter({ hasText: /^Lọc/u });
   const isOpen = await summary.evaluate((node) => (node.parentElement as HTMLDetailsElement | null)?.open === true);
   if (!isOpen) await summary.click();
 };
@@ -126,7 +126,7 @@ export const approveButton = (page: Page): Locator => inspector(page).getByRole(
 export const statusBar = (page: Page): Locator => page.getByRole('status', { name: OBJ.status, exact: true });
 export const symbolOf = (page: Page, code: string): Locator => page.locator(`g[aria-label="${code}"]`);
 export const toastRegion = (page: Page): Locator => page.getByRole('region', { name: OBJ.toasts, exact: true });
-/* Z/S-16: tám chip loại con nằm trong menu "Loại con" (details) — bước dùng chip phải mở "Loại con" trước. */
+/* Chip loại con và nút loại nằm trong "Lọc" (details, gấp sẵn) — bước dùng chúng phải gọi `openSubtypeMenu` trước. */
 export const chip = (page: Page, label: string): Locator =>
   page.getByRole('group', { name: 'Lọc theo loại con', exact: true }).getByRole('button', { name: label, exact: true });
 /* Nút lọc theo loại ở cột việc: "Chỉ hiện cửa đi" (aria-pressed = đang lọc). Nút "Ẩn/Hiện lớp …" đã bỏ ở bố cục L23. */

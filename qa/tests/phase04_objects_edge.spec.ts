@@ -261,6 +261,7 @@ test('SCR-17 · FL-17-01 open, select by list and canvas, hover halo, approve wi
       await attempt('hover the symbol #S-001', () => symbolOf(page, '#S-001').hover({ timeout: QUICK }));
       await expect.soft(haloHandles(page)).toHaveCount(4);
       await ev(page, '17-A-008', 'hover_symbol_halo');
+      await openSubtypeMenu(page);
       await treeItem(page, OBJ.doors).hover();
       await expect.soft(haloHandles(page)).toHaveCount(0);
     });
@@ -1083,11 +1084,14 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-A-037] Filter chip "Chỉ hiện cửa đi" does not turn a hidden layer back on (L23: chip = filter, not layer toggle)', async () => {
+      await openSubtypeMenu(page);
       await treeItem(page, OBJ.doors).click();
       await expect.soft(treeItem(page, OBJ.doors)).toHaveAttribute('aria-pressed', 'true');
       await openDisplay(page);
       await expect.soft(eyeButton(page, 'cửa đi')).not.toBeChecked();
       await ev(page, '17-A-037', 'tree_item_toggle');
+      await page.keyboard.press('Escape'); // close "Hiển thị"
+      await openSubtypeMenu(page);
       await treeItem(page, OBJ.doors).click();
       await expect.soft(optionOf(page, '#D-001')).toHaveCount(0);
     });
@@ -1140,6 +1144,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-E-004] Chips in group "Lọc theo loại" carry aria-pressed', async () => {
+      await openSubtypeMenu(page);
       const pressed = await page.getByRole('group', { name: OBJ.filters, exact: true }).getByRole('button').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-pressed')));
       expect.soft(pressed.length, 'nine type chips').toBe(9);
       expect.soft(pressed.every((value) => value === 'true' || value === 'false'), `aria-pressed on every chip: ${pressed.join(',')}`).toBe(true);
@@ -1177,6 +1182,7 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-C-002] Tree counts "(n)" per layer come from all objects (unfiltered)', async () => {
+      await openSubtypeMenu(page);
       for (const label of [OBJ.doors, OBJ.windows, OBJ.furniture]) await expect.soft(treeItem(page, label)).toContainText('1');
       await ev(page, '17-C-002', 'tree_counts_unfiltered');
     });
@@ -1368,6 +1374,7 @@ test('SCR-17 · FL-17-07 rail keys, groups, listbox semantics, panel collapse', 
     });
 
     await test.step('[17-E-002] "Lọc theo loại" (Z/S-16): three toggle buttons with aria-pressed, no arrow-key navigation', async () => {
+      await openSubtypeMenu(page);
       const items = page.getByRole('group', { name: OBJ.filters, exact: true }).getByRole('button');
       expect.soft(await items.evaluateAll((nodes) => nodes.map((node) => [node.tagName, node.getAttribute('aria-pressed')])), 'filter toggles').toEqual([['BUTTON', 'false'], ['BUTTON', 'false'], ['BUTTON', 'false']]);
       await items.first().focus();
