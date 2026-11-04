@@ -44,7 +44,7 @@ import { EXTERIOR_SKIRTING, isDetailsEnabled } from '@/pascal-page/realism/detai
 import { designAdditionsOf } from './designStyles';
 import { applyFloorTransforms, floorDisplayTransformsOf } from './floorAlignment';
 import { CATALOG_MODELS, VARIANT_MODEL, isServerModel, modelSrcOf, thumbnailOf } from './furnitureCatalog';
-import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
+import { bodyOfPascalId, BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
 import { expandKitchenRuns, isKitchenRunHost } from './kitchenRuns';
 import { isAutoFaced, orientDetectedFurniture } from './orientDetected';
 import { roofNodesOf } from './roofs';
@@ -52,7 +52,10 @@ import { insideOutline, swingDirectionOf } from './swingDirection';
 import {
   ceilingNodesOf,
   floorMaterialOf,
+  isGeneratedLightId,
   isGeneratedNodeId,
+  lightAtOf,
+  lightOffIdOf,
   itemSlotsOf,
   lampInteractiveOf,
   GENERATED_DRESS_PREFIX,
@@ -280,7 +283,7 @@ export const isLoggiaRailing = (wall: Wall, rooms: readonly Room[], hasOpenings:
 
 /**
  * Lan can kính 1,4 m thay chỗ tường bao lô gia, chỉ ở hiển thị: node tường thật giữ nguyên số đo
- * (lượt về đọc `height` của tường) nhưng ẩn; lan can là đồ sinh ra `DRESS-` nên không bao giờ lưu.
+ * (lượt về đọc `height` của tường) nhưng ẩn; lan can là đồ sinh ra `DRESS-`, chỉ lưu khi người dùng sửa (thành đồ thật) hoặc xoá (`dressingOff`).
  */
 const railingNodeOf = (wall: Wall, levelNodeId: PascalNodeId, levelHeightMm: number, style: SceneStyle): PascalItemNode => {
   const { start, end } = wall.centreline;
@@ -994,10 +997,13 @@ const suggestedOutlineOf = (
     'rectangular-carpet',
   );
   const slots = Object.fromEntries(Object.keys(node.slots ?? { a: '' }).map((key) => [key, UNCONFIRMED_MATERIAL_REF]));
+  const [widthM, , depthM] = node.asset.dimensions;
   return {
     ...node,
     name: `${node.name} (chưa xác nhận)`,
     slots,
+    // Tấm mỏng do `asset.scale`; `dimensions` mang chiều cao thật để ô Cao của thẻ đọc đúng món đồ, không phải 4 mm.
+    asset: { ...node.asset, dimensions: [widthM, heightOfFurniture(furniture, levelHeightMm), depthM] },
     metadata: { ...node.metadata, generated: 'part', unconfirmed: true },
   };
 };
@@ -1119,6 +1125,11 @@ export const toPascalScene = (
    * đứa con thêm vào sau khi node đã dựng vẫn có mặt. Nhờ vậy không cần lượt
    * quét thứ hai để vá lại `children`.
    */
+  /* H4 — món tự bày / đèn người dùng đã xoá hoặc đã thành đồ thật: không sinh lại ở bất kỳ đường nào dưới đây. */
+  const offIds = new Set(graph.rooms.flatMap((room) => room.dressingOff ?? []));
+  /** Chỗ đèn trần tự chọn của từng phòng (m), để lượt về biết đèn đã dời chưa. */
+  const lightHomeOf = new Map<string, readonly [number, number]>();
+
   const childrenFor = (nodeId: PascalNodeId): PascalNodeId[] => {
     const existing = childrenOf.get(nodeId);
 
@@ -1242,8 +1253,10 @@ export const toPascalScene = (
     const levelHeightMm = levelHeightMmOf.get(wall.levelId);
     if (railing && levelHeightMm !== undefined) {
       const rail = railingNodeOf(welded ?? wall, levelNodeId, levelHeightMm, style);
-      nodes[rail.id] = rail;
-      adopt(levelNodeId, rail.id);
+      if (!offIds.has(bodyOfPascalId(rail.id))) {
+        nodes[rail.id] = rail;
+        adopt(levelNodeId, rail.id);
+      }
     }
   }
 
@@ -1302,16 +1315,21 @@ export const toPascalScene = (
 
     if (generated !== undefined) {
       const [ceiling, light] = generated;
+      const lightOn = !offIds.has(lightOffIdOf(room.id));
+      const lightAt = lightAtOf(room.dressingOff ?? [], room.id);
 
-      nodes[ceiling.id] = ceiling;
-      nodes[light.id] = light;
+      nodes[ceiling.id] = lightOn ? ceiling : { ...ceiling, children: [] };
       adopt(levelNodeId, ceiling.id);
+      if (lightOn) {
+        nodes[light.id] = lightAt === null ? light : { ...light, position: [metresOf(lightAt[0]), light.position[1], metresOf(lightAt[1])] };
+        lightHomeOf.set(room.id, [light.position[0], light.position[2]]);
+      }
     }
   }
 
   /* Đồ AI chưa duyệt còn góc 0 quay theo bàn/tường (`orientDetected`); quầy bếp cỡ khối đặc tách thành dãy tủ
      sát tường (`kitchenRuns`) — cả hai chỉ ở cảnh, không ghi về BE khi chưa sửa. */
-  const furnitureToBuild = expandKitchenRuns(orientDetectedFurniture(graph.furniture, graph.walls), builtWalls);
+  const furnitureToBuild = expandKitchenRuns(orientDetectedFurniture(graph.furniture, graph.walls), builtWalls).filter((f) => !offIds.has(f.id));
 
   /* Vai trò theo ngữ cảnh phòng (bồn cầu thừa → lavabo, bàn nhỏ xa giường → bàn phụ): chỉ đổi mẫu. */
   const contextUsageOf = (f: Pick<Furniture, 'roomId'>) => (f.roomId === undefined ? undefined : roomUsageOf.get(f.roomId));
@@ -1402,8 +1420,8 @@ export const toPascalScene = (
         : node;
     adopt(levelNodeId, node.id);
 
-    /* V1 — nhánh thứ hai của dãy tủ chữ L: đồ sinh ra, không bao giờ lưu (`isGeneratedNodeId`). */
-    if (arms !== null) {
+    /* V1 — nhánh thứ hai của dãy tủ chữ L: đồ sinh ra (`isGeneratedNodeId`). */
+    if (arms !== null && !offIds.has(arms.leg.id)) {
       const leg = itemNodeOf(arms.leg, levelNodeId, levelHeightMm, style, usage);
 
       nodes[leg.id] = { ...leg, metadata: { ...leg.metadata, generated: 'dressing' } };
@@ -1423,9 +1441,8 @@ export const toPascalScene = (
     rooms: builtRooms.map((room) => ({ ...room, usage: furnishingUsageOf(room) })),
     furniture: builtFurniture,
   };
-  /* H4 — món tự bày người dùng đã xoá (`Room.dressingOff`) không bày lại; lọc trước `dressingOf`
+  /* H4 — món tự bày người dùng đã xoá (`offIds`) không bày lại; lọc trước `dressingOf`
      để gối/đèn không bày lên một cái giường đã xoá. */
-  const offIds = new Set(builtRooms.flatMap((room) => room.dressingOff ?? []));
   const notOff = (furniture: Furniture): boolean => !offIds.has(furniture.id);
   const furnished = furnish === 'on' ? furnishEmptyRooms(usable, style).filter(notOff) : [];
   const dressed =
@@ -1464,12 +1481,28 @@ export const toPascalScene = (
     if (furniture.roomId !== undefined) dressIdsOf.set(furniture.roomId, [...(dressIdsOf.get(furniture.roomId) ?? []), furniture.id]);
   }
 
-  /* H4 — zone mang danh sách món tự bày của phòng (`dressIds`) và danh sách đã bỏ (`dressingOff`):
+  /* Món sinh ra không `roomId` (lan can, dãy tủ, nhánh chữ L, đồ trang trí) cũng phải có phòng khai hộ, không
+     thì xoá/sửa nó không nhớ được: phòng chứa tâm món, không có thì phòng đầu của tầng. Tầng không có phòng nào
+     thì không ai khai (`usePascalEdits` chặn). */
+  const declared = new Set([...builtRoomIds].flatMap((roomId) => dressIdsOf.get(roomId) ?? []));
+
+  for (const node of Object.values(nodes)) {
+    if (node.type !== 'item' || !isGeneratedNodeId(node.id) || isGeneratedLightId(node.id) || node.metadata?.unconfirmed === true) continue;
+    const dressId = bodyOfPascalId(node.id);
+    if (declared.has(dressId)) continue;
+    const onLevel = builtRooms.filter((room) => levelNodeIdOf.get(room.levelId) === node.parentId);
+    const centre = { x: node.position[0] * 1000, y: node.position[2] * 1000 };
+    const holder = onLevel.find((room) => insideOutline(centre, room.outline)) ?? onLevel[0];
+    if (holder !== undefined) dressIdsOf.set(holder.id, [...(dressIdsOf.get(holder.id) ?? []), dressId]);
+  }
+
+  /* H4 — zone mang danh sách món tự bày của phòng (`dressIds`, kể cả đèn trần) và danh sách đã bỏ (`dressingOff`):
      lượt về thấy món nào trong `dressIds` vắng khỏi cảnh thì thêm vào `dressingOff` (`toSpatial`). */
   for (const room of builtRooms) {
     const zoneId = toPascalId('zone', room.id);
     const zone = nodes[zoneId];
     const origin = zone?.metadata?.appfront;
+    const lightHome = lightHomeOf.get(room.id);
 
     if (zone === undefined || origin === undefined) continue;
     nodes[zoneId] = {
@@ -1478,7 +1511,12 @@ export const toPascalScene = (
         ...zone.metadata,
         appfront: {
           ...origin,
-          fields: { ...origin.fields, dressIds: dressIdsOf.get(room.id) ?? [], dressingOff: room.dressingOff ?? [] },
+          fields: {
+            ...origin.fields,
+            dressIds: [...(dressIdsOf.get(room.id) ?? []), ...(lightHome === undefined ? [] : [lightOffIdOf(room.id)])],
+            dressingOff: room.dressingOff ?? [],
+            ...(lightHome === undefined ? {} : { lightHome }),
+          },
         },
       },
     };

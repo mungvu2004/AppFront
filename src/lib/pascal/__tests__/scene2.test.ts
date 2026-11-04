@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { Furniture, Opening, Point, Room, SpatialGraph, Wall } from '@/domain/spatial/types';
 
+import { CATALOG_MODELS } from '../furnitureCatalog';
 import { scenePlacementIssues } from '../placement';
 import { isGeneratedNodeId, LOGGIA_RAILING_MM, UNCONFIRMED_MATERIAL_REF } from '../sceneDressing';
 import { contextRolesOf } from '../sceneVariety';
@@ -86,7 +87,11 @@ describe('C6 — đồ gợi ý chưa nhận là viền mỏng trên sàn', () =
     expect(nodes.find((n) => n.id === 'item_F-SUG')).toBeUndefined();
     const outline = nodes.find((n) => n.id === 'item_DRESS-suggested-F-SUG');
     expect(outline).toBeDefined();
-    expect(outline!.asset.dimensions[1]).toBeLessThanOrEqual(0.005);
+    // Mẫu thảm nén bằng `asset.scale`: tấm phẳng thật; `dimensions` mang chiều cao món đồ cho ô Cao của thẻ.
+    const carpet = CATALOG_MODELS['rectangular-carpet'];
+    expect(outline!.asset.src).toContain('rectangular-carpet');
+    expect((outline!.asset.scale?.[1] ?? 1) * (carpet?.dimensions[1] ?? 1)).toBeLessThanOrEqual(0.005);
+    expect(outline!.asset.dimensions[1]).toBeGreaterThan(0.1);
     expect(Object.values(outline!.slots ?? {})).toEqual([UNCONFIRMED_MATERIAL_REF]);
     expect(outline!.metadata?.['generated']).toBe('part');
     expect(isGeneratedNodeId(outline!.id)).toBe(true);

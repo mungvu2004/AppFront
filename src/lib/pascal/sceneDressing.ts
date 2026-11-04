@@ -217,6 +217,32 @@ export const isGeneratedNodeId = (nodeId: PascalNodeId): boolean => {
   return body.startsWith(GENERATED_LIGHT_PREFIX) || body.startsWith(GENERATED_DRESS_PREFIX);
 };
 
+/*
+ * Đèn trần không có bản ghi riêng. `Room.dressingOff` (chỉ nhận id `DRESS-…`, không đổi hợp đồng) nhớ hộ:
+ * xoá = `DRESS-ceilingLight-<phòng>`, dời = `DRESS-ceilingLightAt-<phòng>:<x mm>:<y mm>`.
+ */
+const LIGHT_OFF_PREFIX = `${GENERATED_DRESS_PREFIX}ceilingLight-`;
+const LIGHT_AT_PREFIX = `${GENERATED_DRESS_PREFIX}ceilingLightAt-`;
+
+export const lightNodeBodyOf = (roomId: string): string => `${GENERATED_LIGHT_PREFIX}${roomId}`;
+export const lightOffIdOf = (roomId: string): string => `${LIGHT_OFF_PREFIX}${roomId}`;
+export const lightAtIdOf = (roomId: string, xMm: number, yMm: number): string => `${LIGHT_AT_PREFIX}${roomId}:${xMm}:${yMm}`;
+export const isLightAtId = (dressId: string): boolean => dressId.startsWith(LIGHT_AT_PREFIX);
+
+/** Chỗ người dùng đã dời đèn của phòng tới (mm), hoặc `null`. */
+export const lightAtOf = (dressingOff: readonly string[], roomId: string): readonly [number, number] | null => {
+  for (const dressId of dressingOff) {
+    if (!dressId.startsWith(`${LIGHT_AT_PREFIX}${roomId}:`)) continue;
+    const [x, y] = dressId.slice(LIGHT_AT_PREFIX.length + roomId.length + 1).split(':').map(Number);
+    if (x !== undefined && y !== undefined && Number.isFinite(x) && Number.isFinite(y)) return [x, y];
+  }
+  return null;
+};
+
+/** Node của một id trong `dressIds`/`dressingOff`. */
+export const dressNodeIdOf = (dressId: string): PascalNodeId =>
+  toPascalId('item', dressId.startsWith(LIGHT_OFF_PREFIX) ? `${GENERATED_LIGHT_PREFIX}${dressId.slice(LIGHT_OFF_PREFIX.length)}` : dressId);
+
 const metresOf = (valueMm: number): number => millimetresToMetres(millimetres(valueMm));
 
 /**

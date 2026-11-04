@@ -137,7 +137,7 @@ describe('trần + đèn (T16)', () => {
     expect(after.graph.furniture).toHaveLength(graph.furniture.length);
   });
 
-  it('sửa hoặc xoá chỉ một đèn/trần sinh ra: không có lệnh nào cho bản vẽ', () => {
+  it('dời hoặc xoá chỉ một đèn sinh ra: chỉ phòng của nó đổi (`dressingOff`), không có đồ đạc nào', () => {
     const light = lights[0]!;
     const ceiling = scene.nodes[light.parentId ?? ''] as PascalCeilingNode;
     const normalized = normalizeSpatial(graph);
@@ -159,7 +159,7 @@ describe('trần + đèn (T16)', () => {
         actorId: 'U-1',
       });
 
-      expect(result.ok ? null : result.error.code).toBe('PASCAL_NO_CHANGE');
+      expect(result.ok ? result.data.changes.map((change) => change.kind) : result.error.code).toEqual(['room']);
     }
   });
 });
