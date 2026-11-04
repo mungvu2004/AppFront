@@ -68,6 +68,7 @@ import { isGeneratedNodeId } from './sceneDressing';
 import {
   adoptableRoomOf,
   isEditedGenerated,
+  isLooseGenerated,
   toSpatialGraph,
   type PascalIdBook,
 } from './toSpatial';
@@ -103,6 +104,8 @@ export interface PascalEditInput {
   readonly actorId: string;
   /** Sổ id của phiên, để đối tượng mới giữ nguyên id qua nhiều lượt sửa. */
   readonly idBook?: PascalIdBook;
+  /** Node món tự sinh không phòng nhận nuôi mà người dùng đã sửa so với lúc nạp: riêng chúng thành đồ thật. */
+  readonly adoptNodeIds?: readonly string[];
   /** Chỉ dùng cho bài kiểm và lượt chạy lại. */
   readonly id?: CommandContext['id'];
   /** Chỉ dùng cho bài kiểm và lượt chạy lại. */
@@ -333,7 +336,7 @@ const changeBetween = <K extends EntityKind>(
  * Chỉ áp cho món mà lượt này dời thật: dữ liệu cũ có món nằm lệch phòng, đổi
  * chúng khi không ai chạm tới là ghi từ hư không.
  */
-const withRoomOfCentre = (item: Furniture, rooms: readonly Room[]): Furniture => {
+export const withRoomOfCentre = (item: Furniture, rooms: readonly Room[]): Furniture => {
   const { x, y } = item.centre;
   const contains = (room: Room): boolean =>
     room.levelId === item.levelId && outlineContains(room.outline.map(toPointMm), toPointMm(item.centre));
@@ -347,7 +350,7 @@ const withRoomOfCentre = (item: Furniture, rooms: readonly Room[]): Furniture =>
     });
   const current = rooms.find((room) => room.id === item.roomId);
 
-  if (current === undefined || contains(current) || onEdge(current)) return item;
+  if (current !== undefined && (contains(current) || onEdge(current))) return item;
 
   const next = rooms.find(contains);
 
@@ -446,7 +449,8 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
     input.commit.changedNodeIds
       .map((nodeId) => scene.nodes[nodeId])
       .map((node) => (isEditedGenerated(node) ? adoptableRoomOf(node) : null))
-      .filter((roomId): roomId is string => roomId !== null),
+      .filter((roomId): roomId is string => roomId !== null)
+      .concat(input.adoptNodeIds ?? []),
   );
   const { graph: after, skipped } = toSpatialGraph(scene, idBook, adoptRoomIds);
   const afterById = new Map<string, SpatialEntity>();
@@ -528,6 +532,23 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
       seen.add(minted);
       changes.push(change);
     }
+  }
+
+  /* Món rời đã thành đồ thật: sửa tiếp là cập nhật; hoàn tác về như lúc nạp hay xoá hẳn thì đồ thật ấy đi theo. */
+  for (const nodeId of input.commit.changedNodeIds) {
+    const node = scene.nodes[nodeId];
+    const minted = isGeneratedNodeId(nodeId) && (node === undefined || isLooseGenerated(node)) ? idBook.get(nodeId) : undefined;
+
+    if (minted === undefined || seen.has(minted)) continue;
+    const now = afterById.get(minted);
+    const change = changeBetween(
+      'furniture',
+      graphEntity(input.graph, minted),
+      now !== undefined && isEntityOfKind('furniture', now) ? withRoomOfCentre(now, after.rooms) : undefined,
+    );
+
+    seen.add(minted);
+    if (change !== null) changes.push(change);
   }
 
   /* H4 — xoá món tự bày, sơn trần (node "kết cấu", vòng trên bỏ qua) là sửa phòng của nó:

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fitAzimuth, fitPose, fitWhenControlsReady, planBoundsXZ, roomsOf, TOP_RESERVED_PX } from './fit-on-ready'
+import { fitAzimuth, fitPose, fitRoomPose, fitWhenControlsReady, planBoundsXZ, roomsOf, TOP_RESERVED_PX } from './fit-on-ready'
 
 describe('roomsOf (UX-R4 U40)', () => {
   it('lists zones of one floor with name + area, sorted by name; unnamed zones read "Phòng"', () => {
@@ -208,5 +208,63 @@ describe('fitWhenControlsReady', () => {
     bus.publish()
     vi.advanceTimersByTime(50)
     expect(late).not.toHaveBeenCalled()
+  })
+})
+
+describe('fitRoomPose (fit-room 04/11)', () => {
+  /** Pixel box of the room (floor..1.2 m) as a pinhole camera at `pose` sees it. */
+  function pixelBox(pose: ReturnType<typeof fitRoomPose>, room: { center: [number, number]; size: [number, number] }, view: { width: number; height: number }) {
+    const [px, py, pz] = pose.position
+    const [tx, ty, tz] = pose.target
+    const raw = [tx - px, ty - py, tz - pz]
+    const len = Math.hypot(...raw)
+    const f = raw.map((v) => v / len)
+    const rl = Math.hypot(f[2]!, f[0]!)
+    const r = [-f[2]! / rl, 0, f[0]! / rl]
+    const u = [r[1]! * f[2]! - r[2]! * f[1]!, r[2]! * f[0]! - r[0]! * f[2]!, r[0]! * f[1]! - r[1]! * f[0]!]
+    const tanV = Math.tan((24 * Math.PI) / 360)
+    const tanH = (tanV * view.width) / view.height
+    const xs: number[] = []
+    const ys: number[] = []
+    for (const dx of [-0.5, 0.5]) for (const dz of [-0.5, 0.5]) for (const y of [0, 1.2]) {
+      const v = [room.center[0] + dx * room.size[0] - px, y - py, room.center[1] + dz * room.size[1] - pz]
+      const depth = v[0]! * f[0]! + v[1]! * f[1]! + v[2]! * f[2]!
+      xs.push(((v[0]! * r[0]! + v[2]! * r[2]!) / depth / tanH + 1) * (view.width / 2))
+      ys.push((1 - (v[0]! * u[0]! + v[1]! * u[1]! + v[2]! * u[2]!) / depth / tanV) * (view.height / 2))
+    }
+    return { left: Math.min(...xs), right: Math.max(...xs), top: Math.min(...ys), bottom: Math.max(...ys) }
+  }
+
+  const VIEW = { width: 744, height: 620 }
+  const FREE = { left: 0, top: 120, right: 744, bottom: 540 }
+
+  it('a small room fills the free area, nearer than the whole-frame fit, and stays inside it', () => {
+    const room = { center: [10, 6] as [number, number], size: [4, 4] as [number, number] }
+    const pose = fitRoomPose(room, 'perspective', VIEW, FREE)
+    const box = pixelBox(pose, room, VIEW)
+    expect(box.left).toBeGreaterThanOrEqual(FREE.left - 1)
+    expect(box.right).toBeLessThanOrEqual(FREE.right + 1)
+    expect(box.top).toBeGreaterThanOrEqual(FREE.top - 1)
+    expect(box.bottom).toBeLessThanOrEqual(FREE.bottom + 1)
+    expect(Math.max((box.bottom - box.top) / (FREE.bottom - FREE.top), (box.right - box.left) / (FREE.right - FREE.left))).toBeGreaterThan(0.8)
+    const dist = (p: typeof pose) => Math.hypot(p.position[0] - p.target[0], p.position[1] - p.target[1], p.position[2] - p.target[2])
+    expect(dist(pose)).toBeLessThan(dist(fitPose(room, 'perspective', VIEW)))
+    expect(pose.target[1]).toBeCloseTo(0)
+  })
+
+  it('a covering panel on the right moves the room left of it', () => {
+    const room = { center: [0, 0] as [number, number], size: [6, 5] as [number, number] }
+    const free = { ...FREE, right: 460 }
+    const box = pixelBox(fitRoomPose(room, 'perspective', VIEW, free), room, VIEW)
+    expect(box.right).toBeLessThanOrEqual(461)
+    expect(Math.abs((box.left + box.right) / 2 - 230)).toBeLessThan(15)
+  })
+
+  it('a bigger room stands further back; a floor above lifts the frame', () => {
+    const small = fitRoomPose({ center: [0, 0], size: [3, 3] }, 'perspective', VIEW, FREE)
+    const big = fitRoomPose({ center: [0, 0], size: [8, 8] }, 'perspective', VIEW, FREE)
+    expect(big.position[1]).toBeGreaterThan(small.position[1])
+    expect(fitRoomPose({ center: [0, 0], size: [3, 3] }, 'perspective', VIEW, FREE, 6.6).target[1]).toBeCloseTo(6.6)
+    expect(fitRoomPose(null, 'perspective', VIEW, FREE).position).toEqual([20, 20, 20])
   })
 })

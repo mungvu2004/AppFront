@@ -1,8 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
-import { CUT_HEIGHT_M, cutPlaneY, isCutFaceMesh, lowCutActive, WALL_BATCH_MESH_NAME } from './cut';
+import { Group, Plane, Vector3 } from 'three';
+
+import { clippedAway, CUT_HEIGHT_M, cutPlaneY, isCutFaceMesh, lowCutActive, WALL_BATCH_MESH_NAME } from './cut';
 
 describe('cut', () => {
+  it('điểm trên mặt cắt của nhóm tầng là phần không vẽ; dưới mặt cắt, hoặc ngoài nhóm: vẫn còn', () => {
+    const level = Object.assign(new Group(), { isClippingGroup: true, clippingPlanes: [new Plane(new Vector3(0, -1, 0), 1)] });
+    const wall = new Group();
+    level.add(wall);
+
+    expect(clippedAway(wall, new Vector3(0, 2, 0))).toBe(true);
+    expect(clippedAway(wall, new Vector3(0, 0.5, 0))).toBe(false);
+    expect(clippedAway(wall, undefined)).toBe(false);
+    expect(clippedAway(new Group(), new Vector3(0, 2, 0))).toBe(false);
+  });
+
   it('chỉ chế độ "cắt" bật cắt thấp; "cao đủ" và "thấp" giữ nguyên', () => {
     expect(lowCutActive('cutaway')).toBe(true);
     expect(lowCutActive('up')).toBe(false);

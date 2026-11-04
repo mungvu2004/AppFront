@@ -217,6 +217,24 @@ export const isGeneratedNodeId = (nodeId: PascalNodeId): boolean => {
   return body.startsWith(GENERATED_LIGHT_PREFIX) || body.startsWith(GENERATED_DRESS_PREFIX);
 };
 
+/*
+ * Đèn trần không có bản ghi riêng. `Room.dressingOff` (chỉ nhận id `DRESS-…`, không đổi hợp đồng) nhớ hộ:
+ * xoá = `DRESS-ceilingLight-<phòng>`. Đèn trần không dời được (`usePascalEdits` chặn).
+ */
+const LIGHT_OFF_PREFIX = `${GENERATED_DRESS_PREFIX}ceilingLight-`;
+
+export const lightOffIdOf = (roomId: string): string => `${LIGHT_OFF_PREFIX}${roomId}`;
+
+/**
+ * Khe duy nhất của tấm viền gợi ý (`rectangular-carpet`). Sơn tấm viền ghi vào `Furniture.slots` dưới khoá này;
+ * mẫu thật không có khe đó thì `a` nghĩa là "cả món một màu" (`toPascal` trải ra, `toSpatial` gộp lại).
+ */
+export const OUTLINE_PAINT_SLOT = 'a';
+
+/** Node của một id trong `dressIds`/`dressingOff`. */
+export const dressNodeIdOf = (dressId: string): PascalNodeId =>
+  toPascalId('item', dressId.startsWith(LIGHT_OFF_PREFIX) ? `${GENERATED_LIGHT_PREFIX}${dressId.slice(LIGHT_OFF_PREFIX.length)}` : dressId);
+
 const metresOf = (valueMm: number): number => millimetresToMetres(millimetres(valueMm));
 
 /**

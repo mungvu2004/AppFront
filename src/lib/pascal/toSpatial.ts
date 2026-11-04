@@ -72,7 +72,14 @@ import { appFrontIdOf, BUILDING_NODE_ID, toPascalId } from './ids';
 import { LIBRARY_MATERIAL_IDS } from './libraryMaterialIds';
 import { worldBoxOf } from './orientDetected';
 import { roofOf } from './roofs';
-import { CEILING_DEFAULT, isGeneratedLightId, isGeneratedNodeId, SCENE_MATERIALS } from './sceneDressing';
+import {
+  CEILING_DEFAULT,
+  dressNodeIdOf,
+  isGeneratedLightId,
+  OUTLINE_PAINT_SLOT,
+  isGeneratedNodeId,
+  SCENE_MATERIALS,
+} from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, SCENE_STYLES, sceneStyleOf } from './sceneStyles';
 import type {
   PascalDoorNode,
@@ -359,16 +366,24 @@ export const isAutoSurface = (node: PascalNode | undefined): boolean =>
 export const dismissableNodeIdsOf = (scene: PascalScene): Set<PascalNodeId> =>
   new Set(
     Object.values(scene.nodes).flatMap((node) =>
-      node.type === 'zone' ? readStrings(fieldsOf(node), 'dressIds').map((id) => toPascalId('item', id)) : [],
+      node.type === 'zone' ? readStrings(fieldsOf(node), 'dressIds').map(dressNodeIdOf) : [],
     ),
   );
 
 /**
  * H4 — `Room.dressingOff` của một zone: danh sách đã lưu cộng món tự bày (`dressIds`) không còn trong
- * cảnh. Hoàn tác lượt xoá thì món về cảnh và rời danh sách (trừ khi đã lưu từ lượt mở trước).
+ * cảnh hoặc vừa thành đồ thật (`adopted`). Tính lại từ cảnh mỗi lượt nên hoàn tác
+ * thì món rời danh sách (trừ khi đã lưu từ lượt mở trước). Đèn mất theo trần (xoá trần) không phải xoá đèn.
  */
-const dressingOffOf = (scene: PascalScene, fields: Fields): { dressingOff?: string[] } => {
-  const removed = readStrings(fields, 'dressIds').filter((id) => scene.nodes[toPascalId('item', id)] === undefined);
+const dressingOffOf = (scene: PascalScene, fields: Fields, roomId: string, adopted: ReadonlySet<string>): { dressingOff?: string[] } => {
+  const removed = readStrings(fields, 'dressIds').filter((id) => {
+    const nodeId = dressNodeIdOf(id);
+
+    if (adopted.has(nodeId)) return true;
+    if (scene.nodes[nodeId] !== undefined) return false;
+
+    return !isGeneratedLightId(nodeId) || scene.nodes[toPascalId('ceiling', roomId)] !== undefined;
+  });
   const off = [...new Set([...readStrings(fields, 'dressingOff'), ...removed])];
 
   return off.length === 0 ? {} : { dressingOff: off };
@@ -403,9 +418,17 @@ export const saveableModelSrc = (src: unknown): src is string => typeof src === 
 const itemSlotsFieldOf = (item: PascalItemNode): Readonly<Record<string, MaterialRef>> | null => {
   const styleSlots = fieldsOf(item)['styleSlots'];
   const base = (typeof styleSlots === 'object' && styleSlots !== null ? styleSlots : {}) as Fields;
+  // Sơn từ tấm viền ("cả món một màu", xem `OUTLINE_PAINT_SLOT`): còn nguyên thì giữ một khoá, sơn lại từng khe thì bỏ khoá.
+  const whole = OUTLINE_PAINT_SLOT in base ? undefined : item.slots?.[OUTLINE_PAINT_SLOT];
+  if (whole !== undefined && saveableRef(whole) && Object.keys(base).every((slot) => item.slots?.[slot] === whole)) {
+    return { [OUTLINE_PAINT_SLOT]: whole };
+  }
   const painted = Object.entries(item.slots ?? {}).filter(
     (entry): entry is [string, MaterialRef] =>
-      SLOT_KEY.test(entry[0]) && entry[1] !== readString(base, entry[0]) && saveableRef(entry[1]),
+      (whole === undefined || entry[0] !== OUTLINE_PAINT_SLOT) &&
+      SLOT_KEY.test(entry[0]) &&
+      entry[1] !== readString(base, entry[0]) &&
+      saveableRef(entry[1]),
   );
 
   return painted.length === 0 ? null : Object.fromEntries(painted.slice(0, 8));
@@ -675,6 +698,17 @@ export const adoptableRoomOf = (node: PascalNode | undefined): string | null => 
 };
 
 /**
+ * Món `DRESS-` không phòng nào nhận nuôi (lan can, dãy tủ, nhánh chữ L, đồ trang trí): sửa thì riêng nó thành đồ
+ * thật (`createPascalEditCommand.adoptNodeIds`). Không tính đèn trần và tấm viền gợi ý: chúng có đường riêng.
+ */
+export const isLooseGenerated = (node: PascalNode | undefined): boolean =>
+  node?.type === 'item' &&
+  isGeneratedNodeId(node.id) &&
+  !isGeneratedLightId(node.id) &&
+  node.metadata?.unconfirmed !== true &&
+  adoptableRoomOf(node) === null;
+
+/**
  * V4 — món bày biện sinh ra đã bị người dùng dời / kéo / xoay chưa, so với
  * chính siêu dữ liệu lượt đi: tâm khác tâm hộp bao quá 1 mm, tỉ lệ khác 1, hoặc
  * góc khác `fields.rotationDeg` (chỉ khi lượt đi có ghi trường này), hoặc đã đổi mẫu.
@@ -704,6 +738,14 @@ export const isEditedGenerated = (node: PascalNode | undefined): boolean => {
     (!node.asset.id.startsWith('appfront-') && saveableModelSrc(node.asset.src)) ||
     (rotationDeg !== null && planDegreesOf(node.rotation[1]) !== normaliseDegrees(asDegrees(rotationDeg)))
   );
+};
+
+/** Cùng cỡ, đặt quanh tâm: hộp lượt đi của món rời có thể ở khung riêng (lan can quanh gốc toạ độ); màn 2D đọc hộp thế giới. */
+const boxAtCentre = ({ min, max }: BoundingBox, centre: Point): BoundingBox => {
+  const halfX = (max.x - min.x) / 2;
+  const halfY = (max.y - min.y) / 2;
+
+  return { min: { x: centre.x - halfX, y: centre.y - halfY }, max: { x: centre.x + halfX, y: centre.y + halfY } };
 };
 
 const collectWallChildren = (
@@ -763,10 +805,12 @@ const collectItem = (scene: PascalScene, item: PascalItemNode, levelId: LevelId,
     return;
   }
 
-  // Đồ bày biện / đèn AppFront tự sinh (J10): dựng lại mỗi lần mở, không bao giờ thành đồ đạc —
-  // trừ khi người dùng vừa sửa một món của phòng ấy: cả bộ của phòng thành đồ thật, id `F-` mới (V4).
+  // Đồ bày biện / đèn AppFront tự sinh (J10): dựng lại mỗi lần mở, không thành đồ đạc —
+  // trừ khi người dùng vừa sửa một món của phòng ấy: cả bộ của phòng thành đồ thật, id `F-` mới (V4); món rời thì riêng nó.
   // Đồ người dùng đặt LÊN món sinh ra thì vẫn đi xuống bên dưới.
-  if (!isGeneratedNodeId(item.id) || collector.adoptRoomIds.has(adoptableRoomOf(item) ?? '')) {
+  const looseAdopted = collector.adoptRoomIds.has(item.id);
+
+  if (!isGeneratedNodeId(item.id) || looseAdopted || collector.adoptRoomIds.has(adoptableRoomOf(item) ?? '')) {
     const fields = fieldsOf(item);
     const knownId = appFrontIdOf('furniture', item.id);
     const centre: Point = {
@@ -790,10 +834,13 @@ const collectItem = (scene: PascalScene, item: PascalItemNode, levelId: LevelId,
       levelId,
       kind,
       centre,
-      boundingBox: wholeBox(autoKept ? worldBoxOf(box, rotationDeg) : box),
+      boundingBox: wholeBox(autoKept ? worldBoxOf(box, rotationDeg) : looseAdopted ? boxAtCentre(box, centre) : box),
       rotationDeg: autoKept ? asDegrees(0) : rotationDeg,
       ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
       ...itemFieldsOf(item, kind),
+      // Món rời thành đồ thật giữ đúng mẫu và độ nâng lượt đi tự chọn (lan can, mặt bếp…), không đoán lại theo `kind`.
+      ...(looseAdopted && MODEL_SRC.test(item.asset.src) ? { model: { id: item.asset.id.slice(0, 120), src: item.asset.src } } : {}),
+      ...(looseAdopted && item.position[1] > 0.001 ? { liftMm: millimetres(Math.round(millimetresOf(item.position[1]))) } : {}),
     });
   }
 
@@ -915,7 +962,7 @@ const collectLevelChildren = (
           wallIds: [],
           ...(knownId === null ? {} : floorFieldsOf(scene, knownId)),
           ...(knownId === null ? {} : ceilingFieldsOf(scene, knownId)),
-          ...dressingOffOf(scene, fields),
+          ...dressingOffOf(scene, fields, roomId, collector.adoptRoomIds),
         });
         break;
       }

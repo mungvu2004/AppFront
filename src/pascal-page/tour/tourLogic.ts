@@ -37,7 +37,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     title: 'Đổi diện mạo cảnh rồi sang bước sau',
-    body: 'Menu Xem ở góc phải đổi phong cách, ánh sáng, chất lượng hình và cách hiển thị. Đồ đạc, tường, cửa sổ và vật liệu trong thư viện được lưu tự động; chấm cạnh nút về dự án (đầu bảng trái) cho biết đã lưu chưa. Kiểu cửa, màu trần, màu tự pha và việc xoá đồ gợi ý hiện chưa lưu được. Xong thì bấm "Sang Quy chuẩn"; nếu cạnh đó có nút "Đặt tỷ lệ" thì nên đặt tỷ lệ trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
+    body: 'Menu Xem ở góc phải đổi phong cách, ánh sáng, chất lượng hình và cách hiển thị. Đồ đạc, tường, cửa sổ và vật liệu trong thư viện được lưu tự động; chấm cạnh nút về dự án (đầu bảng trái) cho biết đã lưu chưa. Kiểu cửa, màu trần và màu tự pha hiện chưa lưu được. Xong thì bấm "Sang Quy chuẩn"; nếu cạnh đó có nút "Đặt tỷ lệ" thì nên đặt tỷ lệ trước. Bấm nút Hướng dẫn bất cứ lúc nào để xem lại.',
     // Menu Xem (thẻ `<details>`, ViewMenu.tsx).
     anchor: { selector: 'summary[aria-label^="Xem"]', up: 1 },
   },

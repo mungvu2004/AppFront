@@ -10,11 +10,11 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
-import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { Furniture } from '@/domain/spatial/types';
 import { degrees } from '@/domain/units/types';
 import { registerServerLibrary } from '@/lib/pascal/furnitureCatalog';
-import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
+import { isGeneratedLightId, isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
 import { SCENE_STYLES } from '@/lib/pascal/sceneStyles';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalNode, PascalScene } from '@/lib/pascal/types';
@@ -25,6 +25,7 @@ import {
   blockedGeneratedEdits,
   commitOfScenes,
   PASCAL_READ_ONLY_REASON,
+  CEILING_LIGHT_MOVE_BLOCKED,
   GENERATED_EDIT_BLOCKED,
   SUGGESTION_ACCEPTED_NOTICE,
   unsavedPascalEdits,
@@ -122,7 +123,7 @@ describe('commitOfScenes', () => {
 
 /** Cảnh nền với node đầu tiên loại `type` được ghép thêm `patch`. */
 const patched = (type: string, patch: Record<string, unknown>): PascalScene => {
-  const node = Object.values(SCENE.nodes).find((candidate) => candidate.type === type);
+  const node = Object.values(SCENE.nodes).find((candidate) => candidate.type === type && !isGeneratedNodeId(candidate.id));
 
   if (node === undefined) throw new Error(`bộ mẫu phải có ${type}`);
 
@@ -246,11 +247,14 @@ describe('blockedGeneratedEdits — món tự sinh không có đường lưu th�
     const pair = { a: 'x', b: 'y' };
     expect(blockedGeneratedEdits(withGenerated(LOOSE_ID, { slots: pair }), withGenerated(LOOSE_ID, { slots: { b: 'y', a: 'x' } }), [LOOSE_ID])).toEqual([]);
     expect(blockedGeneratedEdits(withGenerated(LOOSE_ID, { slots: undefined }), withGenerated(LOOSE_ID, { slots: {} }), [LOOSE_ID])).toEqual([]);
-    // Đèn trần tự sinh (không phòng nào nhận nuôi): dời, sơn cũng chặn.
-    const light = Object.values(SCENE.nodes).find((node) => node.type === 'item' && node.id.startsWith('item_LIGHT-'));
-    expect(light).toBeDefined();
-    expect(blockedGeneratedEdits(SCENE, patched('item', { position: [0.5, 2, 0.5] }), [light?.id ?? ''])).toEqual([light?.id]);
-    expect(blockedGeneratedEdits(SCENE, patched('item', { slots: { body: SAVEABLE } }), [light?.id ?? ''])).toEqual([light?.id]);
+    // Đèn trần tự sinh: phòng khai hộ (`dressIds`) nên dời được, không chặn.
+    const light = Object.values(SCENE.nodes).find((node) => node.type === 'item' && node.id.startsWith('item_LIGHT-')) as PascalNode;
+    const moved: PascalScene = { ...SCENE, nodes: { ...SCENE.nodes, [light.id]: { ...light, position: [0.5, 0, 0.5] } as PascalNode } };
+    expect(blockedGeneratedEdits(SCENE, moved, [light.id])).toEqual([]);
+    expect(unsavedPascalEdits(SCENE, moved)).toEqual([]);
+    // Màu và cỡ đèn không có chỗ chứa: không chặn, nhưng báo.
+    const painted = { ...moved, nodes: { ...moved.nodes, [light.id]: { ...light, slots: { body: SAVEABLE } } as PascalNode } };
+    expect(unsavedPascalEdits(SCENE, painted)).toEqual(['màu và cỡ đèn trần']);
     // Đồ thật (id bản vẽ): không chặn.
     expect(blockedGeneratedEdits(withGenerated('item_F-1'), withGenerated('item_F-1', { scale: [2, 2, 2] }), ['item_F-1'])).toEqual([]);
   });
@@ -284,6 +288,31 @@ describe('blockedGeneratedEdits — món tự sinh không có đường lưu th�
     expect(onRejected).toHaveBeenCalledWith(GENERATED_EDIT_BLOCKED);
     expect(useStore.getState().spatial).toBe(before);
     expect(GENERATED_EDIT_BLOCKED).not.toContain('Duyệt');
+  });
+});
+
+describe('đèn trần không dời được', () => {
+  it('đèn đổi chỗ: chặn kèm câu báo; xoá đèn vẫn lưu', async () => {
+    const light = Object.values(SCENE.nodes).find((node) => isGeneratedLightId(node.id));
+
+    if (light?.type !== 'item') throw new Error('bộ mẫu phải có đèn trần');
+    const onRejected = vi.fn();
+    const view = mount({ onRejected });
+    const moved = { ...SCENE, nodes: { ...SCENE.nodes, [light.id]: { ...light, position: [light.position[0] + 0.002, light.position[1], light.position[2]] } } };
+    let saved = true;
+
+    await act(async () => {
+      saved = await view.result.current.onSceneCommit(moved as PascalScene);
+    });
+    expect(saved).toBe(false);
+    expect(onRejected).toHaveBeenCalledWith(CEILING_LIGHT_MOVE_BLOCKED);
+
+    const nodes = { ...SCENE.nodes };
+    delete nodes[light.id];
+    await act(async () => {
+      saved = await view.result.current.onSceneCommit({ ...SCENE, nodes });
+    });
+    expect(saved).toBe(true);
   });
 });
 
@@ -373,6 +402,75 @@ describe('đồ máy gợi ý — xoá = Bỏ gợi ý, sửa = Nhận gợi ý 
     expect(await save(view, outlined({ rotation: [0, -Math.PI / 2, 0], slots: { fabric: SAVEABLE } }))).toBe(true);
     expect(item()).toMatchObject({ rotationDeg: 90, slots: { fabric: SAVEABLE } });
     expect(onNotice).toHaveBeenCalledTimes(1);
+  });
+
+  it('gõ ô Cao trên tấm viền: ghi `heightMm` đúng số gõ; dời sang phòng khác: `roomId` theo tâm mới; báo màn dựng lại một lần', async () => {
+    const view = hook();
+    const dimensions = [1.829, 0.75, 0.972];
+    const asset = { id: 'appfront-rectangular-carpet', src: 'asset://appfront/table', dimensions };
+    const other = BUILDING.rooms.find((room) => room.id !== item()?.roomId && room.levelId === item()?.levelId);
+    const target = other?.outline[0];
+
+    if (other === undefined || target === undefined) throw new Error('bộ mẫu phải có phòng thứ hai cùng tầng');
+    const xs = other.outline.map((p) => p.x);
+    const ys = other.outline.map((p) => p.y);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const original = item() as Furniture;
+
+    await save(view, withGenerated(OUTLINE, { asset }, bare()));
+    expect(view.result.current.takeSuggestionAccepted()).toBe(false);
+    expect(
+      await save(view, withGenerated(OUTLINE, { asset, scale: [1, 1.2, 1], position: [9 + (cx - original.centre.x) / 1000, 0, 1 + (cy - original.centre.y) / 1000] }, bare())),
+    ).toBe(true);
+    expect(item()).toMatchObject({ heightMm: 900, roomId: other.id });
+    expect(view.result.current.takeSuggestionAccepted()).toBe(true);
+    expect(view.result.current.takeSuggestionAccepted()).toBe(false);
+  });
+
+  it('cảnh dựng lại ngay sau khi nhận: tấm viền đổi thành món thật không phải lần xoá, không ghi thêm; Ctrl+Z vẫn về bản ghi gợi ý', async () => {
+    const view = hook();
+    const original = item() as Furniture;
+
+    expect(await save(view, outlined({ position: [9.1, 0, 1] }))).toBe(true);
+    const accepted = item();
+    const rebuilt = toPascalScene(denormalizeSpatial(useStore.getState().spatial as NormalizedSpatial)).scene;
+    expect(rebuilt.nodes[OUTLINE]).toBeUndefined();
+    expect(rebuilt.nodes[`item_${realItem}`]).toBeDefined();
+
+    await save(view, rebuilt);
+    expect(item()).toMatchObject({ centre: accepted?.centre, reviewed: true });
+    expect(item()?.suggested).toBeUndefined();
+
+    expect(await save(view, outlined())).toBe(true);
+    expect(item()).toEqual(original);
+  });
+
+
+  it('sơn tấm viền: mẫu thật phủ màu ở mọi khe, lượt về không đổi gì, không báo "đã duyệt"; sơn lại một khe thì giữ các khe kia', async () => {
+    const view = hook();
+
+    expect(await save(view, outlined({ slots: { a: SAVEABLE } }))).toBe(true);
+    expect(item()).toMatchObject({ reviewed: true, slots: { a: SAVEABLE } });
+
+    const graph = denormalizeSpatial(useStore.getState().spatial as NormalizedSpatial);
+    const rebuilt = toPascalScene(graph).scene;
+    const real = rebuilt.nodes[`item_${realItem}`] as Extract<PascalNode, { readonly type: 'item' }>;
+    const styleKeys = Object.keys(real.slots ?? {}).filter((slot) => slot !== 'a');
+
+    expect(styleKeys.length).toBeGreaterThan(0);
+    for (const slot of styleKeys) expect(real.slots?.[slot]).toBe(SAVEABLE);
+
+    expect(await save(view, rebuilt)).toBe(false);
+    expect(item()).toMatchObject({ reviewed: true, slots: { a: SAVEABLE } });
+    expect(view.onNotice).toHaveBeenCalledTimes(1);
+    expect(view.onNotice).toHaveBeenCalledWith(SUGGESTION_ACCEPTED_NOTICE);
+
+    const other = SCENE_STYLES['am-ap'].wall.exterior;
+    const [first = '', ...rest] = styleKeys;
+
+    expect(await save(view, { ...rebuilt, nodes: { ...rebuilt.nodes, [real.id]: { ...real, slots: { ...real.slots, [first]: other } } } })).toBe(true);
+    expect(item()?.slots).toEqual(Object.fromEntries([[first, other], ...rest.map((slot) => [slot, SAVEABLE])]));
   });
 
   it('đổi tên tấm viền (không phải hình học): không nhận gì, không ghi', async () => {

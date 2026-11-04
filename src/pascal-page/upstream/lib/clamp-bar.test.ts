@@ -1,5 +1,6 @@
+import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { barShift, needsWrite } from './clamp-bar';
+import { barShift, clampBarsAtAnchor, needsWrite, newBarCache } from './clamp-bar';
 
 const box = { left: 0, top: 0, width: 174, height: 38 };
 const root = { width: 174, height: 38 };
@@ -42,5 +43,50 @@ describe('needsWrite', () => {
   it('ghi khi lệch thật và khi về 0', () => {
     expect(needsWrite(0, 474, 0, 480)).toBe(true);
     expect(needsWrite(0, 1, 0, 0)).toBe(true);
+  });
+});
+
+describe('clampBarsAtAnchor', () => {
+  // Đúng class của NodeActionMenu, thanh dùng chung cho một vật và nhiều vật.
+  const BAR_CLASS = 'pointer-events-auto flex items-center gap-1 rounded-lg border p-1 shadow-xl';
+  const size = { width: 1100, height: 620, left: 0, top: 0 };
+  const sized = (el: HTMLElement, w: number, h: number) => {
+    Object.defineProperty(el, 'offsetWidth', { value: w });
+    Object.defineProperty(el, 'offsetHeight', { value: h });
+    return el;
+  };
+  const setup = () => {
+    const root = sized(document.createElement('div'), 174, 38);
+    const bar = sized(document.createElement('div'), 174, 38);
+    bar.className = BAR_CLASS;
+    root.append(bar);
+    const camera = new PerspectiveCamera(50, 1100 / 620, 0.1, 100);
+    camera.position.set(0, 0, 10);
+    camera.updateMatrixWorld();
+    return { root, bar, camera };
+  };
+  const frame = (root: HTMLElement, anchor: Vector3, camera: PerspectiveCamera) =>
+    clampBarsAtAnchor(root, anchor, { camera, size }, 1, newBarCache());
+
+  it('điểm neo ngoài mép trên: dời ngay trong khung đó, không chờ nhịp 200 ms', () => {
+    const { root, bar, camera } = setup();
+    frame(root, new Vector3(0, 8, 0), camera);
+    expect(Number(bar.dataset.clampY)).toBeGreaterThan(0);
+    expect(bar.style.translate).toBe(`0px ${bar.dataset.clampY}px`);
+  });
+
+  it('điểm neo về giữa khung: gỡ độ dời cũ', () => {
+    const { root, bar, camera } = setup();
+    frame(root, new Vector3(0, 8, 0), camera);
+    frame(root, new Vector3(0, 0, 0), camera);
+    expect(bar.dataset.clampY).toBe('0');
+    expect(bar.style.translate).toBe('');
+  });
+
+  it('điểm neo sau lưng camera: không ghi gì', () => {
+    const { root, bar, camera } = setup();
+    frame(root, new Vector3(0, 8, 20), camera);
+    expect(bar.dataset.clampY).toBeUndefined();
+    expect(bar.style.translate).toBe('');
   });
 });

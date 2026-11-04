@@ -36,6 +36,7 @@ import { useSceneLoader } from './sceneLoader';
 import { SwapModelCard } from './SwapModelCard';
 import { PascalTour } from './tour/PascalTour';
 import { openBuildTabWithoutArming } from './upstream/components/build-tab';
+import { NodeContextMenu } from './upstream/components/node-context-menu';
 import { CommunityViewerToolbarLeft, DisplayMenu } from './upstream/components/viewer-toolbar';
 import Home from './upstream/page';
 import { ViewMenu } from './ViewMenu';
@@ -268,6 +269,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
     <PanelFlag />
     <PascalTour hasModel={hasWalls} />
     <HomeownerCardMount extra={readOnly ? null : itemCards} readOnly={readOnly} />
+    {readOnly ? null : <NodeContextMenu />}
     </>
   );
 }

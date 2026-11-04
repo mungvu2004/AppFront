@@ -68,9 +68,9 @@ import {
   SquareUserRound,
   SwatchBook,
   Tag,
+  Map as MapIcon,
 } from 'lucide-react'
 import { emitter, useScene } from '@pascal-app/core'
-import Image from 'next/image'
 import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
@@ -164,31 +164,17 @@ const VIEW_MODES: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
   {
     id: '3d',
     label: '3D',
-    icon: (
-      <Image
-        alt=""
-        className="h-3.5 w-3.5 object-contain"
-        height={14}
-        src="/icons/building.webp"
-        width={14}
-      />
-    ),
+    icon: <Box className="h-3.5 w-3.5" />,
   },
   {
     id: '2d',
     label: '2D',
-    icon: (
-      // The blueprint icon is solid white (made for a dark bar): draw it as a mask so it follows the text colour.
-      <span
-        aria-hidden="true"
-        className="inline-block h-3.5 w-3.5 bg-current [mask:url(/icons/blueprint.webp)_center/contain_no-repeat]"
-      />
-    ),
+    icon: <MapIcon className="h-3.5 w-3.5" />,
   },
   {
     id: 'split',
     label: 'Chia đôi',
-    icon: <Columns2 className="h-3 w-3" />,
+    icon: <Columns2 className="h-3.5 w-3.5" />,
   },
 ]
 

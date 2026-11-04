@@ -53,6 +53,7 @@ const commit = vi.hoisted(() => ({
   reason: null as string | null,
   unsaved: [] as string[],
   notices: [] as string[],
+  accepted: false,
   /** Khác `null` = cổng chặn lượt này là xoá nhiều (`validateCommit` gọi `onMassDelete`). */
   massDelete: null as string[] | null,
   confirmed: [] as (readonly string[])[],
@@ -171,6 +172,13 @@ vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
       commit.notices.forEach(onNotice);
 
       return Promise.resolve(commit.ok);
+    },
+    takeSuggestionAccepted: () => {
+      const accepted = commit.accepted;
+
+      commit.accepted = false;
+
+      return accepted;
     },
   }),
 }));
@@ -427,6 +435,19 @@ describe('usePascalProjectBridge', () => {
     });
 
     expect(back.ok ? null : back.error.code).toBe('PASCAL_NO_CHANGE');
+  });
+
+  it('vừa nhận món gợi ý: dựng lại cảnh từ kho ngay để tấm viền thành mẫu thật, một lần', async () => {
+    const applied: PascalScene[] = [];
+    const { result } = renderHook(() => usePascalProjectBridge('p1', (scene) => applied.push(scene as PascalScene)));
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    commit.accepted = true;
+    await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    expect(applied).toHaveLength(1);
+    await result.current.onSave({ nodes: {}, rootNodeIds: [] });
+    expect(applied).toHaveLength(1);
   });
 
   it('máy chủ khối tầng: "Tải lại tầng" nạp lại tầng rồi dựng lại cảnh từ kho, không nạp lại trang', async () => {
