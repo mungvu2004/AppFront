@@ -237,6 +237,7 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
         backgroundImageAlt={model.backgroundImageAlt}
         backgroundImageUrl={model.backgroundImageUrl}
         dragMeasurement={model.dragMeasurement}
+        flightZoom={model.flightZoom}
         haloRectPx={model.haloRectPx}
         highlightedWallId={model.highlightedWallId}
         hoveredObjectId={model.hoveredObjectId}
@@ -247,6 +248,7 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
         objects={model.objects}
         onFrameResize={model.onFrameResize}
         onHover={model.onHover}
+        onResetFlight={model.onResetFlight}
         onSelect={model.onSelect}
         placements={model.placements}
         ruleIssueMarker={model.ruleIssueMarker}

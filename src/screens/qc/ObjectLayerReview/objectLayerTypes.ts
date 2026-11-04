@@ -735,6 +735,10 @@ export interface ObjectLayerReviewModel {
   readonly viewport: ObjectLayerViewport;
   /** Vùng bản vẽ đang thấy — `viewBox` của `<svg>` phủ kín khung (BUG-403). */
   readonly viewBoxPx: PixelRect | null;
+  /** Độ phóng của cú bay tới mục, tính từ vừa khung (1 = không bay); cụm phóng nhân với mức của nó. */
+  readonly flightZoom: number;
+  /** Trả khung nhìn về vừa khung sau cú bay. */
+  readonly onResetFlight: () => void;
   /** Một px MÀN tính bằng px bản vẽ (= 1 / `viewport.zoom`) — chấm "chưa gắn" giữ cỡ (review-1 #4). */
   readonly unitPx: number;
   /** Hộp ảnh nền, pixel KHUNG. */

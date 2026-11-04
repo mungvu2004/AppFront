@@ -73,6 +73,7 @@ export function ObjectLayerCanvas({
   backgroundImageAlt,
   backgroundImageUrl,
   dragMeasurement,
+  flightZoom = 1,
   drawLayer = null,
   haloRectPx,
   highlightedWallId,
@@ -88,6 +89,7 @@ export function ObjectLayerCanvas({
   onFrameResize,
   onHover,
   onPlaceAt,
+  onResetFlight,
   onSelect,
   placements,
   ruleIssueMarker = null,
@@ -427,7 +429,20 @@ export function ObjectLayerCanvas({
         </p>
       ) : null}
 
-      <QcZoomMenu {...zoomCluster} compare viewMode />
+      <QcZoomMenu
+        {...zoomCluster}
+        compare
+        onFitToScreen={() => {
+          zoomCluster.onFitToScreen();
+          onResetFlight?.();
+        }}
+        onResetZoom={() => {
+          zoomCluster.onResetZoom();
+          onResetFlight?.();
+        }}
+        viewMode
+        zoomLevel={Math.round(zoomCluster.zoomLevel * flightZoom)}
+      />
 
       {/* Vẽ xong là hỏi loại ngay cạnh hộp mới (đã được chọn, nên `focusRectPx` là hộp ấy). */}
       {kindPicker === null || placedAt === null ? null : (

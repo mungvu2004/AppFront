@@ -415,12 +415,13 @@ describe('Toast.Provider viewport', () => {
     );
   });
 
-  // U22: the floor-review status bar ("A duyệt · J kế tiếp · Đã lưu lúc…") sat under the undo toast.
-  it('stands above the floor-review status bar', () => {
+  // The floor-review details panel floats over the canvas: the toast must not cover its footer buttons.
+  it('stands beside the floor-review panel, above the zoom cluster', () => {
     render(<Toast.Provider><span /></Toast.Provider>);
 
     expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass(
-      "sm:[html:has([data-qc-status-bar]):not(:has([data-sticky-footer])):not([data-drawer=sheet])_&]:bottom-14",
+      "sm:[html:has([data-qc-status-bar]):not(:has([data-sticky-footer])):not([data-drawer=sheet])_&]:bottom-[calc(4.5rem+var(--qc-cover-bottom,0px))]",
+      "sm:[html:has([data-qc-status-bar]):not([data-drawer=side])_&]:right-[calc(1rem+var(--qc-cover-right,0px))]",
     );
   });
 
