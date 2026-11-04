@@ -159,19 +159,9 @@ function applyStartParams() {
   fitWhenControlsReady(subscribeCameraPose, fitModel)
 }
 
-/** Only poses published after subscribing (the current one belongs to the canvas being replaced). */
-function subscribeNextCameraPose(listener: () => void) {
-  let initial = true
-  const unsubscribe = subscribeCameraPose(() => {
-    if (!initial) listener()
-  })
-  initial = false
-  return unsubscribe
-}
-
 /**
- * QA-2 L2: entering or leaving Preview swaps the canvas, and the new camera controls start at a
- * fixed pose close to one corner. Re-frame the model once they are up.
+ * QA-2 L2: entering or leaving Preview resizes the shared canvas, and upstream's preview effect flies to
+ * the level. Re-frame the model two frames later, once that effect and the new layout have run.
  */
 function useFitOnPreviewToggle() {
   const isPreview = useEditor((state) => state.isPreviewMode)
@@ -179,7 +169,10 @@ function useFitOnPreviewToggle() {
   useEffect(() => {
     if (seen.current === isPreview) return
     seen.current = isPreview
-    return fitWhenControlsReady(subscribeNextCameraPose, fitModel)
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(fitModel)
+    })
+    return () => cancelAnimationFrame(raf)
   }, [isPreview])
 }
 

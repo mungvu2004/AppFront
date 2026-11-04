@@ -61,9 +61,9 @@ describe('pascal-render', () => {
   });
 
   it('giữ CRLF', () => {
-    const id = path.join(PACKAGES, 'editor/src/components/editor/index.tsx');
-    const code = '      selectionManager="default"\r\n    >\r\n      <ExportManager />\r\n';
-    assert.equal(transformRender(code, id), '      selectionManager="default"\r\n    >\r\n      <SceneEnvironment />\r\n      <ExportManager />\r\n');
+    const id = path.join(PACKAGES, 'viewer/src/components/viewer/post-processing.tsx');
+    const code = readFileSync(id, 'utf8').replace(/\r?\n/g, '\r\n');
+    assert.ok(transformRender(code, id).includes('  contrast: 1.12,\r\n  saturation: 1.08,\r\n'));
   });
 
   it('bỏ qua tệp ngoài bảng và báo tệp trong bảng không được dựng tới', () => {
