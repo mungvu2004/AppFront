@@ -45,7 +45,7 @@ export function EditModelButton({ collapsed, onOpen }: { readonly collapsed: boo
     >
       <PencilRuler aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
       {/* UX41 U58 + Editor3D 01/11: < 1200px chỉ còn biểu tượng (thanh 1024 tràn); tên vẫn đọc được (sr-only) và ở title. */}
-      <span className="@max-[1200px]/appbar:sr-only">Sửa mô hình</span>
+      <span className="@max-[1200px]/appbar:sr-only" data-appfront-head-label="">Sửa mô hình</span>
     </button>
   );
 }
@@ -183,6 +183,7 @@ export function SaveStatusCard({ save }: { readonly save: PascalSaveStatus }) {
       <div
         aria-live="polite"
         className={`${STATUS_CARD} inline-flex w-8 justify-center ${alert ? ALERT_TONE : offline ? 'border-[var(--pa-warn)] text-[var(--pa-text)]' : INFO_TONE}`}
+        data-appfront-save-alert={alert || offline ? '' : undefined}
         role="status"
         title={alert ? alertText : text}
       >
@@ -295,7 +296,7 @@ export function ProjectStepsCard({ projectId, readOnly = false }: { readonly pro
         >
           {/* UX41 U58: < 800px (cửa sổ 768) chip chỉ còn số bước, tên ở aria-label/title; thanh trái hết đè thanh phải. */}
           <span>
-            Bước {VIEWER_STEP + 1}<span className="@max-[800px]/appbar:hidden"> · {current.label}</span>
+            Bước {VIEWER_STEP + 1}<span className="@max-[800px]/appbar:hidden" data-appfront-head-label=""> · {current.label}</span>
           </span>
           <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)] @max-[720px]/appbar:hidden" />
         </summary>

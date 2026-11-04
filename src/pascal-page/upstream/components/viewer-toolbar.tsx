@@ -76,7 +76,8 @@ import { createPortal, flushSync } from 'react-dom'
 import { isTopDown, topViewPose } from '../lib/top-view-pose'
 import { cn } from '../lib/utils'
 import { roomsOf } from '../lib/fit-on-ready'
-import { barLayoutVars, type DockFit, dockFit } from '../lib/dock-fit'
+import { barLayoutVars, type DockFit, dockLayout, toolsShift } from '../lib/dock-fit'
+import { CanvasHelpButton } from './canvas-help'
 import { fitModel, fitRoom, viewedFrame } from '../lib/view-frame'
 import { isSeparateUnits } from '../../bridge'
 import { QUICK_SHOT_REQUEST_ID } from '../../realism/snapshot'
@@ -367,7 +368,7 @@ function WallModeToggle() {
             className={cn(TOOLBAR_BTN, 'w-auto min-w-8 gap-1 px-2 font-medium text-[13px]')}
             type="button"
           >
-            <span className="text-[var(--pa-text-3)]">Tường:</span>
+            <span className="text-[var(--pa-text-3)] max-[899px]:sr-only">Tường:</span>
             <span className="text-[var(--pa-text)]">{current?.label ?? 'khác'}</span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--pa-text-3)]" />
           </button>
@@ -1118,7 +1119,7 @@ function useActionMenuEdges() {
       )
     }
     read()
-    const timer = window.setInterval(read, 500)
+    const timer = window.setInterval(read, 250)
     return () => window.clearInterval(timer)
   }, [])
   return edges
@@ -1130,34 +1131,41 @@ function viewerColumn(): HTMLElement | null {
 }
 
 /**
- * Đợt 2 (thử tay 1280 px, bảng Dựng mở): the action menu sits right of centre, so the labelled dock ran
- * past the screen edge. Labels collapse to icons (`data-compact`, pascal-chrome.css) whenever the
- * labelled width — remembered while labels show — does not fit right of the action menu.
- * HIG-A (768 px, bảng bên mở): icons alone still ran off the edge → fold the rest into "…" (level 2).
- * Hoàn tác / Làm lại drop their labels when they would run under the sidebar, left of the action menu.
+ * Đợt 2 (thử tay 1280 px, bảng Dựng mở) + chrome-layout 04/11: undo + tool bar + dock centre together on
+ * the canvas (the vendor tool bar moves by `margin-left`, computed from widths only, so no measuring loop).
+ * Labels collapse (`data-compact`, pascal-chrome.css) whenever the labelled widths — remembered while
+ * labels show — do not fit the canvas; steps in `dockLayout`. HIG-A (768 px, bảng bên mở): level 2 folds into "…".
  */
-function useDockFit(edges: { left: number; right: number } | null): { fit: DockFit; undoCompact: boolean } {
+function useDockFit(): { fit: DockFit; undoCompact: boolean } {
   const [fit, setFit] = useState<DockFit>(0)
   const [undoCompact, setUndoCompact] = useState(false)
-  const widths = useRef({ full: 0, icons: 0, undo: 0 })
+  const widths = useRef({ full: 0, icons: 0, undo: 0, undoIcons: 0 })
   useEffect(() => {
     const check = () => {
+      const tools = document.querySelector<HTMLElement>(ACTION_MENU)
       const dock = document.querySelector<HTMLElement>('[data-appfront-dock]')
-      if (!dock || !edges) return
+      if (!tools) return
+      if (!dock) {
+        tools.style.marginLeft = ''
+        return
+      }
       const w = widths.current
-      if (!dock.hasAttribute('data-compact')) w.full = dock.getBoundingClientRect().width
-      else if (!dock.hasAttribute('data-tight')) w.icons = dock.getBoundingClientRect().width
-      const room = window.innerWidth - edges.right - DOCK_GAP * 2
-      setFit(dockFit(w.full, w.icons, room))
+      const dockWidth = dock.getBoundingClientRect().width
+      if (!dock.hasAttribute('data-compact')) w.full = dockWidth
+      else if (!dock.hasAttribute('data-tight')) w.icons = dockWidth
       const undo = document.querySelector<HTMLElement>('[data-appfront-undo]')
-      if (undo && !undo.hasAttribute('data-compact')) w.undo = undo.getBoundingClientRect().width
-      const leftRoom = edges.left - (viewerColumn()?.getBoundingClientRect().left ?? 0) - DOCK_GAP * 2
-      setUndoCompact(w.undo > leftRoom)
+      const undoWidth = undo?.getBoundingClientRect().width ?? 0
+      if (undo) w[undo.hasAttribute('data-compact') ? 'undoIcons' : 'undo'] = undoWidth
+      const canvas = window.innerWidth - (viewerColumn()?.getBoundingClientRect().left ?? 0)
+      const next = dockLayout({ ...w, canvas, tools: tools.getBoundingClientRect().width }, DOCK_GAP)
+      setFit(next.fit)
+      setUndoCompact(next.undoCompact)
+      tools.style.marginLeft = `${toolsShift(undoWidth, dockWidth, DOCK_GAP)}px`
     }
     check()
-    const timer = window.setInterval(check, 500)
+    const timer = window.setInterval(check, 250)
     return () => window.clearInterval(timer)
-  }, [edges])
+  }, [])
   return { fit, undoCompact }
 }
 
@@ -1175,11 +1183,15 @@ function useBarLayoutVars() {
       if (!column || !bar) return
       const vars = barLayoutVars(bar.getBoundingClientRect(), column.getBoundingClientRect())
       for (const [name, value] of Object.entries(vars)) style.setProperty(name, value)
+      // chrome-layout: the floating left head has 1 or 2 rows; the floor card and help column sit below it.
+      const head = document.querySelector('[data-appfront-panel-head="floating"]')
+      if (head) style.setProperty('--appfront-head-bottom', `${Math.round(head.getBoundingClientRect().bottom)}px`)
     }
     tick()
     const timer = window.setInterval(tick, 250)
     return () => {
       window.clearInterval(timer)
+      style.removeProperty('--appfront-head-bottom')
       style.removeProperty('--appfront-bar-bottom')
       style.removeProperty('--appfront-viewer-left')
     }
@@ -1276,7 +1288,7 @@ function useFitRoomFromLabels() {
  */
 export function BottomDock({ projectId, readOnly = false }: { projectId: string; readOnly?: boolean }) {
   const edges = useActionMenuEdges()
-  const { fit, undoCompact } = useDockFit(edges)
+  const { fit, undoCompact } = useDockFit()
   useFitRoomFromLabels()
   const hidden = useEditor((state) => state.isPreviewMode || state.isFirstPersonMode)
   if (hidden) return null
@@ -1287,11 +1299,11 @@ export function BottomDock({ projectId, readOnly = false }: { projectId: string;
   return createPortal(
     <>
       {readOnly ? null : (
-        <div className="fixed bottom-7 z-50" style={leftStyle}>
+        <div className="fixed bottom-6 z-50" style={leftStyle}>
           <UndoRedoButtons compact={undoCompact} />
         </div>
       )}
-      <div className="fixed bottom-7 z-50" style={rightStyle}>
+      <div className="fixed bottom-6 z-50" style={rightStyle}>
         <div
           className={TOOLBAR_CONTAINER}
           data-appfront-dock=""
@@ -1343,7 +1355,7 @@ export function CommunityViewerToolbarRight({
   return (
     <section
       aria-label="Xem"
-      className="flex w-max max-w-[calc(100vw-2rem)] flex-wrap items-center justify-end gap-1 rounded-2xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 shadow-[var(--pa-shadow-float)]"
+      className="flex w-max max-w-[calc(100vw-var(--appfront-viewer-left,0px)-1.5rem)] flex-wrap items-center justify-end gap-1 rounded-2xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 shadow-[var(--pa-shadow-float)]"
       data-appfront-bar=""
       data-appfront-viewpanel=""
     >
@@ -1362,6 +1374,7 @@ export function CommunityViewerToolbarRight({
               <VRButton active={vrActive} disabled={vrDisabled} label={vrLabel} onToggle={onVRToggle} />
             ) : null))
           : null}
+        <CanvasHelpButton className={cn(TOOLBAR_BTN, 'aria-expanded:bg-[var(--pa-selected)] aria-expanded:text-[var(--pa-accent)]')} />
       </div>
     </section>
   )

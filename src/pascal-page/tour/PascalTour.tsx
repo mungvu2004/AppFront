@@ -41,6 +41,8 @@ const CSS = `
 .pascal-tour-primary:hover{background:var(--pa-accent-hover)}
 .pascal-tour-ghost{background:transparent;color:var(--pa-text-2)}
 .pascal-tour-ghost:hover{background:var(--pa-sunken);color:var(--pa-text)}
+.pascal-tour-link{background:transparent;color:var(--pa-accent);padding:0 8px}
+.pascal-tour-link:hover{background:var(--pa-sunken);color:var(--pa-accent-hover)}
 .pascal-tour-kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;border:1px solid var(--pa-border);background:var(--pa-sunken);color:var(--pa-text-2);border-radius:4px;padding:1px 6px}
 @media (prefers-reduced-motion: reduce){.pascal-tour-btn{transition:none}}
 `;
@@ -90,7 +92,8 @@ function FirstHint({ onOpen, onClose }: { readonly onOpen: () => void; readonly 
         // HIG-A: giữa cột 3D, không giữa cửa sổ (768 + bảng bên mở thì lấn bảng bên); biến do viewer-toolbar.tsx
         // `useBarLayoutVars` đặt, chưa có thì 0 = giữa cửa sổ như cũ. Cột hẹp: chữ xuống dòng thay vì tràn.
         left: 'calc(50% + var(--appfront-viewer-left, 0px) / 2)',
-        maxWidth: 'calc(100vw - var(--appfront-viewer-left, 0px) - 24px)',
+        width: 'max-content',
+        maxWidth:'calc(100vw - var(--appfront-viewer-left, 0px) - 24px)',
         bottom: HINT_BOTTOM_PX,
         transform: 'translateX(-50%)',
         zIndex: Z,
@@ -109,7 +112,7 @@ function FirstHint({ onOpen, onClose }: { readonly onOpen: () => void; readonly 
     >
       <style>{CSS}</style>
       <span style={{ whiteSpace: 'normal' }}>{HINT_TEXT}</span>
-      <button className="pascal-tour-btn pascal-tour-primary" onClick={onOpen} type="button">
+      <button className="pascal-tour-btn pascal-tour-link" onClick={onOpen} style={{ whiteSpace: 'nowrap' }} type="button">
         Xem hướng dẫn
       </button>
       <button

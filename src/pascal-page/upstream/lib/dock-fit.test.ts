@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { barLayoutVars, dockFit, hintFits } from './dock-fit'
+import { barLayoutVars, dockFit, dockLayout, hintFits, toolsShift } from './dock-fit'
+
+describe('dockLayout', () => {
+  const base = { tools: 126, full: 594, icons: 285, undo: 170, undoIcons: 66 }
+  it('keeps every label at 1440 (the whole canvas is the budget)', () => {
+    expect(dockLayout({ ...base, canvas: 1384 }, 8)).toEqual({ fit: 0, undoCompact: false })
+  })
+  it('drops dock labels, then undo labels, then folds', () => {
+    expect(dockLayout({ ...base, canvas: 968 }, 8)).toEqual({ fit: 1, undoCompact: false })
+    expect(dockLayout({ ...base, canvas: 620 }, 8)).toEqual({ fit: 1, undoCompact: true })
+    expect(dockLayout({ ...base, canvas: 424 }, 8)).toEqual({ fit: 2, undoCompact: true })
+  })
+  it('has no undo group to budget when read-only', () => {
+    expect(dockLayout({ ...base, undo: 0, undoIcons: 0, canvas: 860 }, 8)).toEqual({ fit: 0, undoCompact: false })
+  })
+})
+
+describe('toolsShift', () => {
+  it('moves the tools bar by half the side difference', () => {
+    expect(toolsShift(170, 594, 8)).toBe(-212)
+    expect(toolsShift(0, 100, 8)).toBe(-54)
+  })
+})
 
 describe('dockFit', () => {
   it('keeps labels while the labelled dock fits', () => {
