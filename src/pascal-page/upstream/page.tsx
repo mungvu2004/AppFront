@@ -37,7 +37,6 @@ import {
   ViewerSceneHeader,
 } from '@pascal-app/editor'
 import { Hammer, Layers, Package, Settings } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef } from 'react'
 import { isSeparateUnits } from '../bridge'
 import { downloadSnapshot } from '../realism/snapshot'

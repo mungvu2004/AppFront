@@ -15,7 +15,7 @@ vi.mock('@pascal-app/core', () => ({ sceneRegistry: registry }));
 describe('outlineWarmFrame', () => {
   const setup = () => {
     const getForRender = vi.fn();
-    const renderer = { _pipelines: { getForRender, updateForRender: (_ro: unknown) => undefined } };
+    const renderer = { _pipelines: { getForRender, updateForRender: () => undefined } };
     installAsyncPipelines(renderer, false);
     const wall = {};
     const reg = { nodes: new Map<string, unknown>([['w', wall]]), byType: { wall: new Set(['w']) } };
