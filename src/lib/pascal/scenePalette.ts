@@ -38,6 +38,7 @@ export const SCENE_PALETTE = {
   // Nắp cắt tường ở chế độ "Tường: cắt" (bench-3d: thay dải gần đen quanh tường bao).
   cutCap: '#ddd9d3',
   studioGround: '#d6d7d8',
+  // Màu đất Nắng chiều mong muốn TRÊN ẢNH; giá trị ghi vào shader là `STUDIO_GROUND_SUNSET_LINEAR`.
   studioGroundSunset: '#f6e8d4',
   studioShadow: '#2e3134',
   studioPlinth: '#e6e3de',
@@ -46,6 +47,26 @@ export const SCENE_PALETTE = {
   // Viền đồ chưa xác nhận (C6, `sceneDressing.ts`): cam nhạt.
   unconfirmed: '#f59e0b',
 } as const;
+
+/**
+ * Màu chủ đạo của app cho trình dựng: tay cầm, viền chọn, nét dựng của Pascal (thay tím, `scripts/realism/u48-accent-no-purple.mjs`
+ * đọc thẳng các dòng này) và chữ nhãn phòng 2D (`u49-room-label.mjs`). Chép từ `globals.css`: `--accent*` của chủ đề sáng và tối,
+ * `--text-primary` sáng. `scripts/__tests__/u48-accent-no-purple.test.mjs` giữ các giá trị này có mặt trong `pascal-theme.css`.
+ */
+export const EDITOR_ACCENT_PALETTE = {
+  editorAccent: '#4d6e87',
+  editorAccentHover: '#436078',
+  editorAccentOnDark: '#7fa6c4',
+  editorAccentOnDarkActive: '#a7c4d9',
+  editorAccentWash: '#edf2f6',
+  roomLabelInk: '#33322f',
+} as const;
+
+/**
+ * Đất Nắng chiều trước chỉnh màu + ACES (tuyến tính, phơi sáng 1): ACES nén sáng và làm nhạt màu nên ghi thẳng
+ * `studioGroundSunset` ra ảnh `#e6e2da`. Giải ngược ra giá trị này; đỏ > 1 nên không viết được bằng mã hex.
+ */
+export const STUDIO_GROUND_SUNSET_LINEAR = [1.95, 1.094, 0.609] as const;
 
 /**
  * Màu của dáng render ấm (`src/pascal-page/renderLook.ts`) — đè chủ đề `night` của Pascal.

@@ -37,7 +37,7 @@ import {
   ViewerSceneHeader,
 } from '@pascal-app/editor'
 import { Hammer, Layers, Package, Settings } from 'lucide-react'
-import Image from 'next/image'
+import type { ReactNode } from 'react'
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef } from 'react'
 import { isSeparateUnits } from '../bridge'
 import { downloadSnapshot } from '../realism/snapshot'
@@ -67,10 +67,10 @@ function EditorItemsPanel() {
 
 // AppFront (wall-review-ux): the rail showed bare icons and users asked "what is this for?" —
 // a short caption under each icon (the button keeps its aria-label + hover tooltip).
-function railIcon(src: string, label: string) {
+function railIcon(icon: ReactNode, label: string) {
   return (
     <span className="flex flex-col items-center gap-0.5">
-      <Image alt="" className="h-6 w-6 object-contain" height={24} src={src} width={24} />
+      {icon}
       <span aria-hidden="true" className="whitespace-nowrap text-[10px] leading-none">
         {label}
       </span>
@@ -85,7 +85,7 @@ const SIDEBAR_TABS = [
     component: () => null,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Layers className="h-5 w-5" />,
-    icon: railIcon('/icons/scene.webp', 'Cảnh'),
+    icon: railIcon(<Layers className="h-5 w-5" />, 'Cảnh'),
   },
   {
     id: 'build',
@@ -93,7 +93,7 @@ const SIDEBAR_TABS = [
     component: BuildTab,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Hammer className="h-5 w-5" />,
-    icon: railIcon('/icons/build.webp', 'Dựng'),
+    icon: railIcon(<Hammer className="h-5 w-5" />, 'Dựng'),
   },
   {
     id: 'items',
@@ -101,7 +101,7 @@ const SIDEBAR_TABS = [
     component: EditorItemsPanel,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Package className="h-5 w-5" />,
-    icon: railIcon('/icons/couch.webp', 'Đồ vật'),
+    icon: railIcon(<Package className="h-5 w-5" />, 'Đồ vật'),
   },
   {
     id: 'settings',
@@ -109,7 +109,7 @@ const SIDEBAR_TABS = [
     component: () => null,
     mobileDefaultSnap: 0.5,
     mobileIcon: <Settings className="h-5 w-5" />,
-    icon: railIcon('/icons/settings.webp', 'Cài đặt'),
+    icon: railIcon(<Settings className="h-5 w-5" />, 'Cài đặt'),
   },
 ]
 

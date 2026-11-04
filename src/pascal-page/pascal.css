@@ -16,6 +16,8 @@
 @source "../../vendor/pascal/packages/nodes/src";
 @source "../../vendor/pascal/packages/core/src";
 @source ".";
+/* Lớp chỉ xuất hiện sau khi `scripts/realism/u48-accent-no-purple.mjs` thay tím Pascal: Tailwind quét mã gốc nên phải khai. */
+@source inline("bg-primary/90 ring-primary/40 border-primary/70 focus:border-primary text-primary-foreground bg-primary bg-primary/15 hover:bg-primary/15 hover:text-primary text-primary");
 
 /* ---- styles/elevation.css (upstream, verbatim) ---- */
 /*
