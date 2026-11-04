@@ -558,6 +558,20 @@ export const setRealismModels = (on: boolean): void => {
 };
 const fileFolderOf = (folder: string): string => (realismModels.on ? REALISM_MODEL_SWAP[folder] : undefined) ?? folder;
 
+/**
+ * GLB không có material `slot_*` (bài kiểm quét GLB thật). Mẫu thế chỉ nhận "cả món một màu" (khe `a`, vá
+ * `u53-whole-item-paint`), nên không phát khe phong cách: khe trơ làm lượt về không gộp được `a`, màu sơn mất khi lưu.
+ */
+export const NO_SLOT_MODELS: ReadonlySet<string> = new Set([
+  'armchair-ph', 'ball', 'bathroom-sink', 'bed-sf', 'bedside-table-ph', 'books', 'bookshelf-ph', 'bunkbed',
+  'ceiling-lamp', 'ceiling-lamp-ph', 'ceramic-vase', 'ceramic-vase-slim', 'coffee-table-sf', 'dining-chair-ph',
+  'dining-table-sf', 'double-bed', 'dresser-sf', 'fancy-picture-frame', 'fridge', 'fridge-sf', 'hob-sf', 'hood',
+  'hood-sf', 'kitchen', 'ottoman', 'picture-ph', 'plant-ph', 'planter-long', 'planter-ph', 'pool-table', 'shower-sf',
+  'skate', 'sofa-ph', 'stove-sf', 'table-lamp', 'thermostat', 'threadmill', 'toilet-sf', 'toy', 'tv-sf', 'vanity-sf',
+  'wardrobe-sf',
+]);
+export const modelHasSlots = (folder: string): boolean => !NO_SLOT_MODELS.has(fileFolderOf(folder));
+
 export const CATALOG_MODELS: Readonly<Record<string, CatalogModel>> = { ...VENDOR_MODELS, ...APPFRONT_MODELS };
 for (const [folder, ph] of Object.entries(REALISM_MODEL_SWAP)) {
   const base = CATALOG_MODELS[folder] as CatalogModel;
