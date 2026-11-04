@@ -121,10 +121,10 @@ export const OPEN_DIALOG =
   '[data-slot="dialog-content"][data-state="open"], [data-slot="alert-dialog-content"][data-state="open"], [role="alertdialog"], [role="dialog"][aria-modal="true"]';
 export const isDialogOpen = (root: ParentNode = document): boolean => root.querySelector(OPEN_DIALOG) !== null;
 /**
- * UX-R2 K38: gợi ý lần đầu đứng giữa cạnh dưới, ngay trên thanh công cụ dưới (`fixed bottom-6`, cao
- * ~52px) — không còn dưới cụm trợ giúp đầu cảnh, nơi nó đè lên mô hình.
+ * UX-R2 K38: gợi ý lần đầu đứng giữa cạnh dưới, ngay trên hàng đáy (`fixed bottom-6`, cao 42px, khe 8px)
+ * — không còn dưới cụm trợ giúp đầu cảnh, nơi nó đè lên mô hình.
  */
-export const HINT_BOTTOM_PX = 88;
+export const HINT_BOTTOM_PX = 74;
 
 export function requestTour(): void {
   window.dispatchEvent(new Event(TOUR_OPEN_EVENT));

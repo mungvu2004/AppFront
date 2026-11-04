@@ -1,12 +1,12 @@
 # Mã Pascal trong repo này
 
-`packages/{core,viewer,editor,nodes}` là bản chép **nguyên vẹn** của upstream
-`https://github.com/pascalorg/editor` (clone tại `F:/pascal-editor`), commit
+`packages/{core,viewer,editor,nodes}` chép từ upstream
+`https://github.com/pascalorg/editor`, commit
 `cd14090ef4d147a5de59aa4a100eab208f26e1da`, giấy phép **MIT** (`LICENSE` cạnh tệp này — phải giữ nguyên).
 Không chép `node_modules/`, `dist/`, `.turbo/`, `tsconfig.tsbuildinfo`.
 
-**KHÔNG được sửa gì trong `packages/`.** Kiểm: `diff -rq -x node_modules F:/pascal-editor/packages/<gói> vendor/pascal/packages/<gói>`
-phải rỗng. Nâng phiên bản = chép lại cả thư mục từ upstream (`robocopy /MIR /XD node_modules dist .turbo`).
+Bản chép **đã có sửa đổi của AppFront**, xem `git log -- vendor/pascal/packages`. Nâng phiên bản không còn là
+chép đè cả thư mục: phải gộp lại các sửa đổi đó.
 
 Tự host tài nguyên làm bằng `scripts/pascal-self-host.mjs` + `pascal-catalog-local.mjs` lúc build, không sửa `packages/`.
 

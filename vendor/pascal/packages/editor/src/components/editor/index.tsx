@@ -33,6 +33,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { ViewerOverlay } from '../../components/viewer-overlay'
 import { ViewerZoneSystem } from '../../components/viewer-zone-system'
 import { type SaveStatus, useAutoSave } from '../../hooks/use-auto-save'
@@ -810,11 +811,16 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
   // selection, editing handles, and the tool manager (which mounts the site
   // boundary flags) so the framed shot stays clean.
   const isCaptureMode = useEditor((s) => s.isCaptureMode)
-  const noEditing = isVersionPreviewMode || isFirstPersonMode || isStudioMode || isCaptureMode
+  // AppFront: Preview shares this canvas, so it turns the editing layers off instead of mounting its own <Viewer>.
+  const isPreviewMode = useEditor((s) => s.isPreviewMode)
+  const noEditing =
+    isVersionPreviewMode || isFirstPersonMode || isStudioMode || isCaptureMode || isPreviewMode
   return (
     <>
       <SceneEnvironment />
-      {!(isFirstPersonMode || isStudioMode || isCaptureMode) && <SelectionManager />}
+      {!(isFirstPersonMode || isStudioMode || isCaptureMode || isPreviewMode) && (
+        <SelectionManager />
+      )}
       {!(noEditing || isXRMode) && <BoxSelectTool />}
       {!noEditing && <NodeArrowHandles />}
       {!noEditing && <GroupRotateHandle />}
@@ -826,22 +832,23 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
       {!(noEditing || isXRMode) && <FloatingActionMenu />}
       {!(noEditing || isXRMode) && <GroupFloatingActionMenu />}
       {!(noEditing || isXRMode) && <FloatingBuildingActionMenu />}
-      {!(isFirstPersonMode || isXRMode) && <WallMeasurementLabel />}
+      {!(isFirstPersonMode || isXRMode || isPreviewMode) && <WallMeasurementLabel />}
       <ExportManager />
-      {isFirstPersonMode ? <ViewerZoneSystem /> : <ZoneSystem />}
+      {isFirstPersonMode || isPreviewMode ? <ViewerZoneSystem /> : <ZoneSystem />}
       <CeilingSystem />
-      <CeilingSelectionAffordanceSystem />
+      {!isPreviewMode && <CeilingSelectionAffordanceSystem />}
       {!noEditing && <SelectionAffordanceManager />}
       <RoofEditSystem />
       <StairEditSystem />
-      {!(isLoading || isFirstPersonMode) && <SnapAwareGrid />}
+      {isPreviewMode && <InteractiveSystem />}
+      {!(isLoading || isFirstPersonMode || isPreviewMode) && <SnapAwareGrid />}
       {!(isLoading || noEditing) && <ToolManager />}
       {isFirstPersonMode && <FirstPersonControls />}
       {isCaptureMode && !isXRMode && <CaptureCameraRig />}
       {!isXRMode && <CustomCameraControls />}
       {!isXRMode && <ThumbnailGenerator onThumbnailCapture={onThumbnailCapture} />}
       {!isXRMode && <VectorEdgeExtractor />}
-      {!(isFirstPersonMode || isXRMode) && <SiteEdgeLabels />}
+      {!(isFirstPersonMode || isXRMode || isPreviewMode) && <SiteEdgeLabels />}
       {presentationsReady ? <ViewerPresentations /> : null}
       {!noEditing && viewerSceneSlot}
     </>
@@ -1109,36 +1116,39 @@ const ViewerCanvas = memo(function ViewerCanvas({
     writeCameraControlsHintDismissed(true)
   }, [])
 
-  const show2d = viewMode === '2d' || viewMode === 'split'
-  const show3d = viewMode === '3d' || viewMode === 'split'
+  // Preview has its own 2D/3D stage around this canvas; the editor's split never applies there.
+  const show2d = !isPreviewMode && (viewMode === '2d' || viewMode === 'split')
+  const show3d = isPreviewMode || viewMode === '3d' || viewMode === 'split'
 
   return (
     <ErrorBoundary fallback={<EditorSceneCrashFallback />}>
       {/* `relative` so the floorplan compass (portaled here to stay visible in
           2d / 3d / split alike) can anchor to this container's bottom-left. */}
       <div className="relative flex h-full" ref={setViewerAreaNode}>
-        <QuickMeasurementHud />
-        <DeleteConfirmationDialog />
+        {!isPreviewMode && <QuickMeasurementHud />}
+        {!isPreviewMode && <DeleteConfirmationDialog />}
         {/* 2D floorplan — always mounted once shown, hidden via CSS to preserve state */}
-        <div
-          className="relative h-full flex-shrink-0"
-          style={{
-            width: viewMode === '2d' ? '100%' : `${floorplanPaneRatio * 100}%`,
-            display: show2d ? undefined : 'none',
-          }}
-        >
-          <div className="h-full w-full overflow-hidden">
-            <FloorplanPanel compassHost={viewerAreaEl} floorplanSceneSlot={floorplanSceneSlot} />
-          </div>
-          {viewMode === 'split' && (
-            <div
-              className="absolute inset-y-0 -right-3 z-10 flex w-6 cursor-col-resize items-center justify-center"
-              onPointerDown={handleFloorplanDividerDown}
-            >
-              <div className="h-8 w-1 rounded-full bg-neutral-400" />
+        {!isPreviewMode && (
+          <div
+            className="relative h-full flex-shrink-0"
+            style={{
+              width: viewMode === '2d' ? '100%' : `${floorplanPaneRatio * 100}%`,
+              display: show2d ? undefined : 'none',
+            }}
+          >
+            <div className="h-full w-full overflow-hidden">
+              <FloorplanPanel compassHost={viewerAreaEl} floorplanSceneSlot={floorplanSceneSlot} />
             </div>
-          )}
-        </div>
+            {viewMode === 'split' && (
+              <div
+                className="absolute inset-y-0 -right-3 z-10 flex w-6 cursor-col-resize items-center justify-center"
+                onPointerDown={handleFloorplanDividerDown}
+              >
+                <div className="h-8 w-1 rounded-full bg-neutral-400" />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 3D viewer — always mounted, hidden via CSS to avoid destroying the WebGL context */}
         <div
@@ -1155,13 +1165,15 @@ const ViewerCanvas = memo(function ViewerCanvas({
             containerRef={viewer3dRef}
             isVersionPreviewMode={isVersionPreviewMode}
           />
-          {!showLoader && isCameraControlsHintVisible && !isFirstPersonMode ? (
+          {!showLoader && isCameraControlsHintVisible && !isFirstPersonMode && !isPreviewMode ? (
             <ViewerCanvasControlsHint
               isPreviewMode={isPreviewMode}
               onDismiss={dismissCameraControlsHint}
             />
           ) : null}
-          <SelectionPersistenceManager enabled={hasLoadedInitialScene && !showLoader} />
+          <SelectionPersistenceManager
+            enabled={hasLoadedInitialScene && !showLoader && !isPreviewMode}
+          />
           <Viewer
             defaultRender={EDITOR_DEFAULT_RENDER}
             disablePostFx={disablePostFx}
@@ -1178,7 +1190,9 @@ const ViewerCanvas = memo(function ViewerCanvas({
             // Walk/drone framing during snapshot capture is camera-only: the
             // viewer's default selection manager would hover-highlight whatever
             // the cursor crosses, which orbit capture never does.
-            selectionManager={isFirstPersonMode && !isCaptureMode ? 'default' : 'custom'}
+            selectionManager={
+              isPreviewMode || (isFirstPersonMode && !isCaptureMode) ? 'default' : 'custom'
+            }
           >
             <ViewerSceneContent
               isFirstPersonMode={isFirstPersonMode}
@@ -1193,10 +1207,30 @@ const ViewerCanvas = memo(function ViewerCanvas({
           </Viewer>
         </div>
       </div>
-      {!(showLoader || isVersionPreviewMode) && <ZoneLabelEditorSystem />}
+      {!(showLoader || isVersionPreviewMode || isPreviewMode) && <ZoneLabelEditorSystem />}
     </ErrorBoundary>
   )
 })
+
+// ── Viewer host: one canvas for the editor layout and Preview ──
+// AppFront: Preview used to mount a second <Viewer>, so every toggle made a new WebGL context and
+// sent the whole scene to the GPU again (~70 MB, as costly as reopening the page; measured 2026-11-04).
+// The canvas now renders into one detached node that moves between the two layouts.
+
+function createViewerHost() {
+  if (typeof document === 'undefined') return null
+  const host = document.createElement('div')
+  host.className = 'h-full w-full'
+  return host
+}
+
+function ViewerHostSlot({ host }: { host: HTMLElement }) {
+  const slot = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    slot.current?.appendChild(host)
+  }, [host])
+  return <div className="h-full w-full" ref={slot} />
+}
 
 function PreviewStage({
   isFirstPersonMode,
@@ -1337,6 +1371,7 @@ function EditorContent({
   const [sceneReadyKey, setSceneReadyKey] = useState(0)
   const [isViewerSceneReady, setIsViewerSceneReady] = useState(false)
   const [previewStageMode, setPreviewStageMode] = useState<ViewerStageMode>('3d')
+  const [viewerHost] = useState(createViewerHost)
   const isPreviewMode = useEditor((s) => s.isPreviewMode)
   const isCaptureMode = useEditor((s) => s.isCaptureMode)
 
@@ -1519,28 +1554,6 @@ function EditorContent({
     }
   }, [isFirstPersonMode])
 
-  const previewViewerContent = (
-    <Viewer
-      defaultRender={EDITOR_DEFAULT_RENDER}
-      disablePostFx={disablePostFx}
-      hoverStyles={EDITOR_HOVER_STYLES}
-      renderContext="editor"
-      selectionManager="default"
-    >
-      <ExportManager />
-      <ViewerZoneSystem />
-      <CeilingSystem />
-      <RoofEditSystem />
-      <StairEditSystem />
-      {isFirstPersonMode && <FirstPersonControls />}
-      <CustomCameraControls />
-      <ThumbnailGenerator onThumbnailCapture={onThumbnailCapture} />
-      <VectorEdgeExtractor />
-      <InteractiveSystem />
-      {presentationsReady ? <ViewerPresentations /> : null}
-    </Viewer>
-  )
-
   const viewerCanvas = (
     <ViewerCanvas
       disablePostFx={disablePostFx}
@@ -1559,6 +1572,8 @@ function EditorContent({
       immersive={immersive}
     />
   )
+  const viewerPortal = viewerHost ? createPortal(viewerCanvas, viewerHost) : null
+  const viewerSlot = viewerHost ? <ViewerHostSlot host={viewerHost} /> : viewerCanvas
 
   // ── V2 layout ──
   if (layoutVersion === 'v2') {
@@ -1610,6 +1625,7 @@ function EditorContent({
 
     return (
       <>
+        {viewerPortal}
         <FloorplanModeCoordinator />
         {visibleLoader && (
           <div className="fixed inset-0 z-60">
@@ -1627,7 +1643,7 @@ function EditorContent({
             mode={previewStageMode}
             onModeChange={setPreviewStageMode}
             showLoader={visibleLoader}
-            viewerContent={previewViewerContent}
+            viewerContent={viewerSlot}
           />
         ) : (
           <>
@@ -1670,7 +1686,7 @@ function EditorContent({
               sidebarOverlay={sidebarOverlay}
               sidebarTabs={tabBarTabs}
               stageOverlay={stageOverlay}
-              viewerContent={viewerCanvas}
+              viewerContent={viewerSlot}
               viewerToolbarLeft={viewerToolbarLeft}
               viewerToolbarRight={viewerToolbarRight}
             />
@@ -1690,6 +1706,7 @@ function EditorContent({
 
   return (
     <div className="dark flex h-full w-full gap-3 bg-neutral-100 p-3 text-foreground">
+      {viewerPortal}
       <FloorplanModeCoordinator />
       {visibleLoader && (
         <div className="fixed inset-0 z-60">
@@ -1707,7 +1724,7 @@ function EditorContent({
           mode={previewStageMode}
           onModeChange={setPreviewStageMode}
           showLoader={visibleLoader}
-          viewerContent={previewViewerContent}
+          viewerContent={viewerSlot}
         />
       ) : (
         <>
@@ -1724,7 +1741,7 @@ function EditorContent({
           </SidebarSlot>
 
           {/* Viewer area */}
-          <div className="relative flex-1 overflow-hidden rounded-xl">{viewerCanvas}</div>
+          <div className="relative flex-1 overflow-hidden rounded-xl">{viewerSlot}</div>
 
           {/* Fixed UI overlays scoped to the viewer area */}
           <ViewerOverlays left={overlayLeft}>

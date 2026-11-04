@@ -4,7 +4,7 @@
  * Không sửa vendor (quyết định A), cùng cách `pascal-vi.mjs`: thay chuỗi trên mã nguồn
  * trước mọi plugin khác. Các luật (nghiên cứu ở `qa-results/fe3d-fix/v2/Q2.md`):
  * 1. cờ góc khu đất chỉ hiện ở pha site, không hiện ở chế độ chọn;
- * 2. Preview có `<SceneEnvironment />` (IBL) như khung sửa;
+ * 2. (bỏ: Preview nay dùng chung khung 3D với khung sửa nên có sẵn `<SceneEnvironment />`);
  * 3. bóng đổ 2048 thay 1024, `normalBias` 0.04 (texel nhỏ hơn nên bias nhỏ hơn);
  * 4. ánh sáng môi trường nền tối 0.2 → 0.4;
  * 5. khu đất không vẽ đường ranh vàng (nền + bóng đổ vẫn vẽ) — cái đế dưới nhà như trang đăng nhập.
@@ -34,12 +34,6 @@
 export const RENDER_RULES = {
   'editor/src/lib/site-boundary.ts': [
     ["return args.phase === 'site' || args.mode === 'select'", "return args.phase === 'site'"],
-  ],
-  'editor/src/components/editor/index.tsx': [
-    [
-      '      selectionManager="default"\n    >\n      <ExportManager />',
-      '      selectionManager="default"\n    >\n      <SceneEnvironment />\n      <ExportManager />',
-    ],
   ],
   'viewer/src/components/viewer/lights.tsx': [
     ['shadow-mapSize={[1024, 1024]}', 'shadow-mapSize={[2048, 2048]}'],

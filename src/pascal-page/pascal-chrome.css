@@ -11,9 +11,22 @@
   box-shadow: var(--pa-shadow-float);
   backdrop-filter: none;
 }
+/* chrome-layout: cả ba cụm đáy (công cụ, Hoàn tác, dock) cùng cao 42 px và cùng kiểu thẻ với bảng Xem / đầu bảng nổi. */
+.fixed.bottom-6.rounded-2xl { border-radius: var(--pa-radius-xl); }
+.fixed.bottom-6.rounded-2xl > div { padding: 3px; gap: 2px; }
+.fixed.bottom-6.rounded-2xl button.h-11.w-11 img { width: 24px; height: 24px; }
+.fixed.bottom-6.rounded-2xl button.h-11 { height: 34px; } /* mũi tên menu thước (h-11 w-6) */
+[data-appfront-dock],
+[data-appfront-undo] {
+  height: 42px;
+  padding: 4px;
+  border-radius: var(--pa-radius-xl);
+}
+[data-appfront-dock] button,
+[data-appfront-undo] button { border-radius: var(--pa-radius); }
 .fixed.bottom-6.rounded-2xl button.h-11.w-11 {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--pa-radius);
   color: var(--pa-text-2);
   transition: background-color 120ms var(--pa-ease), color 120ms var(--pa-ease);
@@ -40,6 +53,8 @@
 .fixed.bottom-6.rounded-2xl .border-border\/50 { border-color: var(--pa-border); }
 /* chip phím tắt */
 .fixed.bottom-6.rounded-2xl button > div.absolute.right-1.bottom-1 {
+  right: 0;
+  bottom: 0;
   background: var(--pa-sunken);
   border: 1px solid var(--pa-border);
   border-radius: 4px;
@@ -134,7 +149,9 @@
 .absolute.top-14.left-3.z-20 .text-muted-foreground\/40 { color: var(--pa-text-3); }
 
 /* ---- La bàn ---- */
+/* Cùng đường giữa với hàng đáy: 24 px + 42/2 - 32/2. */
 .pointer-events-auto.absolute.bottom-3.left-3.rounded-full {
+  bottom: 29px;
   background: var(--pa-surface);
   border: 1px solid var(--pa-border);
   box-shadow: var(--pa-shadow-float);
@@ -331,35 +348,102 @@ button[data-slot="button"]:has(> svg.lucide-volume-x) {
 .absolute.top-14.left-3.z-20 {
   top: 0.75rem;
 }
-/* Đầu bảng nổi (bảng trái thu gọn — mặc định ở mọi bề rộng): ngay phải rail, hai hàng không xuống dòng.
- * Hàng 2 cách hàng 1 đủ để qua đáy bảng Xem góc phải (768 px: hai cụm chung khoảng x); dưới 1100 px tên dự án
- * ngắn lại để hàng 1 không chạm bảng Xem. Chip tầng (top 6rem) và cột trợ giúp nằm dưới hàng 2. */
+/* Bảng trái mở trên màn hẹp: canvas không đủ chỗ cho ô tầng và bảng Xem chung một hàng, ô tầng xuống dưới bảng Xem. */
+@media (max-width: 1023px) {
+  .absolute.top-14.left-3.z-20 {
+    top: calc(var(--appfront-bar-bottom, 54px) + 0.5rem);
+  }
+}
+/* Đầu bảng nổi (bảng trái thu gọn — mặc định ở mọi bề rộng): MỘT thẻ cùng kiểu bảng Xem, ngay phải rail; các nút con
+ * bỏ viền và bóng riêng, "Quy chuẩn" giữ màu nhấn. Dưới 1024 px hai hàng trong thẻ (bảng Xem chung hàng, thẻ hẹp lại);
+ * từ 1024 px một hàng: tên, lưu | bước, cổng, sửa | thu gọn. Tailwind không quét scripts/ nên kiểu đặt ở đây.
+ * Chip tầng và cột giữa bám đáy thật của thẻ (`--appfront-head-bottom`, viewer-toolbar.tsx `useBarLayoutVars`). */
 [data-appfront-panel-head="floating"] {
   left: 100%;
   margin-left: 0.75rem;
-  width: max-content;
-  gap: 0.75rem;
+  width: 14rem;
+  gap: 2px;
+  padding: 4px;
+  background: var(--pa-surface);
+  border: 1px solid var(--pa-border);
+  border-radius: var(--pa-radius-xl);
+  box-shadow: var(--pa-shadow-float);
 }
-/* Hàng 1 ôm nội dung (không w-full theo hàng 2 dài hơn): nút thu gọn đứng sát tên, không trôi sang phải. */
-[data-appfront-panel-head="floating"] > div:first-child {
-  width: auto;
+[data-appfront-panel-head="floating"] > div {
+  width: 100%;
+  gap: 2px;
+  flex-wrap: nowrap;
 }
-@media (max-width: 1099px) {
-  [data-appfront-panel-head="floating"] > div:first-child > a:first-child {
-    max-width: 10rem;
+[data-appfront-panel-head="floating"] nav {
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+[data-appfront-panel-head="floating"] > div > a,
+[data-appfront-panel-head="floating"] > div > button,
+[data-appfront-panel-head="floating"] > div > div,
+[data-appfront-panel-head="floating"] summary,
+[data-appfront-panel-head="floating"] [data-appfront-gate] {
+  box-shadow: none;
+  border-radius: var(--pa-radius);
+}
+[data-appfront-panel-head="floating"] [data-appfront-gate] { padding-inline: 8px; }
+/* Không lỗi thì không khung; "Quy chuẩn" (gate ready) giữ nền nhấn. */
+[data-appfront-panel-head="floating"] > div > a,
+[data-appfront-panel-head="floating"] > div > button,
+[data-appfront-panel-head="floating"] > div > div:not([data-appfront-save-alert]),
+[data-appfront-panel-head="floating"] summary,
+[data-appfront-panel-head="floating"] [data-appfront-gate="todo"] {
+  border-color: transparent;
+}
+[data-appfront-panel-head="floating"] > div > a:not(:hover),
+[data-appfront-panel-head="floating"] > div > button:not(:hover),
+[data-appfront-panel-head="floating"] > div > div,
+[data-appfront-panel-head="floating"] summary:not(:hover),
+[data-appfront-panel-head="floating"] [data-appfront-gate="todo"]:not(:hover) {
+  background: transparent;
+}
+[data-appfront-panel-head="floating"] [role="status"]:not([data-appfront-save-alert]) { width: 1.5rem; }
+[data-appfront-panel-head="floating"] > div > a:first-child { min-width: 4rem; }
+@media (max-width: 1279px) {
+  [data-appfront-panel-head="floating"] [data-appfront-head-label] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+@media (min-width: 1024px) {
+  [data-appfront-panel-head="floating"] {
+    flex-direction: row;
+    align-items: center;
+    width: max-content;
+    /* 56 rail + 2×12 khe + 480 bảng Xem: tên dự án co lại trước khi chạm bảng Xem. */
+    max-width: calc(100vw - 560px);
+  }
+  [data-appfront-panel-head="floating"] > div { display: contents; }
+  [data-appfront-panel-head="floating"] > div:first-child > :last-child { order: 9; }
+  [data-appfront-panel-head="floating"] nav::before,
+  [data-appfront-panel-head="floating"] > div:first-child > :last-child::before {
+    content: "";
+    align-self: center;
+    width: 1px;
+    height: 1rem;
+    margin-inline: 2px;
+    background: var(--pa-border);
   }
 }
 html:has([data-appfront-panel-head="floating"]) .absolute.top-14.left-3.z-20 {
-  top: 6rem;
+  top: calc(var(--appfront-head-bottom, 6rem) + 0.5rem);
 }
 /* Thẻ "Cảnh" của bảng trái đã liệt kê các tầng (main.tsx `PanelFlag`): bỏ chip tầng trùng. */
 html[data-appfront-panel="site"] .absolute.top-14.left-3.z-20 {
   display: none;
 }
-/* Đầu bảng nổi (bảng trái thu gọn, 768/1024) chiếm góc trên trái: cột trợ giúp giữa canvas xuống dưới nó,
- * không đè hàng bước. Đầu bảng ở trong bảng (≥1100) thì cột giữ top-14, ngay dưới bảng Xem một hàng. */
+/* Cột giữa canvas (tỷ lệ, gợi ý công cụ, chế độ xoá) nằm dưới thẻ đầu bảng nổi và bảng Xem, cái nào thấp hơn. */
 html:has([data-appfront-panel-head="floating"]) .appfront-canvas-help {
-  top: 6rem;
+  top: calc(max(var(--appfront-bar-bottom, 54px), var(--appfront-head-bottom, 6rem)) + 0.5rem);
 }
 /* Thẻ của món đang chọn nằm trong thẻ thao tác nhanh ở đáy màn: menu của chúng mở lên trên. */
 [data-appfront-homeowner-card] details > div,

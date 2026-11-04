@@ -35,7 +35,9 @@ test('tour 3D: gợi ý lần đầu → Xem hướng dẫn → Esc → tải l�
   await expect(dialog).toBeHidden();
 
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Xem lại hướng dẫn thao tác' })).toBeVisible({ timeout: 60_000 });
+  // Nút xem lại nằm trong bảng trợ giúp, mở bằng "?" cuối bảng Xem.
+  await page.getByRole('button', { name: /Trợ giúp: chuột/u }).click({ timeout: 60_000 });
+  await expect(page.getByRole('button', { name: 'Xem lại hướng dẫn thao tác' })).toBeVisible();
   await expect(hint).toBeHidden();
   await expect(dialog).toBeHidden();
 
@@ -59,6 +61,7 @@ test('tour 3D: đóng gợi ý lần đầu thì nhớ, tải lại không hiệ
   await expect(hint).toBeHidden();
 
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Xem lại hướng dẫn thao tác' })).toBeVisible({ timeout: 60_000 });
+  await page.getByRole('button', { name: /Trợ giúp: chuột/u }).click({ timeout: 60_000 });
+  await expect(page.getByRole('button', { name: 'Xem lại hướng dẫn thao tác' })).toBeVisible();
   await expect(hint).toBeHidden();
 });

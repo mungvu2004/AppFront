@@ -165,6 +165,7 @@ html:not(.dark) body .dark {
 
 /* "3,0 m" trên chip tầng (floating-level-selector của vendor) là chữ, không phải số đo kỹ thuật —
  * phông chính + tabular-nums như app (UI-1023 aesthetic 2.7, quyết định chung #5). */
+button[title="Chiều cao tầng"].font-mono,
 button[title="Level height"].font-mono {
   font-family: var(--font-barlow);
   font-variant-numeric: tabular-nums;
