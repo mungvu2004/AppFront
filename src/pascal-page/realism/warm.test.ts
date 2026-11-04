@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { coversScreen, screenSize } from './build-order';
 import { LOAD_CAP_MS } from './loadOverlay';
-import { beginFirstLoad, BUILD_BUDGET_MS, compileActiveSince, endFirstLoad, installAsyncNodeBuilds, installAsyncPipelines, installLazyDispose, isFirstLoad, isStructure, liveFrame, LOAD_DRAW_MS, markDrawReady, warmStats } from './warm';
+import { beginFirstLoad, BUILD_BUDGET_MS, compileActiveSince, endFirstLoad, installAsyncNodeBuilds, installAsyncPipelines, installLazyDispose, isFirstLoad, isStructure, liveFrame, LOAD_DRAW_MS, markDrawReady, outlineWarmFrame, warmStats } from './warm';
 
 // Registry giả của vendor: chỉ gốc kết cấu `wall` (không nạp cả `@pascal-app/core` trong node).
 const registry = vi.hoisted(() => {
@@ -11,6 +11,60 @@ const registry = vi.hoisted(() => {
   return { nodes, byType: { wall: new Set<string>() } as Record<string, Set<string>> };
 });
 vi.mock('@pascal-app/core', () => ({ sceneRegistry: registry }));
+
+describe('outlineWarmFrame', () => {
+  const setup = () => {
+    const getForRender = vi.fn();
+    const renderer = { _pipelines: { getForRender, updateForRender: vi.fn() } };
+    installAsyncPipelines(renderer, false);
+    const wall = {};
+    const reg = { nodes: new Map<string, unknown>([['w', wall]]), byType: { wall: new Set(['w']) } };
+    return { renderer, wall, reg, getForRender };
+  };
+  // Chờ hết mọi pipeline/bản dựng của test trước và lần nạp đầu (`busy`).
+  const ready = () => {
+    endFirstLoad();
+    expect(warmStats().pending).toBe(0);
+  };
+
+  it('một lần mỗi renderer: vật hover mẫu, độ mạnh 0, quad viền đi đường bất đồng bộ, xong thì trả lại', () => {
+    ready();
+    const { renderer, wall, reg, getForRender } = setup();
+    const outliner = { hoveredObjects: [] as unknown[] };
+    const strength = { value: 3 };
+    const quad = { scene: {} };
+    outlineWarmFrame(renderer, outliner, strength, () => {
+      expect(outliner.hoveredObjects).toEqual([wall]);
+      expect(strength.value).toBe(0);
+      renderer._pipelines.updateForRender(quad);
+    }, reg, false);
+    expect(getForRender).toHaveBeenLastCalledWith(quad, expect.any(Array));
+    expect(outliner.hoveredObjects).toEqual([]);
+    expect(strength.value).toBe(3);
+    getForRender.mockClear();
+    const draw = vi.fn(() => expect(outliner.hoveredObjects).toEqual([]));
+    outlineWarmFrame(renderer, outliner, strength, draw, reg, false);
+    expect(draw).toHaveBeenCalledOnce();
+    renderer._pipelines.updateForRender(quad);
+    expect(getForRender).toHaveBeenLastCalledWith(quad); // hết khung chuẩn bị: quad lại đồng bộ
+  });
+
+  it('đang hover thật, đang nạp, chưa có tường hoặc đã tắt: chỉ vẽ, không chuẩn bị', () => {
+    ready();
+    const { renderer, reg } = setup();
+    const strength = { value: 3 };
+    const real = {};
+    const hovering = { hoveredObjects: [real] };
+    outlineWarmFrame(renderer, hovering, strength, () => expect(strength.value).toBe(3), reg, false);
+    expect(hovering.hoveredObjects).toEqual([real]);
+    const empty = { hoveredObjects: [] as unknown[] };
+    outlineWarmFrame(renderer, empty, strength, () => expect(empty.hoveredObjects).toEqual([]), { nodes: new Map(), byType: {} }, false);
+    outlineWarmFrame(renderer, empty, strength, () => expect(empty.hoveredObjects).toEqual([]), reg, true);
+    beginFirstLoad();
+    outlineWarmFrame(renderer, empty, strength, () => expect(empty.hoveredObjects).toEqual([]), reg, false);
+    endFirstLoad();
+  });
+});
 
 describe('installAsyncPipelines', () => {
   it('chỉ vật của cảnh chính trong khung sống tạo pipeline bất đồng bộ, và đếm lúc xong', async () => {

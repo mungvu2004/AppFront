@@ -27,8 +27,8 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import type { PascalCommitVerdict } from '@/components/pascal/pascalMountTypes';
 import { isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { Furniture, FurnitureId, MaterialRef } from '@/domain/spatial/types';
-import { normaliseDegrees, radians, radiansToDegrees } from '@/domain/units/types';
+import type { Furniture, FurnitureId, MaterialRef, Room } from '@/domain/spatial/types';
+import { millimetres, normaliseDegrees, radians, radiansToDegrees } from '@/domain/units/types';
 import { buildCommand } from '@/lib/commands/business/shared';
 import { changeForAdd, changeForUpdate } from '@/lib/commands/createCommand';
 import {
@@ -42,17 +42,18 @@ import type { EntityChange } from '@/lib/commands/types';
 import { ok } from '@/lib/http/types';
 import { diffScenes, isEmptyDiff, sameValue } from '@/lib/pascal/diff';
 import { undoFloorTransforms } from '@/lib/pascal/floorAlignment';
-import { createPascalEditCommand, PASCAL_COMMAND_TYPE, reviewLostNotices, type PascalEditResult } from '@/lib/pascal/fromPascal';
+import { createPascalEditCommand, PASCAL_COMMAND_TYPE, reviewLostNotices, withRoomOfCentre, type PascalEditResult } from '@/lib/pascal/fromPascal';
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
 import { bodyOfPascalId, toPascalId } from '@/lib/pascal/ids';
 import { splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
-import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
+import { isGeneratedLightId, isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
 import { isServerModel } from '@/lib/pascal/furnitureCatalog';
 import { SUGGESTED_OUTLINE_PREFIX } from '@/lib/pascal/toPascal';
 import {
   adoptableRoomOf,
   dismissableNodeIdsOf,
   isAutoSurface,
+  isLooseGenerated,
   saveableModelSrc,
   saveableRef,
   type PascalIdBook,
@@ -121,6 +122,8 @@ export interface UsePascalEditsResult {
    * bước ghi lại kho, và cảnh mới về Pascal qua `setScene` như mọi đổi ngoài.
    */
   readonly history: HistoryStack;
+  /** Lượt vừa lưu có món gợi ý được nhận: `true` một lần, màn dựng lại cảnh để tấm viền thành mẫu thật. */
+  readonly takeSuggestionAccepted: () => boolean;
 }
 
 /** Phần chênh thành lời khai của Pascal về những node đã đụng tới. */
@@ -142,14 +145,54 @@ export const commitOfScenes = (
   return { origin: 'local', changedNodeIds: [...upserted, ...removed], removedNodeIds: removed };
 };
 
-/** Câu khi người dùng xoá món bày sẵn mà bản vẽ chưa nhớ được (đèn trần, nhánh tủ chữ L…): chặn, món về chỗ cũ. */
+/**
+ * Cảnh chỉ còn thứ người dùng đã đặt xong. Trong lúc đặt, nháp của Pascal (`metadata.isTransient`: bản sao chờ thả, món
+ * đang dời) nằm ngay trong cảnh và lượt tự lưu vẫn chạy: thiếu bước này nháp lên máy chủ trước cả cú thả, kể cả khi chỗ thả
+ * bị từ chối. Nháp mới bỏ cả cây con; món có sẵn về bản ở `previous`. Thả xong Pascal gỡ cờ, lượt lưu sau ghi như thường.
+ */
+export const settledScene = (scene: PascalScene, previous: PascalScene | null): PascalScene => {
+  const drafts = Object.values(scene.nodes).filter((node) => node.metadata?.['isTransient'] === true);
+
+  if (drafts.length === 0) return scene;
+
+  const nodes: Record<string, PascalNode> = { ...scene.nodes };
+  const relink = (parentId: string | null | undefined, edit: (children: readonly string[]) => readonly string[]) => {
+    const parent = parentId == null ? undefined : nodes[parentId];
+
+    if (parent !== undefined && 'children' in parent) nodes[parent.id] = { ...parent, children: edit(parent.children) } as PascalNode;
+  };
+  const drop = (nodeId: string) => {
+    const node = nodes[nodeId];
+
+    if (node === undefined) return;
+    delete nodes[nodeId];
+    if ('children' in node) node.children.forEach(drop);
+  };
+
+  for (const draft of drafts) {
+    const before = previous?.nodes[draft.id];
+
+    if (draft.parentId !== before?.parentId) relink(draft.parentId, (children) => children.filter((id) => id !== draft.id));
+
+    if (before === undefined) {
+      drop(draft.id);
+    } else {
+      nodes[draft.id] = before;
+      relink(before.parentId, (children) => (children.includes(draft.id) ? children : [...children, draft.id]));
+    }
+  }
+
+  return { ...scene, nodes };
+};
+
+/** Câu khi người dùng xoá món bày sẵn mà không phòng nào khai hộ được (tầng không có phòng): chặn, món về chỗ cũ. */
 export const GENERATED_DELETE_BLOCKED =
   'Món đồ bày sẵn này chưa xoá được: nó tự có theo phòng nên mở lại sẽ hiện lại. Món đã được đặt về chỗ cũ.';
 
 /**
- * H4 — xoá món tự bày zone khai (`dressIds`) thì lưu được (`Room.dressingOff`); đèn trần, nhánh tủ chữ L
- * thì chưa. Xoá chúng trước đây chỉ "ẩn" trên màn rồi hiện lại ở lượt mở sau — nay chặn hẳn. Món mất
- * theo cha (xoá trần kéo theo đèn) không tính: cha mới là thứ người dùng xoá.
+ * H4 — xoá món tự bày zone khai (`dressIds`, gồm cả đèn trần, lan can, dãy tủ: toPascal) thì lưu được
+ * (`Room.dressingOff`). Còn lại chỉ món ở tầng không có phòng nào: chặn, không thì nó hiện lại ở lượt mở sau.
+ * Món mất theo cha (xoá trần kéo theo đèn) không tính: cha mới là thứ người dùng xoá.
  */
 export const blockedGeneratedDeletes = (previous: PascalScene, next: PascalScene, removed: readonly string[]): string[] => {
   const dismissable = dismissableNodeIdsOf(previous);
@@ -166,12 +209,15 @@ export const blockedGeneratedDeletes = (previous: PascalScene, next: PascalScene
   });
 };
 
-/** Câu khi người dùng sửa một món tự bày không nhận nuôi được (đèn trần, lan can lô gia…): chặn, món về như cũ. */
+/** Câu khi người dùng sửa một món tự bày không phòng nào khai hộ được: chặn, món về như cũ. */
 export const GENERATED_EDIT_BLOCKED =
   'Món đồ bày sẵn này chưa sửa được: nó tự có theo bản vẽ nên mở lại sẽ về như cũ. Món đã được đặt về như cũ.';
 
-/** Câu sau lượt sửa đầu tiên trên món máy gợi ý: báo nhẹ, không phải lỗi. Tấm viền chỉ thành mẫu thật khi dựng lại cảnh. */
-export const SUGGESTION_ACCEPTED_NOTICE = 'Đã nhận món này vào bản vẽ. Mở lại màn sẽ thấy đúng mẫu đồ.';
+/** Đèn trần theo phòng, không có bản ghi nào nhớ được chỗ mới. */
+export const CEILING_LIGHT_MOVE_BLOCKED = 'Đèn trần chưa dời được, chỉ xoá được.';
+
+/** Câu sau lượt sửa đầu tiên trên món máy gợi ý: báo nhẹ, không phải lỗi. Trang dựng lại cảnh ngay nên tấm viền thành mẫu thật. */
+export const SUGGESTION_ACCEPTED_NOTICE = 'Đã nhận món này vào bản vẽ.';
 
 /** Mã món đồ gợi ý mà tấm viền `item_DRESS-suggested-<F>` đại diện (toPascal `suggestedOutlineOf`), hoặc `null`. */
 const suggestedFurnitureIdOf = (nodeId: string): FurnitureId | null => {
@@ -197,13 +243,14 @@ const paintDiffers = (before: unknown, after: unknown): boolean =>
   CUSTOM_PAINT_FIELDS.some((key) => !sameValue(fieldsOf(before)[key], fieldsOf(after)[key]));
 
 /**
- * Lượt sửa (dời / xoay / kéo cỡ / sơn) một món tự sinh mà lượt về không nhận nuôi được (`toSpatial.collectItem`
- * bỏ qua mọi node `DRESS-`/đèn không có phòng nhận nuôi; `fromPascal.kindOfNode` coi là "kết cấu") — trước đây ra
- * `PASCAL_NO_CHANGE`, tức mất lặng lẽ khi tải lại. Nay chặn cả lượt như `blockedGeneratedDeletes`.
- * Đèn/lan can không có bản ghi nào ở AppBack để chứa sửa đổi. Tấm viền gợi ý thì có `Furniture` đứng sau: `suggestionEditOf`.
+ * Lượt sửa (dời / xoay / kéo cỡ / sơn) một món tự sinh không có đường lưu: không phòng nhận nuôi (V4) và cũng
+ * không phòng nào khai hộ (`dressIds`), tức chỉ còn món ở tầng không có phòng. Không chặn thì nó về như cũ khi tải lại.
+ * Tấm viền gợi ý có `Furniture` đứng sau (`suggestionEditOf`); món rời thành đồ thật (`editedLooseNodeIds`).
  */
-export const blockedGeneratedEdits = (previous: PascalScene, next: PascalScene, changed: readonly string[]): string[] =>
-  changed.filter((nodeId) => {
+export const blockedGeneratedEdits = (previous: PascalScene, next: PascalScene, changed: readonly string[]): string[] => {
+  const dismissable = dismissableNodeIdsOf(previous);
+
+  return changed.filter((nodeId) => {
     const before = previous.nodes[nodeId];
     const after = next.nodes[nodeId];
 
@@ -213,9 +260,41 @@ export const blockedGeneratedEdits = (previous: PascalScene, next: PascalScene, 
       isGeneratedNodeId(nodeId) &&
       suggestedFurnitureIdOf(nodeId) === null &&
       adoptableRoomOf(after) === null &&
+      !dismissable.has(nodeId) &&
       (transformDiffers(before, after) || paintDiffers(before, after))
     );
   });
+};
+
+/** Đèn trần vừa bị dời (bằng đường nào cũng vậy): chặn, đèn về chỗ cũ. */
+export const movedCeilingLights = (previous: PascalScene, next: PascalScene, changed: readonly string[]): string[] =>
+  changed.filter((nodeId) => {
+    const before = previous.nodes[nodeId];
+    const after = next.nodes[nodeId];
+
+    return (
+      isGeneratedLightId(nodeId) &&
+      before !== undefined &&
+      after !== undefined &&
+      transformDiffers({ position: fieldsOf(before)['position'] }, { position: fieldsOf(after)['position'] })
+    );
+  });
+
+/**
+ * Món rời (`isLooseGenerated`) đang khác lúc nạp: thành đồ thật, id gốc vào `dressingOff`. So với cảnh nạp nên
+ * Ctrl+Z về đúng như cũ thì món lại là đồ tự sinh; tính trên cả cảnh vì `dressingOff` dựng lại mỗi lượt.
+ */
+export const editedLooseNodeIds = (loaded: PascalScene, scene: PascalScene): string[] => {
+  const dismissable = dismissableNodeIdsOf(loaded);
+
+  return Object.values(scene.nodes)
+    .filter((node) => {
+      const before = loaded.nodes[node.id];
+
+      return before !== undefined && dismissable.has(node.id) && isLooseGenerated(node) && (transformDiffers(before, node) || paintDiffers(before, node));
+    })
+    .map((node) => node.id);
+};
 
 const PAINT_FIELDS = ['slots', 'material', 'materialPreset'] as const;
 /** Màu tự pha (vật liệu riêng của node) — bản vẽ chưa có chỗ chứa. */
@@ -258,10 +337,13 @@ const editedFurnitureOf = (base: Furniture, before: PascalItemNode, after: Pasca
   const sy = after.scale[2] / before.scale[2];
   const { min, max } = base.boundingBox;
   const painted = paintedSlotsOf(before, after);
+  // Ô Cao ghi `scale[1]`; `dimensions` của tấm viền mang chiều cao thật (toPascal) nên tích của chúng là số người dùng gõ.
+  const heightMm = Math.round(after.asset.dimensions[1] * after.scale[1] * 1000);
 
   return {
     ...base,
     centre,
+    ...(Math.abs(after.scale[1] - before.scale[1]) < 1e-4 || heightMm < 1 ? {} : { heightMm: millimetres(heightMm) }),
     boundingBox: {
       min: { x: edge(min.x, base.centre.x, centre.x, sx), y: edge(min.y, base.centre.y, centre.y, sy) },
       max: { x: edge(max.x, base.centre.x, centre.x, sx), y: edge(max.y, base.centre.y, centre.y, sy) },
@@ -286,7 +368,6 @@ export interface SuggestionEdit {
  * xoá là "Bỏ gợi ý" (`buildDeleteFurnitureCommand`), dời/xoay/kéo/sơn là "Nhận gợi ý"
  * (`buildApproveObjectCommand`) rồi áp phần sửa. Ctrl+Z của Pascal tới đây như một lượt sửa thường:
  * tấm viền về đúng node gợi ý (hoặc hiện lại sau khi xoá) thì trả bản ghi gợi ý lúc đầu.
- * ponytail: dời sang phòng khác giữ `roomId` cũ, ô Cao của tấm viền (4 mm) không ghi vào `heightMm`.
  */
 export const suggestionEditOf = (
   graph: NormalizedSpatial,
@@ -345,7 +426,8 @@ export const suggestionEditOf = (
           : current;
 
       accepted ||= current.suggested === true;
-      changes.push(changeForUpdate('furniture', current, editedFurnitureOf(base, flatOld, flatNew)) as EntityChange);
+      const rooms = Object.values(graph.byId).filter((entity): entity is Room => isEntityOfKind('room', entity));
+      changes.push(changeForUpdate('furniture', current, withRoomOfCentre(editedFurnitureOf(base, flatOld, flatNew), rooms)) as EntityChange);
     }
   }
 
@@ -369,7 +451,7 @@ const paintUnsaved = (before: Readonly<Record<string, unknown>>, after: Readonly
 
 /**
  * Những gì Pascal sửa được mà bản vẽ AppBack chưa có chỗ chứa (v3 BE.md major 2, EDIT.md):
- * màu cửa, kiểu cửa ngoài từ vựng `swing` (garage, cửa sổ hất…), xoá đèn trần, màu tự pha. Màu trần,
+ * màu cửa, kiểu cửa ngoài từ vựng `swing` (garage, cửa sổ hất…), màu và cỡ đèn trần, màu tự pha. Màu trần,
  * kiểu cửa đơn/đôi/lùa/xếp + hướng mở, xoá đồ tự bày đã lưu được (H4). Màu sàn/tường/đồ và mẫu đồ `/items/…`
  * đã lưu được (W3a, W3b) nên chỉ báo khi tham chiếu mới nằm ngoài luật ghi của `toSpatial`.
  * Lượt sửa ấy vẫn "lưu" phần còn lại (hoặc ra PASCAL_NO_CHANGE), nên phải nói rõ phần nào chưa lưu.
@@ -389,7 +471,10 @@ export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): st
     if (type === 'ceiling' && painted && paintUnsaved(before, after)) labels.add('màu trần');
     else if (type === 'slab' && painted && paintUnsaved(before, after)) labels.add('màu sàn');
     else if (type === 'wall' && painted && paintUnsaved(before, after)) labels.add('màu tường');
-    else if (type === 'item') {
+    else if (isGeneratedLightId(nodeId)) {
+      // Đèn trần chỉ nhớ được việc xoá (`Room.dressingOff`).
+      if (painted || !sameValue(before['scale'], after['scale'])) labels.add('màu và cỡ đèn trần');
+    } else if (type === 'item') {
       if (painted && paintUnsaved(before, after)) labels.add('màu đồ đạc');
       // Mẫu thư viện máy chủ: `src` là URL ký nhưng toSpatial lưu đường `/items/<id>/…` thay vào.
       const serverModel = isServerModel(String(fieldsOf(after['asset'])['id']));
@@ -402,7 +487,7 @@ export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): st
     }
   }
 
-  // Xoá món bày sẵn chưa nhớ được không tới đây: `blockedGeneratedDeletes` chặn cả lượt.
+  // Xoá món bày sẵn không nhớ được không tới đây: `blockedGeneratedDeletes` chặn cả lượt.
   return [...labels];
 }
 
@@ -443,7 +528,10 @@ export function usePascalEdits({
     massDelete: readonly string[] | null;
     /** Phòng có vách mới mà không tách gọn được (`splitRoomsAfterWalls`). */
     notices: readonly string[];
+    /** Có món gợi ý vừa được nhận. */
+    accepted: boolean;
   } | null>(null);
+  const acceptedPending = useRef(false);
   /** Node người dùng đã xác nhận xoá; sống tới khi lượt xoá ấy vào kho. */
   const confirmedRemoval = useRef<ReadonlySet<string> | null>(null);
 
@@ -477,6 +565,17 @@ export function usePascalEdits({
     };
   }, [history]);
 
+  /** `validateCommit` và `onSceneCommit` phải thấy cùng một cảnh đã lọc, phán quyết mới dùng lại được. */
+  const settled = useRef<{ raw: PascalScene; scene: PascalScene } | null>(null);
+  const settle = useCallback(
+    (raw: PascalScene): PascalScene => {
+      if (settled.current?.raw !== raw) settled.current = { raw, scene: settledScene(raw, savedScene.current ?? loadedScene) };
+
+      return settled.current.scene;
+    },
+    [loadedScene],
+  );
+
   /** Lệnh cho một cảnh, lời từ chối, hoặc `null` khi không có gì để ghi. */
   const buildFor = useCallback(
     (scene: PascalScene): PascalEditResult | null => {
@@ -499,14 +598,17 @@ export function usePascalEdits({
       const blockedDeletes = blockedGeneratedDeletes(previous, scene, removed);
       const blockedEdits = blockedGeneratedEdits(previous, scene, pascalCommit.changedNodeIds);
 
-      if (blockedDeletes.length > 0 || blockedEdits.length > 0) {
-        const reason = blockedDeletes.length > 0 ? GENERATED_DELETE_BLOCKED : GENERATED_EDIT_BLOCKED;
+      const movedLights = movedCeilingLights(previous, scene, pascalCommit.changedNodeIds);
+
+      if (blockedDeletes.length > 0 || blockedEdits.length > 0 || movedLights.length > 0) {
+        const reason =
+          movedLights.length > 0 ? CEILING_LIGHT_MOVE_BLOCKED : blockedDeletes.length > 0 ? GENERATED_DELETE_BLOCKED : GENERATED_EDIT_BLOCKED;
         const blocked: PascalEditResult = {
           ok: false,
           error: { type: 'pascal.edit', code: 'PASCAL_UNKNOWN_NODE', reasons: [reason] },
         };
 
-        lastVerdict.current = { scene, result: blocked, massDelete: null, notices: [] };
+        lastVerdict.current = { scene, result: blocked, massDelete: null, notices: [], accepted: false };
 
         return blocked;
       }
@@ -526,6 +628,7 @@ export function usePascalEdits({
             graph: spatial,
             scene,
             commit: { ...pascalCommit, changedNodeIds: others(pascalCommit.changedNodeIds), removedNodeIds: others(removed) },
+            adoptNodeIds: editedLooseNodeIds(loadedScene ?? previous, scene),
             actorId,
             idBook: idBook.current,
           })
@@ -551,6 +654,7 @@ export function usePascalEdits({
         scene,
         result,
         massDelete: massDelete && !verdict.admitted ? removed : null,
+        accepted: result.ok && suggestion.accepted,
         notices: [
           ...(split?.notices ?? []),
           // Ctrl+Z trả món về gợi ý là bỏ dấu duyệt do chính lượt nhận đặt: không phải "vừa sửa đồ đã duyệt".
@@ -573,7 +677,7 @@ export function usePascalEdits({
     (scene: PascalScene): PascalCommitVerdict => {
       if (readOnly) return { ok: false, message: PASCAL_READ_ONLY_REASON };
 
-      const built = buildFor(scene);
+      const built = buildFor(settle(scene));
 
       /* Không có gì để ghi là chuyện bình thường — lượt nạp đầu gần như luôn
          rơi vào đây — nên nó KHÔNG phải một lời từ chối với người dùng. */
@@ -589,7 +693,7 @@ export function usePascalEdits({
 
       return { ok: false, message };
     },
-    [buildFor, onMassDelete, readOnly],
+    [buildFor, onMassDelete, readOnly, settle],
   );
 
   const confirmMassDelete = useCallback((nodeIds: readonly string[]) => {
@@ -597,12 +701,14 @@ export function usePascalEdits({
   }, []);
 
   const onSceneCommit = useCallback(
-    async (scene: PascalScene): Promise<boolean> => {
+    async (raw: PascalScene): Promise<boolean> => {
       if (readOnly) return false;
 
+      const scene = settle(raw);
       const previous = savedScene.current ?? loadedScene;
       const built = buildFor(scene);
       const notices = lastVerdict.current?.scene === scene ? lastVerdict.current.notices : [];
+      const accepted = lastVerdict.current?.scene === scene && lastVerdict.current.accepted;
 
       if (built === null) return false;
 
@@ -632,12 +738,21 @@ export function usePascalEdits({
 
       savedScene.current = scene;
       confirmedRemoval.current = null;
+      acceptedPending.current ||= accepted;
       notices.forEach((message) => onNotice?.(message));
 
       return true;
     },
-    [buildFor, deps, loadedScene, onNotice, onRejected, onUnsaved, readOnly],
+    [buildFor, deps, loadedScene, onNotice, onRejected, onUnsaved, readOnly, settle],
   );
 
-  return { onSceneCommit, validateCommit, confirmMassDelete, history };
+  const takeSuggestionAccepted = useCallback(() => {
+    const accepted = acceptedPending.current;
+
+    acceptedPending.current = false;
+
+    return accepted;
+  }, []);
+
+  return { onSceneCommit, validateCommit, confirmMassDelete, history, takeSuggestionAccepted };
 }

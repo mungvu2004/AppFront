@@ -4,11 +4,13 @@ import { describe, expect, it } from 'vitest';
 import {
   APPFRONT_MODELS,
   CATALOG_MODELS,
+  NO_SLOT_MODELS,
   REALISM_MODEL_SWAP,
   VARIANT_MODEL,
   VENDOR_MODELS,
   libraryOnlyCatalog,
   modelSrcOf,
+  setRealismModels,
   thumbnailOf,
 } from '../furnitureCatalog';
 import { itemSlotsOf, lampInteractiveOf } from '../sceneDressing';
@@ -128,6 +130,25 @@ describe('furnitureCatalog', () => {
       const names = new Set([...materialsOf(folder), ...(swap === undefined ? [] : materialsOf(swap))]);
       for (const slot of Object.keys(slots)) expect(names.has(`slot_${slot}`), `${folder} slot_${slot}`).toBe(true);
     }
+  });
+
+  it('NO_SLOT_MODELS khớp GLB thật: mẫu không có material slot_* thì có tên trong danh sách, và ngược lại', () => {
+    const noSlot = Object.keys(CATALOG_MODELS).filter((folder) => {
+      const dir = folder in APPFRONT_MODELS ? 'assets/appfront-items' : 'vendor/pascal/assets/items';
+      const glb = readFileSync(resolve(ROOT, dir, folder, 'model.glb'));
+      const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as { materials?: { name?: string }[] };
+      return !(json.materials ?? []).some((m) => /^slot_/i.test(m.name ?? ''));
+    });
+    expect(noSlot.filter((folder) => !NO_SLOT_MODELS.has(folder))).toEqual([]);
+    expect(Object.keys(CATALOG_MODELS).filter((folder) => NO_SLOT_MODELS.has(folder) && !noSlot.includes(folder))).toEqual([]);
+  });
+
+  it('mẫu không có khe không phát khe phong cách, kể cả khi mẫu realism thay thư mục có khe', () => {
+    expect(itemSlotsOf('closet')).toBeDefined();
+    setRealismModels(true);
+    expect(itemSlotsOf('closet')).toBeUndefined();
+    expect(itemSlotsOf('dresser')).toBeUndefined();
+    setRealismModels(false);
   });
 });
 

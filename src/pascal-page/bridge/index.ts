@@ -424,7 +424,7 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
     },
     [showAlert],
   );
-  const { onSceneCommit, validateCommit, confirmMassDelete } = usePascalEdits({
+  const { onSceneCommit, validateCommit, confirmMassDelete, takeSuggestionAccepted } = usePascalEdits({
     spatial,
     loadedScene,
     readOnly,
@@ -508,6 +508,9 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
           throw new Error(rejection.current);
         }
         if (!ok) return;
+        /* Vừa nhận món gợi ý: tấm viền thành mẫu thật ngay. Không vào lịch sử Pascal; Ctrl+Z về cảnh còn tấm
+           viền và `suggestionEditOf` trả bản ghi gợi ý. */
+        if (takeSuggestionAccepted()) revertToStore();
         /* Đợi đúng lượt PUT N16 rồi mới báo Pascal "đã lưu": lượt gửi hỏng hay tầng bị khối thì
            ném, để chỉ báo của editor không nói "đã lưu" khi máy chủ chưa nhận. */
         await autosave.saveNow().catch(() => undefined);
@@ -517,7 +520,7 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
       lastSave = pending;
       await pending;
     },
-    [autosave, isFloorBlocked, onSceneCommit, readOnly, revertToStore, validateCommit],
+    [autosave, isFloorBlocked, onSceneCommit, readOnly, revertToStore, takeSuggestionAccepted, validateCommit],
   );
 
   /* Đã xác nhận xoá nhiều: mở cổng cho đúng các node ấy rồi lưu (bản sao nông để không trúng phán

@@ -3,6 +3,12 @@ const EDGE = 8
 const TOP_RESERVED = 64 // viewer top toolbar
 const BOTTOM_RESERVED = 72 // bottom tool bar
 
+/** Action bars rendered by drei <Html> next to the selection (node + quick-action menus, one or many objects). */
+export const ACTION_BAR_SELECTOR = [
+  'div.pointer-events-auto.flex.items-center.gap-1.rounded-lg.border.p-1.shadow-xl',
+  'div.pointer-events-auto.mt-1.inline-flex.w-max.rounded-lg.border.shadow-md',
+].join(',')
+
 /** Pixel shift that brings `rect` inside the window margins (0 when it already fits). */
 export function clampShift(
   rect: { left: number; right: number; top: number; bottom: number },

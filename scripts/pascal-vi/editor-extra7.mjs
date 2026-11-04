@@ -11,6 +11,15 @@ export const RESET_CONFIRM =
   "if (!window.confirm('Xoá hết mọi thứ trong dự án và làm lại từ đầu? Lịch sử hoàn tác cũng bị xoá, không thể hoàn tác thao tác này.')) return";
 
 export const EDITOR_EXTRA7_VI = {
+  'nodes/src/shared/item-interaction-actions.tsx': [
+    ["'Stop'", "'Dừng'"],
+    ["'Play'", "'Chạy'"],
+    ["'Turn light off'", "'Tắt đèn'"],
+    ["'Turn light on'", "'Bật đèn'"],
+  ],
+  'viewer/src/components/viewer/perf-panel.tsx': [
+    ['aria-label="Dock panel to the side"', 'aria-label="Ghim bảng vào cạnh"'],
+  ],
   'editor/src/lib/contextual-help.ts': [
     S('Rotating freely (no angle step)', 'Đang xoay tự do (không theo bước góc)'),
     S('Hold to rotate freely', 'Giữ để xoay tự do'),

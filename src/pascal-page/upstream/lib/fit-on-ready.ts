@@ -92,7 +92,7 @@ export function roomsOf(nodes: Record<string, unknown>, levelId?: string | null)
 }
 
 /** Largest canvas on the page (the 3D view; thumbnails/previews are smaller), else the window. */
-const viewportOf = (): Viewport => {
+export const viewportOf = (): Viewport => {
   if (typeof document === 'undefined') return { width: 1920, height: 1080 }
   let best: Viewport | null = null
   for (const canvas of document.querySelectorAll('canvas')) {
@@ -155,6 +155,77 @@ export function fitPose(
   return {
     position: [cx + distance * back[0], baseY + distance * back[1], cz + distance * back[2]],
     target: [cx, baseY, cz],
+    projection,
+    fov: FIT_FOV,
+  }
+}
+
+/** The canvas area no panel covers, in px from the canvas's top-left corner. */
+export type FreeRect = { left: number; top: number; right: number; bottom: number }
+
+/** Room frame height (m): floor and furniture must show; tall wall tops may run behind the toolbar. */
+const ROOM_FRAME_TOP = 1.2
+
+/**
+ * One room filling FILL of `free`. `fitPose` keeps the target at the canvas centre, so the toolbar's reserve bites
+ * twice (a 620 px canvas: 61% of the upper half, a 15 m² room at 34 m); here the room is centred in `free` by sliding
+ * the camera parallel to the image, so no margin is paid twice. The target then returns to the floor along the view
+ * ray: same picture, and orbit still turns around a point on the floor.
+ */
+export function fitRoomPose(
+  bounds: Bounds | null,
+  projection: CameraPose['projection'],
+  viewport: Viewport,
+  free: FreeRect,
+  baseY = 0,
+): CameraPose {
+  if (!bounds) return { position: [20, 20, 20], target: [0, 0, 0], projection }
+  const [cx, cz] = bounds.center
+  const [sx, sz] = bounds.size
+  const azimuth = fitAzimuth([sx, sz])
+  const sin = Math.sin(ELEVATION)
+  const cos = Math.cos(ELEVATION)
+  const sa = Math.sin(azimuth)
+  const ca = Math.cos(azimuth)
+  const back = [cos * sa, sin, cos * ca] as const
+  const right = [ca, 0, -sa] as const
+  const up = [-sin * sa, cos, -sin * ca] as const
+  const dot = (a: readonly number[], b: readonly number[]) => a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!
+  const corners = [-sx / 2, sx / 2].flatMap((x) =>
+    [0, ROOM_FRAME_TOP].flatMap((y) => [-sz / 2, sz / 2].map((z) => [x, y, z] as const)),
+  )
+  const tanV = Math.tan((FIT_FOV * Math.PI) / 360)
+  const tanH = tanV * (viewport.width / viewport.height)
+  const freeX = [((2 * free.left) / viewport.width - 1) * tanH, ((2 * free.right) / viewport.width - 1) * tanH] as const
+  const freeY = [(1 - (2 * free.bottom) / viewport.height) * tanV, (1 - (2 * free.top) / viewport.height) * tanV] as const
+  // Extents on the image plane at distance d (image coordinates in tan units).
+  const extents = (d: number) => {
+    const xs = corners.map((c) => dot(c, right) / (d - dot(c, back)))
+    const ys = corners.map((c) => dot(c, up) / (d - dot(c, back)))
+    return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) }
+  }
+  const fits = (d: number) => {
+    const e = extents(d)
+    return e.x1 - e.x0 <= FILL * (freeX[1] - freeX[0]) && e.y1 - e.y0 <= FILL * (freeY[1] - freeY[0])
+  }
+  let near = Math.max(MIN_DISTANCE, ...corners.map((c) => dot(c, back) + 0.5))
+  let far = near
+  while (!fits(far) && far < 1e4) far *= 1.5
+  for (let i = 0; i < 30 && far - near > 0.01; i++) {
+    const mid = (near + far) / 2
+    if (fits(mid)) far = mid
+    else near = mid
+  }
+  const e = extents(far)
+  const slideX = ((e.x0 + e.x1) / 2 - (freeX[0] + freeX[1]) / 2) * far
+  const slideY = ((e.y0 + e.y1) / 2 - (freeY[0] + freeY[1]) / 2) * far
+  const px = right[0] * slideX + up[0] * slideY + back[0] * far
+  const py = right[1] * slideX + up[1] * slideY + back[1] * far
+  const pz = right[2] * slideX + up[2] * slideY + back[2] * far
+  const toFloor = py / back[1]
+  return {
+    position: [cx + px, baseY + py, cz + pz],
+    target: [cx + px - back[0] * toFloor, baseY, cz + pz - back[2] * toFloor],
     projection,
     fov: FIT_FOV,
   }

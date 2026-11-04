@@ -395,6 +395,28 @@ describe('đồ đạc → mô hình Pascal thật (T14)', () => {
     expect(old.some((s) => s.includes('-ph/'))).toBe(false);
   });
 
+  it('cờ realism bật, mẫu không có khe: sơn cả món (khe a) lưu được và dựng lại đúng màu, không sơn thì không phát khe', () => {
+    const paint = 'library:preset-tomato';
+    try {
+      setRealismModels(true);
+      const graph = withFurniture((base) => [{ ...base, kind: 'wardrobe' }]);
+      const scene = toPascalScene(graph).scene;
+      const item = Object.values(scene.nodes).find((n): n is PascalItemNode => n.type === 'item' && !isGeneratedNodeId(n.id));
+      if (item === undefined) throw new Error('thiếu món đồ');
+      expect(item.asset.src).toBe('/items/wardrobe-sf/model.glb');
+      expect(item.slots).toBeUndefined();
+
+      const painted = { ...scene, nodes: { ...scene.nodes, [item.id]: { ...item, slots: { a: paint } } } };
+      const saved = toSpatialGraph(painted, new Map(), new Set()).graph;
+      expect(saved.furniture.find((f) => toPascalId('item', f.id) === item.id)?.slots).toEqual({ a: paint });
+
+      const again = toPascalScene(saved).scene.nodes[item.id] as PascalItemNode;
+      expect(again.slots).toEqual({ a: paint });
+    } finally {
+      setRealismModels(false);
+    }
+  });
+
   it('P1/2A: cờ realism bật → cây cao dùng plant-ph, chậu nhỏ dùng planter-ph, luống ban công (bush) dùng planter-long', () => {
     const before = CATALOG_MODELS['indoor-plant'];
     try {

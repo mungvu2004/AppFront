@@ -26,7 +26,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { UNDRAWN_FLOORS_KEY } from '../../bridge'
 import { requestTour } from '../../tour/tourLogic'
-import { clampShift, clearOfShift, pollLayout, unionBox } from '../lib/clamp-shift'
+import { ACTION_BAR_SELECTOR, clampShift, clearOfShift, pollLayout, unionBox } from '../lib/clamp-shift'
 import { ToolHint } from '../../draftAssist/DraftAssist'
 
 const OPEN_KEY = 'appfront-3d-help-open:v1'
@@ -116,16 +116,10 @@ ${ROOM_LABEL} > :not(.label-pin), ${ROOM_LABEL} > :not(.label-pin) * { font-size
 ${ROOM_LABEL} > div:not(.label-pin):not(:first-child) { font-size: 13px !important; }
 `
 
-// Action bars rendered by drei <Html> next to the selected object (node + quick-action menus).
-const ACTION_BARS = [
-  'div.pointer-events-auto.flex.items-center.gap-1.rounded-lg.border.p-1.shadow-xl',
-  'div.pointer-events-auto.mt-1.inline-flex.w-max.rounded-lg.border.shadow-md',
-].join(',')
-
 function useClampActionBars() {
   useEffect(() => {
     const tick = () => {
-      for (const el of document.querySelectorAll<HTMLElement>(ACTION_BARS)) {
+      for (const el of document.querySelectorAll<HTMLElement>(ACTION_BAR_SELECTOR)) {
         const prevX = Number(el.dataset.clampX ?? 0)
         const prevY = Number(el.dataset.clampY ?? 0)
         const r = el.getBoundingClientRect()

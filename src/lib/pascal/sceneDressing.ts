@@ -14,7 +14,7 @@ import type { Room, RoomFinish, RoomUsage, Wall } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import { INTERIOR_SKIRTING } from '@/pascal-page/realism/details';
 
-import { CATALOG_MODELS, modelSrcOf, thumbnailOf } from './furnitureCatalog';
+import { CATALOG_MODELS, modelHasSlots, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { bodyOfPascalId, toPascalId } from './ids';
 import { RENDER_LOOK_PALETTE, SCENE_PALETTE } from './scenePalette';
 import { sceneStyleOf, type SceneStyle, type SlotFamily } from './sceneStyles';
@@ -195,7 +195,7 @@ export const itemSlotsOf = (
   style: SceneStyle = DEFAULT_STYLE,
 ): Readonly<Record<string, string>> | undefined => {
   const families = SLOT_FAMILY[folder];
-  if (families === undefined) return undefined;
+  if (families === undefined || !modelHasSlots(folder)) return undefined;
   return Object.fromEntries(
     Object.entries(families).map(([slot, family]) => [slot, family === 'bark' ? BARK : style.families[family]]),
   );
@@ -216,6 +216,24 @@ export const isGeneratedNodeId = (nodeId: PascalNodeId): boolean => {
   const body = bodyOfPascalId(nodeId);
   return body.startsWith(GENERATED_LIGHT_PREFIX) || body.startsWith(GENERATED_DRESS_PREFIX);
 };
+
+/*
+ * Đèn trần không có bản ghi riêng. `Room.dressingOff` (chỉ nhận id `DRESS-…`, không đổi hợp đồng) nhớ hộ:
+ * xoá = `DRESS-ceilingLight-<phòng>`. Đèn trần không dời được (`usePascalEdits` chặn).
+ */
+const LIGHT_OFF_PREFIX = `${GENERATED_DRESS_PREFIX}ceilingLight-`;
+
+export const lightOffIdOf = (roomId: string): string => `${LIGHT_OFF_PREFIX}${roomId}`;
+
+/**
+ * Khe duy nhất của tấm viền gợi ý (`rectangular-carpet`). Sơn tấm viền ghi vào `Furniture.slots` dưới khoá này;
+ * mẫu thật không có khe đó thì `a` nghĩa là "cả món một màu" (`toPascal` trải ra, `toSpatial` gộp lại).
+ */
+export const OUTLINE_PAINT_SLOT = 'a';
+
+/** Node của một id trong `dressIds`/`dressingOff`. */
+export const dressNodeIdOf = (dressId: string): PascalNodeId =>
+  toPascalId('item', dressId.startsWith(LIGHT_OFF_PREFIX) ? `${GENERATED_LIGHT_PREFIX}${dressId.slice(LIGHT_OFF_PREFIX.length)}` : dressId);
 
 const metresOf = (valueMm: number): number => millimetresToMetres(millimetres(valueMm));
 

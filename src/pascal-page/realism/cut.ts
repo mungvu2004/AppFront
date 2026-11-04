@@ -4,6 +4,8 @@
  * Mặt cắt của khối tường kín (mặt sau + mặt hướng lên lộ trong lòng tường) → tô phẳng màu nắp sáng.
  * Logic thuần, phần chạy ở `cutSync.ts`.
  */
+import type { Object3D, Plane, Vector3 } from 'three';
+
 import { SCENE_PALETTE } from '@/lib/pascal/scenePalette';
 
 /** Độ cao mặt cắt tính từ sàn tầng (m). */
@@ -24,6 +26,23 @@ export function lowCutActive(wallMode: string): boolean {
 /** Độ cao thế giới của mặt cắt cho một tầng có sàn ở `levelWorldY`. */
 export function cutPlaneY(levelWorldY: number): number {
   return levelWorldY + CUT_HEIGHT_M;
+}
+
+type ClipGroupLike = Object3D & { isClippingGroup?: boolean; enabled?: boolean; clippingPlanes?: Plane[] };
+
+/**
+ * Điểm trúng nằm ở phần không vẽ: "Tường: cắt" (`cutSync.ts`) cắt từng tầng bằng ClippingGroup, nhưng tia vẫn
+ * trúng cả tường cao phía trên mặt cắt nên đỉnh tường vô hình chặn vật phía sau.
+ */
+export function clippedAway(object: Object3D, point: Vector3 | undefined): boolean {
+  if (!point) return false;
+  for (let o: Object3D | null = object; o; o = o.parent) {
+    const group = o as ClipGroupLike;
+    if (group.isClippingGroup && group.enabled !== false && group.clippingPlanes?.some((plane) => plane.distanceToPoint(point) < 0)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
