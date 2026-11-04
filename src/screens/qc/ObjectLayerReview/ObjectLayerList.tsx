@@ -1,7 +1,8 @@
 /**
- * Danh sách đối tượng của panel trái — hàng đợi hai nhóm gấp được (Cần duyệt, tin cậy
- * thấp lên đầu · Đã duyệt; Z/S-16), mỗi dòng là
- * loại đồ · mã / kích thước · tường chủ / "Máy chưa chắc" khi dưới ngưỡng (K07).
+ * Danh sách đối tượng của panel trái — hàng đợi các nhóm gấp được theo trạng thái (Máy chưa chắc,
+ * Chưa gắn tường, Không thấy điểm nghi, Đã duyệt; Z/S-16). Mỗi dòng MỘT hàng cao 32: số (hoặc biểu tượng
+ * loại) · loại đồ · mã · một dấu trạng thái. Kích thước và tường chủ ở panel phải khi chọn, và ở gợi ý khi
+ * rê chuột; lý do chung của nhóm nói ở đầu nhóm, không lặp ở từng dòng.
  *
  * View THUẦN của mục D (R-60): mọi thứ vào bằng {@link ObjectLayerListViewProps},
  * không `@/api`, không `@/store`, không `@/domain`, không `@/lib/http`.
@@ -18,9 +19,9 @@
  *
  * CẤM TUYỆT ĐỐI của đặc tả gốc: "mọi đối tượng phải nói rõ tường nào chứa nó,
  * hoặc bị gắn cờ nếu không có". `hostWallLabel === null` là cách hợp đồng nói
- * "chưa gắn", và dòng đó KHÔNG hiện một ô trống: nó hiện chip cần chú ý "Chưa
- * gắn vào tường nào" cùng hành động "Gắn vào tường gần nhất" (`row.isOrphan` —
- * chỉ lỗ mở; nội thất đứng tự do ghi "Không gắn tường", B-V6-13). Hành động ấy chỉ
+ * "chưa gắn", và dòng đó đứng trong nhóm "Chưa gắn vào tường" kèm nút "Gắn tường"
+ * (`row.isOrphan` — chỉ lỗ mở; nội thất đứng tự do ghi "Không gắn tường" ở gợi ý
+ * của dòng và panel phải, B-V6-13). Hành động ấy chỉ
  * GỌI ra props — việc tìm tường nào gần nhất là của M-08 ở tầng hook, màn không
  * tự tìm.
  *
@@ -32,11 +33,9 @@
  * cùng cách màn tường anh em đã chọn.
  */
 
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronDown, ChevronRight, CircleDashed, TriangleAlert } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-import { Badge } from '@/components/ui/Badge';
-import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
 import { ObjectSubtypeIcon } from './objectLayerSubtypeIcons';
@@ -53,26 +52,16 @@ const ORPHAN_BADGE = 'Chưa gắn vào tường nào';
 /** Gợi ý của máy chưa nhận (B3). */
 const SUGGESTION_BADGE = 'Gợi ý';
 const ATTACH_ACTION = 'Gắn vào tường gần nhất';
+const ATTACH_SHORT = 'Gắn tường';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm. */
 const FREE_STANDING = 'Không gắn tường';
 /** Lý do chú ý bằng chữ thay cho con số tin cậy "0,26" (K07). */
 const LOW_CONFIDENCE_BADGE = 'Máy chưa chắc';
-const SEARCH_LABEL = 'Tìm mã';
-const SEARCH_PLACEHOLDER = 'Tìm mã, ví dụ D-007';
 const EMPTY_GROUP = 'Chưa có đối tượng nào trong nhóm này';
 /* Rỗng vì bộ lọc hoặc ô tìm, không phải vì chưa có (G4a-26, G4a-37). */
 const EMPTY_FILTERED = 'Không có đối tượng nào khớp bộ lọc hoặc ô tìm đang dùng';
-const CLEAR_SEARCH = 'Xoá ô tìm';
 const EXPAND_PREFIX = 'Mở nhóm ';
 const COLLAPSE_PREFIX = 'Gấp nhóm ';
-
-/** Ba màu trạng thái của A4, không có màu thứ tư. */
-const STATUS_DOT_TOKEN = {
-  verified: 'bg-state-verified',
-  attention: 'bg-state-attention',
-  violation: 'bg-state-violation',
-  neutral: 'bg-text-muted',
-} as const;
 
 const STATUS_LABEL = {
   verified: 'Đã duyệt',
@@ -95,6 +84,32 @@ interface ObjectLayerListRowProps {
   readonly onAttachToNearestWall: (objectId: string) => void;
 }
 
+/** Một dấu trạng thái cuối dòng: hình kèm màu (A4); lý do chung của cả nhóm thì đầu nhóm đã nói, không vẽ lại. */
+function ObjectRowMark({ row }: { readonly row: ObjectListRowViewModel }) {
+  const mark = (className: string, title: string, icon: ReactNode, testId?: string) => (
+    <span className={cn('flex w-4 shrink-0 justify-center', className)} data-testid={testId} title={title}>
+      {icon}
+      <span className="sr-only">{title}</span>
+    </span>
+  );
+
+  /* Cửa đi hẹp bất thường: số đọc sai thường gặp, nhắc kiểm lại ngay trên dòng (UX-48). */
+  if (row.sizeWarning != null) {
+    return mark('text-state-attention-text', row.sizeWarning, <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />, 'object-size-warning');
+  }
+  if (row.isSuggested === true) {
+    return mark('text-text-secondary', SUGGESTION_BADGE, <CircleDashed aria-hidden="true" className="h-3.5 w-3.5" />);
+  }
+  if (row.isReviewed) {
+    return mark('text-state-verified-text', STATUS_LABEL.verified, <Check aria-hidden="true" className="h-3.5 w-3.5" />);
+  }
+  if (row.statusCode === 'violation') {
+    return mark('text-state-violation', STATUS_LABEL.violation, <TriangleAlert aria-hidden="true" className="h-3.5 w-3.5" />);
+  }
+
+  return <span aria-hidden="true" className="w-4 shrink-0" />;
+}
+
 function ObjectLayerListRow({
   row,
   isSelected,
@@ -112,21 +127,26 @@ function ObjectLayerListRow({
     : row.isOrphan && !row.isReviewed
       ? ORPHAN_BADGE
       : STATUS_LABEL[row.statusCode];
+  const isFreeStanding = !row.isOrphan && row.hostWallLabel === null;
+  /* Chi tiết của dòng gấp vào gợi ý và mô tả cho trình đọc màn hình; đủ ở panel phải khi chọn. */
+  const detail = `${row.sizeLabel} · ${row.isOrphan ? ORPHAN_BADGE : (row.hostWallLabel ?? FREE_STANDING)}`;
 
   return (
     <div
+      aria-description={detail}
       aria-label={`${row.codeLabel} ${row.typeLabel} — ${reason}`}
       aria-selected={isSelected}
       data-object-id={row.id}
       className={cn(
-        'flex cursor-pointer flex-col gap-1 rounded-lg px-2 py-1.5 text-[13px] outline-hidden',
+        'flex h-8 scroll-mt-7 cursor-pointer items-center gap-2 rounded-md px-2 text-[13px] outline-hidden',
         'transition-colors duration-120 hover:bg-bg-hover',
-        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
-        isSelected && 'bg-bg-selected hover:bg-bg-selected',
+        'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent focus-visible:ring-offset-2',
+        isSelected && 'bg-accent-wash hover:bg-accent-wash',
       )}
       onClick={() => onSelect(row.id)}
       onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
+        /* Enter trên nút "Gắn tường" là của nút, không phải chọn dòng. */
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
           onSelect(row.id);
         }
@@ -135,86 +155,42 @@ function ObjectLayerListRow({
       onMouseLeave={() => onHover(null)}
       role="option"
       tabIndex={0}
+      title={detail}
     >
-      {/* Dòng một: biểu tượng + tên loại đồ ("Giường", "Cửa sổ") + mã — biết là gì mà không phải bấm (K07). */}
-      <div className="flex items-center gap-2">
-        {queueNumber === undefined ? (
-          <ObjectSubtypeIcon className="h-4 w-4 shrink-0 text-text-secondary" subtype={row.subtype} />
-        ) : (
-          <QcQueueNumber current={isSelected} n={queueNumber} />
-        )}
-        <span className="min-w-0 flex-1 truncate text-text-primary" title={row.typeLabel}>
-          {row.typeLabel}
+      {queueNumber === undefined ? (
+        <span className="flex w-5 shrink-0 justify-center">
+          <ObjectSubtypeIcon className="h-4 w-4 text-text-secondary" subtype={row.subtype} />
         </span>
-        {row.isSuggested === true ? (
-          <span className="shrink-0 rounded-sm border border-dashed border-border-default px-1 text-[11px] text-text-secondary">
-            {SUGGESTION_BADGE}
-          </span>
-        ) : null}
-        <span className="shrink-0 tabular-nums text-[12px] text-text-muted">{row.codeLabel}</span>
-      </div>
-
-      {/* Dòng hai: kích thước ĐỦ chữ (BUG-400) + tường chủ; `title` cho khổ hẹp hơn nữa. */}
-      <div className="flex items-center gap-2">
-        <span className="shrink-0 font-mono text-[12px] tabular-nums text-text-secondary" title={row.sizeLabel}>
-          {row.sizeLabel}
-        </span>
-        {row.isOrphan ? null : row.hostWallLabel === null ? (
-          /* Chấm rỗng + tooltip thay chữ dài để dòng không bị cắt (K07); chữ vẫn có cho trình đọc màn hình. */
-          <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full border border-text-muted"
-            data-testid="object-free-standing"
-            title={FREE_STANDING}
-          >
-            <span className="sr-only">{FREE_STANDING}</span>
-          </span>
-        ) : (
-          <span className="min-w-0 truncate font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
-        )}
-        <span
-          aria-hidden="true"
-          className={cn('ml-auto h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_TOKEN[row.statusCode])}
-          title={reason}
-        />
-      </div>
-
-      {/*
-        Tường chủ. `null` không bao giờ vẽ ra một ô trống: một đối tượng không
-        gắn vào tường nào là một việc phải làm, không phải một trường thiếu.
-      */}
-      {row.isOrphan ? (
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Badge variant="attention">{ORPHAN_BADGE}</Badge>
-          <button
-            className={cn(
-              'rounded-md px-1.5 py-0.5 text-[12px] text-accent',
-              'transition-colors duration-120 hover:bg-accent-wash',
-              'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-            )}
-            onClick={(event) => {
-              /* Bấm hành động KHÔNG kéo theo một lượt chọn dòng ngoài ý muốn. */
-              event.stopPropagation();
-              onAttachToNearestWall(row.id);
-            }}
-            type="button"
-          >
-            {ATTACH_ACTION}
-          </button>
-        </div>
-      ) : null}
-
-      {isUncertain ? (
-        <Badge className="self-start" variant="attention">
-          {LOW_CONFIDENCE_BADGE}
-        </Badge>
-      ) : null}
-
-      {/* Cửa đi hẹp bất thường: số đọc sai thường gặp, nhắc kiểm lại ngay trên dòng (UX-48). */}
-      {row.sizeWarning == null ? null : (
-        <Badge className="self-start" data-testid="object-size-warning" variant="attention">
-          {row.sizeWarning}
-        </Badge>
+      ) : (
+        <QcQueueNumber current={isSelected} n={queueNumber} />
       )}
+      <span className="min-w-0 flex-1 truncate text-text-primary">{row.typeLabel}</span>
+      {isFreeStanding ? (
+        <span className="sr-only" data-testid="object-free-standing" title={FREE_STANDING}>
+          {FREE_STANDING}
+        </span>
+      ) : null}
+      {row.isOrphan ? (
+        <button
+          aria-label={ATTACH_ACTION}
+          className={cn(
+            'h-6 shrink-0 rounded-md px-1.5 text-[12px] text-accent',
+            'transition-colors duration-120 hover:bg-accent-wash',
+            'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+          )}
+          onClick={(event) => {
+            /* Bấm hành động KHÔNG kéo theo một lượt chọn dòng ngoài ý muốn. */
+            event.stopPropagation();
+            onAttachToNearestWall(row.id);
+          }}
+          title={ATTACH_ACTION}
+          type="button"
+        >
+          {ATTACH_SHORT}
+        </button>
+      ) : null}
+      <span className="shrink-0 tabular-nums text-[12px] text-text-muted">{row.codeLabel}</span>
+      <ObjectRowMark row={row} />
     </div>
   );
 }
@@ -271,29 +247,30 @@ function ObjectLayerListGroup({
 
   return (
     <section className="flex flex-col">
+      {/* Đầu nhóm dính đỉnh vùng cuộn, như danh sách tường. */}
       <button
         aria-controls={bodyId}
         aria-expanded={!isCollapsed}
         aria-label={`${isCollapsed ? EXPAND_PREFIX : COLLAPSE_PREFIX}${label.toLowerCase()}`}
         className={cn(
-          'flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] font-medium text-text-secondary',
-          'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
+          'sticky top-0 z-10 flex h-7 items-center gap-1 bg-bg-surface px-2 text-left text-caption font-medium text-text-secondary',
+          'transition-colors duration-120 hover:text-text-primary',
           'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         )}
         onClick={() => onToggleCollapsed(group)}
         type="button"
       >
         {isCollapsed ? (
-          <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
         ) : (
-          <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
         )}
         <span className="truncate">{label}</span>
         <span className="tabular-nums text-text-muted">{rows.length}</span>
       </button>
 
       {isCollapsed ? null : (
-        <div aria-label={label} className="flex flex-col gap-0.5" id={bodyId} role="listbox">
+        <div aria-label={label} className="flex flex-col" id={bodyId} role="listbox">
           {rows.length === 0 ? (
             <p className="px-2 py-3 text-[12px] text-text-muted">{isFiltered ? EMPTY_FILTERED : EMPTY_GROUP}</p>
           ) : (
@@ -320,13 +297,17 @@ function ObjectLayerListGroup({
 /* -------------------------------------------------------------------------- */
 
 export function ObjectLayerList({
+  codeQuery = '',
   isFiltered = false,
   onAttachToNearestWall,
   onHover,
   onSelect,
   rows,
   selectedObjectId,
-}: ObjectLayerListViewProps) {
+}: ObjectLayerListViewProps & {
+  /** Chữ ở ô tìm mã (nút tìm ở thanh đầu cột): chỉ lọc dòng của danh sách, không đụng canvas hay bộ lọc của hook. */
+  readonly codeQuery?: string | undefined;
+}) {
   /* Cùng `items` với thẻ hỏi và ghim số, đếm trên mọi dòng (không phải dòng sau ô tìm) để dòng "3" = ghim "3". */
   const queueNumbers = queueNumbersOf(rows.map((row) => ({ id: row.id, pending: !row.isReviewed })));
   /* Gấp nhóm là việc trình bày thuần của danh sách — state cục bộ, không lên hook. */
@@ -341,8 +322,6 @@ export function ObjectLayerList({
 
       return next;
     });
-  /* Ô tìm mã chỉ lọc dòng của danh sách — UI thuần, không đụng canvas hay bộ lọc của hook. */
-  const [codeQuery, setCodeQuery] = useState('');
   const needle = codeQuery.trim().replace(/^#/, '').toLowerCase();
   const shownRows =
     needle === '' ? rows : rows.filter((row) => row.codeLabel.replace(/^#/, '').toLowerCase().includes(needle));
@@ -368,24 +347,7 @@ export function ObjectLayerList({
   }, [selectedObjectId]);
 
   return (
-    <div aria-label={LIST_LABEL} className="flex flex-col gap-1" ref={containerRef} role="group">
-      <Input
-        aria-label={SEARCH_LABEL}
-        className="text-[13px]"
-        onChange={(event) => setCodeQuery(event.target.value)}
-        placeholder={SEARCH_PLACEHOLDER}
-        type="search"
-        value={codeQuery}
-      />
-      {needle === '' ? null : (
-        <button
-          className="self-start rounded-sm px-2 py-0.5 text-[12px] text-accent hover:underline focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent"
-          onClick={() => setCodeQuery('')}
-          type="button"
-        >
-          {CLEAR_SEARCH}
-        </button>
-      )}
+    <div aria-label={LIST_LABEL} className="flex flex-col" ref={containerRef} role="group">
       {REASON_GROUPS.filter(({ id }) => rowsOfGroup(shownRows, id).length > 0 || (id === 'clear' && shownRows.length === 0)).map(({ id, label }) => (
         <ObjectLayerListGroup
           group={id}

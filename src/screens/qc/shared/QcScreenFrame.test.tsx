@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { QC_BODY_CLASS, QC_NO_CHANGES_LABEL, QC_UNDO_LABEL, QcCanvasFrame, QcScreenFrame, QcStatusBar, QcWorkspace } from './QcScreenFrame';
 
@@ -103,11 +103,11 @@ describe('[figma-layout] QcWorkspace column: hai panel neo cùng cỡ', () => {
     expect(screen.queryByRole('button', { name: 'Ẩn chi tiết' })).toBeNull();
   });
 
-  it('dưới 1024: tấm đáy ≤ 45 %, ẩn khi chưa chọn gì', () => {
+  it('panel phải chỉ hiện khi đang chọn; dưới 1024 là tấm đáy ≤ 45 %', () => {
     const { rerender } = render(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>chi tiết</p>} selectionKey={null} />);
-    expect(dock()).toHaveClass('max-lg:absolute', 'max-lg:bottom-2', 'max-lg:max-h-[45%]', 'max-lg:hidden');
+    expect(dock()).toHaveClass('max-lg:absolute', 'max-lg:bottom-2', 'max-lg:max-h-[45%]', 'hidden');
     rerender(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>chi tiết</p>} selectionKey="a" />);
-    expect(dock()).not.toHaveClass('max-lg:hidden');
+    expect(dock()).not.toHaveClass('hidden');
   });
 
   it('thu gọn ẩn cả hai panel', () => {
@@ -116,29 +116,60 @@ describe('[figma-layout] QcWorkspace column: hai panel neo cùng cỡ', () => {
     expect(screen.queryByText('trái')).toBeNull();
   });
 
-  it('dưới 1024, chưa chọn: nút "Chi tiết" mở tấm đáy "Tầng này", Esc đóng; đang chọn thì không có nút', () => {
+  it('chưa chọn: nút "Chi tiết" ở mọi cỡ mở panel "Tầng này", Esc đóng; đang chọn thì không có nút', () => {
     const tree = (key: string | null) => <QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>Tầng này</p>} selectionKey={key} />;
     const { rerender } = render(tree(null));
     const toggle = screen.getByRole('button', { name: 'Chi tiết' });
-    expect(toggle).toHaveClass('lg:hidden', 'min-h-8');
+    expect(toggle).toHaveClass('min-h-8');
+    expect(toggle).not.toHaveClass('lg:hidden');
     expect(toggle).toHaveAttribute('aria-controls', dock().id);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    expect(dock()).not.toHaveClass('max-lg:hidden');
+    expect(dock()).not.toHaveClass('hidden');
 
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(dock()).toHaveClass('max-lg:hidden');
+    expect(dock()).toHaveClass('hidden');
 
     rerender(tree('a'));
     expect(screen.queryByRole('button', { name: 'Chi tiết' })).toBeNull();
-    expect(dock()).not.toHaveClass('max-lg:hidden');
+    expect(dock()).not.toHaveClass('hidden');
     rerender(tree(null));
     expect(screen.getByRole('button', { name: 'Chi tiết' })).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+describe('QcStatusBar nổi trên bản vẽ (bỏ thanh đáy)', () => {
+  it('khe `status` đặt cụm vào trong vùng bản vẽ; cụm vẫn có Hoàn tác và trạng thái lưu', () => {
+    const onUndo = vi.fn();
+    render(<QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column status={<QcStatusBar floating onUndo={onUndo} saveLabel="Đã lưu" />} />);
+
+    const bar = screen.getByRole('status', { name: 'Thanh trạng thái' });
+    expect(screen.getByRole('region', { name: 'Bản vẽ' })).toContainElement(bar);
+    expect(bar).toHaveClass('rounded-lg', 'shadow-float');
+    expect(bar).not.toHaveClass('border-t');
+    fireEvent.click(screen.getByRole('button', { name: QC_UNDO_LABEL }));
+    expect(onUndo).toHaveBeenCalledOnce();
+    expect(bar).toHaveTextContent('Đã lưu');
+  });
+
+  it('chưa có thay đổi: cụm nổi chỉ còn nút Hoàn tác', () => {
+    render(<QcStatusBar floating saveLabel={QC_NO_CHANGES_LABEL} />);
+    expect(screen.getByRole('status', { name: 'Thanh trạng thái' })).toHaveTextContent(QC_UNDO_LABEL);
+    expect(screen.queryByText(QC_NO_CHANGES_LABEL)).toBeNull();
+  });
+
+  it('panel chi tiết nổi đè lên bản vẽ: chọn không đổi lớp của khung, panel đứng ngoài luồng', () => {
+    const tree = (key: string | null) => <QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>ct</p>} selectionKey={key} />;
+    const { rerender } = render(tree(null));
+    const before = screen.getByRole('region', { name: 'Bản vẽ' }).className;
+    rerender(tree('a'));
+    expect(screen.getByRole('region', { name: 'Bản vẽ' }).className).toBe(before);
+    expect(screen.getByTestId('qc-inspector-dock')).toHaveClass('lg:absolute', 'max-lg:absolute');
   });
 });
 

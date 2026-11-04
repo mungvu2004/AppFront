@@ -51,7 +51,8 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { MOTION_EASINGS, cssDurationMs } from '@/lib/motion';
 
-import { focusBoundsOf, useQcViewMode } from '../shared/qcViewMode';
+import { useRevealSelection } from '../shared/qcCanvasCover';
+import { useQcViewMode } from '../shared/qcViewMode';
 import { QcViewLayer } from '../shared/QcViewLayer';
 import { QcZoomMenu } from '../shared/QcZoomMenu';
 import { RoomLabelCanvasRoomFigure } from './RoomLabelCanvasRoomFigure';
@@ -64,7 +65,6 @@ import {
   computeRoomBoundsPx,
   contentPaddingFor,
   fitMillimetresPerPixel,
-  focusViewOf,
   frameRectOf,
   type RoomLabelBoundsPx,
   type RoomLabelRoomId,
@@ -95,7 +95,7 @@ export function RoomLabelCanvas({
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   /* Cụm zoom + kéo bản vẽ như màn Tường (Impeccable A3): 100% là "vừa khung", lăn chuột cũng phóng. */
-  const { pan, scale, setZoom, zoomCluster } = useCanvasZoomPan();
+  const { pan, scale, zoomCluster } = useCanvasZoomPan();
   const viewMode = useQcViewMode();
   const setPanEl = pan.ref;
   const setFrameRef = useCallback(
@@ -139,10 +139,13 @@ export function RoomLabelCanvas({
     }
   }, [selectedRoomId, hoveredRoomId, haloSelect, haloHover, haloDeselect]);
 
-  /* BUG-393: tỷ lệ HIỂN THỊ cho cả mặt bằng vừa khung — chữ và nét vẫn giữ cỡ px vì chúng không nhân tỷ lệ này. */
+  /*
+   * BUG-393: tỷ lệ HIỂN THỊ cho cả mặt bằng vừa khung — chữ và nét vẫn giữ cỡ px vì chúng không nhân tỷ lệ này.
+   * Vừa theo các PHÒNG, không theo cả tờ giấy (tờ còn phối cảnh, ghi chú, sơ đồ vị trí); đệm của khung ôm tường ngoài.
+   */
   const millimetresPerPixel = useMemo(
-    () => fitMillimetresPerPixel(rooms, drawingMillimetresPerPixel, frameSize, backgroundImageSizeMm),
-    [backgroundImageSizeMm, drawingMillimetresPerPixel, frameSize, rooms],
+    () => fitMillimetresPerPixel(rooms, drawingMillimetresPerPixel, frameSize),
+    [drawingMillimetresPerPixel, frameSize, rooms],
   );
 
   const contentBounds = useMemo(
@@ -171,7 +174,7 @@ export function RoomLabelCanvas({
 
     // A3: chọn phòng KHÔNG dời khung nhìn — khung luôn căn theo cả bản vẽ, mất chỗ đang nhìn là cái giá quá đắt.
     // (L23 Từng việc dời bằng độ kéo `pan.offset` ở effect dưới, không đụng gốc này.)
-    const focusCentre = centreOfBounds(contentBounds);
+    const focusCentre = centreOfBounds(computeContentBoundsPx(rooms, millimetresPerPixel, 0) ?? contentBounds);
     const localCentreX = focusCentre.x - contentBounds.x;
     const localCentreY = focusCentre.y - contentBounds.y;
 
@@ -179,33 +182,26 @@ export function RoomLabelCanvas({
       x: keepInFrame(frameSize.width / 2 - localCentreX, frameSize.width - contentBounds.width),
       y: keepInFrame(frameSize.height / 2 - localCentreY, frameSize.height - contentBounds.height),
     };
-  }, [contentBounds, frameSize]);
+  }, [contentBounds, frameSize, millimetresPerPixel, rooms]);
 
-  /* Từng việc phóng tới phòng chọn, Tổng thể về vừa khung — chỉ khi đổi chế độ/phòng, không mỗi lần vẽ. */
-  const lastViewKey = useRef<string | null>(null);
+  /* Tổng thể về vừa khung, chỉ khi đổi chế độ. Từng việc giữ nguyên mức phóng khi chọn phòng; phòng dưới panel thì chỉ dịch. */
+  const lastViewMode = useRef<typeof viewMode | null>(null);
   const { onFitToScreen } = zoomCluster;
-  const { panTo } = pan;
   useEffect(() => {
-    if (contentBounds === null || frameSize.width === 0) return;
-    const key = viewMode === 'overview' ? viewMode : `task:${selectedRoomId ?? ''}`;
-    if (key === lastViewKey.current) return;
-    lastViewKey.current = key;
+    if (contentBounds === null || frameSize.width === 0 || viewMode === lastViewMode.current) return;
+    lastViewMode.current = viewMode;
     if (viewMode === 'overview') onFitToScreen();
-    else if (selectedBounds !== null) {
-      const view = focusViewOf(focusBoundsOf(selectedBounds, contentBounds), contentBounds, frameSize, panPx);
-      setZoom(view.zoomPct);
-      panTo(view.offset);
-    }
-  }, [contentBounds, frameSize, onFitToScreen, panPx, panTo, selectedBounds, selectedRoomId, setZoom, viewMode]);
+  }, [contentBounds, frameSize.width, onFitToScreen, viewMode]);
 
   /* Phủ mờ, ghim nằm ở khung (không phóng theo bản vẽ): đổi hộp phòng sang px khung. */
   const translate = { x: panPx.x + pan.offset.x, y: panPx.y + pan.offset.y };
   const toFrame = (bounds: RoomLabelBoundsPx) =>
     contentBounds === null ? bounds : frameRectOf(bounds, contentBounds, translate, scale);
-  const askRect = selectedBounds === null ? null : toFrame(selectedBounds);
   const pins = byRoomReason(rooms)
     .filter((room) => room.status !== 'confirmed')
     .map((room, index) => ({ id: room.id, n: index + 1, ...centreOfBounds(toFrame(computeRoomBoundsPx(room, millimetresPerPixel))) }));
+
+  useRevealSelection(selectedRoomId, frameRef, selectedBounds === null ? null : toFrame(selectedBounds), (dx, dy) => pan.panTo({ x: pan.offset.x + dx, y: pan.offset.y + dy }));
 
   const handleFrameMouseLeave = useCallback(() => onHover(null), [onHover]);
 
@@ -340,7 +336,7 @@ export function RoomLabelCanvas({
           })}
         </div>
       )}
-      <QcViewLayer focus={askRect} onPick={(id) => onSelect(id as RoomLabelRoomId)} pins={pins} selectedId={selectedRoomId} />
+      <QcViewLayer onPick={(id) => onSelect(id as RoomLabelRoomId)} pins={pins} selectedId={selectedRoomId} />
 
       <QcZoomMenu {...zoomCluster} viewMode />
 

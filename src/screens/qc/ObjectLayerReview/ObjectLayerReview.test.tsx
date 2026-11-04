@@ -264,7 +264,7 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
       .find(
         (option) =>
           option.getAttribute('aria-label')?.startsWith('#D-') === true &&
-          !(option.textContent ?? '').includes('Chưa gắn vào tường nào'),
+          !(option.textContent ?? '').includes('Gắn tường'),
       );
 
     fireEvent.click(door as HTMLElement);

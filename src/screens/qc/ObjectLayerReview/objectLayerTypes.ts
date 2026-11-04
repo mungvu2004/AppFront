@@ -607,8 +607,6 @@ export interface ObjectLayerStatusBarProps {
   readonly viewerRoleNotice: string | null;
   /** Hàng cần chú ý của lớp nội thất khi nhánh nội thất lỗi riêng — không chặn cả màn. */
   readonly furnitureAttentionNotice: string | null;
-  readonly isCollapsed: boolean;
-  readonly onToggleCollapsed: () => void;
   readonly onUndo: () => void;
 }
 
@@ -628,6 +626,8 @@ export interface ObjectLayerToolRailProps {
   /** Vị trí 1/2/3 trong nhóm hiện tại (đúng thứ tự {@link OBJECT_SUBTYPES} lọc theo lớp). */
   readonly onSelectSubtypeSlot: (slot: 1 | 2 | 3) => void;
   readonly isViewerRole: boolean;
+  readonly isCollapsed: boolean;
+  readonly onToggleCollapsed: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

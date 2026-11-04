@@ -21,6 +21,7 @@ import { getFeatureFlagsSnapshot } from '@/lib/telemetry/flags';
 
 import { BRIDGE_SESSION_ERROR, loginHrefOf, savePascalNow, usePascalProjectBridge } from './bridge';
 import { isEmptyChange, type NodeChanges, nodeChangesTo } from './bridge/sceneRevert';
+import type { PascalSceneGraph } from './bridge/types';
 import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { HomeownerCardMount } from './HomeownerCardMount';
@@ -137,6 +138,12 @@ function PanelFlag() {
   return null;
 }
 
+const readEditorScene = () => {
+  const { nodes, rootNodeIds } = useScene.getState();
+
+  return { nodes, rootNodeIds } as unknown as PascalSceneGraph;
+};
+
 /* Lượt sửa bị từ chối → đặt lại cảnh từ kho mà KHÔNG ghi bước hoàn tác và không xoá lịch sử
    (khác `applySceneGraphToEditor`): Ctrl+Z ngay sau đó về đúng cảnh trước lượt bị từ chối (no-op).
    Chỉ đổi các node khác (`nodeChangesTo`) — `setScene` cả cây làm cả mô hình dựng lại như tải trang.
@@ -174,7 +181,7 @@ const exportSceneGlb = async (): Promise<Blob | null> =>
 const TEXTURE_HOLD_MS = 1500;
 
 function PascalPage({ projectId }: { readonly projectId: string }) {
-  const bridge = usePascalProjectBridge(projectId, applyRejectedRevert);
+  const bridge = usePascalProjectBridge(projectId, applyRejectedRevert, readEditorScene);
   const readOnly = bridge.status === 'ready' && bridge.readOnly;
   // Cầu khai kiểu lỏng (`PascalSceneGraph`, `unknown`) để không nhập Pascal; `useSceneLoader` ráp với `SceneGraph`.
   const loadScene = useSceneLoader(bridge.onLoad, bridge.rebaseLoaded);

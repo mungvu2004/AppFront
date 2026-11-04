@@ -257,7 +257,7 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
   const canvas = (
     <section
       aria-label={CANVAS_REGION_ARIA_LABEL}
-      className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-bg-sunken @container-size"
+      className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-bg-sunken @container-size"
       ref={canvasHostRef}
     >
       <ScaleCalibrationCanvas
@@ -273,9 +273,9 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
       {/* Panel trái đã có H1 thấy được ("Tỷ lệ bản vẽ"): bỏ H1 ẩn của nav để trang chỉ một H1. */}
       {floorNav !== undefined && <QcFloorNav {...floorNav} layer="scale" minimal titled />}
       {l23 && floorNav !== undefined ? (
-        <div className="relative flex min-h-0 flex-1 gap-2 p-2">
+        <div className="relative flex min-h-0 flex-1 bg-bg-surface">
           {/* Dưới 1024 cột việc là ngăn kéo (như QcWorkspace); Tỷ lệ không có mục chọn nên mở tới khi người dùng đóng. */}
-          <div className={cn('flex min-h-0 shrink-0 lg:w-[300px] xl:w-[360px]', QC_COLUMN_DRAWER_CLASS, !columnOpen && 'max-lg:hidden')} id={QC_COLUMN_ID}>
+          <div className={cn('flex min-h-0 shrink-0 lg:w-[300px] lg:border-r lg:border-border-default xl:w-[360px]', QC_COLUMN_DRAWER_CLASS, !columnOpen && 'max-lg:hidden')} id={QC_COLUMN_ID}>
             <QcStepColumn
               activeStep="scale"
               fileHeader={<QcFloorNav {...floorNav} layer="scale" minimal stacked titled />}
@@ -286,7 +286,7 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
             >
               {/* Hai panel cuộn chung trong cột; khối nút Xác nhận dính đáy cột (panel phải `contents` để nút dính theo cả vùng cuộn). */}
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:xl:!w-full [&>*]:xl:!border-x-0 [&>section:first-child]:!flex-none [&>section:first-child]:xl:!overflow-visible [&>section:last-child]:!contents [&>section:last-child>*]:!flex-none [&>section:last-child>*]:!overflow-visible [&>section:last-child>div:last-child]:sticky [&>section:last-child>div:last-child]:bottom-0 [&>section:last-child>div:last-child]:z-10">
-                <ScaleCalibrationSidebar actions={actions} panel={model.panel} state={model.state} />
+                <ScaleCalibrationSidebar actions={actions} hideTitle panel={model.panel} state={model.state} />
                 <ScaleCalibrationPanel
                   actions={actions}
                   applyButtonRef={applyButtonRef}
@@ -299,10 +299,14 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
             </QcStepColumn>
           </div>
           {columnOpen ? <QcColumnScrim onClose={() => setColumnOpen(false)} /> : null}
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2 bg-bg-sunken">
             {notices}
             {canvas}
             <QcColumnHandle onOpen={() => setColumnOpen(true)} open={columnOpen} />
+            {/* Thay thanh đáy: toạ độ, mm/px, trạng thái lưu nổi góc dưới trái (dưới 1024 dưới nút "Việc"). */}
+            <div className="absolute bottom-4 left-4 z-10 overflow-hidden rounded-lg shadow-float max-lg:bottom-auto max-lg:left-3 max-lg:top-14 [&>div]:gap-4 [&>div]:border-t-0">
+              <StatusBar {...model.statusBar} />
+            </div>
           </div>
         </div>
       ) : (
@@ -341,7 +345,7 @@ export function ScaleCalibration({ actions, floorNav, model }: ScaleCalibrationP
         </div>
       )}
 
-      <StatusBar {...model.statusBar} />
+      {l23 ? null : <StatusBar {...model.statusBar} />}
 
       {model.allFloorsConfirm !== undefined && (
         <Modal

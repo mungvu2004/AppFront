@@ -62,7 +62,7 @@ describe('QcStepColumn (bố cục L23, kiểu bảng lớp Figma)', () => {
     renderColumn();
 
     expect(screen.queryByRole('navigation', { name: 'Việc của từng bước' })).toBeNull();
-    expect(screen.queryByRole('link', { name: /Cửa và nội thất/u })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Cửa và nội thất/u })).toBeNull();
   });
 
   it('H1 lấy từ `title` khi màn truyền; bước xong thì chip "N đoạn · đã duyệt"', () => {

@@ -1,7 +1,7 @@
 /**
  * Panel trái của màn Duyệt tên phòng, nằm trong cột việc `QcStepColumn` (demo Z/S-20): hàng lọc +
- * "Chuẩn hoá tên…", rồi vùng cuộn gồm danh sách phòng (lên đầu, K23) và một dòng "N chỗ tường chưa
- * khép kín" bấm để mở nhóm "Vòng tường hở".
+ * "Chuẩn hoá tên…", hàng duyệt hàng loạt khi có, danh sách phòng là vùng cuộn duy nhất (K23), đáy là một
+ * dòng "N chỗ tường chưa khép kín" bấm để mở nhóm "Vòng tường hở".
  *
  * View THUẦN (R-60): nhận đúng {@link RoomLabelLeftPanelProps} và {@link RoomLabelListProps}
  * rồi chỉ hiển thị. Tổng diện tích sàn đã nằm ở dòng trạng thái đầu panel, không lặp ở đây.
@@ -41,6 +41,7 @@ const GAPS_HINT = 'Bấm một khe để tới chỗ đó ở lớp tường và
 const gapsHeadline = (gaps: number, rooms: number): string =>
   `${gaps} chỗ tường chưa khép kín nên máy chỉ tìm được ${rooms} phòng`;
 const GAPS_EMPTY_MESSAGE = 'Chưa thấy vòng tường hở nào ở tầng này.';
+const NO_GAPS_LABEL = 'Không có vòng tường hở';
 /** BUG-407: không có khe giữa hai đầu tường, nhưng có phòng chưa kín — nói rõ phạm vi. */
 const gapsEmptyWithUnclosedRooms = (count: number): string =>
   `Các đầu tường đều đã nối, nhưng ${count} phòng chưa kín vì có cạnh không có tường chạy dọc — chọn phòng để xem nhắc công năng.`;
@@ -136,25 +137,32 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice, oversizedRoom
   useScreenCommands(commands);
   const [gapsOpen, setGapsOpen] = useState(false);
   const gapCount = uniqueGaps(gaps).length;
+  const gapsSection = (
+    <RoomLabelGapsSection
+      gaps={gaps}
+      onCheckWallGaps={panel.onCheckWallGaps}
+      onNavigateToWalls={panel.onNavigateToWalls}
+      roomCount={summary.roomCount}
+      unclosedRoomCount={summary.unclosedRoomCount}
+    />
+  );
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-default px-4 py-3">
+      <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border-default px-2">
         <button
           aria-pressed={showOnlyUnnamed}
           className={cn(
-            'flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[13px]',
+            'flex h-8 items-center gap-1.5 rounded-lg px-1.5 text-body-sm font-medium',
             'transition-colors duration-120 outline-hidden',
             'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
-            showOnlyUnnamed
-              ? 'border-accent bg-accent-wash text-accent'
-              : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+            showOnlyUnnamed ? 'bg-accent-wash text-accent' : 'text-text-primary hover:bg-bg-hover',
           )}
           onClick={onToggleUnnamedFilter}
           type="button"
         >
           <span>{UNNAMED_FILTER_LABEL}</span>
-          <span className="font-mono tabular-nums">{summary.unnamedCount}</span>
+          <span className="tabular-nums text-text-secondary">{summary.unnamedCount}</span>
         </button>
         {/* Vai Người xem: KHÔNG hộp thoại, chỉ ẩn nút thao tác hàng loạt. */}
         {panel.isViewerRole ? null : (
@@ -164,15 +172,16 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice, oversizedRoom
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pb-4 pt-2">
-        {/* UX-18: duyệt hàng loạt như bước Tường và Cửa — chỉ phòng máy chắc chắn, một bước hoàn tác. */}
-        {panel.approveConfidentRoomsLabel == null || panel.onApproveConfidentRooms === undefined ? null : (
-          <div className="px-1">
-            <Button fullWidth onClick={panel.onApproveConfidentRooms} size="sm" variant="primary">
-              {panel.approveConfidentRoomsLabel}
-            </Button>
-          </div>
-        )}
+      {/* UX-18: duyệt hàng loạt như bước Tường và Cửa — chỉ phòng máy chắc chắn, một bước hoàn tác. Nút phụ: nút chính là cổng ở đáy cột. */}
+      {panel.approveConfidentRoomsLabel == null || panel.onApproveConfidentRooms === undefined ? null : (
+        <div className="shrink-0 border-b border-border-default px-2 py-1">
+          <Button className="px-2 text-[12px]" fullWidth onClick={panel.onApproveConfidentRooms} size="sm" variant="secondary">
+            {panel.approveConfidentRoomsLabel}
+          </Button>
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
         {emptyListNotice !== null ? (
           <p className="px-3 py-4 text-[13px] text-text-secondary" role="status">
             {emptyListNotice}
@@ -187,33 +196,37 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice, oversizedRoom
             selectedRoomId={list.selectedRoomId}
           />
         )}
-        {/* K23: việc chính là duyệt phòng, nên danh sách lên đầu; các khe thu về một dòng mở ra được. */}
-        <div className={cn('rounded-lg px-3 py-2', gapCount > 0 && 'bg-state-attention-tint')}>
-          {gapCount > 0 && (
-            <button
-              aria-expanded={gapsOpen}
-              className="flex w-full items-center gap-2 rounded-sm py-1 text-left text-[13px] text-text-primary outline-hidden hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-              onClick={() => setGapsOpen((open) => !open)}
-              type="button"
-            >
-              <Unlink aria-hidden="true" className="h-4 w-4 shrink-0 text-state-attention-text" />
-              <span className="min-w-0 flex-1">{gapsToggleLabel(gapCount)}</span>
-              <ChevronDown
-                aria-hidden="true"
-                className={cn('h-3.5 w-3.5 shrink-0 text-accent transition-transform duration-120', gapsOpen && 'rotate-180')}
-              />
-            </button>
-          )}
-          {(gapCount === 0 || gapsOpen) && (
-            <RoomLabelGapsSection
-              gaps={gaps}
-              onCheckWallGaps={panel.onCheckWallGaps}
-              onNavigateToWalls={panel.onNavigateToWalls}
-              roomCount={summary.roomCount}
-              unclosedRoomCount={summary.unclosedRoomCount}
+      </div>
+
+      {/* K23: việc chính là duyệt phòng, nên danh sách lên đầu; các khe thu về một dòng ghim đáy, mở ra được. */}
+      <div className="max-h-[40%] shrink-0 overflow-y-auto border-t border-border-default px-3 py-1">
+        {gapCount > 0 && (
+          <button
+            aria-expanded={gapsOpen}
+            className="flex min-h-8 w-full items-center gap-2 rounded-sm text-left text-[13px] text-text-primary outline-hidden hover:text-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            onClick={() => setGapsOpen((open) => !open)}
+            type="button"
+          >
+            <Unlink aria-hidden="true" className="h-4 w-4 shrink-0 text-state-attention-text" />
+            <span className="min-w-0 flex-1">{gapsToggleLabel(gapCount)}</span>
+            <ChevronDown
+              aria-hidden="true"
+              className={cn('h-3.5 w-3.5 shrink-0 text-text-muted transition-transform duration-120', gapsOpen && 'rotate-180')}
             />
-          )}
-        </div>
+          </button>
+        )}
+        {gapCount > 0 && gapsOpen ? gapsSection : null}
+        {/* Không khe: một dòng gấp, trừ khi có phòng chưa kín thì câu BUG-407 phải thấy ngay. */}
+        {gapCount === 0 && summary.unclosedRoomCount > 0 ? gapsSection : null}
+        {gapCount === 0 && summary.unclosedRoomCount === 0 ? (
+          <details className="group">
+            <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 text-[13px] text-text-secondary outline-hidden hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 flex-1">{NO_GAPS_LABEL}</span>
+              <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-text-muted transition-transform duration-120 group-open:rotate-180" />
+            </summary>
+            {gapsSection}
+          </details>
+        ) : null}
       </div>
     </div>
   );

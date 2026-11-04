@@ -366,7 +366,6 @@ const IDENTITY_VIEW: CanvasFitView = { x: 0, y: 0, zoom: 1 };
  * "Vừa khung" chừa dải đáy cho chú giải nổi (`ObjectLayerCanvasLegend`, đáy-trái, cao ~36 px + lề
  * 16 px): mặt bằng căn giữa phần khung PHÍA TRÊN dải đó, nên chú giải không đè mép dưới bản vẽ.
  */
-const FIT_LEGEND_RESERVE_PX = 56;
 
 /** Cổng thật dựng đúng một lần cho suốt đời component. */
 function useResolvedGateway(
@@ -1570,13 +1569,14 @@ export function useObjectLayerReview(
       : { x: box.minX, y: box.minY, width: box.maxX - box.minX, height: box.maxY - box.minY };
   }, [background, level, wallOutlinesPx]);
 
-  const fitView =
-    fitCanvasView(
-      frameSizePx === null
-        ? null
-        : { width: frameSizePx.width, height: frameSizePx.height - FIT_LEGEND_RESERVE_PX },
-      surfacePx,
-    ) ?? IDENTITY_VIEW;
+  /* Mở tầng là thấy MẶT BẰNG: vừa theo khung tường, không theo cả tờ giấy (tờ còn phối cảnh, ghi chú, sơ đồ vị trí). */
+  const fitBoundsPx = useMemo<CanvasFitRect | null>(() => {
+    const box = boundsOfPoints(wallOutlinesPx.flatMap((wall) => wall.outline));
+
+    return box === null ? surfacePx : { x: box.minX, y: box.minY, width: box.maxX - box.minX, height: box.maxY - box.minY };
+  }, [surfacePx, wallOutlinesPx]);
+
+  const fitView = fitCanvasView(frameSizePx, fitBoundsPx) ?? IDENTITY_VIEW;
 
   const onSelectHostWall = useCallback(
     (wallId: WallId) => {
@@ -2120,12 +2120,13 @@ export function useObjectLayerReview(
   }, [fitView, flyToBounds, frameSizePx, placements, objects]);
 
   /*
-   * Từng việc phóng tới mục vừa chọn (nới ≥ 40 % tầng), Tổng thể trả vừa khung. Chỉ chạy khi
-   * đổi mục hoặc đổi chế độ — kéo đối tượng không làm khung nhìn nhảy; Từng việc chưa chọn thì đứng yên.
+   * Tổng thể trả vừa khung; Từng việc giữ nguyên mức phóng khi chọn (mục dưới panel thì canvas chỉ dịch).
+   * "So sánh hai bên": chọn là cả hai nửa phóng tới (nới ≥ 40 % tầng), kể cả đang Tổng thể; thoát thì trả vừa khung.
+   * Chỉ chạy khi đổi khoá — kéo đối tượng không làm khung nhìn nhảy.
    */
-  const viewMode = useQcViewMode();
+  const chosenViewMode = useQcViewMode();
   const viewFlightRef = useRef<string | null>(null);
-  /* Mục Từng việc vừa bay tới: nó biến mất (hoàn tác "Thêm đồ vật", xoá) thì trả về vừa khung, không kẹt ở chỗ trống. */
+  /* Mục vừa bay tới lúc so sánh: nó biến mất (hoàn tác "Thêm đồ vật", xoá) thì trả về vừa khung, không kẹt ở chỗ trống. */
   const viewFlownObjectRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -2134,13 +2135,15 @@ export function useObjectLayerReview(
     }
 
     /* Khổ khung nằm trong khoá: khung đổi cỡ (cột việc dựng xong, 1024) thì lớp vừa khung đổi, bay lại. */
-    const key = `${viewMode === 'task' ? `task:${selectedObjectId ?? ''}` : 'overview'}@${frameSizePx.width}x${frameSizePx.height}`;
+    const key = `${isComparing ? `compare:${selectedObjectId ?? ''}` : chosenViewMode}@${frameSizePx.width}x${frameSizePx.height}`;
 
     if (key === viewFlightRef.current) {
       return;
     }
 
-    if (viewMode === 'overview') {
+    const leftCompare = viewFlightRef.current?.startsWith('compare:') === true && !isComparing;
+
+    if (leftCompare || (!isComparing && chosenViewMode === 'overview')) {
       viewFlightRef.current = key;
       viewFlownObjectRef.current = null;
       endFlight();
@@ -2149,7 +2152,7 @@ export function useObjectLayerReview(
 
     const placement = placements.find((item) => item.id === selectedObjectId);
 
-    if (selectedObjectId === null) {
+    if (!isComparing || selectedObjectId === null) {
       viewFlightRef.current = key;
       const flown = viewFlownObjectRef.current;
       viewFlownObjectRef.current = null;
@@ -2172,7 +2175,7 @@ export function useObjectLayerReview(
     const max = toFramePoint(fitView, { x: box.x + box.width, y: box.y + box.height });
 
     flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, frameSizePx.width, frameSizePx.height);
-  }, [endFlight, fitView, flyToBounds, frameSizePx, objects, placements, selectedObjectId, surfacePx, viewMode]);
+  }, [chosenViewMode, endFlight, fitView, flyToBounds, frameSizePx, isComparing, objects, placements, selectedObjectId, surfacePx]);
 
   /*
    * Lỗi quy chuẩn của lớp (P03). Mở từ nút "Sửa" hay bấm một dòng: bay tới chỗ lỗi (khung

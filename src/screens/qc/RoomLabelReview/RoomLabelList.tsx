@@ -32,8 +32,8 @@ import { queueNumbersOf } from '../shared/qcAsk';
 import { QcQueueNumber } from '../shared/QcQueueNumber';
 import { ROOM_REASON_TITLE, byRoomReason } from './roomReviewReasons';
 
-/** Chiều cao một dòng danh sách, đúng chữ đặc tả ("mỗi dòng cao 40"). */
-const ROW_HEIGHT_CLASS = 'min-h-10';
+/** Một hàng cao 32 như danh sách tường và đồ; dòng có cờ mới nở thêm một hàng cho câu cờ. */
+const ROW_HEIGHT_CLASS = 'min-h-8';
 
 const LIST_ARIA_LABEL = 'Danh sách phòng';
 const CONFIRMED_GROUP_LABEL = 'Đã duyệt';
@@ -62,7 +62,7 @@ const STATUS_LABEL: Readonly<Record<RoomLabelStatus, string>> = {
 /** UX-24: tên người duyệt tự gõ, chưa duyệt — không gắn "AI đề xuất". */
 const TYPED_NAME_STATUS_LABEL = 'Tên do bạn đặt, chưa duyệt';
 
-/** Chữ ngắn đi cạnh chấm màu trong dòng (K16) — câu đầy đủ ở `aria-label`. */
+/** Chữ của chấm màu khi rê chuột; đầu nhóm đã nói bằng chữ (K16) — câu đầy đủ ở `aria-label`. */
 const STATUS_SHORT_LABEL: Readonly<Record<RoomLabelStatus, string>> = {
   unnamed: 'Cần đặt tên',
   suggested: 'Chờ duyệt',
@@ -83,19 +83,17 @@ interface RoomLabelListRowProps {
 
 function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, flag, queueNumber }: RoomLabelListRowProps) {
   const nameText = room.hasName ? room.name : UNNAMED_PLACEHOLDER;
-  /* Dòng phụ thụt theo mã (64 + 8), cộng vòng số (20 + 8) khi có. */
-  const subIndent = queueNumber === undefined ? 'pl-[72px]' : 'pl-[100px]';
 
   return (
     <div
       aria-label={`${room.codeLabel} · ${nameText} · ${room.areaText} · ${room.status === 'suggested' && !room.nameFromOcr ? TYPED_NAME_STATUS_LABEL : STATUS_LABEL[room.status]}${flag === null ? '' : ` · ${flag}`}`}
       aria-selected={isSelected}
       className={cn(
-        'flex cursor-pointer flex-col justify-center gap-0.5 rounded-lg px-2 py-1 text-[13px] outline-hidden',
+        'flex scroll-mt-7 cursor-pointer flex-col justify-center rounded-md px-2 text-[13px] outline-hidden',
         ROW_HEIGHT_CLASS,
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent focus-visible:ring-offset-2',
-        isSelected && 'bg-bg-selected hover:bg-bg-selected',
+        isSelected && 'bg-accent-wash hover:bg-accent-wash',
       )}
       onClick={() => onSelect(room.id)}
       onKeyDown={(event) => {
@@ -112,29 +110,21 @@ function RoomLabelListRow({ room, isSelected, onSelect, onHover, onMoveFocus, fl
       onMouseLeave={() => onHover(null)}
       role="option"
       tabIndex={0}
+      title={room.areaText}
     >
-      <span className="flex items-center gap-2">
-        {queueNumber === undefined ? null : <QcQueueNumber current={isSelected} n={queueNumber} />}
-        <span className="w-16 shrink-0 truncate font-mono text-text-secondary">{room.codeLabel}</span>
-        <span
-          className={cn('min-w-0 flex-1 truncate', room.hasName ? 'text-text-primary' : 'text-text-muted')}
-          title={nameText}
-        >
+      {/* K08: một hàng tên · mã · chấm. Diện tích ở gợi ý và panel phải: cột 280 không đủ chỗ cho "27,52 m² thông thuỷ" cạnh tên (BUG-624). */}
+      <span className="flex h-8 items-center gap-2">
+        {queueNumber === undefined ? <span aria-hidden="true" className="w-5 shrink-0" /> : <QcQueueNumber current={isSelected} n={queueNumber} />}
+        <span className={cn('min-w-0 flex-1 truncate', room.hasName ? 'text-text-primary' : 'text-text-muted')} title={nameText}>
           {nameText}
         </span>
-      </span>
-      {/* K08/K16: diện tích và trạng thái xuống dòng hai — tên không bị ép xuống hai dòng, chấm màu có chữ đi kèm. */}
-      <span className={cn('flex items-center gap-2 text-[12px] text-text-secondary', subIndent)}>
-        <span className="min-w-0 truncate whitespace-nowrap font-mono tabular-nums" title={room.areaText}>
-          {room.areaText}
-        </span>
-        <span className="ml-auto flex shrink-0 items-center gap-1">
-          <span aria-hidden="true" className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[room.status])} />
-          {STATUS_SHORT_LABEL[room.status]}
+        <span className="shrink-0 tabular-nums text-[12px] text-text-muted">{room.codeLabel}</span>
+        <span className="flex w-3 shrink-0 justify-center" title={STATUS_SHORT_LABEL[room.status]}>
+          <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_CLASS[room.status])} />
         </span>
       </span>
       {flag === null ? null : (
-        <span className={cn('flex items-start gap-1 text-[12px] text-state-attention-text', subIndent)}>
+        <span className="flex items-start gap-1 pb-1 pl-7 text-[12px] text-state-attention-text">
           <TriangleAlert aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           {flag}
         </span>
@@ -241,10 +231,10 @@ export function RoomLabelList({
   }
 
   return (
-    <div aria-label={LIST_ARIA_LABEL} className="flex flex-col gap-3" ref={containerRef} role="listbox">
+    <div aria-label={LIST_ARIA_LABEL} className="flex flex-col" ref={containerRef} role="listbox">
       {groups.map((group) => (
         <div aria-label={group.label} className="flex flex-col" key={group.label} role="group">
-          <p aria-hidden="true" className="flex items-center gap-2 px-2 pb-1 text-[12px] font-medium text-text-secondary">
+          <p aria-hidden="true" className="sticky top-0 z-10 flex h-7 items-center gap-1.5 bg-bg-surface px-2 text-caption font-medium text-text-secondary">
             {group.label}
             <span className="tabular-nums text-text-muted">{group.items.length}</span>
           </p>

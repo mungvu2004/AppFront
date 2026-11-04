@@ -33,14 +33,15 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { cn } from '@/lib/utils';
 
+import { useRevealSelection } from '../shared/qcCanvasCover';
 import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
+import { QcTag } from '../shared/QcTag';
 import { QcViewLayer } from '../shared/QcViewLayer';
 import { QcZoomMenu } from '../shared/QcZoomMenu';
 import { WallDraftGuide, WallDrawingBackground, WallLayerMiniMap } from './WallLayerCanvasParts';
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
 import { WallLayerOpenings } from './WallLayerOpenings';
-import { WallLayerTag } from './WallLayerTag';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
@@ -62,11 +63,11 @@ const FORBIDDEN_DESCRIPTION =
 const FORBIDDEN_DESCRIPTION_ID = 'wall-layer-canvas-forbidden';
 
 /**
- * Khung canvas: tối thiểu 640 từ 1280px (đặc tả màn), bo 16, thụt 12. Dưới 1280px khung lấp đầy vùng
- * bản vẽ 60vh — tối thiểu 640 ở đó đẩy thanh thu phóng ra ngoài vùng nhìn (BUG-317).
+ * Khung canvas phẳng, liền mép panel (không thẻ); lấp đầy vùng bản vẽ. Viền trong suốt giữ cùng khổ với nửa trái
+ * của "So sánh hai bên".
  */
 const FRAME_CLASSES =
-  'relative h-full min-h-80 w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d p-3 xl:min-h-[640px]';
+  'relative h-full min-h-80 w-full overflow-hidden border border-transparent bg-canvas-2d p-3';
 
 /* Canvas. */
 
@@ -171,6 +172,8 @@ export function WallLayerCanvas({
 
     return () => observer.disconnect();
   }, [onFrameResize]);
+
+  useRevealSelection(selectedWallId, frameRef, selectedWallId === null ? null : haloRectPx, onPanBy);
 
   useEffect(() => {
     if (selectedWallId !== null) {
@@ -386,7 +389,7 @@ export function WallLayerCanvas({
               )}
 
               {viewLayer === null ? null : <QcViewLayer {...viewLayer} />}
-              {wallTag === null || !isWallLayerVisible ? null : <WallLayerTag {...wallTag} />}
+              {wallTag === null || !isWallLayerVisible ? null : <QcTag {...wallTag} />}
 
               {measurement === null ? null : (
                 <MeasurementLabel

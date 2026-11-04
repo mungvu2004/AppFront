@@ -124,6 +124,12 @@ export interface UsePascalEditsResult {
   readonly history: HistoryStack;
   /** Lượt vừa lưu có món gợi ý được nhận: `true` một lần, màn dựng lại cảnh để tấm viền thành mẫu thật. */
   readonly takeSuggestionAccepted: () => boolean;
+  /**
+   * Cảnh này (của editor, ngay sau khi màn dựng lại từ kho, đã điền mặc định) thành mốc "trước". Phần chênh của lượt dựng lại không phải
+   * lượt sửa của ai; thiếu mốc này, món vừa nhận và phòng của nó đi qua `changeBetween` lần nữa, trường máy chủ tự thêm
+   * sau lượt PUT (`edited`, `clearAreaM2`) làm phép so ra "đổi" và dấu duyệt vừa đặt bị bỏ kèm câu báo sai.
+   */
+  readonly rebaseOnRebuilt: (scene: PascalScene) => void;
 }
 
 /** Phần chênh thành lời khai của Pascal về những node đã đụng tới. */
@@ -754,5 +760,9 @@ export function usePascalEdits({
     return accepted;
   }, []);
 
-  return { onSceneCommit, validateCommit, confirmMassDelete, history, takeSuggestionAccepted };
+  const rebaseOnRebuilt = useCallback((scene: PascalScene) => {
+    savedScene.current = scene;
+  }, []);
+
+  return { onSceneCommit, validateCommit, confirmMassDelete, history, takeSuggestionAccepted, rebaseOnRebuilt };
 }

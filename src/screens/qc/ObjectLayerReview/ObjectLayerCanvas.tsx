@@ -29,6 +29,7 @@ import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 
+import { useRevealSelection } from '../shared/qcCanvasCover';
 import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
 import { pointInFrame, rectInFrame } from '../shared/qcAsk';
 import { QcViewLayer } from '../shared/QcViewLayer';
@@ -137,6 +138,7 @@ export function ObjectLayerCanvas({
 
   const frameView = frameSize === null ? null : { scale, offset: pan.offset, ...frameSize };
   const focusRectPx = selectedObjectId === null || haloRectPx === null || frameView === null ? null : rectInFrame(haloRectPx, frameView);
+  useRevealSelection(selectedObjectId, frameRef, focusRectPx, (dx, dy) => pan.panTo({ x: pan.offset.x + dx, y: pan.offset.y + dy }));
 
   const halo = useSelectionHalo();
   const menu = useContextMenu();
@@ -405,9 +407,8 @@ export function ObjectLayerCanvas({
         )}
       </div>
 
-      {/* Lớp làm tối + chấm số đứng NGOÀI lớp phóng; đang vẽ thì chấm số không chặn con trỏ. */}
+      {/* Chấm số đứng NGOÀI lớp phóng; đang vẽ thì chấm số không chặn con trỏ. */}
       <QcViewLayer
-        focus={focusRectPx}
         onPick={onSelect}
         pins={frameView === null ? [] : viewPins.map((pin) => pointInFrame(pin, frameView))}
         pinsInteractive={!isDrawing}

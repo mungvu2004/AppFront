@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { Furniture } from '@/domain/spatial/types';
+import type { Furniture, Room } from '@/domain/spatial/types';
 import { degrees } from '@/domain/units/types';
 import { registerServerLibrary } from '@/lib/pascal/furnitureCatalog';
 import { isGeneratedLightId, isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
@@ -447,6 +447,40 @@ describe('đồ máy gợi ý — xoá = Bỏ gợi ý, sửa = Nhận gợi ý 
     expect(item()).toEqual(original);
   });
 
+
+  it('nhận rồi máy chủ thêm `edited`/`clearAreaM2`: lượt dựng lại không hạ dấu duyệt của món và phòng, không báo sai, không ghi', async () => {
+    const view = hook();
+
+    expect(await save(view, outlined({ slots: { a: SAVEABLE } }))).toBe(true);
+    const graph = useStore.getState().spatial as NormalizedSpatial;
+    const accepted = graph.byId[realItem] as Furniture;
+    const room = Object.values(graph.byId).find((entity) => entity.id === accepted.roomId) as Room;
+    const rebuilt = toPascalScene(denormalizeSpatial(graph)).scene;
+
+    /* Như sau lượt PUT: bản ghi về từ máy chủ mang các trường `toSpatial` không viết ra. */
+    act(() => {
+      useStore.getState().setSpatial(
+        { ...graph, byId: { ...graph.byId, [realItem]: { ...accepted, edited: true }, [room.id]: { ...room, reviewed: true, clearAreaM2: 13.73 } } } as NormalizedSpatial,
+        null,
+      );
+    });
+    view.rerender();
+    const stored = useStore.getState().spatial;
+
+    view.result.current.rebaseOnRebuilt(rebuilt);
+
+    expect(await save(view, rebuilt)).toBe(false);
+    expect(useStore.getState().spatial).toBe(stored);
+    expect(item()).toMatchObject({ reviewed: true, edited: true });
+    expect(view.onNotice).toHaveBeenCalledTimes(1);
+    expect(view.onNotice).toHaveBeenCalledWith(SUGGESTION_ACCEPTED_NOTICE);
+
+    // Sửa thật sau đó vẫn bỏ dấu duyệt (C2).
+    const real = rebuilt.nodes[`item_${realItem}`] as Extract<PascalNode, { readonly type: 'item' }>;
+
+    expect(await save(view, { ...rebuilt, nodes: { ...rebuilt.nodes, [real.id]: { ...real, position: [real.position[0] + 0.5, real.position[1], real.position[2]] } } })).toBe(true);
+    expect(item()?.reviewed).toBe(false);
+  });
 
   it('sơn tấm viền: mẫu thật phủ màu ở mọi khe, lượt về không đổi gì, không báo "đã duyệt"; sơn lại một khe thì giữ các khe kia', async () => {
     const view = hook();

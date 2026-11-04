@@ -4,7 +4,7 @@ import type { QcAskRect } from './qcAsk';
 
 /**
  * Hai chế độ nhìn của bố cục L23 (mock `v9-sua2`), chung cho Tường · Cửa và nội thất · Phòng:
- * - `task` (Từng việc): chọn một mục thì bản vẽ phóng tới nó, phần còn lại phủ mờ;
+ * - `task` (Từng việc): chọn một mục thì phần còn lại phủ mờ, mức phóng giữ nguyên (chỉ "So sánh hai bên" mới phóng tới mục);
  * - `overview` (Tổng thể): cả tầng vừa khung, mục còn cần xem mang ghim số theo thứ tự hàng đợi.
  * Phím F đổi qua lại. Chế độ giữ nguyên khi chuyển bước trong phiên (một biến của module).
  */
@@ -41,8 +41,7 @@ export interface QcPin {
 }
 
 /**
- * Phần khung mà Từng việc canh mục vào giữa. Panel chi tiết neo ngoài bản vẽ (bố cục hai panel, 04/11)
- * nên không còn dải nào phải chừa: trả nguyên khung. Giữ export để màn không phải đổi chỗ gọi.
+ * Phần khung mà việc phóng tới mục canh vào giữa: nguyên khung. Panel chi tiết nổi đè lên thì `useRevealSelection` dịch mục ra sau.
  */
 export const focusFrameOf = (frame: { readonly width: number; readonly height: number }) => ({ width: frame.width, height: frame.height });
 
@@ -56,7 +55,7 @@ export const focusPadOf = (item: QcAskRect): number => Math.max(item.width, item
 const FOCUS_MIN_PAD_SHARE = 0.1;
 
 /**
- * Hộp mà Từng việc phủ vừa khung: hộp của mục nới đều mỗi phía max(nửa cạnh dài của mục, 10 % cạnh
+ * Hộp mà "So sánh hai bên" phủ vừa khung khi chọn: hộp của mục nới đều mỗi phía max(nửa cạnh dài của mục, 10 % cạnh
  * dài của tầng). Đoạn 56 mm không bị phóng tới mức mất hết ngữ cảnh; đoạn dài không bị nới thừa.
  */
 export function focusBoundsOf(item: QcAskRect, whole: QcAskRect): QcAskRect {

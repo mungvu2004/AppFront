@@ -1,8 +1,7 @@
 /**
  * Màn S-13 "Lớp đối tượng" (`ObjectLayerReview`) — VIEW THUẦN, bố cục L23:
- * ray công cụ trái (56), cột việc (`QcStepColumn`, 360) bọc bộ lọc và hàng đợi
- * với cổng ở đáy, bản vẽ giữa, panel phải neo (`ObjectLayerInspectorPanel`, mang "Hiển thị"),
- * thanh trạng thái (32) dính đáy.
+ * ray công cụ trái, cột việc (`QcStepColumn`) bọc bộ lọc và hàng đợi với cổng và cặp nút bước ở đáy,
+ * bản vẽ giữa mang cụm trạng thái nổi, panel phải (`ObjectLayerInspectorPanel`, mang "Hiển thị") khi đang chọn hoặc mở bằng "Chi tiết".
  *
  * Nhận HẾT qua props ({@link ObjectLayerReviewViewProps}) và chỉ dựng thẻ.
  * Không `@/api`, không `@/store`, không `@/domain`, không `@/lib/http` (R-60,
@@ -35,6 +34,8 @@
  * ra.
  */
 
+import { useEffect, useState } from 'react';
+
 import { useCanvasZoomPan } from '@/components/canvas/useCanvasZoomPan';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -44,6 +45,7 @@ import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import { QcCompareSplit } from '../shared/QcCompareSplit';
+import { useQcCompare } from '../shared/qcCompare';
 import { QcFloorNav, type QcFloorNavProps } from '../shared/QcFloorNav';
 import { QcScreenFrame, QcWorkspace } from '../shared/QcScreenFrame';
 import { QcStepColumn } from '../shared/QcStepColumn';
@@ -54,10 +56,9 @@ import { ObjectLayerInspectorPanel } from './ObjectLayerInspectorPanel';
 import { ObjectLayerLeftPanel } from './ObjectLayerLeftPanel';
 import { ObjectLayerList } from './ObjectLayerList';
 import { ObjectLayerStatusBar } from './ObjectLayerStatusBar';
-import { ObjectLayerBulkApproveBar } from './ObjectLayerBulkApproveBar';
-import { ObjectLayerSuggestionBar } from './ObjectLayerSuggestionBar';
+import { ObjectLayerQueueActions } from './ObjectLayerBulkApproveBar';
 import { ObjectLayerToolRail } from './ObjectLayerToolRail';
-import { nextSuggestionIdOf, OBJECT_LAYER_TEXT } from './objectLayerReviewGateway';
+import { OBJECT_LAYER_TEXT } from './objectLayerReviewGateway';
 import type { ObjectLayerReviewModel } from './objectLayerTypes';
 
 /**
@@ -101,7 +102,7 @@ const SKELETON_ROWS = [0, 1, 2, 3];
  * để chỗ này trống — kể cả `forbidden`, nơi danh sách vẫn xem được và chỉ các
  * nút sửa biến mất (việc của từng view con).
  */
-function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewModel }) {
+function ObjectLayerListRegion({ model, codeQuery }: { readonly model: ObjectLayerReviewModel; readonly codeQuery: string }) {
   if (model.state === 'loading') {
     return (
       <div className="flex flex-col gap-1">
@@ -142,7 +143,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col">
       {/* Công tắc "Chỉ hiện chỗ máy chưa chắc" nằm trong "Lọc" ở thanh đầu cột; ở đây chỉ còn lối ra khi lọc hết mục. */}
       {model.isLowConfidenceOnly && model.rows.length === 0 ? (
         <div className="flex items-center justify-between gap-2 px-2 py-2">
@@ -157,33 +158,8 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         </div>
       ) : null}
 
-      <ObjectLayerBulkApproveBar
-        breakdownLabel={model.reviewBreakdownLabel}
-        confidentLabel={model.approveConfidentLabel}
-        onApproveConfident={model.onApproveConfident}
-        onApproveRemaining={model.onApproveRemaining}
-        remainingConfirm={model.approveRemainingConfirm}
-        remainingLabel={model.approveRemainingLabel}
-      />
-
-      {(model.suggestionCount ?? 0) === 0 ||
-      model.onAcceptAllSuggestions === undefined ||
-      model.onRejectAllSuggestions === undefined ? null : (
-        <ObjectLayerSuggestionBar
-          label={model.suggestionLabel ?? ''}
-          onReviewEach={() => model.onSelect(nextSuggestionIdOf(model.rows, model.selectedObjectId))}
-          onAcceptAll={model.onAcceptAllSuggestions}
-          onRejectAll={model.onRejectAllSuggestions}
-        />
-      )}
-
-      {model.filteredLabel === null ? null : (
-        <p aria-live="polite" className="px-2 text-[12px] tabular-nums text-text-secondary">
-          {model.filteredLabel}
-        </p>
-      )}
-
       <ObjectLayerList
+        codeQuery={codeQuery}
         collapsedGroups={model.collapsedGroups}
         isFiltered={model.filteredLabel !== null}
         onAttachToNearestWall={model.onAttachToNearestWall}
@@ -221,6 +197,13 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
   const zoomPan = useCanvasZoomPan();
   const { pan, scale } = zoomPan;
   const image = model.backgroundImageUrl === null ? null : model.surfaceRectPx;
+  /* Chọn lúc so sánh: bỏ độ phóng cục bộ để hook bay đúng vào mục (hộp phóng tính trên lớp vừa khung). */
+  const isComparing = useQcCompare();
+  const { onFitToScreen } = zoomPan.zoomCluster;
+  useEffect(() => {
+    if (isComparing && model.selectedObjectId !== null) onFitToScreen();
+  }, [isComparing, model.selectedObjectId, onFitToScreen]);
+  const selectedRow = model.rows.find((row) => row.id === model.selectedObjectId);
 
   return (
     <QcCompareSplit
@@ -237,9 +220,18 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
         )
       }
       haloRect={model.selectedObjectId === null ? null : model.haloRectPx}
-      layerTransform={`${pan.transform} scale(${scale})`}
+      layerView={{ offset: pan.offset, scale }}
       onPanBy={(dx, dy) => pan.panTo({ x: pan.offset.x + dx, y: pan.offset.y + dy })}
       onZoom={(direction) => (direction > 0 ? zoomPan.zoomCluster.onZoomIn() : zoomPan.zoomCluster.onZoomOut())}
+      tag={
+        model.inspector === null || model.haloRectPx === null
+          ? null
+          : {
+              rect: model.haloRectPx,
+              text: `${model.inspector.sizeLabel} · ${model.inspector.confidenceLabel}`,
+              tier: model.inspector.reviewed ? 'reviewed' : selectedRow?.isLowConfidence === true ? 'needsReview' : 'suggested',
+            }
+      }
     >
       <ObjectLayerCanvas
         backgroundImageAlt={model.backgroundImageAlt}
@@ -271,8 +263,12 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
   );
 }
 
-/** Thân bước trong cột việc (NGUYEN-TAC-BO-CUC §2): lọc theo loại, rồi hàng đợi cuộn riêng. */
+/** Thân bước trong cột việc (NGUYEN-TAC-BO-CUC §2): hàng lọc + tìm, hàng duyệt hàng loạt + gợi ý, rồi hàng đợi là vùng cuộn duy nhất. */
 function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewModel }) {
+  /* Ô tìm mã là UI thuần của cột: nút ở thanh đầu, danh sách lọc theo nó. */
+  const [codeQuery, setCodeQuery] = useState('');
+  const hasQueue = model.state !== 'loading' && model.emptyNotice === null && model.errorMessage === null;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0">
@@ -280,8 +276,11 @@ function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewMod
         {model.state === 'loading' ? null : (
           <ObjectLayerLeftPanel
             availableSubtypes={model.availableSubtypes}
+            codeQuery={codeQuery}
             counts={model.counts}
+            filteredLabel={hasQueue ? model.filteredLabel : null}
             furnitureAttentionNotice={model.furnitureAttentionNotice}
+            onCodeQueryChange={hasQueue ? setCodeQuery : undefined}
             isLowConfidenceOnly={model.isLowConfidenceOnly}
             onToggleLowConfidenceOnly={
               model.partialNotice === null && !model.isLowConfidenceOnly ? null : model.onToggleLowConfidenceOnly
@@ -297,10 +296,11 @@ function ObjectLayerLeftColumn({ model }: { readonly model: ObjectLayerReviewMod
             subtypeFilters={model.subtypeFilters}
           />
         )}
+        {hasQueue ? <ObjectLayerQueueActions model={model} /> : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        <ObjectLayerListRegion model={model} />
+      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
+        <ObjectLayerListRegion codeQuery={codeQuery} model={model} />
       </div>
     </div>
   );
@@ -353,30 +353,31 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           )
         }
         selectionKey={model.inspector?.id ?? null}
+        status={
+          <ObjectLayerStatusBar
+            saveLabel={model.saveLabel ?? null}
+            emptyNotice={model.emptyNotice}
+            errorMessage={model.errorMessage}
+            furnitureAttentionNotice={model.furnitureAttentionNotice}
+            onUndo={model.onUndo}
+            reviewCounter={model.reviewCounter}
+            reviewProgressLabel={model.state === 'loading' ? LOADING_PROGRESS_LABEL : model.reviewProgressLabel}
+            state={model.state}
+            viewerRoleNotice={model.viewerRoleNotice}
+          />
+        }
         rail={
           <ObjectLayerToolRail
             activeLayer={model.activeLayer}
             activeSubtype={model.activeSubtype}
             drawLayer={model.drawLayer}
+            isCollapsed={model.isCollapsed}
             isViewerRole={isReadOnly(model)}
+            onToggleCollapsed={model.onToggleCollapsed}
             onStartDraw={model.onStartDraw}
             onSelectSubtypeSlot={model.onSelectSubtypeSlot}
           />
         }
-      />
-
-      <ObjectLayerStatusBar
-        saveLabel={model.saveLabel ?? null}
-        emptyNotice={model.emptyNotice}
-        errorMessage={model.errorMessage}
-        furnitureAttentionNotice={model.furnitureAttentionNotice}
-        isCollapsed={model.isCollapsed}
-        onToggleCollapsed={model.onToggleCollapsed}
-        onUndo={model.onUndo}
-        reviewCounter={model.reviewCounter}
-        reviewProgressLabel={model.state === 'loading' ? LOADING_PROGRESS_LABEL : model.reviewProgressLabel}
-        state={model.state}
-        viewerRoleNotice={model.viewerRoleNotice}
       />
     </QcScreenFrame>
   );

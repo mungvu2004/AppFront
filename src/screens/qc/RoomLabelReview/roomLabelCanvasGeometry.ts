@@ -213,30 +213,6 @@ export function frameRectOf(
   };
 }
 
-/**
- * L23 Từng việc: mức phóng (%) và độ kéo để hộp `focus` (px mặt bằng) vừa khung, tâm ở giữa khung.
- * `basePan` là độ dời vừa khung sẵn có (`panPx`); độ kéo trả về cộng thêm vào nó.
- */
-export function focusViewOf(
-  focus: RoomLabelBoundsPx,
-  content: RoomLabelBoundsPx,
-  frame: { readonly width: number; readonly height: number },
-  basePan: RoomLabelPointPx,
-): { readonly zoomPct: number; readonly offset: RoomLabelPointPx } {
-  const zoomPct = Math.round(Math.min(frame.width / focus.width, frame.height / focus.height) * 100);
-  const scale = zoomPct / 100;
-  const centre = centreOfBounds(focus);
-  const shift = (frameSize: number, value: number, origin: number, size: number, base: number) =>
-    frameSize / 2 - size / 2 - scale * (value - origin - size / 2) - base;
-  return {
-    zoomPct,
-    offset: {
-      x: shift(frame.width, centre.x, content.x, content.width, basePan.x),
-      y: shift(frame.height, centre.y, content.y, content.height, basePan.y),
-    },
-  };
-}
-
 /* -------------------------------------------------------------------------- */
 /* Token màu — chuyển tên token thành chuỗi CSS `var(--…)`.                    */
 /* -------------------------------------------------------------------------- */
@@ -252,7 +228,7 @@ export function cssVar(token: string): string {
 
 /** Tối thiểu 640 từ 1280px; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 1024 lấp vùng 360 px — BUG-317, BUG-404. */
 export const ROOM_LABEL_CANVAS_FRAME_CLASSES =
-  'relative h-full min-h-80 w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d p-3 lg:min-h-[60vh] xl:min-h-[640px]';
+  'relative h-full min-h-80 w-full overflow-hidden border border-transparent bg-canvas-2d p-3';
 
 /** Độ mờ ảnh nền bản vẽ gốc — cùng mức với `ObjectLayerCanvas` (đặc tả gốc). */
 export { QC_BACKGROUND_OPACITY as BACKGROUND_IMAGE_OPACITY } from '../shared/qcBackground';

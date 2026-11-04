@@ -1,5 +1,5 @@
 /**
- * Thanh trạng thái (32px) của màn Lớp đối tượng — đúng khuôn QC-SHELL
+ * Cụm nổi góc trên phải bản vẽ (khe `status` của `QcWorkspace`) của màn Lớp đối tượng — đúng khuôn QC-SHELL
  * (`WallLayerStatusBar.tsx`, `.orca-notes/T3-qcshell.md` mục H): tự dựng
  * bằng `div` trần, KHÔNG dùng `src/components/shell/StatusBar` (component
  * đó tự `toFixed(2)` số thô bên trong, nằm trong sổ nợ `no-raw-number` đã
@@ -7,11 +7,11 @@
  *
  * `ObjectLayerStatusBarProps` (`objectLayerTypes.ts`, đóng băng) khác hẳn
  * `WallLayerStatusBarProps`: không có `cursorLabel`/`scaleLabel`/`saveLabel`
- * — thay vào đó mang thẳng trạng thái màn (`state`, các `*Notice`) và hai
- * hành động (`onUndo`, `onToggleCollapsed`). Vì vậy khuôn ba cột "toạ độ ·
+ * — thay vào đó mang thẳng trạng thái màn (`state`, các `*Notice`) và
+ * hành động (`onUndo`). Vì vậy khuôn ba cột "toạ độ ·
  * tỷ lệ · lưu" của màn anh em không áp được nguyên văn; bố cục ở đây là bộ
- * đếm (trái) · ghi chú trạng thái đang hoạt động, nếu có (giữa) · hai hành
- * động (phải).
+ * đếm (trái) · ghi chú trạng thái đang hoạt động, nếu có (giữa) · hành
+ * động (phải). Nút thu gọn hai panel ở cuối ray công cụ như màn Tường.
  *
  * ## A7 — không có trường "trạng thái tự lưu" riêng, dùng `aria-live`
  *
@@ -23,9 +23,6 @@
  * trường mới vào hợp đồng đã đóng băng của T4.
  */
 
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-
-import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/utils';
 
 import type { ObjectLayerStatusBarProps } from './objectLayerTypes';
@@ -33,8 +30,6 @@ import type { ObjectLayerStatusBarProps } from './objectLayerTypes';
 const STATUS_BAR_ARIA_LABEL = 'Thanh trạng thái';
 /** Nút chữ cao 24 px: vùng chạm tối thiểu WCAG 2.5.8 trong thanh 32 px (BUG-325, trước đó 49×18). */
 const UNDO_LABEL = 'Hoàn tác';
-const COLLAPSE_LABEL = 'Thu gọn hai panel';
-const EXPAND_LABEL = 'Mở lại hai panel';
 
 export function ObjectLayerStatusBar({
   saveLabel = null,
@@ -42,8 +37,6 @@ export function ObjectLayerStatusBar({
   errorMessage,
   viewerRoleNotice,
   furnitureAttentionNotice,
-  isCollapsed,
-  onToggleCollapsed,
   onUndo,
 }: ObjectLayerStatusBarProps) {
   /* Câu rỗng đã ở trạng thái rỗng của panel: không lặp lần thứ hai ở đây (BUG-422). */
@@ -60,7 +53,8 @@ export function ObjectLayerStatusBar({
   return (
     <div
       aria-label={STATUS_BAR_ARIA_LABEL}
-      className="sticky bottom-0 z-10 flex h-8 shrink-0 select-none items-center justify-between gap-2 whitespace-nowrap border-t border-border-default bg-bg-surface px-4"
+      data-qc-status-bar=""
+      className="flex h-8 w-fit max-w-full shrink-0 select-none items-center gap-2 whitespace-nowrap rounded-lg bg-bg-surface px-1 shadow-float"
       role="status"
     >
       {/* Tiến độ đã ở đầu panel và cổng (Z/S-16): thanh này giữ câu báo + hoàn tác, không lặp số lần ba. */}
@@ -69,7 +63,7 @@ export function ObjectLayerStatusBar({
       </span>
 
       {notice !== null && (
-        <span className={cn('hidden min-w-0 truncate px-2 text-body sm:block', noticeTone)}>{notice}</span>
+        <span className={cn('hidden min-w-0 max-w-[360px] truncate px-2 text-body 2xl:block', noticeTone)}>{notice}</span>
       )}
 
       <div className="flex shrink-0 items-center gap-2">
@@ -88,19 +82,6 @@ export function ObjectLayerStatusBar({
           {UNDO_LABEL}
         </button>
         )}
-        <IconButton
-          aria-label={isCollapsed ? EXPAND_LABEL : COLLAPSE_LABEL}
-          icon={
-            isCollapsed ? (
-              <PanelLeftOpen aria-hidden="true" className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose aria-hidden="true" className="h-4 w-4" />
-            )
-          }
-          onClick={onToggleCollapsed}
-          size="sm"
-          tooltip={false}
-        />
       </div>
     </div>
   );

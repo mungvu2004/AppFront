@@ -1,6 +1,5 @@
 /**
- * Thanh trạng thái (32px) của màn Duyệt lớp tường — ĐÚNG BA MỤC: toạ độ con
- * trỏ · tỷ lệ · trạng thái lưu.
+ * Cụm trạng thái nổi trên bản vẽ của màn Duyệt lớp tường: Hoàn tác, chỉ dẫn công cụ, phím, trạng thái lưu.
  *
  * {@link WallLayerStatusBarProps} là phần MỞ RỘNG ngoài `types.ts` (đóng băng):
  * `WallLayerViewProps` và `WallLayerCanvasProps` không mang toạ độ con trỏ, tỷ lệ
@@ -53,20 +52,18 @@ const SAVED_PREFIX = 'Đã lưu';
 export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = false, toolHint = '' }: WallLayerStatusBarProps) {
   return (
     /* Trạng thái tự lưu (A7) nằm ở thanh này: bố cục L23 không còn đầu panel. */
-    <QcStatusBar onUndo={onUndo} saveFailed={saveFailed} saveLabel={saveLabel}>
+    <QcStatusBar floating onUndo={onUndo} saveFailed={saveFailed} saveLabel={saveLabel}>
       {/*
         Sans + tabular-nums, không mono: nhãn này cũng là câu ("Chưa rê chuột lên bản vẽ") — BUG-612.
         Dưới 640 chỉ giữ trạng thái lưu, hai mục kia không gãy thành nhiều dòng (BUG-324).
       */}
       {/* Công cụ đang bật thì chỉ dẫn của nó thay gợi ý kéo/phóng — luôn hiện, một dòng. */}
-      {toolHint === '' ? (
-        <span className="hidden min-w-0 truncate text-caption text-text-secondary 2xl:block">{PAN_HINT}</span>
-      ) : (
+      {toolHint === '' ? null : (
         <span aria-live="polite" className="min-w-0 truncate text-caption font-medium text-text-primary" data-testid="wall-tool-hint">
           {toolHint}
         </span>
       )}
-      <span aria-label="Phím tắt" className="ml-auto hidden shrink-0 items-center gap-3 text-caption text-text-secondary lg:flex" role="group">
+      <span aria-label="Phím tắt" className="hidden shrink-0 items-center gap-3 text-caption text-text-secondary 2xl:flex" role="group" title={PAN_HINT}>
         {KEY_HINTS.filter((hint) => !readOnly || !hint.edit).map((hint) => (
           <span className="flex items-center gap-1" key={hint.key}>
             <Kbd>{hint.key}</Kbd>
@@ -80,9 +77,9 @@ export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = f
       </span>
       {/* G4a-14 (A7): không thêm nút lưu — chỉ báo tự lưu đậm hơn, có biểu tượng. */}
       {saveFailed ? (
-        <AlertCircle aria-hidden="true" className="ml-auto h-3.5 w-3.5 shrink-0 text-state-violation lg:ml-0" />
+        <AlertCircle aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-state-violation" />
       ) : saveLabel.startsWith(SAVED_PREFIX) ? (
-        <Check aria-hidden="true" className="ml-auto h-3.5 w-3.5 shrink-0 text-state-verified-text lg:ml-0" />
+        <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-state-verified-text" />
       ) : null}
     </QcStatusBar>
   );

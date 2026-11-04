@@ -137,13 +137,6 @@ export interface EditorStepProps {
   };
 }
 
-/** Dòng mờ vị trí dưới tên dự án (như "Drafts" dưới tên tệp của Figma): chữ, không phải nút. */
-export function EditorStepLabel({ project }: EditorStepProps) {
-  const current = PROJECT_STEPS[project.stepIndex];
-  if (current === undefined) return null;
-  return <p className="truncate px-2 text-caption text-text-muted">{`Bước ${project.stepIndex + 1} · ${current.label}`}</p>;
-}
-
 /** Sáu bước của dự án kèm trạng thái (cùng khuôn ProjectStepsCard của trang 3D), đặt trong menu tệp. */
 export function EditorStepList({ project }: EditorStepProps) {
   return (

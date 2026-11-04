@@ -390,9 +390,8 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
           )
         }
         selectionKey={selectedRoomId}
+        status={<QcStatusBar floating onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={props.saveStatus ?? null} />}
       />
-
-      <QcStatusBar onUndo={isViewerRole ? undefined : props.onUndo} saveLabel={props.saveStatus ?? null} />
 
       {/*
        * Hộp thoại xem trước treo NGOÀI khung làm việc và luôn được gắn: nó tự đóng khi

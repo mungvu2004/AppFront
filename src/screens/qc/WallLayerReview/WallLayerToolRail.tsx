@@ -18,8 +18,6 @@ import { Fragment } from 'react';
 import {
   GitMerge,
   MousePointer2,
-  PanelLeftClose,
-  PanelLeftOpen,
   Ruler,
   Scissors,
   Square,
@@ -28,6 +26,8 @@ import {
 
 import { IconButton } from '@/components/ui/IconButton';
 import { Tooltip } from '@/components/ui/Tooltip';
+
+import { QcRailCollapse } from '../shared/QcRailCollapse';
 
 /** Bốn chế độ công cụ thật của màn — khớp `ToolId` của `toolMachine` (không có mục merge). */
 export type WallLayerToolId = 'select' | 'drawWall' | 'splitWall' | 'measure';
@@ -78,10 +78,6 @@ const TOOLS: readonly WallLayerToolDef[] = [
 const MERGE_LABEL = 'Nối đoạn';
 const MERGE_HINT = 'Chọn hai đoạn thẳng hàng để nối (Ctrl hoặc Shift + bấm)';
 const RAIL_ARIA_LABEL = 'Công cụ lớp tường';
-const COLLAPSE_LABEL = 'Thu gọn hai panel';
-const EXPAND_LABEL = 'Mở lại hai panel';
-const COLLAPSE_SHORT_LABEL = 'Thu gọn';
-const EXPAND_SHORT_LABEL = 'Mở panel';
 
 /**
  * Vị trí của "nối đoạn" trên ray — TRƯỚC "đo" (BC-02).
@@ -103,9 +99,6 @@ export function WallLayerToolRail({
   isCollapsed,
   onToggleCollapsed,
 }: WallLayerToolRailProps) {
-  const collapseLabel = isCollapsed ? EXPAND_LABEL : COLLAPSE_LABEL;
-  const CollapseIcon = isCollapsed ? PanelLeftOpen : PanelLeftClose;
-
   const mergeButton = readOnly ? null : (
     <div className="relative flex w-full flex-col items-center gap-0.5" key="merge">
       <Tooltip label={canMerge ? MERGE_LABEL : MERGE_HINT}>
@@ -121,7 +114,7 @@ export function WallLayerToolRail({
           />
         </span>
       </Tooltip>
-      <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">{MERGE_LABEL}</span>
+      <span aria-hidden="true" className="w-full text-center text-caption leading-tight text-text-muted">{MERGE_LABEL}</span>
     </div>
   );
 
@@ -129,7 +122,7 @@ export function WallLayerToolRail({
     <div
       aria-label={RAIL_ARIA_LABEL}
       aria-orientation="vertical"
-      className="flex w-16 shrink-0 flex-col items-center gap-1 py-2"
+      className="flex w-[72px] shrink-0 flex-col items-center gap-1 border-r border-border-default bg-bg-surface py-2"
       role="toolbar"
     >
       {TOOLS.map((tool) => {
@@ -160,7 +153,7 @@ export function WallLayerToolRail({
               />
             </Tooltip>
             {/* Nhãn chữ dưới icon (A3): rail không còn icon trần, cùng kiểu rail Cửa và nội thất. */}
-            <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">{tool.label}</span>
+            <span aria-hidden="true" className="w-full text-center text-caption leading-tight text-text-muted">{tool.label}</span>
           </div>
         );
 
@@ -176,18 +169,7 @@ export function WallLayerToolRail({
         );
       })}
 
-      <div className="relative mt-1 flex w-full flex-col items-center gap-0.5">
-        <Tooltip label={collapseLabel}>
-          <IconButton
-            aria-label={collapseLabel}
-            icon={<CollapseIcon aria-hidden="true" className="h-[18px] w-[18px]" />}
-            onClick={onToggleCollapsed}
-            size="lg"
-            tooltip={false}
-          />
-        </Tooltip>
-        <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">{isCollapsed ? EXPAND_SHORT_LABEL : COLLAPSE_SHORT_LABEL}</span>
-      </div>
+      <QcRailCollapse isCollapsed={isCollapsed} onToggle={onToggleCollapsed} />
     </div>
   );
 }

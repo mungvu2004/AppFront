@@ -70,7 +70,6 @@ describe('QcFloorNav (UX-R1 K25, UX-R2 K04)', () => {
           <ul aria-label="Tầng">{floors}</ul>
         </details>
       ),
-      stepLabel: <p>Bước 3 · Duyệt tầng</p>,
     };
     const floors = [
       { id: 'f1', label: 'Tầng 1' },

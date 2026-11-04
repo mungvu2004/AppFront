@@ -61,7 +61,6 @@ const LazyNotificationBell = lazy(() =>
 /* Menu tệp + dòng vị trí chỉ bốn màn biên tập dùng: nạp lười, ngoài chunk vào (ngân sách màn hình đầu tiên). */
 const loadEditorChrome = () => import('@/components/shell/EditorChrome');
 const EditorFileMenu = lazy(() => loadEditorChrome().then((m) => ({ default: m.EditorFileMenu })));
-const EditorStepLabel = lazy(() => loadEditorChrome().then((m) => ({ default: m.EditorStepLabel })));
 const EditorStepList = lazy(() => loadEditorChrome().then((m) => ({ default: m.EditorStepList })));
 
 export function AppLayout() {
@@ -216,11 +215,6 @@ export function AppLayout() {
                 floors={floors}
                 bell={notificationBell}
               />
-            </Suspense>
-          ),
-          stepLabel: (
-            <Suspense fallback={null}>
-              <EditorStepLabel project={editorProject} />
             </Suspense>
           ),
         }

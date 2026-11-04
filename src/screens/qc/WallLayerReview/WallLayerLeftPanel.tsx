@@ -141,7 +141,7 @@ export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers, thickne
 
       {/* Tiêu đề cột đứng yên ngoài vùng cuộn: số căn phải, đơn vị ở tiêu đề (demo Z/S-15 vòng 9). */}
       {panel.rows.length > 0 && panel.state !== 'loading' && (
-        <div aria-hidden="true" className="flex shrink-0 items-center gap-2 px-5 pb-1 pt-2 text-caption text-text-secondary">
+        <div aria-hidden="true" className="flex shrink-0 items-center gap-2 px-3 py-1 text-caption text-text-secondary">
           {/* Khớp cột của hàng: mẫu 20 + khoảng 8 + mã 48; cột dài co giãn, cột dày 36 (K28). */}
           <span className="w-[4.75rem] shrink-0 pl-7">{COLUMN_CODE}</span>
           <span className="min-w-0 flex-1 text-right">{COLUMN_LENGTH}</span>
@@ -151,7 +151,7 @@ export function WallLayerLeftPanel({ panel, extras, queue, queueNumbers, thickne
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-1">
         {panel.state === 'error' && panel.errorMessage !== null && (
           <div className="px-2 pb-2 pt-1">
             <InlineAlert level="violation" message={panel.errorMessage} />

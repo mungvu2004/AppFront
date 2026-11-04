@@ -30,9 +30,12 @@ const SHORTCUTS_ARIA_LABEL = 'Phím tắt';
 const SUGGESTION_ARIA_LABEL = 'Tỷ lệ máy ước lượng';
 const OTHER_TITLE = 'Cách khác';
 
-type SidebarProps = Pick<ScaleCalibrationPanelProps, 'actions' | 'panel' | 'state'>;
+type SidebarProps = Pick<ScaleCalibrationPanelProps, 'actions' | 'panel' | 'state'> & {
+  /** Trong cột việc: đầu cột đã có H1 "Kiểm tỷ lệ" và chip trạng thái, chỉ giữ câu trạng thái. */
+  readonly hideTitle?: boolean;
+};
 
-export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps) {
+export function ScaleCalibrationSidebar({ actions, hideTitle = false, panel, state }: SidebarProps) {
   const isForbidden = state === 'forbidden' || panel.areActionsHidden;
   const isLoading = state === 'loading';
   const status = panel.scaleCheck?.status;
@@ -43,6 +46,11 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
       aria-label={SIDEBAR_ARIA_LABEL}
       className="flex w-full flex-col border-b border-border-default bg-bg-surface xl:w-[280px] xl:shrink-0 xl:overflow-y-auto xl:border-r xl:border-b-0"
     >
+      {hideTitle ? (
+        status === undefined ? null : (
+          <p className="border-b border-border-default px-4 py-2 text-[13px] text-text-secondary">{status.sentence}</p>
+        )
+      ) : (
       <PageHead
         className="mb-0 border-b border-border-default px-4 py-4"
         status={
@@ -55,6 +63,7 @@ export function ScaleCalibrationSidebar({ actions, panel, state }: SidebarProps)
         }
         title={TITLE}
       />
+      )}
 
       {/* UX-R2: tầng chưa có tỷ lệ — đề nghị tỷ lệ máy ước từ độ dày tường; bấm chỉ đặt đề nghị, chưa lưu. */}
       {panel.suggestion !== undefined && !isLoading && (

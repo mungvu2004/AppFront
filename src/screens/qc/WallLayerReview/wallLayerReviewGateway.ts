@@ -107,7 +107,7 @@ import {
 } from '@/lib/commands/history';
 import { formatLength, formatScaleDensity } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
-import { CONFIDENCE_SUGGESTED_THRESHOLD, confidenceLevel, type ConfidenceLevel } from '@/lib/format/semantic';
+import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { createUndoTicket, LONG_UNDO_WINDOW_MS, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { toWallViewModel } from '@/lib/viewmodel/toViewModel';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -125,7 +125,7 @@ import {
   WALL_LAYER_FIXTURE_LEVEL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
-import { WALL_THICKNESS_COLOR_GROUPS, wallConfidenceTierOf, wallThicknessBandOf, wallThicknessColorGroupOf } from './wallLayerHatch';
+import { WALL_CONFIDENCE_TIER_TEXT, WALL_THICKNESS_COLOR_GROUPS, wallConfidenceTierOf, wallThicknessBandOf, wallThicknessColorGroupOf } from './wallLayerHatch';
 import type {
   WallLayerCanvasShape,
   WallLayerLegendLevels,
@@ -1242,16 +1242,6 @@ export function wallLengthLabelOf(
   return isProvisional ? `${text}${PROVISIONAL_LENGTH_SUFFIX}` : text;
 }
 
-const CONFIDENCE_TEXT: Readonly<Record<ConfidenceLevel, string>> = {
-  certain: 'Máy chắc chắn',
-  suggested: 'Máy khá chắc',
-  needsReview: 'Máy chưa chắc',
-  unknown: '–',
-};
-
-/** Độ tin cậy bằng chữ cho thanh tra; số "0,50" để ở phần nâng cao (K16). */
-export const confidenceTextOf = (confidence: number): string => CONFIDENCE_TEXT[confidenceLevel(confidence)];
-
 /** Tỷ lệ của tầng — "12 mm/px". Tầng chưa hiệu chỉnh thì trả dấu thiếu, không phải "undefined". */
 export const formatScaleLabel = (level: Level | null): string =>
   formatScaleDensity(level?.scaleMillimetresPerPixel);
@@ -1474,6 +1464,8 @@ export function toWallInspector(
   scaleStatus?: ScaleStatus,
   unit: ProjectLengthUnit = 'mm',
   scaleSource?: ScaleSource,
+  threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
+  suspectIds?: ReadonlySet<string>,
 ): WallInspectorViewModel {
   return {
     id: wall.id,
@@ -1497,7 +1489,8 @@ export function toWallInspector(
       fractionDigits: unit === 'mm' ? 0 : 2,
     }),
     confidence: wall.confidence,
-    confidenceText: confidenceTextOf(wall.confidence),
+    /* Cùng bậc với thẻ, chú giải và danh sách: "chưa chắc" gồm cả tường sai hình; số "0,50" để ở phần nâng cao (K16). */
+    confidenceText: WALL_CONFIDENCE_TIER_TEXT[wallConfidenceTierOf(wall.reviewed, isLowConfidence(wall, threshold, suspectIds), wall.confidence)],
     kindLabel: WALL_KIND_LABELS[wall.kind],
     advanced: {
       confidenceLabel: formatNumber(wall.confidence, { fractionDigits: 2 }),

@@ -1,5 +1,5 @@
 /**
- * Một hàng của hàng đợi tường (cao 36): mẫu hình (hoặc dấu "Máy chưa chắc") · mã · dài · dày; hàng đã
+ * Một hàng của hàng đợi tường (cao 32): mẫu hình (hoặc dấu "Máy chưa chắc") · mã · dài · dày; hàng đã
  * duyệt có "Bỏ duyệt". Trạng thái cho trình đọc màn hình nằm ở tên truy cập của hàng.
  *
  * Nút "Bỏ duyệt" đứng CẠNH `role="option"` (không lồng điều khiển trong option). Màu trạng thái
@@ -20,7 +20,7 @@ import { WallThicknessSwatch } from './WallThicknessSwatch';
 
 type WallId = WallRowViewModel['id'];
 
-export const LIST_ROW_HEIGHT_PX = 36;
+export const LIST_ROW_HEIGHT_PX = 32;
 
 const REVIEWED_TITLE = 'Đã duyệt';
 /** Tên trạng thái trong tên truy cập của hàng — cùng bộ chữ với các màn duyệt lớp khác (qa đọc nó). */
@@ -84,15 +84,15 @@ export function WallLayerListRow({
   const isUncertain = showConfidence && row.isLowConfidence && !row.isReviewed;
 
   return (
-    <div className="absolute inset-x-0 top-0 flex h-9 items-center gap-1" role="presentation" style={style}>
+    <div className="absolute inset-x-0 top-0 flex h-8 items-center gap-1" role="presentation" style={style}>
       <div
         aria-label={`${row.codeLabel} — ${STATUS_LABEL[row.statusCode]}`}
         aria-selected={isSelected}
         className={cn(
-          'relative flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-2 text-[13px] outline-hidden',
+          'relative flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-2 text-[13px] outline-hidden',
           'transition-colors duration-120 hover:bg-bg-hover',
           'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
-          isSelected && 'bg-accent-wash shadow-[inset_2px_0_0_var(--accent)] hover:bg-accent-wash',
+          isSelected && 'bg-accent-wash hover:bg-accent-wash',
           isHovered && !isSelected && 'bg-bg-hover',
           isFlashing && 'bg-accent-wash duration-340',
         )}
@@ -147,7 +147,7 @@ export function WallLayerListRow({
       </div>
       {showUnapprove ? (
         <button
-          className="h-7 shrink-0 rounded-md px-1.5 text-caption text-text-secondary hover:bg-bg-hover hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="h-6 shrink-0 rounded-md px-1.5 text-caption text-text-secondary hover:bg-bg-hover hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           onClick={() => onUnapprove?.(row.id)}
           tabIndex={isTabStop ? 0 : -1}
           title={`${UNAPPROVE_LABEL} ${row.codeLabel}`}
