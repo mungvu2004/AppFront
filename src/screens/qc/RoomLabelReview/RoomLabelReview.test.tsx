@@ -545,7 +545,8 @@ describe('dải tỷ lệ tạm (F-04x-2)', () => {
   it('tầng unresolved do máy đo: không dải vàng, diện tích hiện "≈ … (tạm)"', async () => {
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} />);
 
-    expect((await screen.findAllByText(PROVISIONAL_AREA)).length).toBeGreaterThan(0);
+    /* Diện tích của hàng nằm ở gợi ý (và panel phải khi chọn), vẫn mang "(tạm)". */
+    expect((await screen.findAllByRole('option')).some((row) => PROVISIONAL_AREA.test(row.getAttribute('title') ?? ''))).toBe(true);
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Đặt tỷ lệ' })).not.toBeInTheDocument();
   });
@@ -770,14 +771,14 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
     expect(await screen.findByText('Không có tên nào cần chuẩn hoá — mọi tên phòng đã đúng kiểu câu.')).toBeInTheDocument();
   });
 
-  it('[BUG-624] diện tích trong hàng co lại được, chữ đầy đủ ở title — tên phòng không còn một ký tự', async () => {
+  it('[BUG-624] diện tích không chiếm chỗ của tên trên hàng: nằm ở title và tên đọc của hàng', async () => {
     await renderSettled('partial');
     const [firstRow] = screen.getAllByRole('option');
-    /* Hàng = dòng mã · tên, dòng diện tích · trạng thái (K08), + dòng cờ tuỳ chọn. */
-    const area = firstRow?.children[1]?.firstElementChild;
+    const area = firstRow?.getAttribute('title') ?? '';
 
-    expect(area).toHaveAttribute('title', area?.textContent ?? '');
-    expect(area).not.toHaveClass('shrink-0');
+    expect(area).toMatch(/m²/u);
+    expect(firstRow?.textContent).not.toContain(area);
+    expect(firstRow?.getAttribute('aria-label')).toContain(area);
   });
 
   it('[BUG-636] vai người xem: câu "chỉ xem" hiện MỘT lần, thanh tra phòng chỉ mang nhãn', async () => {

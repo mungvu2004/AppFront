@@ -1,7 +1,7 @@
 /**
  * Màn S-12 "Duyệt lớp tường" (`WallLayerReview`) — view THUẦN, bố cục L23: ray công cụ (56),
- * cột việc (`QcStepColumn`: "Duyệt tường" + chip · thanh Lọc/⚠ · danh sách · cổng ở đáy), bản vẽ, panel phải
- * neo luôn có (`WallLayerInspectorPanel`: đoạn đang chọn, hoặc "Tầng này" + chú giải), thanh trạng thái (32) dính đáy.
+ * cột việc (`QcStepColumn`: "Duyệt tường" + chip · thanh Lọc/⚠ · danh sách · cổng và cặp nút bước ở đáy), bản vẽ mang cụm
+ * trạng thái nổi, panel phải (`WallLayerInspectorPanel`: đoạn đang chọn; chưa chọn thì mở bằng nút "Chi tiết": "Tầng này" + chú giải).
  *
  * Chỉ nhận {@link WallLayerReviewViewProps} và vẽ. Không `@/api`, không
  * `@/store`, không `@/domain`, không `@/lib/http` (R-60,
@@ -248,9 +248,8 @@ export function WallLayerReview({
         rail={<WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole || panel.scaleLock != null} />}
         inspector={<WallLayerInspectorPanel display={display} legend={legend} panel={panel} queue={queue} />}
         selectionKey={panel.selectedWallId}
+        status={<WallLayerStatusBar {...statusBar} onUndo={panel.isViewerRole ? undefined : panel.onUndo} readOnly={panel.isViewerRole} />}
       />
-
-      <WallLayerStatusBar {...statusBar} onUndo={panel.isViewerRole ? undefined : panel.onUndo} readOnly={panel.isViewerRole} />
     </QcScreenFrame>
   );
 }

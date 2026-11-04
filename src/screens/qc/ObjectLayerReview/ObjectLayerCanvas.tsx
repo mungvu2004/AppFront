@@ -405,9 +405,8 @@ export function ObjectLayerCanvas({
         )}
       </div>
 
-      {/* Lớp làm tối + chấm số đứng NGOÀI lớp phóng; đang vẽ thì chấm số không chặn con trỏ. */}
+      {/* Chấm số đứng NGOÀI lớp phóng; đang vẽ thì chấm số không chặn con trỏ. */}
       <QcViewLayer
-        focus={focusRectPx}
         onPick={onSelect}
         pins={frameView === null ? [] : viewPins.map((pin) => pointInFrame(pin, frameView))}
         pinsInteractive={!isDrawing}

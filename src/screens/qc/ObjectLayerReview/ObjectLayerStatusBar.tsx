@@ -1,5 +1,5 @@
 /**
- * Thanh trạng thái (32px) của màn Lớp đối tượng — đúng khuôn QC-SHELL
+ * Cụm nổi góc trên phải bản vẽ (khe `status` của `QcWorkspace`) của màn Lớp đối tượng — đúng khuôn QC-SHELL
  * (`WallLayerStatusBar.tsx`, `.orca-notes/T3-qcshell.md` mục H): tự dựng
  * bằng `div` trần, KHÔNG dùng `src/components/shell/StatusBar` (component
  * đó tự `toFixed(2)` số thô bên trong, nằm trong sổ nợ `no-raw-number` đã
@@ -60,7 +60,8 @@ export function ObjectLayerStatusBar({
   return (
     <div
       aria-label={STATUS_BAR_ARIA_LABEL}
-      className="sticky bottom-0 z-10 flex h-8 shrink-0 select-none items-center justify-between gap-2 whitespace-nowrap border-t border-border-default bg-bg-surface px-4"
+      data-qc-status-bar=""
+      className="flex h-8 w-fit max-w-full shrink-0 select-none items-center gap-2 whitespace-nowrap rounded-lg bg-bg-surface px-1 shadow-float"
       role="status"
     >
       {/* Tiến độ đã ở đầu panel và cổng (Z/S-16): thanh này giữ câu báo + hoàn tác, không lặp số lần ba. */}
@@ -69,7 +70,7 @@ export function ObjectLayerStatusBar({
       </span>
 
       {notice !== null && (
-        <span className={cn('hidden min-w-0 truncate px-2 text-body sm:block', noticeTone)}>{notice}</span>
+        <span className={cn('hidden min-w-0 max-w-[360px] truncate px-2 text-body 2xl:block', noticeTone)}>{notice}</span>
       )}
 
       <div className="flex shrink-0 items-center gap-2">

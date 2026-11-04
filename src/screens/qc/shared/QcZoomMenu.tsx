@@ -1,4 +1,4 @@
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Columns2 } from 'lucide-react';
 import { useState, type FocusEvent, type KeyboardEvent, type SyntheticEvent } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -25,7 +25,7 @@ export interface QcZoomMenuProps {
   readonly fitShortcut?: string | undefined;
   /** Màn có hai chế độ nhìn L23 (Tường, Cửa và nội thất, Phòng). */
   readonly viewMode?: boolean | undefined;
-  /** Màn có "So sánh hai bên" (Tường, Cửa và nội thất): mục bật/tắt dưới chế độ nhìn, không thêm nút nào. */
+  /** Màn có "So sánh hai bên" (Tường, Cửa và nội thất): nút bật/tắt ngay cạnh nút phóng. */
   readonly compare?: boolean | undefined;
   /** Đè lên các khoá cũ của `ZoomCluster` khi màn trải nguyên props của nó. */
   readonly isVisible?: boolean | undefined;
@@ -35,6 +35,9 @@ const MODES: readonly { readonly key: QcViewMode; readonly label: string }[] = [
   { key: 'task', label: 'Từng việc' },
   { key: 'overview', label: 'Tổng thể' },
 ];
+const COMPARE_LABEL = 'So sánh hai bên';
+const COMPARE_SHORT = 'So sánh';
+const COMPARE_HINT = 'So sánh hai bên. Trái: bản vẽ gốc · Phải: đã nhận diện. Esc để thoát';
 const ITEM_CLASS =
   'flex h-8 w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-left text-body-sm text-text-primary hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent';
 const KEY_CLASS = 'ml-auto pl-4 text-caption text-text-muted';
@@ -88,12 +91,28 @@ export function QcZoomMenu({
 
   return (
     <div
-      className="absolute bottom-4 right-4 z-20"
+      className="absolute bottom-4 right-4 z-20 flex items-center gap-2"
       onBlur={onBlur}
       onKeyDown={onKeyDown}
       onPointerDown={stop}
       onPointerUp={stop}
     >
+      {compare ? (
+        <button
+          aria-label={COMPARE_LABEL}
+          aria-pressed={isComparing}
+          className={cn(
+            'flex h-9 items-center gap-1.5 rounded-xl border px-3 text-body-sm font-medium shadow-float focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent',
+            isComparing ? 'border-accent bg-accent-wash text-accent' : 'border-border-default bg-bg-surface text-text-primary hover:bg-bg-hover',
+          )}
+          onClick={() => setQcCompare(!isComparing)}
+          title={COMPARE_HINT}
+          type="button"
+        >
+          <Columns2 aria-hidden="true" className="h-4 w-4" />
+          <span className="max-lg:sr-only">{COMPARE_SHORT}</span>
+        </button>
+      ) : null}
       <button
         aria-expanded={open}
         aria-haspopup="true"
@@ -147,23 +166,6 @@ export function QcZoomMenu({
                   <span aria-hidden="true" className={KEY_CLASS}>F</span>
                 </button>
               ))}
-            </div>
-          ) : null}
-          {compare ? (
-            <div className="mt-1 border-t border-border-default pt-1">
-              <button
-                aria-pressed={isComparing}
-                className={ITEM_CLASS}
-                onClick={() => {
-                  setQcCompare(!isComparing);
-                  close();
-                }}
-                title="Trái: bản vẽ gốc · Phải: đã nhận diện. Esc để thoát"
-                type="button"
-              >
-                <Check aria-hidden="true" className={cn('h-3.5 w-3.5', isComparing ? 'text-accent' : 'invisible')} />
-                So sánh hai bên
-              </button>
             </div>
           ) : null}
         </div>

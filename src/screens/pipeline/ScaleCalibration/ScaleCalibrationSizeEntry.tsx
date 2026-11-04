@@ -29,7 +29,7 @@ export function ScaleCalibrationSizeEntry({ entry, onChange }: SizeEntryProps) {
   return (
     <section aria-label={TITLE} className="flex flex-col gap-2 border-b border-border-default px-4 py-3">
       <h3 className="text-[13px] font-medium text-text-primary">{TITLE}</h3>
-      <div className="flex items-end gap-2">
+      <div className="grid grid-cols-2 items-end gap-2 [&>*]:min-w-0">
         <Input
           className="font-mono text-[13px] leading-5"
           inputMode="numeric"

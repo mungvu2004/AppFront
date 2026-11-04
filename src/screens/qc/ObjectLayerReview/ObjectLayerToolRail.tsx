@@ -115,7 +115,7 @@ export function ObjectLayerToolRail({
     <div
       aria-label={RAIL_ARIA_LABEL}
       aria-orientation="vertical"
-      className="flex w-14 shrink-0 flex-col items-center gap-1 py-2"
+      className="flex w-[72px] shrink-0 flex-col items-center gap-1 border-r border-border-default bg-bg-surface py-2"
       role="toolbar"
     >
       {!isViewerRole && (
@@ -142,7 +142,7 @@ export function ObjectLayerToolRail({
                   size="lg"
                 />
                 {/* Group name, not the bare key letter ("C"/"S"/"N" meant nothing, QA-1); the key sits in tooltip + aria-label. */}
-                <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">
+                <span aria-hidden="true" className="w-full text-center text-caption leading-tight text-text-muted">
                   {label}
                 </span>
               </div>

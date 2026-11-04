@@ -28,16 +28,16 @@ const PINS: readonly QcPin[] = [
   { id: 'W-020', n: 5, x: 620, y: 480 },
 ];
 
-function Picker({ focus }: { readonly focus: { x: number; y: number; width: number; height: number } | null }) {
+function Picker() {
   const [selectedId, setSelectedId] = useState<string | null>('W-004');
-  return <QcViewLayer focus={focus} onPick={setSelectedId} pins={PINS} selectedId={selectedId} />;
+  return <QcViewLayer onPick={setSelectedId} pins={PINS} selectedId={selectedId} />;
 }
 
 export const TungViec: StoryObj<typeof QcViewLayer> = {
-  name: 'Từng việc (phủ mờ quanh mục)',
+  name: 'Từng việc (không ghim)',
   render: () => {
     setQcViewMode('task');
-    return <Picker focus={{ x: 360, y: 240, width: 180, height: 40 }} />;
+    return <Picker />;
   },
 };
 
@@ -45,6 +45,6 @@ export const TongThe: StoryObj<typeof QcViewLayer> = {
   name: 'Tổng thể (5 ghim số)',
   render: () => {
     setQcViewMode('overview');
-    return <Picker focus={null} />;
+    return <Picker />;
   },
 };

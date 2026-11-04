@@ -139,10 +139,13 @@ export function RoomLabelCanvas({
     }
   }, [selectedRoomId, hoveredRoomId, haloSelect, haloHover, haloDeselect]);
 
-  /* BUG-393: tỷ lệ HIỂN THỊ cho cả mặt bằng vừa khung — chữ và nét vẫn giữ cỡ px vì chúng không nhân tỷ lệ này. */
+  /*
+   * BUG-393: tỷ lệ HIỂN THỊ cho cả mặt bằng vừa khung — chữ và nét vẫn giữ cỡ px vì chúng không nhân tỷ lệ này.
+   * Vừa theo các PHÒNG, không theo cả tờ giấy (tờ còn phối cảnh, ghi chú, sơ đồ vị trí); đệm của khung ôm tường ngoài.
+   */
   const millimetresPerPixel = useMemo(
-    () => fitMillimetresPerPixel(rooms, drawingMillimetresPerPixel, frameSize, backgroundImageSizeMm),
-    [backgroundImageSizeMm, drawingMillimetresPerPixel, frameSize, rooms],
+    () => fitMillimetresPerPixel(rooms, drawingMillimetresPerPixel, frameSize),
+    [drawingMillimetresPerPixel, frameSize, rooms],
   );
 
   const contentBounds = useMemo(
@@ -171,7 +174,7 @@ export function RoomLabelCanvas({
 
     // A3: chọn phòng KHÔNG dời khung nhìn — khung luôn căn theo cả bản vẽ, mất chỗ đang nhìn là cái giá quá đắt.
     // (L23 Từng việc dời bằng độ kéo `pan.offset` ở effect dưới, không đụng gốc này.)
-    const focusCentre = centreOfBounds(contentBounds);
+    const focusCentre = centreOfBounds(computeContentBoundsPx(rooms, millimetresPerPixel, 0) ?? contentBounds);
     const localCentreX = focusCentre.x - contentBounds.x;
     const localCentreY = focusCentre.y - contentBounds.y;
 
@@ -179,7 +182,7 @@ export function RoomLabelCanvas({
       x: keepInFrame(frameSize.width / 2 - localCentreX, frameSize.width - contentBounds.width),
       y: keepInFrame(frameSize.height / 2 - localCentreY, frameSize.height - contentBounds.height),
     };
-  }, [contentBounds, frameSize]);
+  }, [contentBounds, frameSize, millimetresPerPixel, rooms]);
 
   /* Từng việc phóng tới phòng chọn, Tổng thể về vừa khung — chỉ khi đổi chế độ/phòng, không mỗi lần vẽ. */
   const lastViewKey = useRef<string | null>(null);
@@ -202,7 +205,6 @@ export function RoomLabelCanvas({
   const translate = { x: panPx.x + pan.offset.x, y: panPx.y + pan.offset.y };
   const toFrame = (bounds: RoomLabelBoundsPx) =>
     contentBounds === null ? bounds : frameRectOf(bounds, contentBounds, translate, scale);
-  const askRect = selectedBounds === null ? null : toFrame(selectedBounds);
   const pins = byRoomReason(rooms)
     .filter((room) => room.status !== 'confirmed')
     .map((room, index) => ({ id: room.id, n: index + 1, ...centreOfBounds(toFrame(computeRoomBoundsPx(room, millimetresPerPixel))) }));
@@ -340,7 +342,7 @@ export function RoomLabelCanvas({
           })}
         </div>
       )}
-      <QcViewLayer focus={askRect} onPick={(id) => onSelect(id as RoomLabelRoomId)} pins={pins} selectedId={selectedRoomId} />
+      <QcViewLayer onPick={(id) => onSelect(id as RoomLabelRoomId)} pins={pins} selectedId={selectedRoomId} />
 
       <QcZoomMenu {...zoomCluster} viewMode />
 

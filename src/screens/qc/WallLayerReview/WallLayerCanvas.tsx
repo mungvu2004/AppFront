@@ -62,11 +62,11 @@ const FORBIDDEN_DESCRIPTION =
 const FORBIDDEN_DESCRIPTION_ID = 'wall-layer-canvas-forbidden';
 
 /**
- * Khung canvas: tối thiểu 640 từ 1280px (đặc tả màn), bo 16, thụt 12. Dưới 1280px khung lấp đầy vùng
- * bản vẽ 60vh — tối thiểu 640 ở đó đẩy thanh thu phóng ra ngoài vùng nhìn (BUG-317).
+ * Khung canvas phẳng, liền mép panel (không thẻ); lấp đầy vùng bản vẽ. Viền trong suốt giữ cùng khổ với nửa trái
+ * của "So sánh hai bên".
  */
 const FRAME_CLASSES =
-  'relative h-full min-h-80 w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d p-3 xl:min-h-[640px]';
+  'relative h-full min-h-80 w-full overflow-hidden border border-transparent bg-canvas-2d p-3';
 
 /* Canvas. */
 

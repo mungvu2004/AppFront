@@ -121,7 +121,7 @@ export function WallLayerToolRail({
           />
         </span>
       </Tooltip>
-      <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">{MERGE_LABEL}</span>
+      <span aria-hidden="true" className="w-full text-center text-caption leading-tight text-text-muted">{MERGE_LABEL}</span>
     </div>
   );
 
@@ -129,7 +129,7 @@ export function WallLayerToolRail({
     <div
       aria-label={RAIL_ARIA_LABEL}
       aria-orientation="vertical"
-      className="flex w-16 shrink-0 flex-col items-center gap-1 py-2"
+      className="flex w-[72px] shrink-0 flex-col items-center gap-1 border-r border-border-default bg-bg-surface py-2"
       role="toolbar"
     >
       {TOOLS.map((tool) => {
@@ -160,7 +160,7 @@ export function WallLayerToolRail({
               />
             </Tooltip>
             {/* Nhãn chữ dưới icon (A3): rail không còn icon trần, cùng kiểu rail Cửa và nội thất. */}
-            <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">{tool.label}</span>
+            <span aria-hidden="true" className="w-full text-center text-caption leading-tight text-text-muted">{tool.label}</span>
           </div>
         );
 
@@ -186,7 +186,7 @@ export function WallLayerToolRail({
             tooltip={false}
           />
         </Tooltip>
-        <span aria-hidden="true" className="whitespace-nowrap text-caption leading-none text-text-muted">{isCollapsed ? EXPAND_SHORT_LABEL : COLLAPSE_SHORT_LABEL}</span>
+        <span aria-hidden="true" className="w-full text-center text-caption leading-tight text-text-muted">{isCollapsed ? EXPAND_SHORT_LABEL : COLLAPSE_SHORT_LABEL}</span>
       </div>
     </div>
   );

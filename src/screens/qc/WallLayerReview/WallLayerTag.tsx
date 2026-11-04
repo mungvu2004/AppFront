@@ -2,17 +2,26 @@
  * Nhãn của tường đang chọn/rê (WRU-B): đường dẫn 1 px (màu nét kích thước) từ tim tường tới chip
  * mono "3.450 × 220 mm · Máy chắc chắn" có chấm màu tin cậy, nền mặt 92% như `MeasurementLabel`.
  * View thuần: vị trí và chữ tới sẵn từ `wallTag.ts` qua hook, toạ độ là pixel KHUNG.
+ * "So sánh hai bên" đưa thêm `leaderPx` (`placeCompareTag`): đường dẫn gấp khúc, cùng thẻ ở cả hai nửa.
  */
 
 import { dimensionStrokeToken, wallConfidenceToken } from '@/components/canvas/materialMap';
 
 import type { WallTagView } from './wallLayerHatch';
 
-export function WallLayerTag({ anchorPx, tagPx, text, tier }: WallTagView) {
+export function WallLayerTag({
+  anchorPx,
+  leaderPx,
+  tagPx,
+  text,
+  tier,
+}: WallTagView & { readonly leaderPx?: readonly { readonly x: number; readonly y: number }[] }) {
+  const points = [anchorPx, ...(leaderPx ?? [tagPx])].map((point) => `${point.x},${point.y}`).join(' ');
+
   return (
     <>
       <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
-        <line stroke={dimensionStrokeToken()} strokeWidth={1} x1={anchorPx.x} x2={tagPx.x} y1={anchorPx.y} y2={tagPx.y} />
+        <polyline fill="none" points={points} stroke={dimensionStrokeToken()} strokeWidth={1} />
         <circle cx={anchorPx.x} cy={anchorPx.y} fill={dimensionStrokeToken()} r={2} />
       </svg>
       <div

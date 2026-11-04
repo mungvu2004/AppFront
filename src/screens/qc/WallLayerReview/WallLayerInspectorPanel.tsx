@@ -1,5 +1,5 @@
 /**
- * Panel phải LUÔN có của bước Tường (bố cục hai panel kiểu Figma, `docs/figma-layout-spec.md`):
+ * Panel phải của bước Tường (bố cục hai panel kiểu Figma, `docs/figma-layout-spec.md`), hiện khi đang chọn hoặc mở bằng "Chi tiết":
  * - đang chọn: `QcQueueAskCard` — mã + huy hiệu + ‹ K › J ×, thân là các mục của `WallLayerInspector`,
  *   chân ghim là nút duyệt (hoặc lý do khoá tỷ lệ);
  * - chưa chọn gì: "Tầng này" — gợi ý (kèm phím J), mục "Chú giải". Không nút đi tiếp: nút đó chỉ ở đáy cột việc.

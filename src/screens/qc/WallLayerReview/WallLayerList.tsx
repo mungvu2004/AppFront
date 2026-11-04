@@ -1,6 +1,6 @@
 /**
  * Hàng đợi tường của panel trái — ảo hoá (`@tanstack/react-virtual`), chia nhóm theo đúng thứ tự
- * hook đã xếp (demo Z/S-15): Không chuẩn (kèm nút "Đưa N tường về chuẩn" mở màn Độ dày) → Đúng chuẩn →
+ * hook đã xếp (demo Z/S-15): Không chuẩn (nút "Đưa N tường về chuẩn" ngay trên đầu nhóm, mở màn Độ dày) → Đúng chuẩn →
  * Đã duyệt (thu gọn, tự mở khi đang chọn một hàng trong đó hoặc không còn hàng nào khác). Tiêu đề nhóm
  * đang ở đỉnh dính lại khi cuộn. Nút "Duyệt N đoạn máy chắc chắn" ở đáy cột (`WallLayerApproveConfident`).
  *
@@ -40,7 +40,7 @@ type ListItem =
   | { readonly kind: 'bulk' }
   | { readonly kind: 'row'; readonly row: WallRowViewModel };
 
-const HEADER_HEIGHT_PX = 36;
+const HEADER_HEIGHT_PX = 28;
 const BULK_HEIGHT_PX = 44;
 const LOADING_SKELETON_ROWS = 12;
 const LIST_ARIA_LABEL = 'Danh sách đoạn tường';
@@ -98,7 +98,7 @@ function buildItems(
   rows: readonly WallRowViewModel[],
   queue: WallReviewQueue | undefined,
   showReviewedRows: boolean,
-  hasBulk: boolean,
+  hasBulkNotice: boolean,
   isScaleLocked: boolean,
 ): readonly ListItem[] {
   const groups = new Map<WallDisplayGroup, WallRowViewModel[]>(DISPLAY_ORDER.map((group) => [group, []]));
@@ -118,7 +118,7 @@ function buildItems(
 
     items.push({ kind: 'header', group, count: members.length });
 
-    if (group === 'nonStandard' && hasBulk) {
+    if (group === 'nonStandard' && hasBulkNotice) {
       items.push({ kind: 'bulk' });
     }
 
@@ -150,15 +150,10 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
   const hasOthers = rows.some((row) => groupOf(row, queue) !== 'reviewed');
   const showReviewedRows = reviewedOpen || selectedIsReviewed || !hasOthers;
   const isScaleLocked = panel.scaleLock != null;
-  const items = buildItems(
-    rows,
-    queue,
-    showReviewedRows,
-    onOpenBulk !== undefined && queue !== undefined,
-    isScaleLocked,
-  );
   // Thiếu tỷ lệ (hoặc tường mỏng < 50 mm): ép về chuẩn chỉ che lỗi, nên thay nút bằng câu dẫn đi đặt tỷ lệ (K09).
   const bulkLockText = queue?.lockText ?? null;
+  const hasBulk = onOpenBulk !== undefined && queue !== undefined;
+  const items = buildItems(rows, queue, showReviewedRows, hasBulk && bulkLockText !== null, isScaleLocked);
   // Vai Người xem luôn ở `forbidden`; "đang tải" của họ đọc từ dữ liệu (bất biến 7), không từ vai (16-D-008).
   const isLoadingList =
     state === 'loading' ||
@@ -223,7 +218,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
     return (
       <div aria-label={LIST_ARIA_LABEL} className="flex flex-col" ref={containerRef} role="status">
         {Array.from({ length: LOADING_SKELETON_ROWS }, (_, index) => (
-          <Skeleton className="h-9" key={index} preset="table-row" />
+          <Skeleton className="h-8" key={index} preset="table-row" />
         ))}
       </div>
     );
@@ -289,7 +284,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
 
           return (
             <div
-              className={cn('inset-x-0 top-0 z-10 flex h-9 items-end bg-bg-surface px-2 pb-1', isSticky ? 'sticky' : 'absolute')}
+              className={cn('inset-x-0 top-0 z-10 flex h-7 items-center justify-between gap-2 bg-bg-surface px-2', isSticky ? 'sticky' : 'absolute')}
               key={keyOf(item)}
               role="presentation"
               style={isSticky ? undefined : style}
@@ -305,10 +300,15 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
                   {`${groupTitleOf(item.group)}: ${item.count}`}
                 </button>
               ) : (
-                <span className="text-caption font-medium text-text-secondary">
+                <span className="min-w-0 truncate text-caption font-medium text-text-secondary">
                   {`${groupTitleOf(item.group)}: ${item.count}`}
                 </span>
               )}
+              {item.group === 'nonStandard' && hasBulk && bulkLockText === null ? (
+                <Button className="h-6 shrink-0 px-1.5 text-caption" onClick={onOpenBulk} size="sm" variant="ghost">
+                  {`Đưa ${queue?.bulk.changeCount ?? 0} tường về chuẩn`}
+                </Button>
+              ) : null}
             </div>
           );
         }
@@ -316,13 +316,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect, queue, on
         if (item.kind === 'bulk') {
           return (
             <div className="absolute inset-x-0 top-0 flex h-11 items-center px-1" key="bulk" role="presentation" style={style}>
-              {bulkLockText === null ? (
-                <Button fullWidth onClick={onOpenBulk} size="sm" variant="secondary">
-                  {`Đưa ${queue?.bulk.changeCount ?? 0} tường về chuẩn`}
-                </Button>
-              ) : (
-                <p className="px-1 text-caption leading-snug text-state-violation">{bulkLockText}</p>
-              )}
+              <p className="px-1 text-caption leading-snug text-state-violation">{bulkLockText}</p>
             </div>
           );
         }

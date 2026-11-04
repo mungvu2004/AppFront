@@ -1,6 +1,6 @@
 /**
- * Thanh đầu cột việc của màn "Duyệt cửa và nội thất", gọn như bước Tường: MỘT nút "Lọc" (gấp sẵn) và nút
- * "⚠ n" lỗi quy chuẩn. Mở "Lọc" là thấy: công tắc "Chỉ hiện chỗ máy chưa chắc", ba nút loại (Cửa đi ·
+ * Thanh đầu cột việc của màn "Duyệt cửa và nội thất", một hàng như bước Tường: nút "Lọc" (gấp sẵn), số dòng
+ * đang hiện khi có lọc, nút kính lúp mở ô tìm mã và nút "⚠ n" lỗi quy chuẩn. Mở "Lọc" là thấy: công tắc "Chỉ hiện chỗ máy chưa chắc", ba nút loại (Cửa đi ·
  * Cửa sổ · Nội thất, mỗi nút một số đếm) và các chip "Loại con". Số bộ lọc đang áp hiện cạnh chữ "Lọc".
  *
  * View THUẦN (R-60): mọi thứ vào bằng {@link ObjectLayerLeftPanelViewProps}, ra bằng callback. Ba số đếm
@@ -13,9 +13,12 @@
  */
 
 import { lowerFirst } from '@/lib/format/sentence';
-import { AppWindow, ChevronDown, DoorOpen, ListFilter, Sofa, type LucideIcon } from 'lucide-react';
+import { AppWindow, ChevronDown, DoorOpen, ListFilter, Search, Sofa, X, type LucideIcon } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { IconButton } from '@/components/ui/IconButton';
+import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
 import { QcRuleIssueFocus, QcRuleIssuesBadge } from '../shared/QcRuleIssues';
@@ -30,6 +33,9 @@ const SUBTYPE_MENU_LABEL = 'Loại con';
 const SUBTYPE_GROUP_LABEL = 'Lọc theo loại con';
 const FILTER_LAYER_PREFIX = 'Chỉ hiện ';
 const LOW_CONFIDENCE_FILTER = 'Chỉ hiện chỗ máy chưa chắc';
+const SEARCH_LABEL = 'Tìm mã';
+const SEARCH_PLACEHOLDER = 'Tìm mã, ví dụ D-007';
+const CLEAR_SEARCH = 'Xoá ô tìm';
 
 /** Số đếm của một lớp con, đọc từ `counts` — không cộng lại ở view. */
 const LAYER_COUNT_READERS: Readonly<Record<ObjectLayerId, (counts: ObjectLayerCounts) => number>> = {
@@ -54,26 +60,70 @@ const OFF_CLASS = 'border-border-default text-text-secondary hover:bg-bg-hover h
 /** Lỗi quy chuẩn không chặn duyệt đồ: nói rõ là xem sau cũng được. */
 const ruleWarningTitleOf = (count: number): string => `Cảnh báo quy chuẩn (${count}) — xem sau cũng được`;
 
+export interface ObjectLayerLeftPanelExtras {
+  /** Ô tìm mã: chữ đang gõ — danh sách lọc theo nó; vắng `onCodeQueryChange` = không có nút tìm. */
+  readonly codeQuery?: string | undefined;
+  readonly onCodeQueryChange?: ((query: string) => void) | undefined;
+  /** "29 / 31 đối tượng" khi có lọc; `null` = đang hiện đủ. */
+  readonly filteredLabel?: string | null | undefined;
+}
+
+/** Thấy "29 / 31"; chữ đơn vị vẫn ở lại cho trình đọc màn hình và khi rê chuột. */
+const FILTERED_NUMBERS = /^[\d.,\s/]+/u;
+
 export function ObjectLayerLeftPanel({
   availableSubtypes,
+  codeQuery = '',
   counts,
+  filteredLabel = null,
   furnitureAttentionNotice,
   isLowConfidenceOnly,
   listLayerFilter,
+  onCodeQueryChange,
   onFilterLayer,
   onToggleLowConfidenceOnly,
   onToggleSubtypeFilter,
   ruleIssues,
   subtypeFilters,
-}: ObjectLayerLeftPanelViewProps) {
+}: ObjectLayerLeftPanelViewProps & ObjectLayerLeftPanelExtras) {
   const subtypes = OBJECT_SUBTYPES.filter((subtype) => subtypeFilters.has(subtype) || availableSubtypes.has(subtype));
   const activeCount = (listLayerFilter === null ? 0 : 1) + subtypeFilters.size + (isLowConfidenceOnly ? 1 : 0);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const showSearch = isSearchOpen || codeQuery !== '';
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const closeSearch = () => {
+    onCodeQueryChange?.('');
+    setIsSearchOpen(false);
+    searchButtonRef.current?.focus();
+  };
+  const filteredHead = filteredLabel?.match(FILTERED_NUMBERS)?.[0]?.trimEnd() ?? filteredLabel ?? '';
 
   return (
-    <div className="flex flex-col border-b border-border-default">
-      <div className="flex items-start gap-1 px-2 py-1">
+    <div className="relative flex flex-col border-b border-border-default">
+      {/* Nhóm nút bên phải đứng đè lên hàng của `summary`, để phần mở ra của "Lọc" được cả bề ngang cột. */}
+      <div className="absolute right-2 top-1 z-10 flex h-8 items-center gap-1">
+        {filteredLabel === null ? null : (
+          <p aria-live="polite" className="whitespace-nowrap text-[12px] tabular-nums text-text-secondary" title={filteredLabel}>
+            {filteredHead}
+            <span className="sr-only">{filteredLabel.slice(filteredHead.length)}</span>
+          </p>
+        )}
+        {onCodeQueryChange === undefined ? null : (
+          <IconButton
+            aria-expanded={showSearch}
+            aria-label={SEARCH_LABEL}
+            icon={<Search aria-hidden="true" className="h-4 w-4" />}
+            onClick={() => (showSearch ? closeSearch() : setIsSearchOpen(true))}
+            ref={searchButtonRef}
+            size="sm"
+          />
+        )}
+        {ruleIssues === undefined ? null : <QcRuleIssuesBadge {...ruleIssues} titleOf={ruleWarningTitleOf} />}
+      </div>
+
+      <div className="px-2 py-1">
         {/* `details` gấp sẵn: một nút trên màn, mở ra ngay dưới thanh (không phủ lên danh sách). */}
-        <details className="group min-w-0 flex-1">
+        <details className="group">
           <summary
             className={cn(
               'inline-flex h-8 cursor-pointer list-none items-center gap-1 whitespace-nowrap rounded-lg px-1.5 text-body-sm font-medium text-text-primary',
@@ -156,8 +206,28 @@ export function ObjectLayerLeftPanel({
             )}
           </div>
         </details>
-        {ruleIssues === undefined ? null : <QcRuleIssuesBadge {...ruleIssues} titleOf={ruleWarningTitleOf} />}
       </div>
+
+      {onCodeQueryChange !== undefined && showSearch ? (
+        <div className="flex items-center gap-1 px-2 pb-1.5">
+          <Input
+            aria-label={SEARCH_LABEL}
+            autoFocus
+            className="min-w-0 flex-1 text-[13px]"
+            onChange={(event) => onCodeQueryChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.stopPropagation();
+                closeSearch();
+              }
+            }}
+            placeholder={SEARCH_PLACEHOLDER}
+            type="search"
+            value={codeQuery}
+          />
+          <IconButton aria-label={CLEAR_SEARCH} icon={<X aria-hidden="true" className="h-4 w-4" />} onClick={closeSearch} size="sm" />
+        </div>
+      ) : null}
 
       {/* P03: mở từ nút "Sửa" của Quy chuẩn thì lỗi đó nói ngay trên danh sách — lỗi gì, sửa thế nào. */}
       {ruleIssues !== undefined && (ruleIssues.focused !== null || ruleIssues.focusResolved) ? (

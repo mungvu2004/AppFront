@@ -1,5 +1,6 @@
-import { RotateCcw } from 'lucide-react';
-import { useMemo, type ReactNode } from 'react';
+import { Info, RotateCcw } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 
 import { CommandPalette } from '@/components/overlay/CommandPalette';
@@ -14,14 +15,15 @@ import { QcFloorDoneGate, QcFloorDoneSummary } from './QcFloorDone';
 import { floorDoneTexts, reopenFloor, useFloorDone, useFloorLabel } from './floorDoneModel';
 import { QC_COMMAND_GROUP } from './qcLayout';
 import { QC_LAYERS } from './qcLayers';
+import { QcStepPager } from './QcStepPager';
 import { useFloorReview } from './useFloorReview';
 
 /**
  * Cột việc 360 px của bố cục L23, kiểu bảng lớp của Figma — gọn, một vùng cuộn:
- *   1. đầu cột MỘT dòng: H1 ngắn ("Duyệt tường") + chip "30 cần xem"; câu việc dài là dòng mờ một
- *      dòng (đủ chữ ở `title`). Tiến độ các bước khác ở thanh bước `QcFloorNav`, không lặp ở đây;
+ *   1. đầu cột: H1 ngắn ("Duyệt tường") + chip "30 cần xem", không cắt chữ; câu việc mở bằng nút (i).
+ *      Tiến độ các bước khác ở thanh bước `QcFloorNav`, không lặp ở đây;
  *   2. thân bước (`children`) lấp phần còn lại — màn tự đặt vùng cuộn duy nhất của nó;
- *   3. cổng ở đáy cột (`gate`).
+ *   3. đáy cột: cổng (`gate`, nút mở mục kế tiếp của bước) rồi cặp nút đổi bước `QcStepPager`, cùng một chỗ ở mọi bước.
  * Đầu cột + thân nằm trong `<section aria-label={bước} aria-current="step">` (qa tìm chip qua đó).
  * Bước Phòng của tầng đã xong (`useFloorDone`) đổi thành màn Xong tầng: tổng kết thay hàng đợi, cổng
  * là "Dựng mô hình 3D"; nút nhỏ ở đầu cột mở lại hàng đợi.
@@ -112,28 +114,45 @@ interface ColumnHeadProps {
   readonly side: ReactNode;
 }
 
-/** Đầu cột một dòng: H1 + chip/nút; câu việc là dòng mờ cắt gọn, đủ chữ khi rê chuột. */
+const LINE_TOGGLE_LABEL = 'Bước này làm gì';
+
+/** Đầu cột: H1 + chip không bao giờ cắt chữ (hẹp thì chip xuống dòng); câu việc mở bằng nút (i), đọc được bằng trình đọc màn hình. */
 function ColumnHead({ title, line, side }: ColumnHeadProps) {
+  const [open, setOpen] = useState(false);
+  const hasLine = line !== undefined && line !== '';
   return (
-    <header className="shrink-0 border-b border-border-default px-4 py-2.5">
-      <div className="flex min-h-8 items-center gap-2">
-        <h1 className="min-w-0 flex-1 truncate text-[15px] font-medium text-text-primary" title={title}>
-          {title}
-        </h1>
-        {side}
+    <header className="shrink-0 border-b border-border-default px-3 py-2">
+      <div className="flex items-start gap-1">
+        <div className="flex min-h-7 min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          <h1 className="min-w-0 text-[15px] font-medium leading-tight text-text-primary">{title}</h1>
+          {side}
+        </div>
+        {hasLine ? (
+          <button
+            aria-expanded={open}
+            aria-label={LINE_TOGGLE_LABEL}
+            className={cn(
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-bg-hover hover:text-text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent',
+              open ? 'text-accent' : 'text-text-muted',
+            )}
+            onClick={() => setOpen(!open)}
+            title={line}
+            type="button"
+          >
+            <Info aria-hidden="true" className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
-      {line === undefined || line === '' ? null : (
-        <p className="truncate text-caption text-text-muted" title={line}>
-          {line}
-        </p>
-      )}
+      {hasLine ? <p className={open ? 'mt-1 text-caption text-text-secondary' : 'sr-only'}>{line}</p> : null}
     </header>
   );
 }
 
 /* Không bóng: hai panel neo là khối phẳng cạnh bản vẽ (bố cục hai panel). */
-const COLUMN_CLASS = 'flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-bg-surface';
-const FOOTER_CLASS = 'shrink-0 border-t border-border-default px-4 py-3';
+const COLUMN_CLASS = 'flex h-full min-h-0 w-full flex-col overflow-hidden bg-bg-surface max-lg:rounded-xl';
+const FOOTER_CLASS = 'flex shrink-0 flex-col gap-2 border-t border-border-default px-3 py-2.5';
+/* Dưới 1024 cột việc là ngăn kéo đóng: cặp nút nổi giữa trên bản vẽ để luôn thấy (cột mở thì ngăn kéo phủ lên nó). */
+const PAGER_FLOAT_CLASS = 'fixed left-1/2 top-3 z-20 -translate-x-1/2 lg:hidden';
 
 export function QcStepColumn({ projectId, floorId, activeStep, task, title, hint, activeSummary, children, gate, fileHeader }: QcStepColumnProps) {
   const { graph, scale } = useFloorReview(projectId, floorId);
@@ -161,6 +180,19 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, title, hint
   );
   useScreenCommands(commands);
 
+  const done = activeStep === 'scale' ? scale === 'confirmed' : layer?.done === true;
+  const remaining =
+    activeStep === 'scale'
+      ? done || scale === null ? null : `${SCALE_STATE_VIEWS[scale].name}.`
+      : layer === undefined || layer.done ? null : `Còn ${layer.total - layer.reviewed} ${UNIT[layer.key]} chưa duyệt.`;
+  const pagerProps = { activeStep, floorId, projectId, remaining, stepDone: done, quiet: isDoneScreen };
+  const floatingPager = createPortal(
+    <div className={PAGER_FLOAT_CLASS}>
+      <QcStepPager {...pagerProps} compact />
+    </div>,
+    document.body,
+  );
+
   if (isDoneScreen) {
     const doneHead = floorDoneTexts(floorLabel);
     return (
@@ -186,12 +218,13 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, title, hint
         <CommandPalette commands={NO_SHARED_COMMANDS} />
         <footer className={FOOTER_CLASS}>
           <QcFloorDoneGate projectId={projectId} />
+          <QcStepPager {...pagerProps} />
         </footer>
+        {floatingPager}
       </div>
     );
   }
 
-  const done = activeStep === 'scale' ? scale === 'confirmed' : layer?.done === true;
   const chipText = activeStep === 'scale' ? (scale === null ? '' : SCALE_STATE_VIEWS[scale].name) : summaryOf(layer);
 
   return (
@@ -207,9 +240,11 @@ export function QcStepColumn({ projectId, floorId, activeStep, task, title, hint
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
       </section>
       <CommandPalette commands={NO_SHARED_COMMANDS} />
-      {gate == null ? null : (
-        <footer className={cn(FOOTER_CLASS, '[&_a]:w-full [&_a]:justify-between [&_button]:w-full [&_button]:justify-between')}>{gate}</footer>
-      )}
+      <footer className={FOOTER_CLASS}>
+        {gate == null ? null : <div className="flex flex-col gap-2 empty:hidden [&_a]:w-full [&_a]:justify-between [&_button]:w-full [&_button]:justify-between">{gate}</div>}
+        <QcStepPager {...pagerProps} />
+      </footer>
+      {floatingPager}
     </div>
   );
 }
