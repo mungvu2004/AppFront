@@ -16,8 +16,7 @@ export const STUDIO_PALETTE = {
 } as const;
 
 /** Nắng chiều: đất studio theo nền ấm của chủ đề `sunset`, không giữ xám như Ban ngày/Buổi tối. */
-export const STUDIO_SUNSET_GROUND = '#f6e8d4';
-export const studioGroundColor = (themeId: string): string => (themeId === SUNSET_THEME_ID ? STUDIO_SUNSET_GROUND : STUDIO_PALETTE.ground);
+export const studioGroundColor = (themeId: string): string => (themeId === SUNSET_THEME_ID ? SCENE_PALETTE.studioGroundSunset : STUDIO_PALETTE.ground);
 
 /** Đế: cao (m), vát cạnh (m), nhô ra ngoài mép sàn tầng thấp nhất (m, chưa tính vát). */
 export const PLINTH_HEIGHT_M = 0.5;

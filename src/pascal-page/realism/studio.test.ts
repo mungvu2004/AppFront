@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { SCENE_PALETTE } from '@/lib/pascal/scenePalette';
+
 import { lowestLevelSlabs, MITER_LIMIT, outsetRing, STUDIO_PALETTE, studioGroundColor } from './studio';
 
 const square: [number, number][] = [
@@ -53,7 +55,7 @@ describe('lowestLevelSlabs', () => {
 
 describe('studioGroundColor', () => {
   it('Nắng chiều màu ấm, chủ đề khác giữ xám', () => {
-    expect(studioGroundColor('sunset')).toBe('#f6e8d4');
+    expect(studioGroundColor('sunset')).toBe(SCENE_PALETTE.studioGroundSunset);
     expect(studioGroundColor('studio')).toBe(STUDIO_PALETTE.ground);
     expect(studioGroundColor('night')).toBe(STUDIO_PALETTE.ground);
   });
