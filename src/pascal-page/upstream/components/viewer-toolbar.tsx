@@ -1355,7 +1355,7 @@ export function CommunityViewerToolbarRight({
   return (
     <section
       aria-label="Xem"
-      className="flex w-max max-w-[calc(100vw-2rem)] flex-wrap items-center justify-end gap-1 rounded-2xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 shadow-[var(--pa-shadow-float)]"
+      className="flex w-max max-w-[calc(100vw-var(--appfront-viewer-left,0px)-1.5rem)] flex-wrap items-center justify-end gap-1 rounded-2xl border border-[var(--pa-border)] bg-[var(--pa-surface)] p-1 shadow-[var(--pa-shadow-float)]"
       data-appfront-bar=""
       data-appfront-viewpanel=""
     >

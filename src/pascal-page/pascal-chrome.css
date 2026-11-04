@@ -348,6 +348,12 @@ button[data-slot="button"]:has(> svg.lucide-volume-x) {
 .absolute.top-14.left-3.z-20 {
   top: 0.75rem;
 }
+/* Bảng trái mở trên màn hẹp: canvas không đủ chỗ cho ô tầng và bảng Xem chung một hàng, ô tầng xuống dưới bảng Xem. */
+@media (max-width: 1023px) {
+  .absolute.top-14.left-3.z-20 {
+    top: calc(var(--appfront-bar-bottom, 54px) + 0.5rem);
+  }
+}
 /* Đầu bảng nổi (bảng trái thu gọn — mặc định ở mọi bề rộng): MỘT thẻ cùng kiểu bảng Xem, ngay phải rail; các nút con
  * bỏ viền và bóng riêng, "Quy chuẩn" giữ màu nhấn. Dưới 1024 px hai hàng trong thẻ (bảng Xem chung hàng, thẻ hẹp lại);
  * từ 1024 px một hàng: tên, lưu | bước, cổng, sửa | thu gọn. Tailwind không quét scripts/ nên kiểu đặt ở đây.
