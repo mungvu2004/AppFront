@@ -6,13 +6,8 @@
  * Ở đây tính bằng phép chiếu, không đọc `getBoundingClientRect` mỗi khung (đọc mỗi khung từng làm chậm xoay/zoom,
  * UX-01); nhịp 200 ms vẫn chạy, thấy đúng số thì không ghi gì.
  */
-import { clampShift } from './clamp-shift';
-
-/** Cùng bộ chọn với `ACTION_BARS` trong canvas-help.tsx. */
-export const ACTION_BAR_SELECTOR = [
-  'div.pointer-events-auto.flex.items-center.gap-1.rounded-lg.border.p-1.shadow-xl',
-  'div.pointer-events-auto.mt-1.inline-flex.w-max.rounded-lg.border.shadow-md',
-].join(',');
+import { type Camera, Vector3 } from 'three';
+import { ACTION_BAR_SELECTOR, clampShift } from './clamp-shift';
 
 /** Nhịp 200 ms làm tròn khác phép chiếu tối đa ~1 px: lệch dưới mức này thì để yên, tránh hai bên ghi đè nhau. */
 const TOLERANCE_PX = 2;
@@ -63,8 +58,27 @@ export interface BarCache {
 
 export const newBarCache = (): BarCache => ({ root: null, bars: [], rootSize: { width: 0, height: 0 }, age: 0 });
 
-/** Gọi mỗi khung từ `floating-action-menu.tsx`, sau khi drei <Html> đã đặt vị trí. */
-export function clampBarsInFrame(root: HTMLElement, cx: number, cy: number, scale: number, cache: BarCache): void {
+const scratch = new Vector3();
+
+/**
+ * Gọi mỗi khung (useFrame ưu tiên 0.5) từ thanh một vật và thanh nhiều vật, xem `scripts/realism/u44-bar-clamp.mjs`.
+ * `anchor` là vị trí thế giới của khối bọc <Html center>; sau lưng camera thì để yên.
+ */
+export function clampBarsAtAnchor(
+  root: HTMLElement,
+  anchor: Vector3,
+  state: { camera: Camera; size: { width: number; height: number; left: number; top: number } },
+  scale: number,
+  cache: BarCache,
+): void {
+  scratch.copy(anchor).project(state.camera);
+  if (scratch.z > 1) return;
+  const cx = ((scratch.x + 1) / 2) * state.size.width + state.size.left;
+  const cy = ((1 - scratch.y) / 2) * state.size.height + state.size.top;
+  clampBarsInFrame(root, cx, cy, scale, cache);
+}
+
+function clampBarsInFrame(root: HTMLElement, cx: number, cy: number, scale: number, cache: BarCache): void {
   if (cache.root !== root || cache.age++ % REMEASURE_FRAMES === 0) {
     cache.root = root;
     cache.rootSize = { width: root.offsetWidth, height: root.offsetHeight };

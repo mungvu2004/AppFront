@@ -187,6 +187,17 @@ describe('r3t-tiers: doi muc khong doi khoa vat lieu canh (chi dung lai quad hau
   });
 });
 
+describe('u44: thanh noi giu trong cua so ngay trong khung', () => {
+  for (const file of ['floating-action-menu.tsx', 'group-floating-action-menu.tsx']) {
+    it(file, () => {
+      const full = path.join(PACKAGES, 'editor/src/components/editor', file);
+      const out = transformRealism(readFileSync(full, 'utf8'), full);
+      assert.match(out, /import \{ clampBarsAtAnchor, newBarCache \} from '@\/pascal-page\/upstream\/lib\/clamp-bar'/);
+      assert.match(out, /clampBarsAtAnchor\(root, group\.position, state, .+, barCacheRef\.current\)\n\s+\}, 0\.5\)/);
+    });
+  }
+});
+
 describe('u45: cam giac camera', () => {
   const apply = (id) => {
     const full = path.join(PACKAGES, id);
