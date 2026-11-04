@@ -45,6 +45,7 @@ interface PipelinesLike {
 
 const DISABLED = typeof location !== 'undefined' ? (new URLSearchParams(location.search).get('disable') ?? '').split(',') : [];
 const URL_OFF = DISABLED.includes('warm');
+const OUTLINE_WARM_OFF = DISABLED.includes('outlinewarm');
 const NODE_BUILD_OFF = DISABLED.includes('nodebuild');
 const LAZY_DISPOSE_OFF = DISABLED.includes('lazydispose');
 const ORDER_OFF = DISABLED.includes('buildorder');
@@ -206,7 +207,7 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
     onDone();
   };
   pipelines.updateForRender = (renderObject) => {
-    if (liveScene === null || (renderObject as RenderObjectLike).scene !== liveScene) {
+    if (!outlineWarming && (liveScene === null || (renderObject as RenderObjectLike).scene !== liveScene)) {
       pipelines.getForRender(renderObject);
       return;
     }
@@ -222,6 +223,41 @@ export function installAsyncPipelines(renderer: unknown, off = URL_OFF): void {
     }
     for (const p of sink.splice(0)) p.then(struct ? onStructDone : onDone);
   };
+}
+
+interface OutlinerLike {
+  hoveredObjects: unknown[];
+}
+/** Khung chuẩn bị viền: quad + mặt nạ viền (không thuộc `liveScene`) cũng tạo pipeline bất đồng bộ. */
+let outlineWarming = false;
+const outlineWarmed = new WeakSet<object>();
+
+/**
+ * Lần rê chuột đầu từng khựng 117–214 ms: mặt nạ và quad của viền hover nằm ngoài `liveScene` nên tạo
+ * pipeline đồng bộ (`merged-outline-node.ts` `_renderMask`, `_runEdgePipeline`). Khung đầu sau khi nạp xong
+ * vẽ một lần với một bức tường làm vật hover, độ mạnh viền = 0, pipeline bất đồng bộ (chưa sẵn thì three bỏ
+ * lệnh vẽ, chỉ riêng lần này). Cache pipeline của three khoá theo mã shader, nên lần rê thật dùng lại ngay.
+ * Vendor gọi qua luật `scripts/realism/w3-outline-warm.mjs`; `?disable=outlinewarm` tắt để so.
+ */
+export function outlineWarmFrame(renderer: object, outliner: OutlinerLike, strength: { value: number }, draw: () => void, registry: RegistryLike = sceneRegistry as unknown as RegistryLike, off = URL_OFF || OUTLINE_WARM_OFF): void {
+  const busy = isFirstLoad() || stats.started > stats.done || stats.builds > stats.buildsDone;
+  const wallId = registry.byType.wall?.values().next().value;
+  const sample = wallId === undefined ? undefined : registry.nodes.get(wallId);
+  if (off || busy || !sample || outliner.hoveredObjects.length > 0 || outlineWarmed.has(renderer)) return draw();
+  outlineWarmed.add(renderer);
+  const saved = strength.value;
+  strength.value = 0;
+  outliner.hoveredObjects.push(sample);
+  outlineWarming = true;
+  try {
+    draw();
+  } finally {
+    outlineWarming = false;
+    outliner.hoveredObjects.length = 0;
+    strength.value = saved;
+    // Khung sau: `updateBefore` dọn ảnh viền của nhóm hover trước khi độ mạnh trở lại.
+    markDirty('outline-warm');
+  }
 }
 
 interface NodeData {

@@ -18,6 +18,7 @@ import { REALISM_PALETTE } from '@/lib/pascal/scenePalette';
 import { GRASS_GAIN, GRASS_GREEN, GRASS_GREEN_MIX } from './daylight';
 import { type GroundMode, useRealism } from './store';
 import {
+  applyStudioGround,
   outsetRing,
   PLINTH_BEVEL_M,
   PLINTH_BEVEL_SEGMENTS,
@@ -25,7 +26,6 @@ import {
   PLINTH_OUTSET_M,
   PLINTH_TOP_Y,
   STUDIO_PALETTE,
-  studioGroundColor,
   STUDIO_SHADOW_OPACITY,
 } from './studio';
 
@@ -87,10 +87,10 @@ export const useStudioGround = () => useRealism((s) => s.ground === 'plain' && s
 const studioGround = uniform(new Color(STUDIO_PALETTE.ground));
 /** Gọi mỗi khung từ `syncRoomLights` (`Lights`). */
 export function syncStudioGround(themeId: string): void {
-  studioGround.value.set(studioGroundColor(themeId));
+  applyStudioGround(studioGround.value, themeId);
 }
 
-/** Đĩa đất studio: không chiếu sáng, màu theo chủ đề (`studioGroundColor`), xa thì tan vào phông như đĩa của vendor. */
+/** Đĩa đất studio: không chiếu sáng, màu theo chủ đề (`applyStudioGround`), xa thì tan vào phông như đĩa của vendor. */
 export function studioDisc(fade: Node<'float'>, backdrop: Node<'vec3'>): MeshBasicNodeMaterial {
   const material = new MeshBasicNodeMaterial();
   material.colorNode = mix(studioGround, backdrop, fade);

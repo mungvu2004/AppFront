@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { SCENE_PALETTE } from '@/lib/pascal/scenePalette';
+import { SCENE_PALETTE, STUDIO_GROUND_SUNSET_LINEAR } from '@/lib/pascal/scenePalette';
 
-import { lowestLevelSlabs, MITER_LIMIT, outsetRing, STUDIO_PALETTE, studioGroundColor } from './studio';
+import { applyStudioGround, lowestLevelSlabs, MITER_LIMIT, outsetRing, STUDIO_PALETTE } from './studio';
 
 const square: [number, number][] = [
   [0, 0],
@@ -53,11 +53,29 @@ describe('lowestLevelSlabs', () => {
   });
 });
 
-describe('studioGroundColor', () => {
-  it('Nắng chiều màu ấm, chủ đề khác giữ xám', () => {
-    expect(studioGroundColor('sunset')).toBe(SCENE_PALETTE.studioGroundSunset);
-    expect(studioGroundColor('studio')).toBe(STUDIO_PALETTE.ground);
-    expect(studioGroundColor('night')).toBe(STUDIO_PALETTE.ground);
+describe('applyStudioGround', () => {
+  const written = (themeId: string) => {
+    const calls: unknown[] = [];
+    applyStudioGround({ set: (hex) => calls.push(hex), setRGB: (...rgb) => calls.push(rgb) }, themeId);
+    return calls[0];
+  };
+  it('Nắng chiều ghi màu HDR ấm, chủ đề khác giữ xám', () => {
+    expect(written('sunset')).toEqual([...STUDIO_GROUND_SUNSET_LINEAR]);
+    expect(written('studio')).toBe(STUDIO_PALETTE.ground);
+    expect(written('night')).toBe(STUDIO_PALETTE.ground);
+  });
+  it('qua chỉnh màu + ACES (phơi sáng 1) ra gần đích trên ảnh, lệch ≤ 4/255', () => {
+    // Cùng công thức `gradeRgb` của vendor post-processing và ACESFilmic của three.
+    const encode = (c: number) => Math.round((c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055) * 255);
+    const mul = (m: number[][], v: number[]) => m.map((r) => r[0]! * v[0]! + r[1]! * v[1]! + r[2]! * v[2]!);
+    const contrast = STUDIO_GROUND_SUNSET_LINEAR.map((v) => (v / 0.18) ** 1.05 * 0.18);
+    const luma = 0.2126 * contrast[0]! + 0.7152 * contrast[1]! + 0.0722 * contrast[2]!;
+    const graded = contrast.map((v) => luma + (v - luma) * 1.1);
+    const rrt = (c: number) => (c * (c + 0.0245786) - 0.000090537) / (c * (0.983729 * c + 0.432951) + 0.238081);
+    const input = mul([[0.59719, 0.35458, 0.04823], [0.076, 0.90834, 0.01566], [0.0284, 0.13383, 0.83777]], graded.map((v) => v / 0.6));
+    const output = mul([[1.60475, -0.53108, -0.07367], [-0.10208, 1.10813, -0.00605], [-0.00327, -0.07276, 1.07602]], input.map(rrt));
+    const target = [1, 3, 5].map((i) => parseInt(SCENE_PALETTE.studioGroundSunset.slice(i, i + 2), 16));
+    output.forEach((v, i) => expect(Math.abs(encode(v) - target[i]!)).toBeLessThanOrEqual(4));
   });
 });
 
