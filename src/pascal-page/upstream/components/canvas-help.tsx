@@ -23,6 +23,7 @@ import { type AnyNodeId, useScene } from '@pascal-app/core'
 import { useEditor } from '@pascal-app/editor'
 import { CircleHelp } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { UNDRAWN_FLOORS_KEY } from '../../bridge'
 import { requestTour } from '../../tour/tourLogic'
 import { clampShift, clearOfShift, pollLayout, unionBox } from '../lib/clamp-shift'
@@ -56,10 +57,14 @@ const SCOPED_CSS = `
 .appfront-help-btn:active { background: var(--pa-selected); }
 .appfront-help-btn:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--pa-focus), var(--pa-shadow-float); }
 .appfront-help-panel {
+  position: fixed; z-index: 50; top: calc(var(--appfront-bar-bottom, 54px) + 8px); right: 0.75rem;
+  max-width: calc(100vw - var(--appfront-viewer-left, 0px) - 24px);
   padding: 12px 16px; font-size: 13px; color: var(--pa-text);
-  background: var(--pa-surface); border: 1px solid var(--pa-border); border-radius: var(--pa-radius-lg, 12px);
-  box-shadow: var(--pa-shadow-float);
+  background: var(--pa-surface); border: 1px solid var(--pa-border); border-radius: var(--pa-radius-xl, 16px);
+  box-shadow: var(--pa-shadow-overlay);
 }
+html:has(${PROPERTIES_PANEL}) .appfront-help-panel { right: calc(1rem + 352px); }
+@media (max-width: 1279px) { html:has(${PROPERTIES_PANEL}) .appfront-help-panel { display: none; } }
 .appfront-help-how { color: var(--pa-text-2); }
 .appfront-help-kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; padding: 1px 6px;
@@ -90,7 +95,6 @@ button[title="Chiều cao tầng"] {
   color: var(--foreground) !important; opacity: 0.85; font-size: 11px !important;
 }
 ${BOTTOM_BAR} { max-width: calc(100% - 24px); overflow-x: auto; scrollbar-width: thin; }
-@media (max-width: 899px) { ${BOTTOM_BAR} { zoom: 0.9; } }
 ${BOTTOM_BAR} div.flex.items-center.gap-1:has(${VENDOR_CAMERA_BUTTON}),
 ${BOTTOM_BAR} div.w-px:has(+ div.flex.items-center.gap-1 > button img[src*="/topview."]),
 ${BOTTOM_BAR} div.w-px:has(+ div.flex.items-center.gap-1 > button img[src*="/rotate."]) {
@@ -247,19 +251,49 @@ function useMarkUndrawnFloors() {
 }
 
 /**
- * `banner` (the scale warning) heads the same centred column, so it never sits under the help pills;
- * The help is one "?" icon button (name in aria-label + title).
+ * `banner` (the scale warning) heads the same centred column, so it never sits under the delete/tool hint.
+ * The "?" lives at the end of the Xem panel (`CanvasHelpButton`); Xem trước has no panel, so it shows here.
  */
 export function CanvasHelp({ banner }: { banner?: ReactNode }) {
-  const [userOpen, setOpen] = useState(false)
-  const [tourOn, setTourOn] = useState(false)
-  const open = userOpen && !tourOn // tour đang hiện thì gập, tránh chồng lấn
   const isPreview = useEditor((state) => state.isPreviewMode)
   const isDelete = useEditor((state) => state.mode === 'delete')
   useClampActionBars()
   const pillRef = useRef<HTMLDivElement>(null)
   useClearOfFloorCard(pillRef)
   useMarkUndrawnFloors()
+
+  return (
+    <>
+      <style>{SCOPED_CSS}</style>
+      <div className="appfront-canvas-help pointer-events-none absolute top-14 left-1/2 z-40 -translate-x-1/2">
+        <div className="pointer-events-auto flex flex-col items-center gap-1.5" ref={pillRef}>
+          {banner}
+          {isDelete ? (
+            <div
+              className="pointer-events-none rounded-full bg-destructive px-4 py-1.5 font-medium text-background text-sm shadow-lg"
+              role="status"
+            >
+              Đang ở chế độ xoá: bấm vào đối tượng sẽ xoá nó · Esc để thoát
+            </div>
+          ) : (
+            <ToolHint />
+          )}
+          {isPreview ? <CanvasHelpButton className="appfront-help-btn" /> : null}
+        </div>
+      </div>
+    </>
+  )
+}
+
+/**
+ * wall-review-ux: one "?" button (was "Điều khiển chuột và phím tắt ▾" + "Hướng dẫn"); the tour replay lives
+ * inside the panel it opens. The panel goes to <body> like the Radix menus, out of the vendor clipPath.
+ */
+export function CanvasHelpButton({ className }: { className: string }) {
+  const [userOpen, setOpen] = useState(false)
+  const [tourOn, setTourOn] = useState(false)
+  const open = userOpen && !tourOn // tour đang hiện thì gập, tránh chồng lấn
+  const isPreview = useEditor((state) => state.isPreviewMode)
 
   useEffect(() => setOpen(readOpen()), [])
   useEffect(() => {
@@ -283,33 +317,18 @@ export function CanvasHelp({ banner }: { banner?: ReactNode }) {
 
   return (
     <>
-      <style>{SCOPED_CSS}</style>
-      <div className="appfront-canvas-help pointer-events-none absolute top-14 left-1/2 z-40 -translate-x-1/2">
-        <div className="pointer-events-auto flex flex-col items-center gap-1.5" ref={pillRef}>
-          {banner}
-          {isDelete ? (
-            <div
-              className="pointer-events-none rounded-full bg-destructive px-4 py-1.5 font-medium text-background text-sm shadow-lg"
-              role="status"
-            >
-              Đang ở chế độ xoá: bấm vào đối tượng sẽ xoá nó · Esc để thoát
-            </div>
-          ) : (
-            <ToolHint />
-          )}
-          {/* wall-review-ux: one "?" button (was "Điều khiển chuột và phím tắt ▾" + "Hướng dẫn"); the tour
-              replay lives inside the panel it opens. */}
-          <button
-            aria-expanded={open}
-            aria-label={toggleLabel}
-            className="appfront-help-btn"
-            onClick={toggle}
-            title={toggleLabel}
-            type="button"
-          >
-            <CircleHelp aria-hidden="true" className="h-4 w-4" />
-          </button>
-          {open ? (
+      <button
+        aria-expanded={open}
+        aria-label={toggleLabel}
+        className={className}
+        onClick={toggle}
+        title={toggleLabel}
+        type="button"
+      >
+        <CircleHelp aria-hidden="true" className="h-4 w-4" />
+      </button>
+      {open
+        ? createPortal(
             <section aria-label="Hướng dẫn điều khiển camera" className="appfront-help-panel">
               <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1.5">
               {hints.map(([action, how]) => (
@@ -327,10 +346,10 @@ export function CanvasHelp({ banner }: { banner?: ReactNode }) {
               >
                 Xem lại hướng dẫn thao tác
               </button>
-            </section>
-          ) : null}
-        </div>
-      </div>
+            </section>,
+            document.body,
+          )
+        : null}
     </>
   )
 }
