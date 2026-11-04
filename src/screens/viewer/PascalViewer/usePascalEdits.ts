@@ -145,6 +145,46 @@ export const commitOfScenes = (
   return { origin: 'local', changedNodeIds: [...upserted, ...removed], removedNodeIds: removed };
 };
 
+/**
+ * Cảnh chỉ còn thứ người dùng đã đặt xong. Trong lúc đặt, nháp của Pascal (`metadata.isTransient`: bản sao chờ thả, món
+ * đang dời) nằm ngay trong cảnh và lượt tự lưu vẫn chạy: thiếu bước này nháp lên máy chủ trước cả cú thả, kể cả khi chỗ thả
+ * bị từ chối. Nháp mới bỏ cả cây con; món có sẵn về bản ở `previous`. Thả xong Pascal gỡ cờ, lượt lưu sau ghi như thường.
+ */
+export const settledScene = (scene: PascalScene, previous: PascalScene | null): PascalScene => {
+  const drafts = Object.values(scene.nodes).filter((node) => node.metadata?.['isTransient'] === true);
+
+  if (drafts.length === 0) return scene;
+
+  const nodes: Record<string, PascalNode> = { ...scene.nodes };
+  const relink = (parentId: string | null | undefined, edit: (children: readonly string[]) => readonly string[]) => {
+    const parent = parentId == null ? undefined : nodes[parentId];
+
+    if (parent !== undefined && 'children' in parent) nodes[parent.id] = { ...parent, children: edit(parent.children) } as PascalNode;
+  };
+  const drop = (nodeId: string) => {
+    const node = nodes[nodeId];
+
+    if (node === undefined) return;
+    delete nodes[nodeId];
+    if ('children' in node) node.children.forEach(drop);
+  };
+
+  for (const draft of drafts) {
+    const before = previous?.nodes[draft.id];
+
+    if (draft.parentId !== before?.parentId) relink(draft.parentId, (children) => children.filter((id) => id !== draft.id));
+
+    if (before === undefined) {
+      drop(draft.id);
+    } else {
+      nodes[draft.id] = before;
+      relink(before.parentId, (children) => (children.includes(draft.id) ? children : [...children, draft.id]));
+    }
+  }
+
+  return { ...scene, nodes };
+};
+
 /** Câu khi người dùng xoá món bày sẵn mà không phòng nào khai hộ được (tầng không có phòng): chặn, món về chỗ cũ. */
 export const GENERATED_DELETE_BLOCKED =
   'Món đồ bày sẵn này chưa xoá được: nó tự có theo phòng nên mở lại sẽ hiện lại. Món đã được đặt về chỗ cũ.';
@@ -525,6 +565,17 @@ export function usePascalEdits({
     };
   }, [history]);
 
+  /** `validateCommit` và `onSceneCommit` phải thấy cùng một cảnh đã lọc, phán quyết mới dùng lại được. */
+  const settled = useRef<{ raw: PascalScene; scene: PascalScene } | null>(null);
+  const settle = useCallback(
+    (raw: PascalScene): PascalScene => {
+      if (settled.current?.raw !== raw) settled.current = { raw, scene: settledScene(raw, savedScene.current ?? loadedScene) };
+
+      return settled.current.scene;
+    },
+    [loadedScene],
+  );
+
   /** Lệnh cho một cảnh, lời từ chối, hoặc `null` khi không có gì để ghi. */
   const buildFor = useCallback(
     (scene: PascalScene): PascalEditResult | null => {
@@ -626,7 +677,7 @@ export function usePascalEdits({
     (scene: PascalScene): PascalCommitVerdict => {
       if (readOnly) return { ok: false, message: PASCAL_READ_ONLY_REASON };
 
-      const built = buildFor(scene);
+      const built = buildFor(settle(scene));
 
       /* Không có gì để ghi là chuyện bình thường — lượt nạp đầu gần như luôn
          rơi vào đây — nên nó KHÔNG phải một lời từ chối với người dùng. */
@@ -642,7 +693,7 @@ export function usePascalEdits({
 
       return { ok: false, message };
     },
-    [buildFor, onMassDelete, readOnly],
+    [buildFor, onMassDelete, readOnly, settle],
   );
 
   const confirmMassDelete = useCallback((nodeIds: readonly string[]) => {
@@ -650,9 +701,10 @@ export function usePascalEdits({
   }, []);
 
   const onSceneCommit = useCallback(
-    async (scene: PascalScene): Promise<boolean> => {
+    async (raw: PascalScene): Promise<boolean> => {
       if (readOnly) return false;
 
+      const scene = settle(raw);
       const previous = savedScene.current ?? loadedScene;
       const built = buildFor(scene);
       const notices = lastVerdict.current?.scene === scene ? lastVerdict.current.notices : [];
@@ -691,7 +743,7 @@ export function usePascalEdits({
 
       return true;
     },
-    [buildFor, deps, loadedScene, onNotice, onRejected, onUnsaved, readOnly],
+    [buildFor, deps, loadedScene, onNotice, onRejected, onUnsaved, readOnly, settle],
   );
 
   const takeSuggestionAccepted = useCallback(() => {

@@ -14,7 +14,7 @@ import type { Room, RoomFinish, RoomUsage, Wall } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import { INTERIOR_SKIRTING } from '@/pascal-page/realism/details';
 
-import { CATALOG_MODELS, modelSrcOf, thumbnailOf } from './furnitureCatalog';
+import { CATALOG_MODELS, modelHasSlots, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { bodyOfPascalId, toPascalId } from './ids';
 import { RENDER_LOOK_PALETTE, SCENE_PALETTE } from './scenePalette';
 import { sceneStyleOf, type SceneStyle, type SlotFamily } from './sceneStyles';
@@ -195,7 +195,7 @@ export const itemSlotsOf = (
   style: SceneStyle = DEFAULT_STYLE,
 ): Readonly<Record<string, string>> | undefined => {
   const families = SLOT_FAMILY[folder];
-  if (families === undefined) return undefined;
+  if (families === undefined || !modelHasSlots(folder)) return undefined;
   return Object.fromEntries(
     Object.entries(families).map(([slot, family]) => [slot, family === 'bark' ? BARK : style.families[family]]),
   );

@@ -2,8 +2,9 @@
  * Nhãn phòng trên mặt bằng 2D dễ đọc (04/11). Trước: chữ màu vùng (xanh) viền trắng, cỡ tính bằng mét nên dòng phụ
  * 0,11 m chỉ còn ~6 px, và các dòng cách nhau theo trục Y của bản vẽ: mặt bằng xoay thì dòng phụ dính sát chân dòng tên,
  * trông như gạch chân.
- * Sau (chỉ trên màn hình; bản in dùng profile `document`, giữ nguyên): chữ đậm trung tính `roomLabelInk`, tên ≥ 13 px,
- * dòng phụ ≥ 11 px, các dòng xếp theo chiều dọc MÀN HÌNH (dịch sau khi xoay).
+ * Sau (chỉ trên màn hình): chữ đậm trung tính `roomLabelInk`, tên ≥ 13 px, dòng phụ ≥ 11 px, các dòng xếp theo chiều
+ * dọc MÀN HÌNH (dịch sau khi xoay). Bản PDF cũng là `purpose: 'edit'` (profile `editor`) nhưng vẽ bằng
+ * `FloorplanGeometryRenderer`: mọi thứ riêng màn hình nằm ở trường `screen*` chỉ lớp đăng ký đọc, `fill` giữ màu vùng.
  * Thêm (04/11, chỉ màn hình): lượt phủ vẽ vùng sau cùng để tên phòng nằm trên tường và đồ (tường, đồ cũng có phần ở lượt
  * phủ, vẽ sau vùng nên che chữ). Nhãn rộng hơn phòng thì tràn sang nhãn phòng bên: `roomLabelFit` bỏ dòng phụ trước, rồi
  * bỏ cả nhãn.
@@ -19,18 +20,21 @@ if (!INK) throw new Error('u49: thiếu roomLabelInk trong scenePalette.ts');
 export const RULES = {
   'nodes/src/zone/floorplan.ts': [
     [
-      "    fill: color,\n    stroke: '#ffffff',\n    strokeWidth: line.fontSize * 0.18,\n",
-      `    fill: profile === 'editor' ? '${INK}' : color,\n    stroke: '#ffffff',\n    strokeWidth: line.fontSize * 0.18,\n`,
-    ],
-    [
       "    metadata: floorplanGeometryMetadata({ annotationRole: 'room-label' }),\n",
       "    ...(profile === 'editor'\n" +
-        "      ? { screenPx: index === 0 && name ? 13 : 11, screenLine: index - (lines.length - 1) / 2, screenLineMetres: ROOM_LABEL_LINE_SPACING, screenRoom: { polygon: node.polygon, nameChars: name.length, detailChars: Math.max(0, ...lines.slice(name ? 1 : 0).map((l) => l.text.length)), lines: lines.length } }\n" +
+        `      ? { screenInk: '${INK}', screenPx: index === 0 && name ? 13 : 11, ` +
+        "screenLine: index - (lines.length - 1) / 2, screenLineMetres: ROOM_LABEL_LINE_SPACING, screenRoom: { polygon: node.polygon, nameChars: name.length, detailChars: Math.max(0, ...lines.slice(name ? 1 : 0).map((l) => l.text.length)), lines: lines.length } }\n" +
         '      : {}),\n' +
         "    metadata: floorplanGeometryMetadata({ annotationRole: 'room-label' }),\n",
     ],
   ],
   'editor/src/components/editor-2d/renderers/floorplan-registry-layer.tsx': [
+    // Getter đọc ref (đường 3D giữ ref khi 2D đóng), mà mục đã memo không vẽ lại khi xoay đổi: nhãn nghiêng theo mặt bằng.
+    // Giá trị context là state, chỉ đổi khi hết thao tác xoay, nên vẽ lại rẻ.
+    [
+      'const sceneRotationDeg = renderCtx?.getSceneRotationDeg() ?? 0\n',
+      'const sceneRotationDeg = useFloorplanSceneRotation()\n',
+    ],
     [
       "'use client'\n\nimport {\n  type AnyNode,\n",
       "'use client'\n\nimport { roomLabelFit, type RoomLabelInput } from '@/pascal-page/upstream/lib/room-label-fit'\nimport {\n  type AnyNode,\n",
@@ -65,8 +69,8 @@ export const RULES = {
       "            data-floorplan-annotation-transform-after-rotation={afterRotation || undefined}\n            data-floorplan-annotation-transform-before-rotation={beforeRotation}\n            key={keyHint}\n            transform={transform}\n          >\n            <text\n              dominantBaseline={g.dominantBaseline ?? 'middle'}\n",
     ],
     [
-      "              fontFamily={g.fontFamily}\n              fontSize={g.fontSize}\n              fontWeight={g.fontWeight}\n              opacity={g.opacity}\n              paintOrder={g.paintOrder}\n              stroke={g.stroke}\n              strokeLinecap={g.stroke ? 'round' : undefined}\n              strokeLinejoin={g.stroke ? 'round' : undefined}\n              strokeWidth={g.strokeWidth}\n              textAnchor={g.textAnchor ?? 'start'}\n",
-      "              fontFamily={screenLabel ? \"'Be Vietnam Pro', system-ui, sans-serif\" : g.fontFamily}\n              fontSize={labelFontSize}\n              fontWeight={g.fontWeight}\n              opacity={g.opacity}\n              paintOrder={g.paintOrder}\n              stroke={g.stroke}\n              strokeLinecap={g.stroke ? 'round' : undefined}\n              strokeLinejoin={g.stroke ? 'round' : undefined}\n              strokeWidth={screenLabel ? labelFontSize * 0.3 : g.strokeWidth}\n              textAnchor={g.textAnchor ?? 'start'}\n",
+      "              fill={g.fill ?? '#171717'}\n              fontFamily={g.fontFamily}\n              fontSize={g.fontSize}\n              fontWeight={g.fontWeight}\n              opacity={g.opacity}\n              paintOrder={g.paintOrder}\n              stroke={g.stroke}\n              strokeLinecap={g.stroke ? 'round' : undefined}\n              strokeLinejoin={g.stroke ? 'round' : undefined}\n              strokeWidth={g.strokeWidth}\n              textAnchor={g.textAnchor ?? 'start'}\n",
+      "              fill={(g as { screenInk?: string }).screenInk ?? g.fill ?? '#171717'}\n              fontFamily={screenLabel ?\"'Be Vietnam Pro', system-ui, sans-serif\" : g.fontFamily}\n              fontSize={labelFontSize}\n              fontWeight={g.fontWeight}\n              opacity={g.opacity}\n              paintOrder={g.paintOrder}\n              stroke={g.stroke}\n              strokeLinecap={g.stroke ? 'round' : undefined}\n              strokeLinejoin={g.stroke ? 'round' : undefined}\n              strokeWidth={screenLabel ? labelFontSize * 0.3 : g.strokeWidth}\n              textAnchor={g.textAnchor ?? 'start'}\n",
     ],
   ],
 };

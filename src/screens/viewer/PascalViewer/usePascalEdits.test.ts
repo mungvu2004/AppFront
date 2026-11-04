@@ -25,6 +25,7 @@ import {
   blockedGeneratedEdits,
   commitOfScenes,
   PASCAL_READ_ONLY_REASON,
+  settledScene,
   CEILING_LIGHT_MOVE_BLOCKED,
   GENERATED_EDIT_BLOCKED,
   SUGGESTION_ACCEPTED_NOTICE,
@@ -496,7 +497,94 @@ const withNewWall = (): PascalScene => {
   };
 };
 
+/** Cảnh nền thêm một bản sao chờ thả, đúng như Pascal giữ trong lúc đặt: nhánh `metadata` là thứ duy nhất khác bản đã đặt. */
+const withDraft = (metadata: Record<string, unknown>, id = 'item_ban_sao'): PascalScene => {
+  const parent = SCENE.nodes[firstWall().parentId ?? ''];
+
+  if (parent === undefined || !('children' in parent)) throw new Error('tường đầu phải có tầng cha');
+
+  const draft = { object: 'node', id, type: 'item', parentId: parent.id, children: [], position: [1, 0, 1], rotation: [0, 0, 0], scale: [1, 1, 1], asset: { id: 'sofa', src: '/items/sofa/model.glb', dimensions: [1, 1, 1] }, metadata } as unknown as PascalNode;
+
+  return {
+    nodes: { ...SCENE.nodes, [id]: draft, [parent.id]: { ...parent, children: [...parent.children, id] } as PascalNode },
+    rootNodeIds: SCENE.rootNodeIds,
+  };
+};
+
+describe('settledScene — nháp đang đặt không phải dữ liệu', () => {
+  it('cảnh không có nháp: trả đúng cảnh ấy, không dựng lại', () => {
+    expect(settledScene(SCENE, SCENE)).toBe(SCENE);
+  });
+
+  it('bản sao chờ thả: bỏ khỏi cảnh và khỏi tầng cha, không còn gì để ghi', () => {
+    const settled = settledScene(withDraft({ isTransient: true }), SCENE);
+
+    expect(settled.nodes['item_ban_sao']).toBeUndefined();
+    expect(commitOfScenes(SCENE, settled)).toBeNull();
+  });
+
+  it('nháp có con: con đi theo', () => {
+    const scene = withDraft({ isTransient: true });
+    const child = { ...scene.nodes['item_ban_sao'], id: 'item_con', parentId: 'item_ban_sao', metadata: {} } as unknown as PascalNode;
+    const nested: PascalScene = {
+      ...scene,
+      nodes: { ...scene.nodes, item_con: child, item_ban_sao: { ...scene.nodes['item_ban_sao'], children: ['item_con'] } as unknown as PascalNode },
+    };
+
+    expect(commitOfScenes(SCENE, settledScene(nested, SCENE))).toBeNull();
+  });
+
+  it('món có sẵn đang dời: về đúng bản đã lưu, không lưu chỗ đang rê', () => {
+    const wall = firstWall();
+    const moving: PascalScene = {
+      nodes: { ...SCENE.nodes, [wall.id]: { ...wall, thickness: 0.33, metadata: { ...wall.metadata, isTransient: true } } },
+      rootNodeIds: SCENE.rootNodeIds,
+    };
+
+    expect(settledScene(moving, SCENE).nodes[wall.id]).toBe(wall);
+  });
+
+  it('món có sẵn đang dời sang cha khác: cha mới bỏ nó, cha cũ giữ nó', () => {
+    const before = withDraft({});
+    const itemBefore = before.nodes['item_ban_sao'] as PascalNode;
+    const oldParent = before.nodes[itemBefore.parentId ?? ''] as Extract<PascalNode, { readonly type: 'level' }>;
+    const moving: PascalScene = {
+      rootNodeIds: before.rootNodeIds,
+      nodes: {
+        ...before.nodes,
+        [oldParent.id]: { ...oldParent, children: oldParent.children.filter((id) => id !== itemBefore.id) },
+        item_ke: { ...itemBefore, id: 'item_ke', children: [itemBefore.id] } as unknown as PascalNode,
+        [itemBefore.id]: { ...itemBefore, parentId: 'item_ke', metadata: { isTransient: true } } as PascalNode,
+      },
+    };
+    const previous: PascalScene = { ...before, nodes: { ...before.nodes, item_ke: { ...itemBefore, id: 'item_ke' } as PascalNode } };
+
+    expect(commitOfScenes(previous, settledScene(moving, previous))).toBeNull();
+  });
+});
+
 describe('usePascalEdits', () => {
+  it('bản sao bị từ chối chỗ thả: lượt tự lưu không ghi gì; thả được rồi mới lưu đúng một món', async () => {
+    const { result } = mount();
+    const before = useStore.getState().spatial;
+    let saved = true;
+
+    await act(async () => {
+      saved = await result.current.onSceneCommit(withDraft({ isTransient: true }));
+    });
+
+    expect(saved).toBe(false);
+    expect(useStore.getState().spatial).toBe(before);
+    expect(result.current.validateCommit(withDraft({ isTransient: true }))).toEqual({ ok: true });
+
+    await act(async () => {
+      saved = await result.current.onSceneCommit(withDraft({}));
+    });
+
+    expect(saved).toBe(true);
+    expect(useStore.getState().spatial?.byKind.furniture).toHaveLength((before?.byKind.furniture.length ?? 0) + 1);
+  });
+
   it('W3d — vách mới không khép thành hai phòng: tường vẫn lưu, báo mở màn Phòng để tách', async () => {
     const onNotice = vi.fn();
     const { result } = mount({ onNotice });
