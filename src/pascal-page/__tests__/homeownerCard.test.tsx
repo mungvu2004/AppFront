@@ -165,15 +165,16 @@ describe('HomeownerCard', () => {
     expect(viewer.getState().selection.selectedIds).toEqual([]);
   });
 
-  it('đồ máy gợi ý chưa xác nhận: không có ô kích thước / Xoay / Xoá, nói rõ lý do và chỗ nhận gợi ý', () => {
-    const { stores } = storesWith([OUTLINE_ITEM]);
+  it('đồ máy gợi ý chưa xác nhận: vẫn đủ ô kích thước / Xoay / Xoá, nói rõ sửa là nhận, xoá là bỏ', () => {
+    const { scene, stores } = storesWith([OUTLINE_ITEM]);
     render(<HomeownerCard readOnly={false} stores={stores} />);
     const card = screen.getByRole('region', { name: 'Thao tác nhanh: bàn (chưa xác nhận)' });
     expect(card.textContent).toContain(UNCONFIRMED_NOTE);
-    expect(screen.queryByLabelText('Dài (mm)')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Xoay 90°' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Xoá' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Hoàn tác' })).toBeTruthy();
+    expect(UNCONFIRMED_NOTE).not.toContain('Duyệt');
+    expect(screen.getByLabelText('Dài (mm)')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xoay 90°' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
+    expect(scene.getState().nodes[OUTLINE_ITEM]).toBeUndefined();
   });
 
   it('kích thước: Dài × Rộng × Cao (mm) = dimensions × scale, nhóm nghìn kiểu Việt; cửa không có hàng này', () => {

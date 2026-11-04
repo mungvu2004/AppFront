@@ -26,7 +26,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import type { PascalCommitVerdict } from '@/components/pascal/pascalMountTypes';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import { isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import type { Furniture, FurnitureId, MaterialRef } from '@/domain/spatial/types';
+import { normaliseDegrees, radians, radiansToDegrees } from '@/domain/units/types';
+import { buildCommand } from '@/lib/commands/business/shared';
+import { changeForAdd, changeForUpdate } from '@/lib/commands/createCommand';
 import {
   createIncrementalRuleRunner,
   dispatch,
@@ -34,12 +38,17 @@ import {
   type SpatialPort,
 } from '@/lib/commands/dispatch';
 import { createHistoryStack, NO_SELECTION, type HistoryStack } from '@/lib/commands/history';
-import { diffScenes, isEmptyDiff } from '@/lib/pascal/diff';
-import { createPascalEditCommand, reviewLostNotices, type PascalEditResult } from '@/lib/pascal/fromPascal';
+import type { EntityChange } from '@/lib/commands/types';
+import { ok } from '@/lib/http/types';
+import { diffScenes, isEmptyDiff, sameValue } from '@/lib/pascal/diff';
+import { undoFloorTransforms } from '@/lib/pascal/floorAlignment';
+import { createPascalEditCommand, PASCAL_COMMAND_TYPE, reviewLostNotices, type PascalEditResult } from '@/lib/pascal/fromPascal';
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
+import { bodyOfPascalId, toPascalId } from '@/lib/pascal/ids';
 import { splitRoomsAfterWalls } from '@/lib/pascal/roomSplitAfterWalls';
 import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
 import { isServerModel } from '@/lib/pascal/furnitureCatalog';
+import { SUGGESTED_OUTLINE_PREFIX } from '@/lib/pascal/toPascal';
 import {
   adoptableRoomOf,
   dismissableNodeIdsOf,
@@ -48,7 +57,8 @@ import {
   saveableRef,
   type PascalIdBook,
 } from '@/lib/pascal/toSpatial';
-import type { PascalScene } from '@/lib/pascal/types';
+import type { PascalItemNode, PascalNode, PascalScene } from '@/lib/pascal/types';
+import { buildApproveObjectCommand, buildDeleteFurnitureCommand } from '@/screens/qc/ObjectLayerReview/objectLayerReviewGateway';
 import { buildSplitRoomCommandFromWalls } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
 import { useStore } from '@/store';
 import { applyRollbackPatches, commit } from '@/store/commit';
@@ -147,26 +157,28 @@ export const blockedGeneratedDeletes = (previous: PascalScene, next: PascalScene
   return removed.filter((nodeId) => {
     const parentId = previous.nodes[nodeId]?.parentId ?? null;
 
-    return isGeneratedNodeId(nodeId) && !dismissable.has(nodeId) && (parentId === null || next.nodes[parentId] !== undefined);
+    return (
+      isGeneratedNodeId(nodeId) &&
+      suggestedFurnitureIdOf(nodeId) === null &&
+      !dismissable.has(nodeId) &&
+      (parentId === null || next.nodes[parentId] !== undefined)
+    );
   });
 };
 
-/**
- * Câu khi người dùng sửa (kéo cỡ, dời, xoay) đồ máy gợi ý chưa xác nhận — tấm viền mờ `DRESS-suggested-…`
- * (toPascal `suggestedOutlineOf`). Không ngầm "nhận gợi ý": tấm viền chỉ là chỗ máy đoán (có khi nhận nhầm
- * loại, vd. thảm thành "bàn"), nhận hay bỏ là việc duyệt ở bước "Duyệt cửa và nội thất".
- */
-export const UNCONFIRMED_EDIT_BLOCKED =
-  'Đồ máy gợi ý (chưa xác nhận) chưa sửa được ở màn 3D. Vào bước "Duyệt cửa và nội thất", bấm "Nhận gợi ý" rồi mới sửa, hoặc "Bỏ gợi ý" nếu máy nhận nhầm. Món đã về như cũ.';
 /** Câu khi người dùng sửa một món tự bày không nhận nuôi được (đèn trần, lan can lô gia…): chặn, món về như cũ. */
 export const GENERATED_EDIT_BLOCKED =
   'Món đồ bày sẵn này chưa sửa được: nó tự có theo bản vẽ nên mở lại sẽ về như cũ. Món đã được đặt về như cũ.';
 
-const isUnconfirmedNode = (node: unknown): boolean => fieldsOf(fieldsOf(node)['metadata'])['unconfirmed'] === true;
+/** Câu sau lượt sửa đầu tiên trên món máy gợi ý: báo nhẹ, không phải lỗi. Tấm viền chỉ thành mẫu thật khi dựng lại cảnh. */
+export const SUGGESTION_ACCEPTED_NOTICE = 'Đã nhận món này vào bản vẽ. Mở lại màn sẽ thấy đúng mẫu đồ.';
 
-/** Câu chặn cho các node tự sinh: đồ gợi ý chưa xác nhận có câu riêng. */
-export const generatedBlockReason = (scene: PascalScene, nodeIds: readonly string[], fallback: string): string =>
-  nodeIds.some((nodeId) => isUnconfirmedNode(scene.nodes[nodeId])) ? UNCONFIRMED_EDIT_BLOCKED : fallback;
+/** Mã món đồ gợi ý mà tấm viền `item_DRESS-suggested-<F>` đại diện (toPascal `suggestedOutlineOf`), hoặc `null`. */
+const suggestedFurnitureIdOf = (nodeId: string): FurnitureId | null => {
+  const body = bodyOfPascalId(nodeId);
+
+  return body.startsWith(SUGGESTED_OUTLINE_PREFIX) ? (body.slice(SUGGESTED_OUTLINE_PREFIX.length) as FurnitureId) : null;
+};
 
 const TRANSFORM_FIELDS = ['position', 'rotation', 'scale'] as const;
 const vec3Of = (value: unknown, fallback: number): readonly number[] =>
@@ -179,12 +191,16 @@ const transformDiffers = (before: unknown, after: unknown): boolean =>
     const b = vec3Of(fieldsOf(after)[key], fallback);
     return a.length !== b.length || a.some((v, i) => !(Math.abs(v - (b[i] ?? Number.NaN)) < 1e-4));
   });
+/** So theo giá trị, `slots` thiếu = rỗng: lượt chặn cả commit nên không được báo nhầm vì khác thứ tự khoá. */
+const paintDiffers = (before: unknown, after: unknown): boolean =>
+  !sameValue(fieldsOf(fieldsOf(before)['slots']), fieldsOf(fieldsOf(after)['slots'])) ||
+  CUSTOM_PAINT_FIELDS.some((key) => !sameValue(fieldsOf(before)[key], fieldsOf(after)[key]));
 
 /**
- * Lượt sửa (dời / xoay / kéo cỡ) một món tự sinh mà lượt về không nhận nuôi được (`toSpatial.collectItem` bỏ
- * qua mọi node `DRESS-`/đèn không có phòng nhận nuôi; `fromPascal.kindOfNode` coi là "kết cấu") — trước đây ra
+ * Lượt sửa (dời / xoay / kéo cỡ / sơn) một món tự sinh mà lượt về không nhận nuôi được (`toSpatial.collectItem`
+ * bỏ qua mọi node `DRESS-`/đèn không có phòng nhận nuôi; `fromPascal.kindOfNode` coi là "kết cấu") — trước đây ra
  * `PASCAL_NO_CHANGE`, tức mất lặng lẽ khi tải lại. Nay chặn cả lượt như `blockedGeneratedDeletes`.
- * ponytail: chỉ so vị trí/góc/tỉ lệ (thẻ chủ nhà, tay cầm, bảng Pascal); sơn khe món tự sinh chưa chặn.
+ * Đèn/lan can không có bản ghi nào ở AppBack để chứa sửa đổi. Tấm viền gợi ý thì có `Furniture` đứng sau: `suggestionEditOf`.
  */
 export const blockedGeneratedEdits = (previous: PascalScene, next: PascalScene, changed: readonly string[]): string[] =>
   changed.filter((nodeId) => {
@@ -195,8 +211,9 @@ export const blockedGeneratedEdits = (previous: PascalScene, next: PascalScene, 
       before !== undefined &&
       after?.type === 'item' &&
       isGeneratedNodeId(nodeId) &&
+      suggestedFurnitureIdOf(nodeId) === null &&
       adoptableRoomOf(after) === null &&
-      transformDiffers(before, after)
+      (transformDiffers(before, after) || paintDiffers(before, after))
     );
   });
 
@@ -218,6 +235,122 @@ const fieldsOf = (node: unknown): Readonly<Record<string, unknown>> => (node ?? 
 const assetSrcOf = (node: Readonly<Record<string, unknown>>): unknown => fieldsOf(node['asset'])['src'];
 const differs = (a: Readonly<Record<string, unknown>>, b: Readonly<Record<string, unknown>>, keys: readonly string[]): boolean =>
   keys.some((key) => JSON.stringify(a[key]) !== JSON.stringify(b[key]));
+
+/** Ảnh chụp lúc món còn là gợi ý: Ctrl+Z về đúng node này thì món về đúng bản ghi này. */
+type SuggestionSnapshots = Map<string, { readonly furniture: Furniture; readonly node: PascalNode }>;
+
+/** Khe vừa sơn bằng tham chiếu ghi được; màu ngoài luật thì `unsavedPascalEdits` báo. */
+const paintedSlotsOf = (before: PascalItemNode, after: PascalItemNode): Readonly<Record<string, MaterialRef>> =>
+  Object.fromEntries(
+    Object.entries(after.slots ?? {}).filter(
+      (entry): entry is [string, MaterialRef] => entry[1] !== before.slots?.[entry[0]] && saveableRef(entry[1]),
+    ),
+  );
+
+/** Lượt sửa của tấm viền đè lên `Furniture`: dời/kéo theo chênh hai cảnh, góc theo cảnh, khe mới ghi được. */
+const editedFurnitureOf = (base: Furniture, before: PascalItemNode, after: PascalItemNode): Furniture => {
+  const centre = {
+    x: base.centre.x + Math.round((after.position[0] - before.position[0]) * 1000),
+    y: base.centre.y + Math.round((after.position[2] - before.position[2]) * 1000),
+  };
+  const edge = (value: number, from: number, to: number, ratio: number) => Math.round(to + (value - from) * ratio);
+  const sx = after.scale[0] / before.scale[0];
+  const sy = after.scale[2] / before.scale[2];
+  const { min, max } = base.boundingBox;
+  const painted = paintedSlotsOf(before, after);
+
+  return {
+    ...base,
+    centre,
+    boundingBox: {
+      min: { x: edge(min.x, base.centre.x, centre.x, sx), y: edge(min.y, base.centre.y, centre.y, sy) },
+      max: { x: edge(max.x, base.centre.x, centre.x, sx), y: edge(max.y, base.centre.y, centre.y, sy) },
+    },
+    ...(Math.abs(after.rotation[1] - before.rotation[1]) < 1e-4
+      ? {}
+      : { rotationDeg: normaliseDegrees(radiansToDegrees(radians(-after.rotation[1]))) }),
+    ...(Object.keys(painted).length === 0 ? {} : { slots: { ...base.slots, ...painted } }),
+  };
+};
+
+export interface SuggestionEdit {
+  readonly changes: readonly EntityChange[];
+  /** Node đã lo ở đây, `createPascalEditCommand` không xét lại. */
+  readonly handled: ReadonlySet<string>;
+  /** Có món vừa từ gợi ý thành đồ thật. */
+  readonly accepted: boolean;
+}
+
+/**
+ * Tấm viền gợi ý trong một lượt sửa = việc của màn "Duyệt cửa và nội thất", làm hộ ngay ở 3D:
+ * xoá là "Bỏ gợi ý" (`buildDeleteFurnitureCommand`), dời/xoay/kéo/sơn là "Nhận gợi ý"
+ * (`buildApproveObjectCommand`) rồi áp phần sửa. Ctrl+Z của Pascal tới đây như một lượt sửa thường:
+ * tấm viền về đúng node gợi ý (hoặc hiện lại sau khi xoá) thì trả bản ghi gợi ý lúc đầu.
+ * ponytail: dời sang phòng khác giữ `roomId` cũ, ô Cao của tấm viền (4 mm) không ghi vào `heightMm`.
+ */
+export const suggestionEditOf = (
+  graph: NormalizedSpatial,
+  previous: PascalScene,
+  next: PascalScene,
+  changedNodeIds: readonly string[],
+  snapshots: SuggestionSnapshots,
+  actorId: string,
+): SuggestionEdit => {
+  const changes: EntityChange[] = [];
+  const handled = new Set<string>();
+  let accepted = false;
+  const outlineIds = changedNodeIds.filter((nodeId) => suggestedFurnitureIdOf(nodeId) !== null);
+
+  if (outlineIds.length === 0) return { changes, handled, accepted };
+
+  const flatBefore = undoFloorTransforms(previous);
+  const flatAfter = undoFloorTransforms(next);
+
+  for (const nodeId of outlineIds) {
+    const furnitureId = suggestedFurnitureIdOf(nodeId) as FurnitureId;
+
+    handled.add(nodeId);
+    const entity = graph.byId[furnitureId];
+    const current = entity !== undefined && isEntityOfKind('furniture', entity) ? entity : undefined;
+    const before = previous.nodes[nodeId];
+    const after = next.nodes[nodeId];
+    const realNodeId = toPascalId('item', furnitureId);
+
+    if (current?.suggested === true && before !== undefined && !snapshots.has(nodeId)) {
+      snapshots.set(nodeId, { furniture: current, node: before });
+    }
+    const snapshot = snapshots.get(nodeId);
+
+    if (after === undefined) {
+      // Cảnh đã dựng lại món thật thay tấm viền: không phải một lần xoá.
+      if (next.nodes[realNodeId] !== undefined) continue;
+      const removal = current === undefined ? null : buildDeleteFurnitureCommand({ furnitureId }, { graph, actorId });
+
+      if (removal?.ok === true) changes.push(...removal.data.changes);
+    } else if (before === undefined || (snapshot !== undefined && sameValue(after, snapshot.node))) {
+      // Ctrl+Z: món về như lúc còn là gợi ý; node món thật (nếu cảnh đã dựng lại) đi theo.
+      handled.add(realNodeId);
+      if (snapshot === undefined) continue;
+      if (current === undefined) changes.push(changeForAdd('furniture', snapshot.furniture) as EntityChange);
+      else if (!sameValue(current, snapshot.furniture)) changes.push(changeForUpdate('furniture', current, snapshot.furniture) as EntityChange);
+    } else if (current !== undefined && before.type === 'item' && after.type === 'item') {
+      const flatOld = flatBefore.nodes[nodeId] as PascalItemNode;
+      const flatNew = flatAfter.nodes[nodeId] as PascalItemNode;
+
+      if (!transformDiffers(flatOld, flatNew) && Object.keys(paintedSlotsOf(flatOld, flatNew)).length === 0) continue;
+
+      const base =
+        current.suggested === true
+          ? (buildApproveObjectCommand(current, actorId, current.id).changes[0]?.after as Furniture)
+          : current;
+
+      accepted ||= current.suggested === true;
+      changes.push(changeForUpdate('furniture', current, editedFurnitureOf(base, flatOld, flatNew)) as EntityChange);
+    }
+  }
+
+  return { changes, handled, accepted };
+};
 
 /**
  * Sơn sàn/tường/đồ có phần không ghi được: màu tự pha, hay một khe vừa đổi sang tham chiếu
@@ -294,6 +427,7 @@ export function usePascalEdits({
   }, [loadedScene]);
   /** Sổ id của phiên: đối tượng Pascal vừa vẽ giữ nguyên id qua nhiều lượt sửa. */
   const idBook = useRef<PascalIdBook>(new Map());
+  const suggestionSnapshots = useRef<SuggestionSnapshots>(new Map());
   const gate = useMemo(() => createChangeGate(), []);
   /**
    * Phán quyết gần nhất, kèm cảnh nó đã xét.
@@ -366,11 +500,7 @@ export function usePascalEdits({
       const blockedEdits = blockedGeneratedEdits(previous, scene, pascalCommit.changedNodeIds);
 
       if (blockedDeletes.length > 0 || blockedEdits.length > 0) {
-        const reason = generatedBlockReason(
-          previous,
-          [...blockedDeletes, ...blockedEdits],
-          blockedDeletes.length > 0 ? GENERATED_DELETE_BLOCKED : GENERATED_EDIT_BLOCKED,
-        );
+        const reason = blockedDeletes.length > 0 ? GENERATED_DELETE_BLOCKED : GENERATED_EDIT_BLOCKED;
         const blocked: PascalEditResult = {
           ok: false,
           error: { type: 'pascal.edit', code: 'PASCAL_UNKNOWN_NODE', reasons: [reason] },
@@ -389,15 +519,29 @@ export function usePascalEdits({
           ? ({ admitted: true } as const)
           : gateVerdict;
 
-      const edit: PascalEditResult = verdict.admitted
+      const suggestion = suggestionEditOf(spatial, previous, scene, pascalCommit.changedNodeIds, suggestionSnapshots.current, actorId);
+      const others = (nodeIds: readonly string[]) => nodeIds.filter((nodeId) => !suggestion.handled.has(nodeId));
+      const rest: PascalEditResult = verdict.admitted
         ? createPascalEditCommand({
             graph: spatial,
             scene,
-            commit: pascalCommit,
+            commit: { ...pascalCommit, changedNodeIds: others(pascalCommit.changedNodeIds), removedNodeIds: others(removed) },
             actorId,
             idBook: idBook.current,
           })
         : { ok: false, error: { type: 'pascal.edit', code: 'PASCAL_UNKNOWN_NODE', reasons: [verdict.reason] } };
+      const restEmpty = !rest.ok && rest.error.code === 'PASCAL_NO_CHANGE';
+      const edit: PascalEditResult =
+        suggestion.changes.length > 0 && (rest.ok || restEmpty)
+          ? ok(
+              buildCommand(
+                PASCAL_COMMAND_TYPE,
+                rest.ok ? rest.data.description : 'Từ màn 3D: sửa đồ máy gợi ý.',
+                [...(rest.ok ? rest.data.changes : []), ...suggestion.changes],
+                { graph: spatial, actorId },
+              ),
+            )
+          : rest;
 
       // W3d — vách mới cắt đôi phòng: lệnh tách gộp vào cùng lệnh, một bước hoàn tác.
       const split = edit.ok ? splitRoomsAfterWalls(spatial, edit.data, buildSplitRoomCommandFromWalls) : null;
@@ -407,7 +551,17 @@ export function usePascalEdits({
         scene,
         result,
         massDelete: massDelete && !verdict.admitted ? removed : null,
-        notices: [...(split?.notices ?? []), ...(result.ok ? reviewLostNotices(result.data) : [])],
+        notices: [
+          ...(split?.notices ?? []),
+          // Ctrl+Z trả món về gợi ý là bỏ dấu duyệt do chính lượt nhận đặt: không phải "vừa sửa đồ đã duyệt".
+          ...(result.ok
+            ? reviewLostNotices({
+                ...result.data,
+                changes: result.data.changes.filter((change) => !suggestion.changes.some((own) => own.id === change.id)),
+              })
+            : []),
+          ...(result.ok && suggestion.accepted ? [SUGGESTION_ACCEPTED_NOTICE] : []),
+        ],
       };
 
       return result;
