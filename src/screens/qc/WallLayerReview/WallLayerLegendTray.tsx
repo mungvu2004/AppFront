@@ -27,6 +27,7 @@ type Props = Pick<WallLayerCanvasViewProps, 'isWallLayerVisible' | 'legendLevels
 const TRAY = 'flex flex-col';
 const GROUP_LABEL = 'Chú giải tường';
 const NON_STANDARD_LABEL = 'Không chuẩn';
+const GLASS_LABEL = 'Tường kính';
 const ITEM = 'flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-body-sm text-text-primary';
 const COUNT = 'ml-auto tabular-nums text-text-secondary';
 
@@ -37,6 +38,8 @@ export function WallLayerLegendTray({ isWallLayerVisible, shapes, state }: Props
 
     return { ...countWallBands(pending.map((shape) => shape.thicknessMm)), tiers };
   }, [shapes]);
+
+  const glassCount = shapes.filter((shape) => shape.isGlass === true).length;
 
   if (!isWallLayerVisible) {
     return null;
@@ -70,6 +73,13 @@ export function WallLayerLegendTray({ isWallLayerVisible, shapes, state }: Props
             <span className={COUNT}>{count}</span>
           </span>
         ))}
+        {glassCount > 0 ? (
+          <span className={ITEM}>
+            <WallThicknessSwatch kind="glass" />
+            <span>{GLASS_LABEL}</span>
+            <span className={COUNT}>{glassCount}</span>
+          </span>
+        ) : null}
       </div>
       <div className="mt-1 flex flex-col border-t border-border-default pt-1">
         {[...counts.bands].map(([band, count]) => (

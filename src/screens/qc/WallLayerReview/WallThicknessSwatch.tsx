@@ -6,7 +6,7 @@
 
 import { WALL_LOW_EDGE_CUT, wallConfidenceToken, type WallConfidenceTier } from '@/components/canvas/materialMap';
 
-export type WallSwatchKind = WallConfidenceTier | 'nonStandard';
+export type WallSwatchKind = WallConfidenceTier | 'nonStandard' | 'glass';
 
 const W = 20;
 const H = 12;
@@ -14,7 +14,12 @@ const H = 12;
 export function WallThicknessSwatch({ kind, className }: { readonly kind: WallSwatchKind; readonly className?: string }) {
   return (
     <svg aria-hidden="true" className={className} height={H} viewBox={`0 0 ${W} ${H}`} width={W}>
-      {kind === 'nonStandard' ? (
+      {kind === 'glass' ? (
+        <>
+          <rect fill="var(--bg-surface)" height={H - 2} stroke="var(--accent)" strokeWidth={1.5} width={W - 2} x={1} y={1} />
+          <line stroke="var(--accent)" strokeWidth={1.5} x1={0} x2={W} y1={H / 2} y2={H / 2} />
+        </>
+      ) : kind === 'nonStandard' ? (
         <>
           <rect fill="var(--wall-220)" height={H} width={W} />
           {[0, 6, 12, 18].map((x) => (

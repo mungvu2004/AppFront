@@ -8,19 +8,24 @@
  */
 
 import { createDrawWallCommand, createSplitWallCommand, type DrawWallInput } from '@/lib/commands/business/wallCommands';
-import { buildCommand, type CommandContext } from '@/lib/commands/business/shared';
+import { createSplitRoomCommand } from '@/lib/commands/business/roomFloorCommands';
+import { buildCommand, readOf, type CommandContext } from '@/lib/commands/business/shared';
 import type { DispatchResult } from '@/lib/commands/dispatch';
+import { commandToPatches } from '@/lib/commands/invert';
 import { runTransaction } from '@/lib/commands/transaction';
 import type { Command, EntityChange } from '@/lib/commands/types';
+import { splitRoomsAfterWalls, type SplitRoomFromWalls } from '@/lib/pascal/roomSplitAfterWalls';
+import { cutOutlineByStroke } from '@/domain/rooms/cutOutline';
+import { applyPatch } from '@/domain/spatial/applyPatch';
 import type { Point, Segment, Wall, WallId } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
+import { buildSplitRoomCommandFromWalls } from '@/screens/qc/RoomLabelReview/roomLabelReviewGateway';
 
 import type { WallDrawSnap } from './wallDrawSnap';
 import type { WallLayerDispatchDeps } from './wallLayerReviewGateway';
 
-export const WALL_DRAW_MUST_CONNECT_TEXT =
-  'Tường mới phải nối vào một tường có sẵn — bấm điểm đầu hoặc điểm cuối lên đầu hay thân một tường.';
-export const WALL_DRAW_ALONG_TEXT = 'Hai đầu tường mới bắt vào cùng một tường — tường mới sẽ nằm đè lên tường đó.';
+export const WALL_DRAW_MUST_CONNECT_TEXT = 'Tường mới phải chạm một tường có sẵn.';
+export const WALL_DRAW_ALONG_TEXT = 'Hai đầu đang nằm trên cùng một tường.';
 
 export interface WallDrawSnaps {
   readonly start: WallDrawSnap | null;
@@ -28,7 +33,7 @@ export interface WallDrawSnaps {
 }
 
 export type ConnectedDrawPlan =
-  | { readonly ok: true; readonly commands: readonly Command[]; readonly label: string }
+  | { readonly ok: true; readonly commands: readonly Command[]; readonly label: string; readonly end: Point; readonly notices: readonly string[] }
   | { readonly ok: false; readonly reason: string };
 
 const roundPoint = (point: Point): Point => ({ x: millimetres(Math.round(point.x)), y: millimetres(Math.round(point.y)) });
@@ -42,6 +47,10 @@ const withIntegerGeometry = (change: EntityChange): EntityChange => {
     const { start, end } = change.after.centreline;
 
     return { ...change, after: { ...change.after, centreline: { start: roundPoint(start), end: roundPoint(end) } } };
+  }
+
+  if (change.kind === 'room' && change.after !== null) {
+    return { ...change, after: { ...change.after, outline: change.after.outline.map(roundPoint) } };
   }
 
   if (change.kind === 'opening' && change.after !== null) {
@@ -92,8 +101,11 @@ export function planConnectedDraw(
   context: CommandContext,
   nextWallId: () => WallId,
 ): ConnectedDrawPlan {
-  const startWall = snaps.start?.wallId ?? null;
-  const endWall = snaps.end?.wallId ?? null;
+  /* Đầu chuỗi vẽ có thể trỏ tới tường vừa bị hoàn tác hay xoá: tường không còn thì không tính là đã nối. */
+  const liveWallOf = (snap: WallDrawSnap | null): WallId | null =>
+    snap?.wallId != null && context.graph.byId[snap.wallId] !== undefined ? snap.wallId : null;
+  const startWall = liveWallOf(snaps.start);
+  const endWall = liveWallOf(snaps.end);
 
   if (startWall === null && endWall === null) {
     return { ok: false, reason: WALL_DRAW_MUST_CONNECT_TEXT };
@@ -129,7 +141,30 @@ export function planConnectedDraw(
     return { ok: false, reason: draw.error.reasons.join(' ') };
   }
 
-  return { ok: true, commands: [...splits, draw.data], label: draw.data.description };
+  /*
+   * Nét chia đôi một phòng thì tách phòng trong cùng lệnh vẽ — cùng PUT, một bước hoàn tác. Đường chính cắt
+   * đa giác đã lưu bằng chính nét này, không cần tường khép kín (máy gộp nhầm ban công vào phòng khách: một
+   * nét là ngăn được); cắt không được mới dò lại từ tường như màn Phòng.
+   */
+  const splitByStroke: SplitRoomFromWalls = (split, splitContext, walls, level) => {
+    const room = readOf(splitContext.graph, 'room', split.roomId);
+    const parts = room === null ? null : cutOutlineByStroke(room.outline, centreline.start, centreline.end);
+
+    return parts === null
+      ? buildSplitRoomCommandFromWalls(split, splitContext, walls, level)
+      : createSplitRoomCommand({ roomId: split.roomId, newRoomId: split.newRoomId, firstOutline: parts[0], secondOutline: parts[1] }, splitContext);
+  };
+  const afterSplits = splits.reduce((graph, command) => applyPatch(graph, commandToPatches(command)), context.graph);
+  const { command: drawn, notices } = splitRoomsAfterWalls(afterSplits, draw.data, splitByStroke);
+
+  return {
+    ok: true,
+    commands: [...splits, buildCommand(drawn.type, drawn.description, drawn.changes.map(withIntegerGeometry), context)],
+    label: drawn.description,
+    end: centreline.end,
+    /* Vách cụt (một đầu tự do) không định chia phòng: im lặng, nét sau có thể khép nốt. */
+    notices: startWall !== null && endWall !== null ? notices : [],
+  };
 }
 
 /** Chạy cả lô như MỘT bước hoàn tác, nhãn hoàn tác = câu của lệnh vẽ. */

@@ -104,6 +104,7 @@ const NON_STANDARD_HATCH_TILE_PX = 6;
 /** Viền + sọc giấy của tường không chuẩn — đọc được trên cả ba màu tin cậy (sọc vàng thì chìm trong nền vàng). */
 const NON_STANDARD_OUTLINE_TOKEN = 'var(--text-primary)';
 const NON_STANDARD_STRIPE_TOKEN = 'var(--bg-surface)';
+const GLASS_MARK_TOKEN = 'var(--accent)';
 
 /**
  * Ruột tô theo BẬC TIN CẬY (WRU-B, bảng "Chì và nâu đất"): chắc chắn chì đậm · khá chắc xám · chưa
@@ -188,6 +189,22 @@ export const WallShapeFigure = memo(function WallShapeFigure({
       role="presentation"
     >
       <WallBody points={points} thicknessMm={shape.thicknessMm} tier={shape.confidenceTier} />
+
+      {/* Tường kính kiểu bản vẽ: thân rỗng, viền và một nét giữa; khác hẳn thân đặc của tường thường. */}
+      {shape.isGlass === true ? (
+        <g data-testid="wall-glass-mark">
+          <polygon fill="var(--bg-surface)" fillOpacity={0.85} points={points} stroke={GLASS_MARK_TOKEN} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+          <line
+            stroke={GLASS_MARK_TOKEN}
+            strokeWidth={1.5}
+            vectorEffect="non-scaling-stroke"
+            x1={shape.centrelinePx.start.x}
+            x2={shape.centrelinePx.end.x}
+            y1={shape.centrelinePx.start.y}
+            y2={shape.centrelinePx.end.y}
+          />
+        </g>
+      ) : null}
 
       {shape.isLowConfidence ? <polygon fill={`url(#${WALL_HATCH_PATTERN_ID})`} points={points} /> : null}
 

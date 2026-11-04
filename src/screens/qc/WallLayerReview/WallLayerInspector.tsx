@@ -2,7 +2,7 @@
  * Thân panel phải của đoạn tường đang chọn (bố cục hai panel kiểu Figma, `docs/figma-layout-spec.md`):
  * các mục `QcInspectorSection` — "Kích thước" (Dài | Dày cùng hàng, "Khác…" mở ô nhập mm 60–600, UX-10;
  * menu "Đổi độ dày" đưa focus vào ô chọn, BUG-604), "Độ tin cậy" (chấm màu + chữ + ghi chú máy đo),
- * "Loại" (Vật liệu, Chiều cao), "Thông số nâng cao" (gập: điểm tin cậy, lệch Z, toạ độ).
+ * "Thuộc tính" (Loại, Chiều cao, Vật liệu: tường thường hay tường kính), "Thông số nâng cao" (gập: điểm tin cậy, lệch Z, toạ độ).
  * Huy hiệu ở đầu panel ({@link WallLayerInspectorBadge}); chân ghim ({@link WallLayerInspectorFooter}).
  * View THUẦN (R-60): mọi chuỗi số đã định dạng ở hook (A15).
  */
@@ -11,6 +11,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 
 import { wallConfidenceToken } from '@/components/canvas/materialMap';
 import { Badge } from '@/components/ui/Badge';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 
 import { QcInspectorSection } from '../shared/QcInspectorSection';
@@ -28,13 +29,20 @@ export interface WallLayerInspectorProps {
 
 const SIZE_TITLE = 'Kích thước';
 const CONFIDENCE_TITLE = 'Độ tin cậy';
-const KIND_TITLE = 'Loại';
+const ATTRIBUTES_TITLE = 'Thuộc tính';
+const KIND_LABEL = 'Loại';
 const ADVANCED_TITLE = 'Thông số nâng cao';
 const LENGTH_FACT = 'Dài';
 const THICKNESS_FACT = 'Dày';
 const HEIGHT_LABEL = 'Chiều cao';
 const CONFIDENCE_SCORE_LABEL = 'Điểm tin cậy';
 const MATERIAL_LABEL = 'Vật liệu';
+const MATERIAL_PLAIN_LABEL = 'Tường thường';
+const MATERIAL_GLASS_LABEL = 'Tường kính';
+const MATERIAL_OPTIONS = [
+  { label: MATERIAL_PLAIN_LABEL, value: 'plain' },
+  { label: MATERIAL_GLASS_LABEL, value: 'glass' },
+];
 const ELEVATION_OFFSET_LABEL = 'Lệch Z';
 const START_POINT_LABEL = 'Toạ độ đầu';
 const END_POINT_LABEL = 'Toạ độ cuối';
@@ -231,9 +239,25 @@ export function WallLayerInspector(props: WallLayerInspectorProps) {
         </QcInspectorSection>
       )}
 
-      <QcInspectorSection title={KIND_TITLE}>
-        <ValueRow label={MATERIAL_LABEL} value={inspector.kindLabel} />
+      <QcInspectorSection title={ATTRIBUTES_TITLE}>
+        <ValueRow label={KIND_LABEL} value={inspector.kindLabel} />
         <ValueRow label={HEIGHT_LABEL} value={inspector.heightLabel} />
+        {isViewerRole || panel.onChangeMaterial === undefined ? (
+          <ValueRow label={MATERIAL_LABEL} value={inspector.isGlass === true ? MATERIAL_GLASS_LABEL : MATERIAL_PLAIN_LABEL} />
+        ) : (
+          <div className="flex flex-col gap-1">
+            <span className={FIELD_LABEL}>{MATERIAL_LABEL}</span>
+            <SegmentedControl
+              aria-label={MATERIAL_LABEL}
+              /* Hai nhãn nằm một dòng trong panel 247 px. */
+              className="[&_[role=radio]]:px-1"
+              disabled={scaleLock !== null}
+              onChange={(value) => panel.onChangeMaterial?.(inspector.id, value === 'glass')}
+              options={MATERIAL_OPTIONS}
+              value={inspector.isGlass === true ? 'glass' : 'plain'}
+            />
+          </div>
+        )}
       </QcInspectorSection>
 
       <QcInspectorSection collapsible defaultOpen={false} title={ADVANCED_TITLE}>

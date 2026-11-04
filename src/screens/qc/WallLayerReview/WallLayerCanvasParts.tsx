@@ -79,10 +79,10 @@ export function WallDraftGuide({
   unitPx,
 }: {
   /* `snapKind` do hook gắn thêm (`wallDrawSnap.ts`); kiểu gốc ở `wallLayerHatch.ts` chưa khai. */
-  readonly draftGuidePx: NonNullable<Props['draftGuidePx']> & { readonly snapKind?: WallDrawSnapKind | null };
+  readonly draftGuidePx: NonNullable<Props['draftGuidePx']> & { readonly snapKind?: WallDrawSnapKind | null; readonly thicknessPx?: number | null };
   readonly unitPx: number;
 }) {
-  const { fromPx, toPx, snapKind = null } = draftGuidePx;
+  const { fromPx, toPx, snapKind = null, thicknessPx = null } = draftGuidePx;
 
   if (fromPx === null && snapKind === null) {
     return (
@@ -102,6 +102,18 @@ export function WallDraftGuide({
 
   return (
     <g data-testid="wall-draft-guide" pointerEvents="none">
+      {fromPx === null || thicknessPx === null ? null : (
+        <line
+          data-testid="wall-draft-body"
+          stroke="var(--accent)"
+          strokeOpacity={0.3}
+          strokeWidth={thicknessPx}
+          x1={fromPx.x}
+          x2={toPx.x}
+          y1={fromPx.y}
+          y2={toPx.y}
+        />
+      )}
       {fromPx === null ? null : (
         <line
           stroke="var(--accent)"

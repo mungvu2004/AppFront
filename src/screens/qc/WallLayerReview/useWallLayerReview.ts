@@ -129,7 +129,7 @@ import { TOOLS } from '@/lib/tools/tools';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/commandTypes';
 import {
   DEFAULT_DRAW_SNAP_RADIUS_MM,
-  snapDrawPoint,
+  resolveDrawPoint,
   wallDrawSnapTargets,
   withInheritedWallStyle,
   type WallDrawSnap,
@@ -145,6 +145,7 @@ import {
   buildApproveWallCommand,
   buildUnapproveWallCommand,
   buildChangeThicknessCommand,
+  buildChangeWallMaterialCommand,
   buildDeleteWallCommand,
   buildDragWallEndCommand,
   buildMergeWallsCommand,
@@ -276,7 +277,7 @@ export const WALL_LAYER_TEXT = {
   shortcutDelete: 'Xoá đoạn tường đang chọn.',
   shortcutUndo: 'Hoàn tác thao tác gần nhất.',
   /** U43: mỗi phím 1/2/3 ghi đúng số mm của nó, không ba dòng giống nhau. */
-  shortcutThickness: (mm: number): string => `Đặt độ dày ${mm} mm cho đoạn tường đang chọn.`,
+  shortcutThickness: (mm: number): string => `Đặt độ dày ${mm} mm cho đoạn tường đang chọn, hoặc cho nét đang vẽ.`,
   shortcutTool: 'Vẽ tường.',
   shortcutToolSelect: 'Công cụ chọn.',
   shortcutToolMeasure: 'Công cụ đo.',
@@ -387,6 +388,8 @@ const WALL_MERGE_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.mergeRefused';
 const WALL_MERGE_REFUSED_TEXT = 'Chỉ nối được hai đoạn thẳng hàng, cùng độ dày và cùng loại.';
 /** Nét vẽ bị từ chối (không nối tường nào, quá ngắn…) — nói ngay, cả ở thanh trạng thái lẫn toast (#9). */
 const WALL_DRAW_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.drawRefused';
+const WALL_DRAW_ROOM_NOTICE_TYPE = 'wallLayerReview.drawRoomNotSplit';
+const WALL_DRAW_ROOM_NOTICE_TITLE = 'Chưa tách phòng';
 const WALL_DRAW_REFUSED_TITLE = 'Chưa vẽ được tường';
 const isCommandList = <T extends object>(value: T | readonly T[]): value is readonly T[] => Array.isArray(value);
 /** Bán kính bắt điểm khi vẽ tường, tính bằng px MÀN (đổi ra mm theo mức phóng). */
@@ -397,16 +400,31 @@ const WALL_UNDO_REFUSED_TEXT =
   'Chưa hoàn tác: một thay đổi sau đó đã sửa cùng tường. Dùng Ctrl+Z để hoàn tác lần lượt.';
 
 /** Câu chỉ dẫn trên thanh trạng thái khi một công cụ vẽ/tách/đo đang bật (G4a-23). */
-const toolHintOf = (tool: string, pointCount: number): string => {
+const TOOL_HINT_TITLES: Readonly<Record<string, string>> = {
+  drawWall: 'Nhấn giữ rồi kéo để vẽ một nét · Phím 1/2/3 đổi độ dày · Shift khoá ngang/dọc · Esc dừng nét, Esc lần nữa về Chọn (V)',
+  splitWall: 'Esc về Chọn (V)',
+  measure: 'Esc huỷ lượt đo, Esc lần nữa về Chọn (V)',
+};
+
+const toolHintOf = (
+  tool: string,
+  pointCount: number,
+  draw: { readonly thicknessMm: number | null; readonly isStartFloating: boolean } = { thicknessMm: null, isStartFloating: false },
+): string => {
   switch (tool) {
-    case 'drawWall':
-      return pointCount === 0
-        ? 'Bấm điểm đầu của tường — bắt vào đầu/thân tường · Esc về Chọn (V)'
-        : 'Bấm điểm cuối của tường — bắt vào đầu/thân tường · Esc huỷ nét · Esc lần nữa về Chọn (V)';
+    case 'drawWall': {
+      const thickness = `Dày ${draw.thicknessMm === null ? 'theo tường nối' : `${draw.thicknessMm} mm`}`;
+
+      if (pointCount === 0) {
+        return `Bấm điểm đầu · ${thickness}`;
+      }
+
+      return draw.isStartFloating ? `Điểm cuối phải chạm một tường · ${thickness}` : `Bấm điểm cuối · ${thickness}`;
+    }
     case 'splitWall':
-      return 'Bấm lên tường tại chỗ cần tách · Esc về Chọn (V)';
+      return 'Bấm lên tường tại chỗ cần tách';
     case 'measure':
-      return pointCount === 0 ? 'Bấm điểm đầu để đo · Esc về Chọn (V)' : 'Bấm điểm thứ hai · Esc huỷ · Esc lần nữa về Chọn (V)';
+      return pointCount === 0 ? 'Bấm điểm đầu để đo' : 'Bấm điểm thứ hai';
     default:
       return '';
   }
@@ -715,6 +733,7 @@ export function useWallLayerReview(
   const toolStateRef = useRef(toolState);
   toolStateRef.current = toolState;
   const sendToolInputRef = useRef<((value: ToolInputValue) => void) | null>(null);
+  const resumeWallDrawRef = useRef<((at: Point | null, snap: WallDrawSnap | null) => void) | null>(null);
 
   /* ---------------------------------------------------------------------- */
   /* Hai lượt đọc máy chủ, TÁCH BẠCH (R-64).                                  */
@@ -1117,6 +1136,18 @@ export function useWallLayerReview(
     [gateway, run, wallById, wallCodes],
   );
 
+  /* Vật liệu: tường kính hay tường thường, hoàn tác được như mọi lệnh. */
+  const onChangeMaterial = useCallback(
+    (wallId: WallId, isGlass: boolean) => {
+      const wall = wallById(wallId);
+
+      if (wall !== null) {
+        void run(() => buildChangeWallMaterialCommand(wall, isGlass, gateway.actorId, wallCodes));
+      }
+    },
+    [gateway, run, wallById, wallCodes],
+  );
+
   /* G74: hàng danh sách xin mở menu bằng phím — chọn tường, canvas mở menu của nó. */
   const [menuRequest, setMenuRequest] = useState<{ readonly wallId: WallId; readonly seq: number } | null>(null);
   const onOpenRowMenu = useCallback(
@@ -1267,6 +1298,11 @@ export function useWallLayerReview(
   }, [autosave, canEdit, dispatchBundle, invalidate, setSelection]);
 
   const onUndo = useCallback(() => {
+    /* Hoàn tác trong chuỗi vẽ: điểm đầu đang giữ là đầu tường sắp bị gỡ, nên bỏ cùng lúc. */
+    if (toolStateRef.current.tool === 'drawWall') {
+      resumeWallDrawRef.current?.(null, null);
+    }
+
     applyUndo();
   }, [applyUndo]);
 
@@ -1401,6 +1437,54 @@ export function useWallLayerReview(
     useState<WallLayerMeasurementPx | null>(null);
   /** Lý do nét vẽ vừa rồi không thành tường; hiện ở thanh trạng thái tới lần bấm kế. */
   const [drawRefusal, setDrawRefusal] = useState<string | null>(null);
+  /** Độ dày đặt bằng phím 1/2/3 lúc vẽ; thắng độ dày kế thừa, giữ suốt chuỗi tới khi rời công cụ. */
+  const [drawThicknessMm, setDrawThicknessMm] = useState<number | null>(null);
+  const drawThicknessRef = useRef(drawThicknessMm);
+  drawThicknessRef.current = drawThicknessMm;
+  /* Shift: khoá ngang/dọc. Nghe ở cửa sổ để nét xem trước đổi ngay cả khi chuột đứng yên. */
+  const [shiftHeld, setShiftHeld] = useState(false);
+  const shiftHeldRef = useRef(shiftHeld);
+  shiftHeldRef.current = shiftHeld;
+  const isDrawingWall = toolState.tool === 'drawWall';
+
+  useEffect(() => {
+    if (!isDrawingWall) {
+      return undefined;
+    }
+
+    const sync = (event: KeyboardEvent) => setShiftHeld(event.shiftKey);
+    const release = () => setShiftHeld(false);
+
+    window.addEventListener('keydown', sync);
+    window.addEventListener('keyup', sync);
+    window.addEventListener('blur', release);
+
+    return () => {
+      window.removeEventListener('keydown', sync);
+      window.removeEventListener('keyup', sync);
+      window.removeEventListener('blur', release);
+      release();
+    };
+  }, [isDrawingWall]);
+
+  /** Đưa công cụ vẽ về trạng thái "đã có điểm đầu `at`" (nét bị từ chối, vẽ nối tiếp), hoặc về đầu khi `at` rỗng. */
+  const resumeWallDraw = useCallback((at: Point | null, snap: WallDrawSnap | null) => {
+    if (toolStateRef.current.tool !== 'drawWall') {
+      return;
+    }
+
+    const fresh = createToolState('drawWall');
+    const next =
+      at === null
+        ? fresh
+        : reduceTool(fresh, { type: 'input', value: { kind: 'point', at } }, { tools: TOOLS, context: toolContextRef.current }).state;
+
+    toolStateRef.current = next;
+    setToolState(next);
+    drawSnapsRef.current = { start: snap, end: null };
+  }, []);
+
+  resumeWallDrawRef.current = resumeWallDraw;
 
   /**
    * Một sự kiện của máy công cụ, và kết quả nó sinh ra.
@@ -1426,6 +1510,10 @@ export function useWallLayerReview(
         setCommittedMeasurement(null);
         setDrawRefusal(null);
         drawSnapsRef.current = { start: null, end: null };
+      }
+
+      if (event.type === 'activate') {
+        setDrawThicknessMm(null);
       }
 
       const outcome = transition.outcome;
@@ -1460,7 +1548,7 @@ export function useWallLayerReview(
       const snaps = drawSnapsRef.current;
       const joinedId = snaps.start?.wallId ?? snaps.end?.wallId ?? null;
       const source = joinedId === null ? null : (wallsRef.current.find((wall) => wall.id === joinedId) ?? null);
-      const styled = withInheritedWallStyle(outcome, source);
+      const styled = withInheritedWallStyle(outcome, source, drawThicknessRef.current);
 
       drawSnapsRef.current = { start: null, end: null };
 
@@ -1473,27 +1561,39 @@ export function useWallLayerReview(
       /* Vẽ: phải nối vào tường có sẵn; đầu bắt vào thân tường thì cắt tường đó (chữ T) — một bước hoàn tác. */
       const drawInput = styled.request.input;
       let refusal: string | null = null;
+      let roomNotices: readonly string[] = [];
 
       void run((context) => {
         const plan = planConnectedDraw(drawInput, snaps, context, () => toolContextRef.current.nextId('wall'));
 
         if (!plan.ok) {
           refusal = plan.reason;
+          /* Bị từ chối: giữ điểm đầu, người dùng chỉ cần bấm lại điểm cuối. */
+          resumeWallDraw(drawInput.centreline.start, snaps.start);
 
           return null;
         }
 
+        /* Vẽ nối tiếp: điểm cuối thành điểm đầu nét sau; Esc dừng chuỗi. */
+        resumeWallDraw(plan.end, { point: plan.end, kind: 'wallVertex', wallId: drawInput.id });
+        roomNotices = plan.notices;
+
         return plan.commands;
-      }).then(() => {
+      }).then((ok) => {
         if (refusal !== null) {
           setDrawRefusal(refusal);
           notifications.publish({ type: WALL_DRAW_REFUSED_NOTIFICATION_TYPE, title: WALL_DRAW_REFUSED_TITLE, description: refusal });
+        } else if (!ok) {
+          /* Lệnh không vào được bản vẽ (khoá tỷ lệ, lỗi ghi): đầu chuỗi không có tường để nối. */
+          resumeWallDraw(null, null);
+        } else {
+          roomNotices.forEach((description) => notifications.publish({ type: WALL_DRAW_ROOM_NOTICE_TYPE, title: WALL_DRAW_ROOM_NOTICE_TITLE, description }));
         }
       });
 
       return transition;
     },
-    [notifications, onSelect, run],
+    [notifications, onSelect, resumeWallDraw, run],
   );
 
   /**
@@ -1552,11 +1652,17 @@ export function useWallLayerReview(
       const exact = toMillimetrePoint({ x: at.xPx, y: at.yPx }, scaleOfLevel(currentLevel));
 
       if (toolStateRef.current.tool === 'drawWall') {
-        setDrawRefusal(null);
-        const snap = snapDrawPoint(exact, drawSnapTargetsRef.current, drawSnapRadiusMmRef.current);
-        const isStart = toolStateRef.current.values.length === 0;
+        const first = toolStateRef.current.values[0];
+        const start = first?.kind === 'point' ? first.at : null;
+        const snap = resolveDrawPoint(exact, start, drawSnapTargetsRef.current, drawSnapRadiusMmRef.current, shiftHeldRef.current);
 
-        drawSnapsRef.current = isStart ? { start: snap, end: null } : { ...drawSnapsRef.current, end: snap };
+        /* Bấm đúp đúng điểm đầu không phải một nét: bỏ qua, khỏi toast "tường quá ngắn". */
+        if (start !== null && snap.point.x === start.x && snap.point.y === start.y) {
+          return;
+        }
+
+        setDrawRefusal(null);
+        drawSnapsRef.current = start === null ? { start: snap, end: null } : { ...drawSnapsRef.current, end: snap };
         sendToolInput({ kind: 'point', at: snap.point });
 
         return;
@@ -1566,6 +1672,20 @@ export function useWallLayerReview(
       sendToolInput({ kind: 'point', at: { x: Math.round(exact.x), y: Math.round(exact.y) } as typeof exact });
     },
     [sendToolInput],
+  );
+
+  /** Nhấn chuột trái khi đang vẽ: chưa có điểm đầu thì lượt nhấn này là điểm đầu (kéo-để-vẽ). */
+  const onWallDrawPress = useCallback(
+    (at: WallLayerPointerReading) => {
+      if (toolStateRef.current.values.length > 0) {
+        return false;
+      }
+
+      onCanvasPoint(at);
+
+      return true;
+    },
+    [onCanvasPoint],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1822,6 +1942,13 @@ export function useWallLayerReview(
   thicknessRef.current = onChangeThickness;
 
   const setThickness = useCallback((choice: WallThicknessChoice) => {
+    /* Đang vẽ: phím đặt độ dày cho nét, không đổi tường đang chọn. */
+    if (toolStateRef.current.tool === 'drawWall') {
+      setDrawThicknessMm(choice);
+
+      return;
+    }
+
     if (selectedRef.current !== null) {
       thicknessRef.current(selectedRef.current, choice);
     }
@@ -2369,6 +2496,28 @@ export function useWallLayerReview(
     Number.isFinite(zoomedSnapRadiusMm) && zoomedSnapRadiusMm > 0 ? zoomedSnapRadiusMm : DEFAULT_DRAW_SNAP_RADIUS_MM;
   drawSnapRadiusMmRef.current = drawSnapRadiusMm;
 
+  /* Xem trước bắt điểm y như lần bấm: cùng `resolveDrawPoint`, cùng điểm đầu, cùng Shift. */
+  const drawFirst = toolState.tool === 'drawWall' ? toolState.values[0] : undefined;
+  const drawStartMm = drawFirst?.kind === 'point' ? drawFirst.at : null;
+  const drawHoverSnap = useMemo(
+    () =>
+      toolState.tool !== 'drawWall' || pointerReading === null
+        ? null
+        : resolveDrawPoint(
+            toMillimetrePoint({ x: pointerReading.xPx, y: pointerReading.yPx }, scaleOfLevel(level)),
+            drawStartMm,
+            drawSnapTargets,
+            drawSnapRadiusMm,
+            shiftHeld,
+          ),
+    [drawSnapRadiusMm, drawSnapTargets, drawStartMm, level, pointerReading, shiftHeld, toolState.tool],
+  );
+  /* Độ dày nét sắp vẽ, cùng thứ tự với lúc chốt: phím 1/2/3, tường ở điểm đầu, tường ở điểm cuối. */
+  const drawStartWallId = drawStartMm === null ? null : (drawSnapsRef.current.start?.wallId ?? null);
+  const drawJoinedWallId = drawStartWallId ?? drawHoverSnap?.wallId ?? null;
+  const drawEffectiveThicknessMm: number | null =
+    drawThicknessMm ?? walls.find((wall) => wall.id === drawJoinedWallId)?.thicknessMm ?? null;
+
   /* G4a-23: nét tạm theo con trỏ cho Vẽ tường (từ điểm đầu) và Tách đoạn (dấu cắt). */
   const draftGuidePx = useMemo(() => {
     if (pointerReading === null) {
@@ -2381,40 +2530,53 @@ export function useWallLayerReview(
       return { fromPx: null, toPx };
     }
 
-    if (toolState.tool !== 'drawWall') {
+    if (drawHoverSnap === null) {
       return null;
     }
-
-    /* Xem trước bắt điểm y như lần bấm: con trỏ hút vào đầu/thân tường, vòng nam châm báo chỗ bắt. */
-    const scale = scaleOfLevel(level);
-    const snap = snapDrawPoint(toMillimetrePoint(toPx, scale), drawSnapTargets, drawSnapRadiusMm);
-    const snappedPx = snap.kind === null ? toPx : toPixelPoint(snap.point, scale);
-    const first = toolState.values[0];
 
     /* Chưa có điểm đầu: chỉ hiện vòng khi đang bắt được tường, không vẽ gì theo con trỏ trơn. */
-    if ((first === undefined || first.kind !== 'point') && snap.kind === null) {
+    if (drawStartMm === null && drawHoverSnap.kind === null) {
       return null;
     }
 
+    const scale = scaleOfLevel(level);
+
     return {
-      fromPx: first !== undefined && first.kind === 'point' ? toPixelPoint(first.at, scale) : null,
-      toPx: snappedPx,
-      snapKind: snap.kind,
+      fromPx: drawStartMm === null ? null : toPixelPoint(drawStartMm, scale),
+      toPx: toPixelPoint(drawHoverSnap.point, scale),
+      snapKind: drawHoverSnap.kind,
+      /* Nét xem trước vẽ đúng bề dày sẽ lưu; chưa biết nối vào đâu thì lấy mặc định của công cụ. */
+      thicknessPx: scale.millimetresToPixels(millimetres(drawEffectiveThicknessMm ?? DEFAULT_TOOL_SETTINGS.wallThicknessMm)),
     };
-  }, [drawSnapRadiusMm, drawSnapTargets, level, pointerReading, toolState.tool, toolState.values]);
+  }, [drawEffectiveThicknessMm, drawHoverSnap, drawStartMm, level, pointerReading, toolState.tool]);
+
+  /* Nhãn độ dài cạnh nét xem trước — cùng `toMeasurementPx` với công cụ Đo. */
+  const drawMeasurement = useMemo<WallLayerMeasurementPx | null>(
+    () =>
+      drawStartMm === null || drawHoverSnap === null
+        ? null
+        : toMeasurementPx(drawStartMm, drawHoverSnap.point, scaleOfLevel(level), 'measuring', lengthUnit),
+    [drawHoverSnap, drawStartMm, lengthUnit, level],
+  );
+
+  const toolHint = toolHintOf(toolState.tool, toolState.values.length, {
+    thicknessMm: drawEffectiveThicknessMm,
+    isStartFloating: drawStartMm !== null && drawStartWallId === null,
+  });
 
   const statusBar = useMemo<WallLayerStatusBarProps>(
     () => ({
-      cursorLabel: [toolHintOf(toolState.tool, toolState.values.length), cursorLabelOf(pointerReading, scaleOfLevel(level))]
+      cursorLabel: [toolHint, cursorLabelOf(pointerReading, scaleOfLevel(level))]
         .filter((part) => part !== '')
         .join(' · '),
-      toolHint: drawRefusal ?? toolHintOf(toolState.tool, toolState.values.length),
+      toolHint: drawRefusal ?? toolHint,
+      toolHintTitle: TOOL_HINT_TITLES[toolState.tool],
       scaleLabel: formatScaleLabel(level),
       /* P02: tầng bị khoá lưu (xung đột/từ chối) thì "sẽ thử lưu lại" là sai — chỉ về dải báo phía trên. */
       saveLabel: saveBlock === null ? saveIndicator.label : SAVE_BLOCKED_LABEL,
       saveFailed: saveBlock !== null || saveIndicator.state === 'failed',
     }),
-    [drawRefusal, level, pointerReading, saveBlock, saveIndicator.label, saveIndicator.state, toolState.tool, toolState.values.length],
+    [drawRefusal, level, pointerReading, saveBlock, saveIndicator.label, saveIndicator.state, toolHint, toolState.tool],
   );
 
   /** Menu chuột phải "Đổi độ dày": đưa tường vào thanh tra, và focus vào ba lựa chọn (BUG-604). */
@@ -2501,6 +2663,7 @@ export function useWallLayerReview(
     onOpenRowMenu,
     onChangeThickness,
     onChangeLength,
+    onChangeMaterial,
     onDelete,
     onSplit,
     onMerge,
@@ -2543,17 +2706,18 @@ export function useWallLayerReview(
   };
   const onFrame = (point: WallLayerMeasurementPx['startPx']) =>
     point === null ? null : toFramePoint(viewport, point);
+  const shownMeasurement = drawMeasurement ?? measurement;
   const frameMeasurement: WallLayerMeasurementPx | null =
-    measurement === null
+    shownMeasurement === null
       ? null
       : {
-          ...measurement,
+          ...shownMeasurement,
           /* G4a-22: tỷ lệ còn tạm thì số đo cũng tạm — cùng lời với "Chiều dài: … tỷ lệ tạm" của thanh tra. */
           distanceLabel:
-            provisionalScaleNotice === null ? measurement.distanceLabel : `${measurement.distanceLabel} (tạm)`,
-          startPx: onFrame(measurement.startPx),
-          currentPx: onFrame(measurement.currentPx),
-          midPx: onFrame(measurement.midPx),
+            provisionalScaleNotice === null ? shownMeasurement.distanceLabel : `${shownMeasurement.distanceLabel} (tạm)`,
+          startPx: onFrame(shownMeasurement.startPx),
+          currentPx: onFrame(shownMeasurement.currentPx),
+          midPx: onFrame(shownMeasurement.midPx),
         };
 
   /* P03: dấu chỗ lỗi đang chỉ, pixel bản vẽ; to ít nhất 18 px khung hoặc 300 mm để thấy cả khe vài cm. */
@@ -2585,6 +2749,7 @@ export function useWallLayerReview(
     selectedWallIds,
     menuRequest,
     draftGuidePx,
+    onWallDrawPress: canEdit && isDrawingWall ? onWallDrawPress : null,
     hoveredWallId: (hoveredId as WallId | null) ?? null,
     showCentrelines,
     millimetresPerPixel: level?.scaleMillimetresPerPixel ?? UNCALIBRATED_SCALE,

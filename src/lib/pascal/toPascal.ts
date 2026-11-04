@@ -34,10 +34,12 @@ import type {
   Opening,
   Room,
   RoomUsage,
+  Segment,
   SpatialGraph,
   Wall,
 } from '@/domain/spatial/types';
 import { degrees, degreesToRadians, millimetres, millimetresToMetres } from '@/domain/units/types';
+import { isGlassWall } from '@/domain/walls/glass';
 import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 import { EXTERIOR_SKIRTING, isDetailsEnabled } from '@/pascal-page/realism/details';
 
@@ -46,6 +48,7 @@ import { applyFloorTransforms, floorDisplayTransformsOf } from './floorAlignment
 import { CATALOG_MODELS, VARIANT_MODEL, isServerModel, modelSrcOf, thumbnailOf } from './furnitureCatalog';
 import { bodyOfPascalId, BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
 import { expandKitchenRuns, isKitchenRunHost } from './kitchenRuns';
+import { loggiaOpenSpansOf } from './loggiaRailing';
 import { isAutoFaced, orientDetectedFurniture } from './orientDetected';
 import { roofNodesOf } from './roofs';
 import { insideOutline, swingDirectionOf } from './swingDirection';
@@ -262,10 +265,10 @@ const wallSidesOf = (wall: Wall, rooms: readonly Room[]): Pick<PascalWallNode, '
 
 /**
  * Lan can lô gia: tường bao thẳng, không ô mở, một phía là phòng `loggia`, phía kia ngoài căn (không
- * phòng nào). Dò như `wallSidesOf`.
+ * phòng nào). Dò như `wallSidesOf`. Người dùng đã chọn tường kính thì giữ tường kính cao đủ tầng.
  */
 export const isLoggiaRailing = (wall: Wall, rooms: readonly Room[], hasOpenings: boolean): boolean => {
-  if (wall.kind !== 'envelope' || hasOpenings || wall.curveOffsetMm) return false;
+  if (wall.kind !== 'envelope' || hasOpenings || wall.curveOffsetMm || isGlassWall(wall)) return false;
   const { start, end } = wall.centreline;
   const length = Math.hypot(end.x - start.x, end.y - start.y);
   if (!(length > 0)) return false;
@@ -281,18 +284,25 @@ export const isLoggiaRailing = (wall: Wall, rooms: readonly Room[], hasOpenings:
   return (loggia(front) && back.length === 0) || (loggia(back) && front.length === 0);
 };
 
+/** Bề dày tấm lan can ở mép không có tường để lấy số. */
+const OPEN_RAILING_THICKNESS_MM = 100;
+
 /**
  * Lan can kính 1,4 m thay chỗ tường bao lô gia, chỉ ở hiển thị: node tường thật giữ nguyên số đo
  * (lượt về đọc `height` của tường) nhưng ẩn; lan can là đồ sinh ra `DRESS-`, chỉ lưu khi người dùng sửa (thành đồ thật) hoặc xoá (`dressingOff`).
  */
-const railingNodeOf = (wall: Wall, levelNodeId: PascalNodeId, levelHeightMm: number, style: SceneStyle): PascalItemNode => {
-  const { start, end } = wall.centreline;
+const railingNodeOf = (
+  { anchor, levelId, start, end, thicknessMm }: { anchor: string; levelId: Wall['levelId'] } & Segment & { thicknessMm: number },
+  levelNodeId: PascalNodeId,
+  levelHeightMm: number,
+  style: SceneStyle,
+): PascalItemNode => {
   const length = Math.hypot(end.x - start.x, end.y - start.y);
-  const half = { x: length / 2, y: wall.thicknessMm / 2 };
+  const half = { x: length / 2, y: thicknessMm / 2 };
   const node = itemNodeOf(
     {
-      id: `${GENERATED_DRESS_PREFIX}railing-${wall.id}` as FurnitureId,
-      levelId: wall.levelId,
+      id: `${GENERATED_DRESS_PREFIX}railing-${anchor}` as FurnitureId,
+      levelId,
       kind: 'other',
       centre: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
       boundingBox: { min: { x: -half.x, y: -half.y }, max: { x: half.x, y: half.y } },
@@ -1203,6 +1213,12 @@ export const toPascalScene = (
   /* Tường trôi ngoài nhà: node vẫn có (thiếu = lượt lưu đọc thành xoá) nhưng ẩn, và không vào
      `builtWalls` để không ảnh hưởng bày đồ, cửa, khung bóng. */
   const orphanWalls = orphanWallIds(graph);
+  const addRailing = (span: Parameters<typeof railingNodeOf>[0], levelNodeId: PascalNodeId, levelHeightMm: number): void => {
+    const rail = railingNodeOf(span, levelNodeId, levelHeightMm, style);
+    if (offIds.has(bodyOfPascalId(rail.id))) return;
+    nodes[rail.id] = rail;
+    adopt(levelNodeId, rail.id);
+  };
 
   for (const wall of graph.walls) {
     const levelNodeId = levelNodeIdOf.get(wall.levelId);
@@ -1257,11 +1273,8 @@ export const toPascalScene = (
     adopt(levelNodeId, node.id);
     const levelHeightMm = levelHeightMmOf.get(wall.levelId);
     if (railing && levelHeightMm !== undefined) {
-      const rail = railingNodeOf(welded ?? wall, levelNodeId, levelHeightMm, style);
-      if (!offIds.has(bodyOfPascalId(rail.id))) {
-        nodes[rail.id] = rail;
-        adopt(levelNodeId, rail.id);
-      }
+      const source = welded ?? wall;
+      addRailing({ anchor: wall.id, levelId: wall.levelId, ...source.centreline, thicknessMm: source.thicknessMm }, levelNodeId, levelHeightMm);
     }
   }
 
@@ -1328,6 +1341,16 @@ export const toPascalScene = (
         nodes[light.id] = light;
         roomsWithLight.add(room.id);
       }
+    }
+  }
+
+  /* Mép lô gia máy chủ cố ý để hở (không có tường): cùng kiểu lan can với tường bao lô gia ở trên. */
+  for (const room of builtRooms) {
+    const levelNodeId = levelNodeIdOf.get(room.levelId);
+    const levelHeightMm = levelHeightMmOf.get(room.levelId);
+    if (room.usage !== 'loggia' || levelNodeId === undefined || levelHeightMm === undefined) continue;
+    for (const { key, start, end } of loggiaOpenSpansOf(room, builtWalls, graph.rooms)) {
+      addRailing({ anchor: `${room.id}-${key}`, levelId: room.levelId, start, end, thicknessMm: OPEN_RAILING_THICKNESS_MM }, levelNodeId, levelHeightMm);
     }
   }
 

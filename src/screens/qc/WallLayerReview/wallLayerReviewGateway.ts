@@ -88,6 +88,7 @@ import {
   type CommandContext,
   type CommandResult,
 } from '@/lib/commands/business/shared';
+import { GLASS_WALL_PAINT, isGlassWall } from '@/domain/walls/glass';
 import { changeForUpdate, createCommand } from '@/lib/commands/createCommand';
 import type { Command } from '@/lib/commands/types';
 import type { ToolOutcome } from '@/lib/tools/toolMachine';
@@ -582,6 +583,37 @@ export function buildUnapproveWallCommand(
     type: WALL_UNAPPROVE_COMMAND_TYPE,
     actorId,
     description: unapproveDescription(before.id, codes),
+    changes: [changeForUpdate('wall', before, after)],
+  });
+}
+
+/** Loại của lệnh chọn vật liệu tường — chỗ duy nhất viết chuỗi này. */
+export const WALL_CHANGE_MATERIAL_COMMAND_TYPE = 'wall.changeMaterial';
+
+/**
+ * Lệnh chọn vật liệu: tường kính ghi `Wall.paint` hai mặt kính; tường thường bỏ `paint`, tường về màu
+ * phong cách. `null` khi không có gì đổi.
+ */
+export function buildChangeWallMaterialCommand(
+  before: Wall,
+  isGlass: boolean,
+  actorId: string,
+  codes?: ReadonlyMap<string, string>,
+): Command | null {
+  if (isGlassWall(before) === isGlass) {
+    return null;
+  }
+
+  const after: Wall = { ...before, paint: GLASS_WALL_PAINT };
+
+  if (!isGlass) {
+    delete after.paint;
+  }
+
+  return createCommand({
+    type: WALL_CHANGE_MATERIAL_COMMAND_TYPE,
+    actorId,
+    description: `Đổi tường ${wallLabelOf(before.id, codes)} thành ${isGlass ? 'tường kính' : 'tường thường'}.`,
     changes: [changeForUpdate('wall', before, after)],
   });
 }
@@ -1144,6 +1176,7 @@ export function toCanvasShapes(
       isLowConfidence: isLowConfidence(wall, threshold, suspectIds),
       isReviewed: wall.reviewed,
       confidenceTier: wallConfidenceTierOf(wall.reviewed, isLowConfidence(wall, threshold, suspectIds), wall.confidence),
+      isGlass: isGlassWall(wall),
     });
   }
 
@@ -1492,6 +1525,7 @@ export function toWallInspector(
     /* Cùng bậc với thẻ, chú giải và danh sách: "chưa chắc" gồm cả tường sai hình; số "0,50" để ở phần nâng cao (K16). */
     confidenceText: WALL_CONFIDENCE_TIER_TEXT[wallConfidenceTierOf(wall.reviewed, isLowConfidence(wall, threshold, suspectIds), wall.confidence)],
     kindLabel: WALL_KIND_LABELS[wall.kind],
+    isGlass: isGlassWall(wall),
     advanced: {
       confidenceLabel: formatNumber(wall.confidence, { fractionDigits: 2 }),
       elevationOffsetLabel: formatElevationM(level.elevationMm),

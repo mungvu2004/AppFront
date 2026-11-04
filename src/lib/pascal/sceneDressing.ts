@@ -12,6 +12,7 @@
 
 import type { Room, RoomFinish, RoomUsage, Wall } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
+import { GLASS_MATERIAL_REF, isGlassWall } from '@/domain/walls/glass';
 import { INTERIOR_SKIRTING } from '@/pascal-page/realism/details';
 
 import { CATALOG_MODELS, modelHasSlots, modelSrcOf, thumbnailOf } from './furnitureCatalog';
@@ -79,7 +80,7 @@ export const SCENE_MATERIALS: readonly PascalSceneMaterial[] = [
 /** Khe của tấm viền đồ chưa xác nhận (C6, `toPascal.suggestedOutlineOf`). */
 export const UNCONFIRMED_MATERIAL_REF = 'scene:mat_appfront_unconfirmed';
 
-const GLASS = 'library:preset-glass';
+const GLASS = GLASS_MATERIAL_REF;
 /** Kính lan can lô gia (cùng kính tường thấp). */
 export const RAILING_GLASS_REF = GLASS;
 const PLASTER = 'scene:mat_appfront_plaster';
@@ -123,7 +124,7 @@ export const LOGGIA_RAILING_MM = 1400;
 /**
  * Khe mặt tường + len chân + phào. Mọi trường viết đủ: `setScene` không áp mặc định
  * zod (xem `types.ts`). Mặt `exterior` của tường bao/chịu lực theo sơn ngoài của phong
- * cách; vách ngăn sơn trong cả hai mặt. Tường thấp là kính, không len không phào.
+ * cách; vách ngăn sơn trong cả hai mặt. Tường thấp và tường kính người dùng chọn: không len không phào.
  */
 export const wallDressingOf = (
   wall: Pick<Wall, 'kind' | 'heightMm' | 'paint'>,
@@ -134,7 +135,7 @@ export const wallDressingOf = (
     interior: wall.paint?.interior ?? interior,
     exterior: wall.paint?.exterior ?? exterior,
   });
-  if (wall.heightMm <= LOW_WALL_MAX_MM) return { slots: painted(GLASS, GLASS) };
+  if (wall.heightMm <= LOW_WALL_MAX_MM || isGlassWall(wall)) return { slots: painted(GLASS, GLASS) };
   const { interior, exterior } = style.wall;
   return {
     slots: painted(interior, wall.kind === 'partition' ? interior : exterior),

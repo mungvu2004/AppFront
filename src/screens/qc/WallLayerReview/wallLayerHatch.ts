@@ -379,6 +379,8 @@ export interface WallLayerCanvasShape extends WallShapeViewModel {
   readonly isReviewed: boolean;
   /** Bậc tin cậy — màu tô của tường (WRU-B); dựng ở `toCanvasShapes` bằng {@link wallConfidenceTierOf}. */
   readonly confidenceTier: WallConfidenceTier;
+  /** Tường kính: vẽ thêm dấu kính chồng lên màu tin cậy (`WallShapeFigure`). */
+  readonly isGlass?: boolean;
 }
 
 /** Nhãn nhỏ cạnh tường đang chọn/rê: đường dẫn từ tim tường tới chip, pixel KHUNG (`wallTag.ts`). */
@@ -415,6 +417,11 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
     readonly fromPx: { readonly x: number; readonly y: number } | null;
     readonly toPx: { readonly x: number; readonly y: number };
   } | null;
+  /**
+   * Có khi đang ở công cụ Vẽ tường: canvas báo lượt nhấn chuột trái để nét bắt đầu ngay lúc nhấn
+   * (kéo-để-vẽ). Trả `true` nếu lượt nhấn này là điểm đầu của nét.
+   */
+  readonly onWallDrawPress?: ((at: WallLayerPointerReading) => boolean) | null;
   readonly state: WallLayerScreenState;
   /** `aria-label` của khung, có số liệu — ví dụ `"Mặt bằng tầng 1 — 48 tường"`. */
   readonly canvasLabel: string;

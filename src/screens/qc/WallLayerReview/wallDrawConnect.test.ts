@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import type { Point, Wall, WallId } from '@/domain/spatial/types';
+import type { Level, Point, Room, Wall, WallId } from '@/domain/spatial/types';
 import { createId } from '@/domain/spatial/ids';
 import type { Command } from '@/lib/commands/types';
+import { roomSplitNotice } from '@/lib/pascal/roomSplitAfterWalls';
 
 import { snapDrawPoint, wallDrawSnapTargets, type WallDrawSnap } from './wallDrawSnap';
 import { planConnectedDraw, WALL_DRAW_ALONG_TEXT, WALL_DRAW_MUST_CONNECT_TEXT } from './wallDrawConnect';
@@ -116,5 +117,148 @@ describe('planConnectedDraw', () => {
     if (!result.ok) return;
     expect(result.commands.map((command) => command.type)).toEqual(['wall.draw']);
     expect((wallsAfter(result.commands)[0] as Wall).centreline.start).toEqual({ x: 0, y: 2200 });
+  });
+});
+
+describe('nét vẽ chia đôi phòng', () => {
+  const META = { confidence: 1, source: 'human', reviewed: true } as const;
+  const level = { ...META, id: createId('level'), name: 'Tầng 1', order: 0, elevationMm: 0, heightMm: 3000 } as Level;
+  const wallOf = (start: Point, end: Point): Wall =>
+    ({ ...META, id: createId('wall'), levelId: level.id, centreline: { start, end }, thicknessMm: 200, heightMm: 3000, kind: 'partition', openingIds: [] }) as unknown as Wall;
+  const corners: Point[] = [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 6000 }, { x: 0, y: 6000 }] as Point[];
+  const walls = corners.map((corner, index) => wallOf(corner, corners[(index + 1) % 4] as Point));
+  const door = {
+    ...META,
+    id: createId('opening'),
+    levelId: level.id,
+    wallId: (walls[0] as Wall).id,
+    kind: 'door',
+    offsetMm: 500,
+    widthMm: 900,
+    heightMm: 2100,
+    sillHeightMm: 0,
+  };
+  const room = {
+    ...META,
+    id: createId('room'),
+    levelId: level.id,
+    name: 'Phòng khách',
+    usage: 'bedroom',
+    outline: [{ x: 100, y: 100 }, { x: 3900, y: 100 }, { x: 3900, y: 5900 }, { x: 100, y: 5900 }],
+    areaM2: 22.04,
+    wallIds: walls.map((wall) => wall.id),
+  };
+  const roomGraph = normalizeSpatial({
+    building: WALL_LAYER_FIXTURE_BUILDING,
+    levels: [level],
+    walls: walls.map((wall, index) => (index === 0 ? ({ ...wall, openingIds: [door.id] } as unknown as Wall) : wall)),
+    openings: [door],
+    furniture: [],
+    rooms: [room],
+    axes: [],
+    dimensions: [],
+    notes: [],
+  } as never);
+  const roomTargets = wallDrawSnapTargets(walls);
+  const draw = (start: Point, end: Point) => {
+    const snaps = { start: snapDrawPoint(start, roomTargets, 50), end: snapDrawPoint(end, roomTargets, 50) };
+
+    return planConnectedDraw(
+      { id: createId('wall'), levelId: level.id, centreline: { start: snaps.start.point, end: snaps.end.point }, thicknessMm: 100, heightMm: 3000, kind: 'partition' },
+      snaps,
+      commandContextOf(roomGraph, 'tester'),
+      () => createId('wall'),
+    );
+  };
+
+  it('hai đầu nối hai tường đối diện: có tường mới và hai phòng trong cùng một lô lệnh, mm nguyên, ô mở còn nguyên', () => {
+    const result = draw({ x: 0, y: 3000 }, { x: 4000, y: 3000 });
+
+    if (!result.ok) throw new Error(result.reason);
+
+    const rooms = result.commands.flatMap((command) => command.changes).filter((change) => change.kind === 'room');
+    const added = rooms.find((change) => change.before === null)?.after as Room | undefined;
+    const kept = rooms.find((change) => change.before !== null)?.after as Room | undefined;
+
+    expect(rooms).toHaveLength(2);
+    expect(kept?.name).toBe('Phòng khách');
+    expect(added?.name).toContain('Phòng khách');
+    expect((kept?.areaM2 ?? 0) + (added?.areaM2 ?? 0)).toBeLessThanOrEqual(room.areaM2);
+    expect([...(kept?.outline ?? []), ...(added?.outline ?? [])].every((point) => Number.isInteger(point.x) && Number.isInteger(point.y))).toBe(true);
+    /* Hai thân tường đối diện bị cắt: ô mở đi theo lệnh cắt, không lệnh nào xoá nó. */
+    expect(result.commands.flatMap((command) => command.changes).some((change) => change.kind === 'opening' && change.after === null)).toBe(false);
+  });
+
+  it('nét cụt không chia đôi phòng: giữ phòng như cũ', () => {
+    const result = draw({ x: 0, y: 3000 }, { x: 2000, y: 3000 });
+
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.commands.flatMap((command) => command.changes).filter((change) => change.kind === 'room')).toEqual([]);
+  });
+});
+
+describe('nét vẽ chia phòng khi tường chưa khép kín', () => {
+  const META = { confidence: 1, source: 'human', reviewed: true } as const;
+  const level = { ...META, id: createId('level'), name: 'Tầng 1', order: 0, elevationMm: 0, heightMm: 3000 } as Level;
+  const wallOf = (start: Point, end: Point): Wall =>
+    ({ ...META, id: createId('wall'), levelId: level.id, centreline: { start, end }, thicknessMm: 200, heightMm: 3000, kind: 'partition', openingIds: [] }) as unknown as Wall;
+  /* Thiếu cạnh đáy: dò từ tường không ra phòng nào. Một vách cụt bên trong để thử câu báo. */
+  const left = wallOf({ x: 0, y: 0 } as Point, { x: 0, y: 6000 } as Point);
+  const right = wallOf({ x: 4000, y: 0 } as Point, { x: 4000, y: 6000 } as Point);
+  const stubA = wallOf({ x: 1000, y: 1000 } as Point, { x: 1000, y: 2000 } as Point);
+  const stubB = wallOf({ x: 3000, y: 1000 } as Point, { x: 3000, y: 2000 } as Point);
+  const walls = [left, right, stubA, stubB];
+  const room = {
+    ...META,
+    id: createId('room'),
+    levelId: level.id,
+    name: 'Phòng khách',
+    usage: 'living',
+    outline: [{ x: 100, y: 100 }, { x: 3900, y: 100 }, { x: 3900, y: 5900 }, { x: 100, y: 5900 }],
+    areaM2: 22.04,
+    wallIds: walls.map((wall) => wall.id),
+  };
+  const openGraph = normalizeSpatial({ building: WALL_LAYER_FIXTURE_BUILDING, levels: [level], walls, openings: [], furniture: [], rooms: [room], axes: [], dimensions: [], notes: [] } as never);
+  const openTargets = wallDrawSnapTargets(walls);
+  const draw = (start: Point, end: Point) => {
+    const snaps = { start: snapDrawPoint(start, openTargets, 50), end: snapDrawPoint(end, openTargets, 50) };
+
+    return planConnectedDraw(
+      { id: createId('wall'), levelId: level.id, centreline: { start: snaps.start.point, end: snaps.end.point }, thicknessMm: 100, heightMm: 3000, kind: 'partition' },
+      snaps,
+      commandContextOf(openGraph, 'tester'),
+      () => createId('wall'),
+    );
+  };
+
+  it('cắt đa giác đã lưu: ra hai phòng, tổng diện tích giữ nguyên, không câu báo', () => {
+    const result = draw({ x: 0, y: 3000 } as Point, { x: 4000, y: 3000 } as Point);
+
+    if (!result.ok) throw new Error(result.reason);
+
+    const rooms = result.commands.flatMap((command) => command.changes).filter((change) => change.kind === 'room');
+    const total = rooms.reduce((sum, change) => sum + ((change.after as Room).areaM2 ?? 0), 0);
+
+    expect(rooms).toHaveLength(2);
+    expect(total).toBeCloseTo(room.areaM2, 2);
+    expect(result.notices).toEqual([]);
+  });
+
+  it('hai đầu nối tường, đi qua giữa phòng mà không tách được: một câu báo', () => {
+    const result = draw({ x: 1000, y: 1500 } as Point, { x: 3000, y: 1500 } as Point);
+
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.commands.flatMap((command) => command.changes).filter((change) => change.kind === 'room')).toEqual([]);
+    expect(result.notices).toEqual([roomSplitNotice(room as unknown as Room)]);
+  });
+
+  it('vách cụt một đầu tự do: im lặng', () => {
+    const result = draw({ x: 0, y: 3000 } as Point, { x: 2000, y: 3000 } as Point);
+
+    if (!result.ok) throw new Error(result.reason);
+
+    expect(result.notices).toEqual([]);
   });
 });

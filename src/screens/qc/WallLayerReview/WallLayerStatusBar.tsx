@@ -35,6 +35,8 @@ export interface WallLayerStatusBarProps {
   readonly readOnly?: boolean | undefined;
   /** Chỉ dẫn của công cụ đang bật (Vẽ tường/Tách/Đo), một dòng; rỗng khi đang Chọn. */
   readonly toolHint?: string | undefined;
+  /** Phím và thao tác phụ của công cụ, hiện khi rê lên chỉ dẫn — chỉ dẫn chỉ giữ ý chính. */
+  readonly toolHintTitle?: string | undefined;
 }
 
 /** Thanh phím: tối đa 3 phím việc lặp lại + "?" mở bảng mọi phím (NGUYEN-TAC §5, demo Z/S-15). */
@@ -49,7 +51,7 @@ const ALL_KEYS_TITLE = 'Bấm ? để xem mọi phím tắt: S để sau, F đ�
 const PAN_HINT = 'Kéo nền hoặc giữ Space để di chuyển · lăn chuột để phóng';
 const SAVED_PREFIX = 'Đã lưu';
 
-export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = false, toolHint = '' }: WallLayerStatusBarProps) {
+export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = false, toolHint = '', toolHintTitle }: WallLayerStatusBarProps) {
   return (
     /* Trạng thái tự lưu (A7) nằm ở thanh này: bố cục L23 không còn đầu panel. */
     <QcStatusBar floating onUndo={onUndo} saveFailed={saveFailed} saveLabel={saveLabel}>
@@ -59,7 +61,7 @@ export function WallLayerStatusBar({ saveLabel, saveFailed, onUndo, readOnly = f
       */}
       {/* Công cụ đang bật thì chỉ dẫn của nó thay gợi ý kéo/phóng — luôn hiện, một dòng. */}
       {toolHint === '' ? null : (
-        <span aria-live="polite" className="min-w-0 truncate text-caption font-medium text-text-primary" data-testid="wall-tool-hint">
+        <span aria-live="polite" className="min-w-0 truncate text-caption font-medium text-text-primary" data-testid="wall-tool-hint" title={toolHintTitle}>
           {toolHint}
         </span>
       )}
