@@ -14,7 +14,7 @@ import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/
 import type { Furniture } from '@/domain/spatial/types';
 import { degrees } from '@/domain/units/types';
 import { registerServerLibrary } from '@/lib/pascal/furnitureCatalog';
-import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
+import { isGeneratedLightId, isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
 import { SCENE_STYLES } from '@/lib/pascal/sceneStyles';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalNode, PascalScene } from '@/lib/pascal/types';
@@ -25,6 +25,7 @@ import {
   blockedGeneratedEdits,
   commitOfScenes,
   PASCAL_READ_ONLY_REASON,
+  CEILING_LIGHT_MOVE_BLOCKED,
   GENERATED_EDIT_BLOCKED,
   SUGGESTION_ACCEPTED_NOTICE,
   unsavedPascalEdits,
@@ -290,6 +291,31 @@ describe('blockedGeneratedEdits — món tự sinh không có đường lưu th�
   });
 });
 
+describe('đèn trần không dời được', () => {
+  it('đèn đổi chỗ: chặn kèm câu báo; xoá đèn vẫn lưu', async () => {
+    const light = Object.values(SCENE.nodes).find((node) => isGeneratedLightId(node.id));
+
+    if (light?.type !== 'item') throw new Error('bộ mẫu phải có đèn trần');
+    const onRejected = vi.fn();
+    const view = mount({ onRejected });
+    const moved = { ...SCENE, nodes: { ...SCENE.nodes, [light.id]: { ...light, position: [light.position[0] + 0.002, light.position[1], light.position[2]] } } };
+    let saved = true;
+
+    await act(async () => {
+      saved = await view.result.current.onSceneCommit(moved as PascalScene);
+    });
+    expect(saved).toBe(false);
+    expect(onRejected).toHaveBeenCalledWith(CEILING_LIGHT_MOVE_BLOCKED);
+
+    const nodes = { ...SCENE.nodes };
+    delete nodes[light.id];
+    await act(async () => {
+      saved = await view.result.current.onSceneCommit({ ...SCENE, nodes });
+    });
+    expect(saved).toBe(true);
+  });
+});
+
 describe('đồ máy gợi ý — xoá = Bỏ gợi ý, sửa = Nhận gợi ý rồi áp phần sửa, Ctrl+Z về như cũ', () => {
   const realItem = SPATIAL.byKind.furniture[0] ?? '';
   const asSuggestion = (): NormalizedSpatial => {
@@ -418,6 +444,33 @@ describe('đồ máy gợi ý — xoá = Bỏ gợi ý, sửa = Nhận gợi ý 
 
     expect(await save(view, outlined())).toBe(true);
     expect(item()).toEqual(original);
+  });
+
+
+  it('sơn tấm viền: mẫu thật phủ màu ở mọi khe, lượt về không đổi gì, không báo "đã duyệt"; sơn lại một khe thì giữ các khe kia', async () => {
+    const view = hook();
+
+    expect(await save(view, outlined({ slots: { a: SAVEABLE } }))).toBe(true);
+    expect(item()).toMatchObject({ reviewed: true, slots: { a: SAVEABLE } });
+
+    const graph = denormalizeSpatial(useStore.getState().spatial as NormalizedSpatial);
+    const rebuilt = toPascalScene(graph).scene;
+    const real = rebuilt.nodes[`item_${realItem}`] as Extract<PascalNode, { readonly type: 'item' }>;
+    const styleKeys = Object.keys(real.slots ?? {}).filter((slot) => slot !== 'a');
+
+    expect(styleKeys.length).toBeGreaterThan(0);
+    for (const slot of styleKeys) expect(real.slots?.[slot]).toBe(SAVEABLE);
+
+    expect(await save(view, rebuilt)).toBe(false);
+    expect(item()).toMatchObject({ reviewed: true, slots: { a: SAVEABLE } });
+    expect(view.onNotice).toHaveBeenCalledTimes(1);
+    expect(view.onNotice).toHaveBeenCalledWith(SUGGESTION_ACCEPTED_NOTICE);
+
+    const other = SCENE_STYLES['am-ap'].wall.exterior;
+    const [first = '', ...rest] = styleKeys;
+
+    expect(await save(view, { ...rebuilt, nodes: { ...rebuilt.nodes, [real.id]: { ...real, slots: { ...real.slots, [first]: other } } } })).toBe(true);
+    expect(item()?.slots).toEqual(Object.fromEntries([[first, other], ...rest.map((slot) => [slot, SAVEABLE])]));
   });
 
   it('đổi tên tấm viền (không phải hình học): không nhận gì, không ghi', async () => {

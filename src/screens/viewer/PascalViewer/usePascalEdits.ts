@@ -173,6 +173,9 @@ export const blockedGeneratedDeletes = (previous: PascalScene, next: PascalScene
 export const GENERATED_EDIT_BLOCKED =
   'Món đồ bày sẵn này chưa sửa được: nó tự có theo bản vẽ nên mở lại sẽ về như cũ. Món đã được đặt về như cũ.';
 
+/** Đèn trần theo phòng, không có bản ghi nào nhớ được chỗ mới. */
+export const CEILING_LIGHT_MOVE_BLOCKED = 'Đèn trần chưa dời được, chỉ xoá được.';
+
 /** Câu sau lượt sửa đầu tiên trên món máy gợi ý: báo nhẹ, không phải lỗi. Trang dựng lại cảnh ngay nên tấm viền thành mẫu thật. */
 export const SUGGESTION_ACCEPTED_NOTICE = 'Đã nhận món này vào bản vẽ.';
 
@@ -222,6 +225,20 @@ export const blockedGeneratedEdits = (previous: PascalScene, next: PascalScene, 
     );
   });
 };
+
+/** Đèn trần vừa bị dời (bằng đường nào cũng vậy): chặn, đèn về chỗ cũ. */
+export const movedCeilingLights = (previous: PascalScene, next: PascalScene, changed: readonly string[]): string[] =>
+  changed.filter((nodeId) => {
+    const before = previous.nodes[nodeId];
+    const after = next.nodes[nodeId];
+
+    return (
+      isGeneratedLightId(nodeId) &&
+      before !== undefined &&
+      after !== undefined &&
+      transformDiffers({ position: fieldsOf(before)['position'] }, { position: fieldsOf(after)['position'] })
+    );
+  });
 
 /**
  * Món rời (`isLooseGenerated`) đang khác lúc nạp: thành đồ thật, id gốc vào `dressingOff`. So với cảnh nạp nên
@@ -415,7 +432,7 @@ export function unsavedPascalEdits(previous: PascalScene, next: PascalScene): st
     else if (type === 'slab' && painted && paintUnsaved(before, after)) labels.add('màu sàn');
     else if (type === 'wall' && painted && paintUnsaved(before, after)) labels.add('màu tường');
     else if (isGeneratedLightId(nodeId)) {
-      // Đèn trần chỉ nhớ được chỗ dời và việc xoá (`Room.dressingOff`).
+      // Đèn trần chỉ nhớ được việc xoá (`Room.dressingOff`).
       if (painted || !sameValue(before['scale'], after['scale'])) labels.add('màu và cỡ đèn trần');
     } else if (type === 'item') {
       if (painted && paintUnsaved(before, after)) labels.add('màu đồ đạc');
@@ -530,8 +547,11 @@ export function usePascalEdits({
       const blockedDeletes = blockedGeneratedDeletes(previous, scene, removed);
       const blockedEdits = blockedGeneratedEdits(previous, scene, pascalCommit.changedNodeIds);
 
-      if (blockedDeletes.length > 0 || blockedEdits.length > 0) {
-        const reason = blockedDeletes.length > 0 ? GENERATED_DELETE_BLOCKED : GENERATED_EDIT_BLOCKED;
+      const movedLights = movedCeilingLights(previous, scene, pascalCommit.changedNodeIds);
+
+      if (blockedDeletes.length > 0 || blockedEdits.length > 0 || movedLights.length > 0) {
+        const reason =
+          movedLights.length > 0 ? CEILING_LIGHT_MOVE_BLOCKED : blockedDeletes.length > 0 ? GENERATED_DELETE_BLOCKED : GENERATED_EDIT_BLOCKED;
         const blocked: PascalEditResult = {
           ok: false,
           error: { type: 'pascal.edit', code: 'PASCAL_UNKNOWN_NODE', reasons: [reason] },

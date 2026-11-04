@@ -137,29 +137,20 @@ describe('trần + đèn (T16)', () => {
     expect(after.graph.furniture).toHaveLength(graph.furniture.length);
   });
 
-  it('dời hoặc xoá chỉ một đèn sinh ra: chỉ phòng của nó đổi (`dressingOff`), không có đồ đạc nào', () => {
+  it('xoá chỉ một đèn sinh ra: chỉ phòng của nó đổi (`dressingOff`), không có đồ đạc nào', () => {
     const light = lights[0]!;
     const ceiling = scene.nodes[light.parentId ?? ''] as PascalCeilingNode;
     const normalized = normalizeSpatial(graph);
-    const moved: PascalScene = {
-      ...scene,
-      nodes: { ...scene.nodes, [light.id]: { ...light, position: [0, 0, 0] } },
-    };
     const deleted: Record<string, PascalNode> = { ...scene.nodes };
     delete deleted[light.id];
 
-    for (const [edited, changedNodeIds] of [
-      [moved, [light.id]],
-      [{ ...scene, nodes: deleted }, [light.id, ceiling.id]],
-    ] as const) {
-      const result = createPascalEditCommand({
-        graph: normalized,
-        scene: edited,
-        commit: { origin: 'local', changedNodeIds },
-        actorId: 'U-1',
-      });
+    const result = createPascalEditCommand({
+      graph: normalized,
+      scene: { ...scene, nodes: deleted },
+      commit: { origin: 'local', changedNodeIds: [light.id, ceiling.id] },
+      actorId: 'U-1',
+    });
 
-      expect(result.ok ? result.data.changes.map((change) => change.kind) : result.error.code).toEqual(['room']);
-    }
+    expect(result.ok ? result.data.changes.map((change) => change.kind) : result.error.code).toEqual(['room']);
   });
 });

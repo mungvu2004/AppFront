@@ -76,10 +76,8 @@ import {
   CEILING_DEFAULT,
   dressNodeIdOf,
   isGeneratedLightId,
+  OUTLINE_PAINT_SLOT,
   isGeneratedNodeId,
-  isLightAtId,
-  lightAtIdOf,
-  lightNodeBodyOf,
   SCENE_MATERIALS,
 } from './sceneDressing';
 import { SCENE_STYLE_MATERIALS, SCENE_STYLES, sceneStyleOf } from './sceneStyles';
@@ -374,7 +372,7 @@ export const dismissableNodeIdsOf = (scene: PascalScene): Set<PascalNodeId> =>
 
 /**
  * H4 — `Room.dressingOff` của một zone: danh sách đã lưu cộng món tự bày (`dressIds`) không còn trong
- * cảnh hoặc vừa thành đồ thật (`adopted`), cộng chỗ đèn trần đã dời. Tính lại từ cảnh mỗi lượt nên hoàn tác
+ * cảnh hoặc vừa thành đồ thật (`adopted`). Tính lại từ cảnh mỗi lượt nên hoàn tác
  * thì món rời danh sách (trừ khi đã lưu từ lượt mở trước). Đèn mất theo trần (xoá trần) không phải xoá đèn.
  */
 const dressingOffOf = (scene: PascalScene, fields: Fields, roomId: string, adopted: ReadonlySet<string>): { dressingOff?: string[] } => {
@@ -386,23 +384,7 @@ const dressingOffOf = (scene: PascalScene, fields: Fields, roomId: string, adopt
 
     return !isGeneratedLightId(nodeId) || scene.nodes[toPascalId('ceiling', roomId)] !== undefined;
   });
-  const lightNode = scene.nodes[toPascalId('item', lightNodeBodyOf(roomId))];
-  const light = lightNode?.type === 'item' ? lightNode : undefined;
-  const home = fields['lightHome'] as readonly [number, number] | undefined;
-  const lightX = light === undefined ? 0 : millimetresOf(light.position[0]);
-  const lightY = light === undefined ? 0 : millimetresOf(light.position[2]);
-  const lightMoved =
-    home !== undefined &&
-    light !== undefined &&
-    (Math.abs(lightX - millimetresOf(home[0])) > 1 || Math.abs(lightY - millimetresOf(home[1])) > 1);
-  const off = [
-    ...new Set([
-      // Đèn còn trong cảnh thì chỗ dời tính lại từ cảnh, không giữ chỗ cũ đã lưu.
-      ...readStrings(fields, 'dressingOff').filter((id) => !isLightAtId(id) || light === undefined),
-      ...removed,
-      ...(lightMoved ? [lightAtIdOf(roomId, Math.round(lightX), Math.round(lightY))] : []),
-    ]),
-  ];
+  const off = [...new Set([...readStrings(fields, 'dressingOff'), ...removed])];
 
   return off.length === 0 ? {} : { dressingOff: off };
 };
@@ -436,9 +418,17 @@ export const saveableModelSrc = (src: unknown): src is string => typeof src === 
 const itemSlotsFieldOf = (item: PascalItemNode): Readonly<Record<string, MaterialRef>> | null => {
   const styleSlots = fieldsOf(item)['styleSlots'];
   const base = (typeof styleSlots === 'object' && styleSlots !== null ? styleSlots : {}) as Fields;
+  // Sơn từ tấm viền ("cả món một màu", xem `OUTLINE_PAINT_SLOT`): còn nguyên thì giữ một khoá, sơn lại từng khe thì bỏ khoá.
+  const whole = OUTLINE_PAINT_SLOT in base ? undefined : item.slots?.[OUTLINE_PAINT_SLOT];
+  if (whole !== undefined && saveableRef(whole) && Object.keys(base).every((slot) => item.slots?.[slot] === whole)) {
+    return { [OUTLINE_PAINT_SLOT]: whole };
+  }
   const painted = Object.entries(item.slots ?? {}).filter(
     (entry): entry is [string, MaterialRef] =>
-      SLOT_KEY.test(entry[0]) && entry[1] !== readString(base, entry[0]) && saveableRef(entry[1]),
+      (whole === undefined || entry[0] !== OUTLINE_PAINT_SLOT) &&
+      SLOT_KEY.test(entry[0]) &&
+      entry[1] !== readString(base, entry[0]) &&
+      saveableRef(entry[1]),
   );
 
   return painted.length === 0 ? null : Object.fromEntries(painted.slice(0, 8));

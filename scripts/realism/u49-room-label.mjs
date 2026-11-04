@@ -4,6 +4,9 @@
  * trông như gạch chân.
  * Sau (chỉ trên màn hình; bản in dùng profile `document`, giữ nguyên): chữ đậm trung tính `roomLabelInk`, tên ≥ 13 px,
  * dòng phụ ≥ 11 px, các dòng xếp theo chiều dọc MÀN HÌNH (dịch sau khi xoay).
+ * Thêm (04/11, chỉ màn hình): lượt phủ vẽ vùng sau cùng để tên phòng nằm trên tường và đồ (tường, đồ cũng có phần ở lượt
+ * phủ, vẽ sau vùng nên che chữ). Nhãn rộng hơn phòng thì tràn sang nhãn phòng bên: `roomLabelFit` bỏ dòng phụ trước, rồi
+ * bỏ cả nhãn.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -22,22 +25,35 @@ export const RULES = {
     [
       "    metadata: floorplanGeometryMetadata({ annotationRole: 'room-label' }),\n",
       "    ...(profile === 'editor'\n" +
-        "      ? { screenPx: index === 0 && name ? 13 : 11, screenLine: index - (lines.length - 1) / 2, screenLineMetres: ROOM_LABEL_LINE_SPACING }\n" +
+        "      ? { screenPx: index === 0 && name ? 13 : 11, screenLine: index - (lines.length - 1) / 2, screenLineMetres: ROOM_LABEL_LINE_SPACING, screenRoom: { polygon: node.polygon, nameChars: name.length, detailChars: Math.max(0, ...lines.slice(name ? 1 : 0).map((l) => l.text.length)), lines: lines.length } }\n" +
         '      : {}),\n' +
         "    metadata: floorplanGeometryMetadata({ annotationRole: 'room-label' }),\n",
     ],
   ],
   'editor/src/components/editor-2d/renderers/floorplan-registry-layer.tsx': [
     [
+      "'use client'\n\nimport {\n  type AnyNode,\n",
+      "'use client'\n\nimport { roomLabelFit, type RoomLabelInput } from '@/pascal-page/upstream/lib/room-label-fit'\nimport {\n  type AnyNode,\n",
+    ],
+    [
+      '<g className="floorplan-registry-overlay">\n        {entries.map((entry) => (\n',
+      '<g className="floorplan-registry-overlay">\n' +
+        "        {[...entries].sort((a, b) => Number(a.node.type === 'zone') - Number(b.node.type === 'zone')).map((entry) => (\n",
+    ],
+    [
       '        const beforeRotation = `translate(${g.x} ${g.y})`\n' +
         '        const transform = `${beforeRotation} rotate(${-sceneRotationDeg})`\n',
       '        const screenLabel = (g as { screenPx?: number }).screenPx\n' +
-        '        const labelLine = (g as { screenLine?: number }).screenLine ?? 0\n' +
+        '        const rawLabelLine = (g as { screenLine?: number }).screenLine ?? 0\n' +
         '        const labelUpp = Math.max(unitsPerPixel, 1e-6)\n' +
         '        const labelFontSize = screenLabel ? Math.max(g.fontSize, screenLabel * labelUpp) : g.fontSize\n' +
         '        const labelLineY = screenLabel\n' +
-        '          ? g.y - labelLine * ((g as { screenLineMetres?: number }).screenLineMetres ?? 0)\n' +
+        '          ? g.y - rawLabelLine * ((g as { screenLineMetres?: number }).screenLineMetres ?? 0)\n' +
         '          : g.y\n' +
+        "        const screenRoom = (g as { screenRoom?: Pick<RoomLabelInput, 'polygon' | 'nameChars' | 'detailChars' | 'lines'> }).screenRoom\n" +
+        "        const labelFit = screenRoom ? roomLabelFit({ ...screenRoom, at: [g.x, labelLineY], rotationDeg: sceneRotationDeg, unitsPerPixel: labelUpp }) : 'full'\n" +
+        "        if (labelFit === 'none' || (labelFit === 'name' && screenLabel !== 13)) return <></>\n" +
+        "        const labelLine = labelFit === 'name' ? 0 : rawLabelLine\n" +
         '        const beforeRotation = `translate(${g.x} ${labelLineY})`\n' +
         '        const afterRotation = screenLabel\n' +
         '          ? `translate(0 ${labelLine * Math.max(0.18, 16 * labelUpp)})`\n' +

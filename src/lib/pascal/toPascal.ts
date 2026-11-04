@@ -54,9 +54,9 @@ import {
   floorMaterialOf,
   isGeneratedLightId,
   isGeneratedNodeId,
-  lightAtOf,
   lightOffIdOf,
   itemSlotsOf,
+  OUTLINE_PAINT_SLOT,
   lampInteractiveOf,
   GENERATED_DRESS_PREFIX,
   LOGGIA_RAILING_MM,
@@ -916,7 +916,12 @@ const itemNodeOf = (
   const liftM = metresOf(liftMm);
   // Khe phong cách cho, rồi khe người dùng đã sơn đè lên (W3b `Furniture.slots`).
   const styleSlots = fit === null ? {} : itemSlotsOf(fit.folder, style);
-  const slots = { ...styleSlots, ...furniture.slots };
+  const wholePaint = styleSlots?.[OUTLINE_PAINT_SLOT] === undefined ? furniture.slots?.[OUTLINE_PAINT_SLOT] : undefined;
+  const slots = {
+    ...styleSlots,
+    ...(wholePaint === undefined ? {} : Object.fromEntries(Object.keys(styleSlots ?? {}).map((slot) => [slot, wholePaint]))),
+    ...furniture.slots,
+  };
   const lampOf = fit === null ? undefined : lampInteractiveOf(fit.folder, style);
 
   return {
@@ -1128,7 +1133,7 @@ export const toPascalScene = (
   /* H4 — món tự bày / đèn người dùng đã xoá hoặc đã thành đồ thật: không sinh lại ở bất kỳ đường nào dưới đây. */
   const offIds = new Set(graph.rooms.flatMap((room) => room.dressingOff ?? []));
   /** Chỗ đèn trần tự chọn của từng phòng (m), để lượt về biết đèn đã dời chưa. */
-  const lightHomeOf = new Map<string, readonly [number, number]>();
+  const roomsWithLight = new Set<string>();
 
   const childrenFor = (nodeId: PascalNodeId): PascalNodeId[] => {
     const existing = childrenOf.get(nodeId);
@@ -1316,13 +1321,12 @@ export const toPascalScene = (
     if (generated !== undefined) {
       const [ceiling, light] = generated;
       const lightOn = !offIds.has(lightOffIdOf(room.id));
-      const lightAt = lightAtOf(room.dressingOff ?? [], room.id);
 
       nodes[ceiling.id] = lightOn ? ceiling : { ...ceiling, children: [] };
       adopt(levelNodeId, ceiling.id);
       if (lightOn) {
-        nodes[light.id] = lightAt === null ? light : { ...light, position: [metresOf(lightAt[0]), light.position[1], metresOf(lightAt[1])] };
-        lightHomeOf.set(room.id, [light.position[0], light.position[2]]);
+        nodes[light.id] = light;
+        roomsWithLight.add(room.id);
       }
     }
   }
@@ -1502,7 +1506,6 @@ export const toPascalScene = (
     const zoneId = toPascalId('zone', room.id);
     const zone = nodes[zoneId];
     const origin = zone?.metadata?.appfront;
-    const lightHome = lightHomeOf.get(room.id);
 
     if (zone === undefined || origin === undefined) continue;
     nodes[zoneId] = {
@@ -1513,9 +1516,8 @@ export const toPascalScene = (
           ...origin,
           fields: {
             ...origin.fields,
-            dressIds: [...(dressIdsOf.get(room.id) ?? []), ...(lightHome === undefined ? [] : [lightOffIdOf(room.id)])],
+            dressIds: [...(dressIdsOf.get(room.id) ?? []), ...(roomsWithLight.has(room.id) ? [lightOffIdOf(room.id)] : [])],
             dressingOff: room.dressingOff ?? [],
-            ...(lightHome === undefined ? {} : { lightHome }),
           },
         },
       },

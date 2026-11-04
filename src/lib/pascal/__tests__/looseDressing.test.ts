@@ -10,7 +10,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Furniture, Point, Room, SpatialGraph, Wall } from '@/domain/spatial/types';
 
 import { createPascalEditCommand } from '../fromPascal';
-import { dressNodeIdOf, lightAtIdOf, lightAtOf, lightOffIdOf } from '../sceneDressing';
+import { dressNodeIdOf, lightOffIdOf } from '../sceneDressing';
 import { toPascalScene } from '../toPascal';
 import { dismissableNodeIdsOf, isLooseGenerated, type PascalIdBook } from '../toSpatial';
 import type { PascalItemNode, PascalNode, PascalScene } from '../types';
@@ -84,9 +84,8 @@ describe('khai hộ: mọi món tự sinh đều có phòng nhớ', () => {
     expect(dismissable.has(LIGHT)).toBe(true);
     expect(dismissable.has(RAIL)).toBe(true);
     expect(dressNodeIdOf(lightOffIdOf(LIV))).toBe(LIGHT);
-    const dressingOff = [lightOffIdOf(LIV), lightAtIdOf(LIV, -120, 3400)];
     // Khớp `DRESSING_ID` (schemas/spatial.ts) và `DressingId` của AppBack.
-    for (const id of dressingOff) expect(id).toMatch(/^DRESS-[A-Za-z0-9_.:-]{1,160}$/);
+    expect(lightOffIdOf(LIV)).toMatch(/^DRESS-[A-Za-z0-9_.:-]{1,160}$/);
     expect(isLooseGenerated(SCENE.nodes[RAIL])).toBe(true);
     expect(isLooseGenerated(SCENE.nodes[LIGHT])).toBe(false);
   });
@@ -105,24 +104,6 @@ describe('đèn trần', () => {
     expect(reopened.nodes[`item_LIGHT-${LOG}`]).toBeDefined();
 
     expect(() => edit(GRAPH, SCENE, LIGHT)).toThrow('PASCAL_NO_CHANGE');
-  });
-
-  it('dời: id mang toạ độ, mở lại đèn ở chỗ mới; dời tiếp thay chỗ cũ; về đúng chỗ tự chọn thì bỏ', () => {
-    const after = roomAfter(edit(GRAPH, moved(SCENE, LIGHT, 1, 3), LIGHT), LIV);
-
-    expect(after?.dressingOff).toEqual([lightAtIdOf(LIV, 1000, 3000)]);
-    expect(lightAtOf(after?.dressingOff ?? [], LIV)).toEqual([1000, 3000]);
-
-    const saved = withOff([lightAtIdOf(LIV, 1000, 3000)], LIV);
-    const reopened = toPascalScene(saved).scene;
-    expect((reopened.nodes[LIGHT] as PascalItemNode).position).toEqual([1, 0, 3]);
-
-    const again = roomAfter(edit(saved, moved(reopened, LIGHT, 2, 3), LIGHT), LIV);
-    expect(again?.dressingOff).toEqual([lightAtIdOf(LIV, 2000, 3000)]);
-
-    const home = SCENE.nodes[LIGHT] as PascalItemNode;
-    const back = roomAfter(edit(saved, moved(reopened, LIGHT, home.position[0], home.position[2]), LIGHT), LIV);
-    expect(back?.dressingOff).toBeUndefined();
   });
 
   it('xoá trần kéo theo đèn: không ghi là xoá đèn', () => {

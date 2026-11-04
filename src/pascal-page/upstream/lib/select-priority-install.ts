@@ -11,7 +11,8 @@
  */
 import { type AnyNode, type NodeEvent, resolveLevelId, sceneRegistry, useScene } from '@pascal-app/core'
 import { useEditor, useViewer } from '@pascal-app/editor'
-import { Box3, type Intersection, Matrix4, type Mesh, type Object3D, type Plane, Ray, Vector3 } from 'three'
+import { Box3, type Intersection, Matrix4, type Mesh, type Object3D, Ray, Vector3 } from 'three'
+import { clippedAway } from '../../realism/cut'
 import { canPreferItem, type ItemRayEntry, pickItemOnRay } from './select-priority'
 
 export const PREFER_ITEM_HOOK = '__appfrontPreferItemHit'
@@ -33,24 +34,6 @@ const isShown = (object: Object3D): boolean => {
 /** Cutaway / 'down' walls: `WallCutout` stamps `userData.wallHidden` on the registered wall mesh. */
 const isHiddenWall = (id: string): boolean =>
   sceneRegistry.nodes.get(id)?.userData?.wallHidden === true
-
-type ClipGroupLike = Object3D & { isClippingGroup?: boolean; enabled?: boolean; clippingPlanes?: Plane[] }
-
-/**
- * Hit on a part that is not drawn: "Tường: cắt" (`realism/cutSync.ts`) clips each level at 1 m with a
- * ClippingGroup, but raycasts still hit the full-height wall above the cut — the invisible top of the
- * wall in front of a bed stole the click (C2, thử tay 01/11).
- */
-const clippedAway = (object: Object3D, point: Vector3 | undefined): boolean => {
-  if (!point) return false
-  for (let o: Object3D | null = object; o; o = o.parent) {
-    const group = o as ClipGroupLike
-    if (group.isClippingGroup && group.enabled !== false && group.clippingPlanes?.some((plane) => plane.distanceToPoint(point) < 0)) {
-      return true
-    }
-  }
-  return false
-}
 
 /** Object3D → registered node id, rebuilt only when the registry changes (hover runs per move). */
 let owners: { revision: number; byRoot: Map<Object3D, string> } | null = null
