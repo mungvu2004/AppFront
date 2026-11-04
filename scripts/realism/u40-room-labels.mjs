@@ -7,6 +7,8 @@
  * Editor3D dot 2 (N1): nhan la nut bam duoc o che do Chon / Xem truoc: bam -> su kien window
  * `appfront:fit-room` (detail = id vung), viewer-toolbar.tsx bay camera toi phong (fitRoom). Nut chan
  * pointerdown/up/click nen su kien R3F cua canh khong chon tuong phia sau. Cong cu khac bat: pointer-events none.
+ * U45: bay camera can bam dup (ban phim Enter van bay, detail = 0). Nhan nam giua san phong, bam don de chon gi do
+ * ma camera phong toi la bat ngo.
  */
 const FILE = 'nodes/src/zone/renderer.tsx';
 
@@ -44,11 +46,12 @@ export const RULES = {
         '          <button\n' +
         "            aria-label={`Xem gần ${node.name}`}\n" +
         '            data-room-label-u40=""\n' +
-        "            onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('appfront:fit-room', { detail: node.id })) }}\n" +
+        "            onClick={(e) => { e.stopPropagation(); if (e.detail === 0) window.dispatchEvent(new CustomEvent('appfront:fit-room', { detail: node.id })) }}\n" +
+        "            onDoubleClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('appfront:fit-room', { detail: node.id })) }}\n" +
         '            onPointerDown={(e) => e.stopPropagation()}\n' +
         '            onPointerUp={(e) => e.stopPropagation()}\n' +
         "            style={{ transform: 'translate3d(-50%, -50%, 0)', display: 'block', width: 'max-content', maxWidth: '160px', padding: '2px 8px', border: 0, borderRadius: '6px', background: 'rgba(255, 255, 255, 0.78)', color: '#1f2937', font: 'inherit', fontSize: '11px', lineHeight: '15px', textAlign: 'center', pointerEvents: labelClickU40 ? 'auto' : 'none', cursor: 'pointer', userSelect: 'none', opacity: 1 }}\n" +
-        '            title="Bấm để xem gần phòng này"\n' +
+        '            title="Bấm đúp để xem gần phòng này"\n' +
         '            type="button"\n' +
         '          >\n' +
         "            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.name}</div>\n" +
