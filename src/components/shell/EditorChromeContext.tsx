@@ -7,7 +7,6 @@ import { createContext, useContext, type ReactNode } from 'react';
 export interface EditorChrome {
   /** Menu tệp; `floors` = danh sách đổi tầng của màn (đặt trong menu, không thành nút riêng). */
   readonly fileMenu: (floors?: ReactNode) => ReactNode;
-  readonly stepLabel: ReactNode;
 }
 
 const EditorChromeContext = createContext<EditorChrome | null>(null);

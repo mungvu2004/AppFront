@@ -7,11 +7,11 @@
  *
  * `ObjectLayerStatusBarProps` (`objectLayerTypes.ts`, đóng băng) khác hẳn
  * `WallLayerStatusBarProps`: không có `cursorLabel`/`scaleLabel`/`saveLabel`
- * — thay vào đó mang thẳng trạng thái màn (`state`, các `*Notice`) và hai
- * hành động (`onUndo`, `onToggleCollapsed`). Vì vậy khuôn ba cột "toạ độ ·
+ * — thay vào đó mang thẳng trạng thái màn (`state`, các `*Notice`) và
+ * hành động (`onUndo`). Vì vậy khuôn ba cột "toạ độ ·
  * tỷ lệ · lưu" của màn anh em không áp được nguyên văn; bố cục ở đây là bộ
- * đếm (trái) · ghi chú trạng thái đang hoạt động, nếu có (giữa) · hai hành
- * động (phải).
+ * đếm (trái) · ghi chú trạng thái đang hoạt động, nếu có (giữa) · hành
+ * động (phải). Nút thu gọn hai panel ở cuối ray công cụ như màn Tường.
  *
  * ## A7 — không có trường "trạng thái tự lưu" riêng, dùng `aria-live`
  *
@@ -23,9 +23,6 @@
  * trường mới vào hợp đồng đã đóng băng của T4.
  */
 
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-
-import { IconButton } from '@/components/ui/IconButton';
 import { cn } from '@/lib/utils';
 
 import type { ObjectLayerStatusBarProps } from './objectLayerTypes';
@@ -33,8 +30,6 @@ import type { ObjectLayerStatusBarProps } from './objectLayerTypes';
 const STATUS_BAR_ARIA_LABEL = 'Thanh trạng thái';
 /** Nút chữ cao 24 px: vùng chạm tối thiểu WCAG 2.5.8 trong thanh 32 px (BUG-325, trước đó 49×18). */
 const UNDO_LABEL = 'Hoàn tác';
-const COLLAPSE_LABEL = 'Thu gọn hai panel';
-const EXPAND_LABEL = 'Mở lại hai panel';
 
 export function ObjectLayerStatusBar({
   saveLabel = null,
@@ -42,8 +37,6 @@ export function ObjectLayerStatusBar({
   errorMessage,
   viewerRoleNotice,
   furnitureAttentionNotice,
-  isCollapsed,
-  onToggleCollapsed,
   onUndo,
 }: ObjectLayerStatusBarProps) {
   /* Câu rỗng đã ở trạng thái rỗng của panel: không lặp lần thứ hai ở đây (BUG-422). */
@@ -89,19 +82,6 @@ export function ObjectLayerStatusBar({
           {UNDO_LABEL}
         </button>
         )}
-        <IconButton
-          aria-label={isCollapsed ? EXPAND_LABEL : COLLAPSE_LABEL}
-          icon={
-            isCollapsed ? (
-              <PanelLeftOpen aria-hidden="true" className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose aria-hidden="true" className="h-4 w-4" />
-            )
-          }
-          onClick={onToggleCollapsed}
-          size="sm"
-          tooltip={false}
-        />
       </div>
     </div>
   );

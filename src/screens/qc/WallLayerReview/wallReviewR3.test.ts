@@ -6,7 +6,7 @@ import type { Wall } from '@/domain/spatial/types';
 import { WALL_LAYER_FIXTURE_BUILDING, WALL_LAYER_FIXTURE_LEVEL, WALL_LAYER_FIXTURE_WALLS } from './wallLayerReviewFixture';
 import {
   buildUnapproveWallCommand,
-  confidenceTextOf,
+  toWallInspector,
   geometrySuspectIdsOf,
   isLowConfidence,
   isStandardThickness,
@@ -55,9 +55,14 @@ describe('K16: một quy tắc chiều dài cho danh sách và thanh tra', () =>
     expect(wallLengthNumberOf(5757.4, 'unresolved', 'project_default')).toBeNull();
   });
 
-  it('độ tin cậy nói bằng chữ', () => {
-    expect(confidenceTextOf(0.5)).toBe('Máy chưa chắc');
-    expect(confidenceTextOf(0.95)).toBe('Máy chắc chắn');
+  it('độ tin cậy của panel cùng bậc với thẻ: tường sai hình là "Máy chưa chắc" dù điểm cao (K21)', () => {
+    const textOf = (confidence: number, suspect = false, reviewed = false) =>
+      toWallInspector({ ...first(), confidence, reviewed }, WALL_LAYER_FIXTURE_LEVEL, undefined, undefined, 'mm', undefined, undefined, suspect ? new Set([first().id]) : undefined).confidenceText;
+
+    expect(textOf(0.5)).toBe('Máy chưa chắc');
+    expect(textOf(0.95)).toBe('Máy chắc chắn');
+    expect(textOf(0.95, true)).toBe('Máy chưa chắc');
+    expect(textOf(0.95, true, true)).toBe('Đã duyệt');
   });
 });
 

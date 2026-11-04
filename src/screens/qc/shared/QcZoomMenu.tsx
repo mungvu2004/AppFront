@@ -3,6 +3,7 @@ import { useState, type FocusEvent, type KeyboardEvent, type SyntheticEvent } fr
 
 import { cn } from '@/lib/utils';
 
+import { useQcCanvasCover } from './qcCanvasCover';
 import { setQcCompare, useQcCompare } from './qcCompare';
 import { setQcViewMode, useQcViewMode, type QcViewMode } from './qcViewMode';
 
@@ -41,6 +42,8 @@ const COMPARE_HINT = 'So sánh hai bên. Trái: bản vẽ gốc · Phải: đã
 const ITEM_CLASS =
   'flex h-8 w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-left text-body-sm text-text-primary hover:bg-bg-hover focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent';
 const KEY_CLASS = 'ml-auto pl-4 text-caption text-text-muted';
+/** `bottom-4 right-4`. */
+const MENU_EDGE_PX = 16;
 
 /** Khung bản vẽ không nhận cú bấm/kéo bắt đầu trên menu này (kéo nền, bỏ chọn). */
 const stop = (event: SyntheticEvent) => event.stopPropagation();
@@ -59,6 +62,7 @@ export function QcZoomMenu({
   const [open, setOpen] = useState(false);
   const mode = useQcViewMode();
   const isComparing = useQcCompare();
+  const cover = useQcCanvasCover();
   if (!isVisible) return null;
   const close = () => setOpen(false);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -92,6 +96,8 @@ export function QcZoomMenu({
   return (
     <div
       className="absolute bottom-4 right-4 z-20 flex items-center gap-2"
+      /* Panel nổi đè mép phải/đáy bản vẽ: cụm này đứng ngay cạnh panel, không nằm dưới nó. */
+      style={cover.right > 0 || cover.bottom > 0 ? { bottom: cover.bottom + MENU_EDGE_PX, right: cover.right + MENU_EDGE_PX } : undefined}
       onBlur={onBlur}
       onKeyDown={onKeyDown}
       onPointerDown={stop}

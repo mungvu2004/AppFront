@@ -33,14 +33,15 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { cn } from '@/lib/utils';
 
+import { useRevealSelection } from '../shared/qcCanvasCover';
 import { QcRuleIssueMarker } from '../shared/QcRuleIssues';
+import { QcTag } from '../shared/QcTag';
 import { QcViewLayer } from '../shared/QcViewLayer';
 import { QcZoomMenu } from '../shared/QcZoomMenu';
 import { WallDraftGuide, WallDrawingBackground, WallLayerMiniMap } from './WallLayerCanvasParts';
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
 import { WallLayerOpenings } from './WallLayerOpenings';
-import { WallLayerTag } from './WallLayerTag';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
@@ -171,6 +172,8 @@ export function WallLayerCanvas({
 
     return () => observer.disconnect();
   }, [onFrameResize]);
+
+  useRevealSelection(selectedWallId, frameRef, selectedWallId === null ? null : haloRectPx, onPanBy);
 
   useEffect(() => {
     if (selectedWallId !== null) {
@@ -386,7 +389,7 @@ export function WallLayerCanvas({
               )}
 
               {viewLayer === null ? null : <QcViewLayer {...viewLayer} />}
-              {wallTag === null || !isWallLayerVisible ? null : <WallLayerTag {...wallTag} />}
+              {wallTag === null || !isWallLayerVisible ? null : <QcTag {...wallTag} />}
 
               {measurement === null ? null : (
                 <MeasurementLabel

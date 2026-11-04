@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { ROUTES } from '@/routes/paths';
 
-import { EditorFileMenu, EditorStepLabel, EditorStepList, type EditorFileMenuProps } from './EditorChrome';
+import { EditorFileMenu, EditorStepList, type EditorFileMenuProps } from './EditorChrome';
 
 function renderMenu(overrides: Partial<EditorFileMenuProps> = {}) {
   const props: EditorFileMenuProps = { projectId: 'p1', projectName: 'Nhà A', showAdmin: false, accountInitials: 'HA', accountLabel: 'Hà', onSignOut: vi.fn(), ...overrides };
@@ -40,16 +40,14 @@ describe('EditorFileMenu', () => {
   });
 });
 
-describe('EditorStepList / EditorStepLabel', () => {
-  it('sáu bước kèm trạng thái, bước 3 là bước đang đứng và trỏ về tầng đang mở; dòng vị trí là chữ', () => {
+describe('EditorStepList', () => {
+  it('sáu bước kèm trạng thái, bước 3 là bước đang đứng và trỏ về tầng đang mở', () => {
     const project = { id: 'p1', stepIndex: 2, floorId: 'f1', stepStates: ['done', 'done', 'todo', 'todo', 'todo', 'todo'] } as const;
     render(
       <MemoryRouter>
-        <EditorStepLabel project={project} />
         <EditorStepList project={project} />
       </MemoryRouter>,
     );
-    expect(screen.getByText('Bước 3 · Duyệt tầng').tagName).toBe('P');
     const nav = screen.getByRole('navigation', { name: 'Các bước của dự án' });
     const steps = within(nav).getAllByRole('link');
     expect(steps).toHaveLength(6);

@@ -1620,8 +1620,8 @@ export function useWallLayerReview(
             ? { valueText: String(Math.round(lengthMm)), unit: 'mm' as const }
             : { valueText: formatNumber(millimetresToMetres(millimetres(lengthMm)), { fractionDigits: 2 }), unit: 'm' as const };
 
-    return { ...toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus, lengthUnit, floorLayer.scaleSource), lengthEdit };
-  }, [floorLayer.scaleSource, floorLayer.scaleStatus, lengthUnit, level, selectedWallId, wallById, wallCodes]);
+    return { ...toWallInspector(wall, level, wallCodes, floorLayer.scaleStatus, lengthUnit, floorLayer.scaleSource, confidenceThreshold, suspectIds), lengthEdit };
+  }, [confidenceThreshold, floorLayer.scaleSource, floorLayer.scaleStatus, lengthUnit, level, selectedWallId, suspectIds, wallById, wallCodes]);
 
   /* Bộ đếm chạy 12 → 13 ở nấc `standard` (260 ms) — xem ghi chú đầu file. */
   /* Nhãn đọc-màn-hình lấy số THẬT, không phải số đang đếm lên (G69) — đếm lên chỉ là hiệu ứng. */
@@ -2191,10 +2191,10 @@ export function useWallLayerReview(
   }, [fitAllBoundsPx, level, levelId, lockedFit, setViewCenter, setZoom]);
 
   /*
-   * L23 — chế độ nhìn: Từng việc phóng tới tường vừa chọn (nới ≥ 40 % cả tầng), Tổng thể vừa cả tầng.
-   * Chỉ chạy khi đổi tường chọn hoặc đổi chế độ (khoá `viewKeyRef`), không theo từng lượt sửa.
+   * L23 — chế độ nhìn: Tổng thể vừa cả tầng; Từng việc giữ nguyên mức phóng khi chọn (mục dưới panel thì canvas chỉ dịch).
+   * "So sánh hai bên": chọn là cả hai nửa phóng tới (nới ≥ 40 % cả tầng), kể cả đang Tổng thể; thoát thì về vừa cả tầng.
+   * Chỉ chạy khi đổi khoá (`viewKeyRef`), không theo từng lượt sửa.
    */
-  /* "So sánh hai bên": chọn là cả hai nửa phóng tới, kể cả đang Tổng thể. */
   const chosenViewMode = useQcViewMode();
   const viewMode = isComparing ? 'task' : chosenViewMode;
   const viewKeyRef = useRef<string | null>(null);
@@ -2203,7 +2203,8 @@ export function useWallLayerReview(
       return;
     }
 
-    const key = viewMode === 'task' ? `task:${selectedWallId ?? ''}` : 'overview';
+    const key = isComparing ? `compare:${selectedWallId ?? ''}` : chosenViewMode;
+    const leftCompare = viewKeyRef.current?.startsWith('compare:') === true && !isComparing;
 
     if (viewKeyRef.current === key) {
       return;
@@ -2212,25 +2213,25 @@ export function useWallLayerReview(
     viewKeyRef.current = key;
     const scale = scaleOfLevel(level);
 
-    if (viewMode === 'overview') {
+    if (key === 'overview' || leftCompare) {
       setZoom(DEFAULT_ZOOM);
       setViewCenter(toMillimetrePoint(centreOfBounds(fitReferencePx), scale));
       return;
     }
 
-    const selected = shapes.find((shape) => shape.id === selectedWallId);
+    const selected = isComparing ? shapes.find((shape) => shape.id === selectedWallId) : undefined;
 
     if (selected === undefined) {
       return;
     }
 
     const focus = focusBoundsOf(selected.boundsPx, fitReferencePx);
-    /* Panel phải neo ngoài bản vẽ: canh giữa cả khung, không chừa dải nào. */
     const fitted = fitCanvasView(focusFrameOf(frameSizePx), focus);
 
-    setZoom(fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale));
+    /* Đoạn dài: không thu nhỏ dưới vừa khung, chỉ phóng tới. */
+    setZoom(fitted === null ? DEFAULT_ZOOM : clampZoom(Math.max(fitted.zoom / baseScale, DEFAULT_ZOOM)));
     setViewCenter(toMillimetrePoint(centreOfBounds(focus), scale));
-  }, [baseScale, fitFramePx, fitReferencePx, frameSizePx, level, selectedWallId, setViewCenter, setZoom, shapes, viewMode]);
+  }, [baseScale, chosenViewMode, fitReferencePx, frameSizePx, isComparing, level, selectedWallId, setViewCenter, setZoom, shapes]);
 
   /*
    * P03: lỗi quy chuẩn vừa được chỉ (từ URL hoặc bấm trong danh sách) — chọn tường lỗi nếu có, rồi

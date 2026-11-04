@@ -214,7 +214,7 @@ describe('vẽ nội thất bị sót (B3)', () => {
     mounted.unmount();
   });
 
-  it('Từng việc: vẽ món rồi hoàn tác thì khung nhìn về vừa khung, không kẹt ở chỗ trống', async () => {
+  it('Từng việc: vẽ món rồi hoàn tác, khung nhìn đứng yên ở vừa khung (chọn không đổi mức phóng)', async () => {
     setQcViewMode('task');
     const mounted = await mountSettled();
     const scale = scaleOfLevel(OBJECT_LAYER_SAMPLE_LEVEL);
@@ -226,7 +226,7 @@ describe('vẽ nội thất bị sót (B3)', () => {
     await run(() => mounted.result.current.onStartDraw('furniture'));
     await run(() => mounted.result.current.onPlaceAt(toPixelPoint({ x: 13000, y: 3000 }, scale)));
     await waitFor(() => expect(mounted.result.current.selectedObjectId).not.toBeNull());
-    await waitFor(() => expect(mounted.result.current.viewport.zoom).toBeGreaterThan(fit.zoom * 1.5));
+    expect(mounted.result.current.viewport.zoom).toBeCloseTo(fit.zoom, 6);
 
     await run(() => mounted.result.current.onUndo());
     await waitFor(() => expect(newFurniture(before)).toBeUndefined());

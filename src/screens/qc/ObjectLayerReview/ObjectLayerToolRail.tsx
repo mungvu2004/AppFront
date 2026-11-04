@@ -44,6 +44,8 @@ import {
 
 import { IconButton } from '@/components/ui/IconButton';
 
+import { QcRailCollapse } from '../shared/QcRailCollapse';
+
 import {
   OBJECT_LAYER_LABELS,
   OBJECT_SUBTYPES,
@@ -106,6 +108,8 @@ export function ObjectLayerToolRail({
   onStartDraw,
   onSelectSubtypeSlot,
   isViewerRole,
+  isCollapsed,
+  onToggleCollapsed,
 }: ObjectLayerToolRailProps) {
   /* Đồ đạc không đổi loại được (không lệnh nào làm việc đó): không đưa ba ô chết (BUG-590). */
   const subtypeSlots =
@@ -181,6 +185,7 @@ export function ObjectLayerToolRail({
           )}
         </>
       )}
+      <QcRailCollapse isCollapsed={isCollapsed} onToggle={onToggleCollapsed} />
     </div>
   );
 }

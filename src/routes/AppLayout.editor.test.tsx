@@ -27,7 +27,6 @@ function Screen() {
       ) : (
         <div data-testid="editor-bar">
           {chrome.fileMenu(<li>Tầng 1</li>)}
-          {chrome.stepLabel}
         </div>
       )}
     </main>

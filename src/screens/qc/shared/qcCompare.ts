@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 
 /**
  * "So sánh hai bên" của Tường và Cửa và nội thất: bên trái bản vẽ gốc, bên phải lớp đã nhận diện,
- * một khung nhìn chung. Bật/tắt trong menu "N% ▾" (`QcZoomMenu`); Esc thoát sau khi đã bỏ chọn.
+ * một khung nhìn chung. Bật/tắt bằng nút "So sánh" cạnh nút phóng (`QcZoomMenu`); Esc thoát sau khi đã bỏ chọn.
  * Nhớ trong phiên (sessionStorage) để chuyển bước Tường ↔ Cửa vẫn giữ; trình duyệt chặn kho thì chỉ nhớ trong module.
  */
 const STORAGE_KEY = 'qc.compareSplit';

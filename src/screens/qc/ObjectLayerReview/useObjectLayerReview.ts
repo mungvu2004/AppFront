@@ -2120,14 +2120,13 @@ export function useObjectLayerReview(
   }, [fitView, flyToBounds, frameSizePx, placements, objects]);
 
   /*
-   * Từng việc phóng tới mục vừa chọn (nới ≥ 40 % tầng), Tổng thể trả vừa khung. Chỉ chạy khi
-   * đổi mục hoặc đổi chế độ — kéo đối tượng không làm khung nhìn nhảy; Từng việc chưa chọn thì đứng yên.
+   * Tổng thể trả vừa khung; Từng việc giữ nguyên mức phóng khi chọn (mục dưới panel thì canvas chỉ dịch).
+   * "So sánh hai bên": chọn là cả hai nửa phóng tới (nới ≥ 40 % tầng), kể cả đang Tổng thể; thoát thì trả vừa khung.
+   * Chỉ chạy khi đổi khoá — kéo đối tượng không làm khung nhìn nhảy.
    */
-  /* "So sánh hai bên": chọn là cả hai nửa phóng tới, kể cả đang Tổng thể. */
   const chosenViewMode = useQcViewMode();
-  const viewMode = isComparing ? 'task' : chosenViewMode;
   const viewFlightRef = useRef<string | null>(null);
-  /* Mục Từng việc vừa bay tới: nó biến mất (hoàn tác "Thêm đồ vật", xoá) thì trả về vừa khung, không kẹt ở chỗ trống. */
+  /* Mục vừa bay tới lúc so sánh: nó biến mất (hoàn tác "Thêm đồ vật", xoá) thì trả về vừa khung, không kẹt ở chỗ trống. */
   const viewFlownObjectRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -2136,13 +2135,15 @@ export function useObjectLayerReview(
     }
 
     /* Khổ khung nằm trong khoá: khung đổi cỡ (cột việc dựng xong, 1024) thì lớp vừa khung đổi, bay lại. */
-    const key = `${viewMode === 'task' ? `task:${selectedObjectId ?? ''}` : 'overview'}@${frameSizePx.width}x${frameSizePx.height}`;
+    const key = `${isComparing ? `compare:${selectedObjectId ?? ''}` : chosenViewMode}@${frameSizePx.width}x${frameSizePx.height}`;
 
     if (key === viewFlightRef.current) {
       return;
     }
 
-    if (viewMode === 'overview') {
+    const leftCompare = viewFlightRef.current?.startsWith('compare:') === true && !isComparing;
+
+    if (leftCompare || (!isComparing && chosenViewMode === 'overview')) {
       viewFlightRef.current = key;
       viewFlownObjectRef.current = null;
       endFlight();
@@ -2151,7 +2152,7 @@ export function useObjectLayerReview(
 
     const placement = placements.find((item) => item.id === selectedObjectId);
 
-    if (selectedObjectId === null) {
+    if (!isComparing || selectedObjectId === null) {
       viewFlightRef.current = key;
       const flown = viewFlownObjectRef.current;
       viewFlownObjectRef.current = null;
@@ -2174,7 +2175,7 @@ export function useObjectLayerReview(
     const max = toFramePoint(fitView, { x: box.x + box.width, y: box.y + box.height });
 
     flyToBounds({ minX: min.x, minY: min.y, maxX: max.x, maxY: max.y }, frameSizePx.width, frameSizePx.height);
-  }, [endFlight, fitView, flyToBounds, frameSizePx, objects, placements, selectedObjectId, surfacePx, viewMode]);
+  }, [chosenViewMode, endFlight, fitView, flyToBounds, frameSizePx, isComparing, objects, placements, selectedObjectId, surfacePx]);
 
   /*
    * Lỗi quy chuẩn của lớp (P03). Mở từ nút "Sửa" hay bấm một dòng: bay tới chỗ lỗi (khung

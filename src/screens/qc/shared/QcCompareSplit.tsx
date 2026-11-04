@@ -3,11 +3,10 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNo
 import { useCanvasPan } from '@/components/canvas/useCanvasPan';
 import { cn } from '@/lib/utils';
 
-import { WallLayerTag } from '../WallLayerReview/WallLayerTag';
-import type { WallTagView } from '../WallLayerReview/wallLayerHatch';
-
 import { pointInFrame, rectInFrame } from './qcAsk';
+import { QcCanvasCoverContext, useQcCanvasCover } from './qcCanvasCover';
 import { placeCompareTag, useQcCompare } from './qcCompare';
+import { QcTag, type QcTagView } from './QcTag';
 
 /**
  * Chế độ "So sánh hai bên" (`qcCompare.ts`): trái là bản vẽ gốc rõ nét, phải là canvas đã nhận diện như cũ.
@@ -21,6 +20,9 @@ import { placeCompareTag, useQcCompare } from './qcCompare';
  * Thẻ của mục đang chọn (`tag`) vẽ một chỗ ở cả hai nửa. Nửa trái ngoài viền và thẻ thì không tô gì.
  *
  * Tắt chế độ thì chỉ còn canvas phải; cây DOM giữ nguyên chỗ của nó để canvas không bị dựng lại.
+ *
+ * Panel chi tiết: từ 1024 cả hai nửa chừa chỗ cho nó (lề phải = phần panel che), nên thẻ không bao giờ nằm dưới panel;
+ * dưới 1024 tấm đáy vẫn đè lên, thẻ đặt trong phần còn thấy và canvas phải dịch mục chọn ra khỏi tấm đáy.
  */
 export interface QcCompareRect {
   readonly x: number;
@@ -34,7 +36,7 @@ export interface QcCompareTag {
   readonly rect: QcCompareRect;
   readonly anchorPx?: { readonly x: number; readonly y: number };
   readonly text: string;
-  readonly tier: WallTagView['tier'];
+  readonly tier: QcTagView['tier'];
 }
 
 export interface QcCompareSplitProps {
@@ -91,6 +93,7 @@ export function QcCompareSplit({ children, tag = null, ...pane }: QcCompareSplit
   const isOn = useQcCompare();
   const rightRef = useRef<HTMLDivElement | null>(null);
   const { haloRect, layerView } = pane;
+  const cover = useQcCanvasCover();
 
   /* Khổ hộp đệm của nửa trái = của canvas phải (cùng viền, cùng ô lưới): một khung cho cả hai. */
   const [leftEl, setLeftEl] = useState<HTMLDivElement | null>(null);
@@ -107,13 +110,14 @@ export function QcCompareSplit({ children, tag = null, ...pane }: QcCompareSplit
 
   const view = layerView === undefined || frame === null ? null : { ...layerView, ...frame };
   const tagAnchor = tag === null ? null : (tag.anchorPx ?? { x: tag.rect.x + tag.rect.width / 2, y: tag.rect.y + tag.rect.height / 2 });
+  const shownFrame = frame === null ? null : { width: frame.width, height: frame.height - cover.bottom };
   const tagSpot =
-    !isOn || tag === null || tagAnchor === null || frame === null
+    !isOn || tag === null || tagAnchor === null || shownFrame === null
       ? null
       : view === null
-        ? placeCompareTag(tag.rect, tagAnchor, frame, tag.text)
-        : placeCompareTag(rectInFrame(tag.rect, view), pointInFrame(tagAnchor, view), frame, tag.text);
-  const tagNode = tagSpot === null || tag === null ? null : <WallLayerTag {...tagSpot} text={tag.text} tier={tag.tier} />;
+        ? placeCompareTag(tag.rect, tagAnchor, shownFrame, tag.text)
+        : placeCompareTag(rectInFrame(tag.rect, view), pointInFrame(tagAnchor, view), shownFrame, tag.text);
+  const tagNode = tagSpot === null || tag === null ? null : <QcTag {...tagSpot} text={tag.text} tier={tag.tier} />;
   const haloInFrame = haloRect === null || view === null ? haloRect : rectInFrame(haloRect, view);
 
   return (
@@ -121,6 +125,7 @@ export function QcCompareSplit({ children, tag = null, ...pane }: QcCompareSplit
       /* Lưới, không flex: flex chia cả phần viền 1 px chỉ nửa trái có ở thân, nên khung trái rộng hơn 2 px và lệch tâm phóng. */
       className={cn('h-full w-full gap-px', isOn ? 'grid grid-cols-2' : 'flex')}
       data-compare={isOn ? '' : undefined}
+      style={isOn && cover.right > 0 ? { paddingRight: cover.right } : undefined}
     >
       {isOn ? (
         <DrawingPane {...pane} haloRect={haloInFrame} onElement={setLeftEl} rightRef={rightRef}>
@@ -132,7 +137,7 @@ export function QcCompareSplit({ children, tag = null, ...pane }: QcCompareSplit
         className={cn('relative min-h-0 min-w-0 flex-1', isOn ? 'max-lg:[&>*]:!min-h-0' : undefined)}
         ref={rightRef}
       >
-        {children}
+        <QcCanvasCoverContext.Provider value={isOn ? { right: 0, bottom: cover.bottom } : cover}>{children}</QcCanvasCoverContext.Provider>
         {isOn ? <span className={CHIP_CLASSES}>{COMPARE_RIGHT_LABEL}</span> : null}
         {/* `inset-px`: đúng hộp đệm của khung canvas (trong viền 1 px), hệ toạ độ của thẻ. */}
         {tagNode === null ? null : (

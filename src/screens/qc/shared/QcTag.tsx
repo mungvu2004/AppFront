@@ -1,21 +1,25 @@
 /**
- * Nhãn của tường đang chọn/rê (WRU-B): đường dẫn 1 px (màu nét kích thước) từ tim tường tới chip
- * mono "3.450 × 220 mm · Máy chắc chắn" có chấm màu tin cậy, nền mặt 92% như `MeasurementLabel`.
- * View thuần: vị trí và chữ tới sẵn từ `wallTag.ts` qua hook, toạ độ là pixel KHUNG.
- * "So sánh hai bên" đưa thêm `leaderPx` (`placeCompareTag`): đường dẫn gấp khúc, cùng thẻ ở cả hai nửa.
+ * Thẻ của mục đang chọn/rê (WRU-B): đường dẫn 1 px (màu nét kích thước) từ mục tới chip mono
+ * "3.450 × 220 mm · Máy chắc chắn" có chấm màu tin cậy, nền mặt 92% như `MeasurementLabel`.
+ * View thuần: vị trí và chữ tới sẵn, toạ độ là pixel KHUNG. Dùng ở màn Tường và "So sánh hai bên":
+ * so sánh đưa thêm `leaderPx` (`placeCompareTag`): đường dẫn gấp khúc, cùng thẻ ở cả hai nửa.
  */
 
 import { dimensionStrokeToken, wallConfidenceToken } from '@/components/canvas/materialMap';
 
-import type { WallTagView } from './wallLayerHatch';
+interface PointPx {
+  readonly x: number;
+  readonly y: number;
+}
 
-export function WallLayerTag({
-  anchorPx,
-  leaderPx,
-  tagPx,
-  text,
-  tier,
-}: WallTagView & { readonly leaderPx?: readonly { readonly x: number; readonly y: number }[] }) {
+export interface QcTagView {
+  readonly anchorPx: PointPx;
+  readonly tagPx: PointPx;
+  readonly text: string;
+  readonly tier: Parameters<typeof wallConfidenceToken>[0];
+}
+
+export function QcTag({ anchorPx, leaderPx, tagPx, text, tier }: QcTagView & { readonly leaderPx?: readonly PointPx[] }) {
   const points = [anchorPx, ...(leaderPx ?? [tagPx])].map((point) => `${point.x},${point.y}`).join(' ');
 
   return (

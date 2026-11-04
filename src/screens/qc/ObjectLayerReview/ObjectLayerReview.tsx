@@ -359,8 +359,6 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
             emptyNotice={model.emptyNotice}
             errorMessage={model.errorMessage}
             furnitureAttentionNotice={model.furnitureAttentionNotice}
-            isCollapsed={model.isCollapsed}
-            onToggleCollapsed={model.onToggleCollapsed}
             onUndo={model.onUndo}
             reviewCounter={model.reviewCounter}
             reviewProgressLabel={model.state === 'loading' ? LOADING_PROGRESS_LABEL : model.reviewProgressLabel}
@@ -373,7 +371,9 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
             activeLayer={model.activeLayer}
             activeSubtype={model.activeSubtype}
             drawLayer={model.drawLayer}
+            isCollapsed={model.isCollapsed}
             isViewerRole={isReadOnly(model)}
+            onToggleCollapsed={model.onToggleCollapsed}
             onStartDraw={model.onStartDraw}
             onSelectSubtypeSlot={model.onSelectSubtypeSlot}
           />

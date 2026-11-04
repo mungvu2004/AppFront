@@ -163,12 +163,13 @@ describe('QcStatusBar nổi trên bản vẽ (bỏ thanh đáy)', () => {
     expect(screen.queryByText(QC_NO_CHANGES_LABEL)).toBeNull();
   });
 
-  it('dưới 1024, tấm chi tiết mở: bản vẽ chỉ lấy phần không bị che', () => {
+  it('panel chi tiết nổi đè lên bản vẽ: chọn không đổi lớp của khung, panel đứng ngoài luồng', () => {
     const tree = (key: string | null) => <QcWorkspace canvas={<p>bv</p>} canvasLabel="Bản vẽ" column inspector={<p>ct</p>} selectionKey={key} />;
     const { rerender } = render(tree(null));
-    expect(screen.getByRole('region', { name: 'Bản vẽ' })).not.toHaveClass('max-lg:self-start');
+    const before = screen.getByRole('region', { name: 'Bản vẽ' }).className;
     rerender(tree('a'));
-    expect(screen.getByRole('region', { name: 'Bản vẽ' })).toHaveClass('max-lg:self-start');
+    expect(screen.getByRole('region', { name: 'Bản vẽ' }).className).toBe(before);
+    expect(screen.getByTestId('qc-inspector-dock')).toHaveClass('lg:absolute', 'max-lg:absolute');
   });
 });
 
