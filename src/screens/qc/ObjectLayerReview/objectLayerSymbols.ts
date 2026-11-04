@@ -271,9 +271,6 @@ export interface ObjectDragMeasurement {
  * chứ không mở một menu rỗng.
  */
 export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
-  /** Độ phóng của cú bay tới mục ("So sánh", lỗi quy chuẩn): cụm phóng hiện mức thật, không chỉ mức CSS. */
-  readonly flightZoom?: number | undefined;
-  readonly onResetFlight?: (() => void) | undefined;
   /** Đang đọc lớp: không nói "chưa có đối tượng" và không đếm "0 đối tượng" khi dữ liệu chưa tới (BUG-618). */
   readonly isLoading?: boolean;
   /** 21 đối tượng đã đặt chỗ sẵn, cùng thứ tự với `objects`. */
