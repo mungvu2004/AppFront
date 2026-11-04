@@ -7,6 +7,9 @@
  * Nên cài MỘT `PMREMNode` làm `scene.environmentNode` ngay lúc cài (giữ trời gradient), HDRI về thì chỉ
  * đổi `envNode.value` — PMREM tính lại, không vật liệu nào dựng lại. Byte HDRI tải từ lúc mở trang
  * (`prefetchHdri` trong `main.tsx`), không còn đợi trình duyệt rảnh.
+ *
+ * Đổi chủ đề cũng vậy: chủ đề tối dùng `RoomEnvironment`, chủ đề sáng dùng trời + HDRI. Nút giữ nguyên qua mọi
+ * chủ đề, kể cả chủ đề tối (không có HDRI), nếu không mỗi lần đổi lại dựng lại toàn bộ shader (đo 04/11).
  */
 import { EquirectangularReflectionMapping, FileLoader, FloatType, type Scene, type Texture } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
@@ -44,19 +47,36 @@ export function prefetchHdri(themeId: string, appearance: string): void {
   hdriBytes(themeId).catch(() => {});
 }
 
-/** Trả hàm dọn (gỡ HDRI, trả môi trường cũ). `themeId` chọn HDRI (Ban ngày khác Nắng chiều, gói 2B). */
+const stableEnv = new WeakMap<Scene, ReturnType<typeof pmremTexture>>();
+
+/**
+ * Nút môi trường của cảnh, một nút suốt đời cảnh và mọi chủ đề: chỉ đổi `value` theo `scene.environment` hiện tại.
+ * Null khi chưa có trời, hoặc cảnh đang có nút của chủ khác (bầu trời `scene-atmosphere`).
+ */
+function stableEnvNode(scene: Scene): ReturnType<typeof pmremTexture> | null {
+  if (!scene.environment) return null;
+  let node = stableEnv.get(scene);
+  if (!node) {
+    node = pmremTexture(scene.environment);
+    stableEnv.set(scene, node);
+  }
+  if (scene.environmentNode && scene.environmentNode !== node) return null;
+  if (node.value !== scene.environment) node.value = scene.environment;
+  scene.environmentNode = node;
+  return node;
+}
+
+/** Trả hàm dọn (gỡ HDRI; nút môi trường ở lại). `themeId` chọn HDRI (Ban ngày khác Nắng chiều, gói 2B). */
 export function installHdri(scene: Scene, appearance: string, themeId = ''): () => void {
   const { backend, flags } = useRealism.getState();
   const asked = askedHdri();
-  if (asked === 'off' || !shouldLoadHdri({ backend, flag: flags.hdri, appearance })) return () => {};
+  if (asked === 'off') return () => {};
+  const envNode = stableEnvNode(scene);
+  if (!envNode || !shouldLoadHdri({ backend, flag: flags.hdri, appearance })) return () => {};
   const variant: HdriVariant = asked === 'pure' || asked === 'gradient' ? asked : HDRI_VARIANT;
   let done = false;
   let hdr: Texture | null = null;
   let sky: Texture | null = null;
-  const previousNode = scene.environmentNode;
-  // Nút môi trường cố định từ lượt vẽ đầu: bọc trời gradient vendor đang đặt ở `scene.environment`.
-  let envNode = scene.environment ? pmremTexture(scene.environment) : null;
-  if (envNode) scene.environmentNode = envNode;
   const timer = setTimeout(() => {
     if (!hdr) done = true;
   }, HDRI_TIMEOUT_MS);
@@ -79,9 +99,8 @@ export function installHdri(scene: Scene, appearance: string, themeId = ''): () 
         texture.mapping = EquirectangularReflectionMapping;
         texture.needsUpdate = true;
         hdr = texture;
-        // Cùng nút → khoá cache vật liệu không đổi; không có trời cũ thì đặt nút lần đầu (như trước).
-        if (envNode) envNode.value = texture;
-        else scene.environmentNode = envNode = pmremTexture(texture);
+        // Cùng nút → khoá cache vật liệu không đổi.
+        envNode.value = texture;
         setHdriSky(sky);
       },
       undefined,
@@ -94,8 +113,6 @@ export function installHdri(scene: Scene, appearance: string, themeId = ''): () 
   return () => {
     done = true;
     clearTimeout(timer);
-    if (envNode && scene.environmentNode === envNode) scene.environmentNode = previousNode;
-    envNode?.dispose();
     if (sky) setHdriSky(null);
     hdr?.dispose();
     sky?.dispose();

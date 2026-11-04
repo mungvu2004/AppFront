@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { lowestLevelSlabs, MITER_LIMIT, outsetRing, STUDIO_PALETTE } from './studio';
+import { lowestLevelSlabs, MITER_LIMIT, outsetRing, STUDIO_PALETTE, studioGroundColor } from './studio';
 
 const square: [number, number][] = [
   [0, 0],
@@ -48,6 +48,14 @@ describe('lowestLevelSlabs', () => {
       d: { type: 'wall', parentId: 'l0' },
     };
     expect(lowestLevelSlabs(nodes)).toEqual([square]);
+  });
+});
+
+describe('studioGroundColor', () => {
+  it('Nắng chiều màu ấm, chủ đề khác giữ xám', () => {
+    expect(studioGroundColor('sunset')).toBe('#f6e8d4');
+    expect(studioGroundColor('studio')).toBe(STUDIO_PALETTE.ground);
+    expect(studioGroundColor('night')).toBe(STUDIO_PALETTE.ground);
   });
 });
 

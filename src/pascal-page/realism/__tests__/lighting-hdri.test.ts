@@ -36,7 +36,34 @@ describe('installHdri: một nút môi trường từ lượt vẽ đầu', () =
     useRealism.setState({ backend: 'unknown' });
   });
 
-  it('đặt PMREMNode quanh trời gradient ngay, HDRI về chỉ đổi value cùng nút; dọn trả nút cũ', async () => {
+  it('đổi chủ đề giữ nguyên nút môi trường (khoá shader không đổi), chỉ đổi value', async () => {
+    const scene = new Scene();
+    scene.environment = new DataTexture(new Float32Array(4), 1, 1, RGBAFormat, FloatType);
+    const undoDay = installHdri(scene, 'light', 'studio');
+    const node = scene.environmentNode as unknown as { value: unknown };
+    await flush();
+    await flush();
+    undoDay();
+
+    const room = new DataTexture(new Float32Array(4), 1, 1, RGBAFormat, FloatType);
+    scene.environment = room;
+    const undoNight = installHdri(scene, 'dark', 'night');
+    expect(scene.environmentNode).toBe(node);
+    expect(node.value).toBe(room);
+    undoNight();
+    expect(scene.environmentNode).toBe(node);
+  });
+
+  it('cảnh đang có nút của chủ khác (bầu trời): không chiếm', () => {
+    const scene = new Scene();
+    scene.environment = new DataTexture(new Float32Array(4), 1, 1, RGBAFormat, FloatType);
+    const foreign = { isNode: true } as unknown as Scene['environmentNode'];
+    scene.environmentNode = foreign;
+    installHdri(scene, 'light', 'studio')();
+    expect(scene.environmentNode).toBe(foreign);
+  });
+
+  it('đặt PMREMNode quanh trời gradient ngay, HDRI về chỉ đổi value cùng nút', async () => {
     const scene = new Scene();
     const gradient = new DataTexture(new Float32Array(4), 1, 1, RGBAFormat, FloatType);
     scene.environment = gradient;
@@ -53,10 +80,9 @@ describe('installHdri: một nút môi trường từ lượt vẽ đầu', () =
     expect(scene.environment).toBe(gradient); // không đụng `scene.environment` nữa
 
     dispose();
-    expect(scene.environmentNode).toBeUndefined(); // giá trị ban đầu của Scene
   });
 
-  it('chủ đề tối / ?hdri=off: không đụng cảnh; tải byte một lần cho cả prefetch lẫn cài', async () => {
+  it('chưa có trời: không đặt nút; tải byte một lần cho cả prefetch lẫn cài', async () => {
     const scene = new Scene();
     installHdri(scene, 'dark')();
     expect(scene.environmentNode).toBeUndefined(); // giá trị ban đầu của Scene
