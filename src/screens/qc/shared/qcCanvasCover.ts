@@ -53,6 +53,17 @@ export function useMeasuredCanvasCover(
     return () => observer.disconnect();
   }, [dock, isOpen, section]);
 
+  /* Toast nổi ngoài khung này (`Toast.tsx`): đọc phần bị che qua biến CSS để đứng cạnh panel, không đè nút của nó. */
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--qc-cover-right', `${String(cover.right)}px`);
+    root.style.setProperty('--qc-cover-bottom', `${String(cover.bottom)}px`);
+    return () => {
+      root.style.removeProperty('--qc-cover-right');
+      root.style.removeProperty('--qc-cover-bottom');
+    };
+  }, [cover]);
+
   return cover;
 }
 
@@ -60,6 +71,8 @@ export function useMeasuredCanvasCover(
 const REVEAL_EDGE_PX = 8;
 /** Phải dịch thì chừa chừng này tới mép, đủ chỗ cho thẻ đường dẫn. */
 const REVEAL_PAD_PX = 48;
+/** Cụm phóng (cao 36, cách mép 16) đứng ngay trên tấm đáy: mục phải nổi lên trên nó. */
+const ZOOM_CLUSTER_RESERVE_PX = 52;
 
 const revealAlong = (start: number, size: number, visible: number): number => {
   if (start >= REVEAL_EDGE_PX && start + size <= visible - REVEAL_EDGE_PX) return 0;
@@ -78,7 +91,7 @@ export const revealDeltaOf = (
   cover: QcCanvasCover,
 ): { readonly x: number; readonly y: number } => ({
   x: revealAlong(rect.x, rect.width, frame.width - cover.right),
-  y: revealAlong(rect.y, rect.height, frame.height - cover.bottom),
+  y: revealAlong(rect.y, rect.height, frame.height - cover.bottom - (cover.bottom > 0 ? ZOOM_CLUSTER_RESERVE_PX : 0)),
 });
 
 /**

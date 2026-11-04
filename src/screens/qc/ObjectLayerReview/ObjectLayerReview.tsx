@@ -194,12 +194,28 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
         kindPicker: model.kindPicker,
       };
   /* "So sánh hai bên": một khung nhìn cho cả hai nửa — nửa trái đặt ảnh rõ nét trong cùng lớp phóng. */
-  const zoomPan = useCanvasZoomPan();
-  const { pan, scale } = zoomPan;
+  const ownZoomPan = useCanvasZoomPan();
+  const { pan, scale } = ownZoomPan;
+  /* Cụm phóng hiện mức thật (gồm cú bay tới mục), và trả về vừa khung thì bỏ luôn cú bay đó. */
+  const zoomPan = {
+    ...ownZoomPan,
+    zoomCluster: {
+      ...ownZoomPan.zoomCluster,
+      zoomLevel: Math.round(ownZoomPan.zoomCluster.zoomLevel * model.flightZoom),
+      onFitToScreen: () => {
+        ownZoomPan.zoomCluster.onFitToScreen();
+        model.onResetFlight();
+      },
+      onResetZoom: () => {
+        ownZoomPan.zoomCluster.onResetZoom();
+        model.onResetFlight();
+      },
+    },
+  };
   const image = model.backgroundImageUrl === null ? null : model.surfaceRectPx;
   /* Chọn lúc so sánh: bỏ độ phóng cục bộ để hook bay đúng vào mục (hộp phóng tính trên lớp vừa khung). */
   const isComparing = useQcCompare();
-  const { onFitToScreen } = zoomPan.zoomCluster;
+  const { onFitToScreen } = ownZoomPan.zoomCluster;
   useEffect(() => {
     if (isComparing && model.selectedObjectId !== null) onFitToScreen();
   }, [isComparing, model.selectedObjectId, onFitToScreen]);

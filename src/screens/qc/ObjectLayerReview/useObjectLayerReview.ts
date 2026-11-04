@@ -2363,6 +2363,8 @@ export function useObjectLayerReview(
     inspector,
     wallOutlines: wallOutlinesPx,
     viewBoxPx: surfacePx === null || !hasFrame ? surfacePx : visibleDrawingRect(view, frameSizePx),
+    flightZoom: viewport.zoom,
+    onResetFlight: endFlight,
     unitPx: 1 / view.zoom,
     surfaceRectPx: surfacePx === null ? null : toFrameRect(view, surfacePx),
     haloRectPx:

@@ -14,7 +14,7 @@ describe('revealDeltaOf', () => {
   });
 
   it('mục dưới tấm đáy thì dịch lên', () => {
-    expect(revealDeltaOf({ x: 100, y: 600, width: 50, height: 50 }, FRAME, { right: 0, bottom: 360 })).toEqual({ x: 0, y: 440 - 48 - 650 });
+    expect(revealDeltaOf({ x: 100, y: 600, width: 50, height: 50 }, FRAME, { right: 0, bottom: 360 })).toEqual({ x: 0, y: 440 - 52 - 48 - 650 });
   });
 
   it('mục dài hơn phần thấy được: tâm còn thấy thì đứng yên, tâm bị che thì đưa vào giữa', () => {
