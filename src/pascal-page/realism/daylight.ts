@@ -15,6 +15,8 @@
 import { type Material, type Mesh, type Object3D, RepeatWrapping, SRGBColorSpace, type Texture, TextureLoader } from 'three';
 import { color, mix, positionWorld, texture, vec3 } from 'three/tsl';
 
+import type { Wall } from '@/domain/spatial/types';
+import { isGlassWall } from '@/domain/walls/glass';
 import { REALISM_PALETTE } from '@/lib/pascal/scenePalette';
 import { ceilingCastsShadow } from './lighting';
 import { type GroundMode, useRealism } from './store';
@@ -54,6 +56,14 @@ export function subscribeCeilingBatch(onChange: () => void): () => void {
 export function isGlassLike(material: Material): boolean {
   const m = material as Material & { transmission?: number };
   return (m.transmission ?? 0) > 0 || /glass|vetro/i.test(material.name);
+}
+
+/**
+ * Bản đồ bóng chỉ có độ sâu nên tường kính (hai mặt kính) mà đổ bóng thì bóng đặc như tường gạch.
+ * Tường rèm vẫn tắt như vendor, nó có mesh bóng riêng. `node` đổi → renderer vẽ lại → cờ theo ngay.
+ */
+export function wallCastsShadow(node: { wallType?: string; slots?: Record<string, string> }): boolean {
+  return node.wallType !== 'curtain' && !isGlassWall({ paint: node.slots as Wall['paint'] });
 }
 
 /** Ảnh nền của R5 (`scripts/realism/r5-materials.mjs`, `sizeM` 2.5). */
