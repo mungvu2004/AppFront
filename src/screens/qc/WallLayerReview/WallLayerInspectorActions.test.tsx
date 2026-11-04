@@ -100,7 +100,26 @@ describe('khoá tỷ lệ (useScaleLock) ở thanh tra', () => {
     expect(onOpenScale).toHaveBeenCalledTimes(1);
   });
 
-  it('panel: mục Kích thước/Độ tin cậy/Loại; điểm tin cậy chỉ ở "Thông số nâng cao"; một hàng nút ở chân', () => {
+  it('Vật liệu: chọn tường kính gọi hàm; khoá tỷ lệ thì tắt; người xem chỉ đọc chữ', () => {
+    const onChangeMaterial = vi.fn();
+    const editable = { ...lockedPanel(vi.fn()), scaleLock: null, onDelete: vi.fn(), onChangeMaterial } as unknown as WallLayerViewProps;
+    const view = renderWithProviders(<WallLayerInspectorPanel panel={editable} />);
+
+    expect(screen.getByRole('radio', { name: 'Tường thường' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('radio', { name: 'Tường kính' }));
+    expect(onChangeMaterial).toHaveBeenCalledWith(editable.inspector?.id, true);
+    view.unmount();
+
+    const locked = renderWithProviders(<WallLayerInspectorPanel panel={{ ...lockedPanel(vi.fn()), onChangeMaterial } as unknown as WallLayerViewProps} />);
+    expect(screen.getByRole('radio', { name: 'Tường kính' })).toBeDisabled();
+    locked.unmount();
+
+    renderWithProviders(<WallLayerInspectorPanel panel={{ ...editable, isViewerRole: true } as unknown as WallLayerViewProps} />);
+    expect(screen.queryByRole('radio', { name: 'Tường kính' })).toBeNull();
+    expect(screen.getByText('Tường thường')).toBeInTheDocument();
+  });
+
+  it('panel: mục Kích thước/Độ tin cậy/Thuộc tính; điểm tin cậy chỉ ở "Thông số nâng cao"; một hàng nút ở chân', () => {
     const unlocked = { ...lockedPanel(vi.fn()), scaleLock: null, onDelete: vi.fn() } as unknown as WallLayerViewProps;
 
     renderWithProviders(<WallLayerInspectorPanel panel={unlocked} />);
@@ -110,7 +129,7 @@ describe('khoá tỷ lệ (useScaleLock) ở thanh tra', () => {
     expect(size).toHaveTextContent('Dài');
     expect(size).toHaveTextContent('5.757 mm');
     expect(screen.getByRole('region', { name: 'Độ tin cậy' })).toHaveTextContent('Máy chưa chắc');
-    expect(screen.getByRole('region', { name: 'Loại' })).toHaveTextContent('Chiều cao');
+    expect(screen.getByRole('region', { name: 'Thuộc tính' })).toHaveTextContent('Chiều cao');
     expect(screen.getByText('Vật liệu')).toBeInTheDocument();
     expect(screen.queryByText('Điểm tin cậy')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Thông số nâng cao' }));

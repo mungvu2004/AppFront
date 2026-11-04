@@ -272,8 +272,10 @@ export interface WallInspectorViewModel {
   readonly confidence: Confidence;
   /** Độ tin cậy bằng chữ — "Máy chưa chắc" (K16). */
   readonly confidenceText: string;
-  /** "vật liệu" của đặc tả gốc — xem ghi chú đầu file. Lấy từ `WALL_KIND_LABELS`. */
+  /** Nhãn loại tường, lấy từ `WALL_KIND_LABELS` — xem ghi chú đầu file. */
   readonly kindLabel: string;
+  /** Vật liệu người dùng chọn: tường kính (`Wall.paint`, `domain/walls/glass`). */
+  readonly isGlass?: boolean;
   readonly advanced: WallInspectorAdvanced;
 }
 
@@ -383,6 +385,8 @@ export interface WallLayerViewProps {
   readonly onChangeThickness: (wallId: WallId, thicknessMm: number) => void;
   /** Đổi chiều dài tường thẳng: giữ đầu, dời đầu cuối dọc hướng tường (P03). */
   readonly onChangeLength?: ((wallId: WallId, lengthMm: number) => void) | undefined;
+  /** Chọn vật liệu: tường kính hay tường thường; lưu + hoàn tác như mọi lệnh sửa. Vắng = chỉ đọc. */
+  readonly onChangeMaterial?: ((wallId: WallId, isGlass: boolean) => void) | undefined;
   /** Xoá dùng vé hoàn tác (A8, CẤM TUYỆT ĐỐI "không hộp thoại"); toast Hoàn tác do hook dựng. */
   readonly onDelete: (wallId: WallId) => void;
   /** `at` là điểm cắt trên tim tường; hook tự mint `secondWallId` — xem ghi chú đầu file. */

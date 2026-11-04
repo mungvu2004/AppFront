@@ -1310,7 +1310,7 @@ describe('công cụ đã nối dây', () => {
     const mounted = await mountSettled();
 
     await pressKey(mounted.registry, shortcutForTool('drawWall'));
-    expect(mounted.result.current.statusBar.cursorLabel).toContain('Bấm điểm đầu của tường');
+    expect(mounted.result.current.statusBar.cursorLabel).toContain('Bấm điểm đầu');
 
     await act(async () => {
       mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 0, y: 0 }));
@@ -1322,7 +1322,7 @@ describe('công cụ đã nối dây', () => {
     });
 
     expect(mounted.result.current.canvas.draftGuidePx?.fromPx).not.toBeNull();
-    expect(mounted.result.current.statusBar.cursorLabel).toContain('Bấm điểm cuối của tường');
+    expect(mounted.result.current.statusBar.cursorLabel).toContain('Bấm điểm cuối');
 
     await pressKey(mounted.registry, shortcutForTool('splitWall'));
     await act(async () => {
@@ -2110,7 +2110,7 @@ describe('vẽ tường nối vào tường có sẵn', () => {
     });
     await pressKey(mounted.registry, 'Escape');
     expect(mounted.result.current.toolRail.activeTool).toBe('drawWall');
-    expect(mounted.result.current.statusBar.toolHint).toContain('Bấm điểm đầu của tường');
+    expect(mounted.result.current.statusBar.toolHint).toContain('Bấm điểm đầu');
 
     await pressKey(mounted.registry, 'Escape');
     expect(mounted.result.current.toolRail.activeTool).toBe('select');
@@ -2198,7 +2198,113 @@ describe('vẽ tường nối vào tường có sẵn', () => {
       mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 5000, y: 2200 }));
       await Promise.resolve();
     });
-    expect(mounted.result.current.statusBar.toolHint).toContain('Bấm điểm cuối của tường');
+    expect(mounted.result.current.statusBar.toolHint).toContain('Bấm điểm cuối');
+
+    mounted.unmount();
+  });
+
+  it('nét bị từ chối vẫn giữ điểm đầu; bấm lại điểm cuối lên tường thì vẽ được từ đúng điểm đó', async () => {
+    const gateway = createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH });
+    const mounted = await mountSettled({ gateway });
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000, y: 20000 }));
+      await Promise.resolve();
+    });
+    /* Điểm đầu trơ: gợi ý nói ngay điều kiện, trước khi bị từ chối. */
+    expect(mounted.result.current.statusBar.toolHint).toContain('Điểm cuối phải chạm một tường');
+
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400, y: 20700 }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.result.current.statusBar.toolHint).toBe(WALL_DRAW_MUST_CONNECT_TEXT);
+    });
+
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 5000, y: 2200 }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(newWalls()).toHaveLength(1);
+    });
+    expect(newWalls()[0]?.centreline).toEqual({ start: { x: 20000, y: 20000 }, end: { x: 5000, y: 2200 } });
+
+    mounted.unmount();
+  });
+
+  it('vẽ nối tiếp: điểm cuối thành điểm đầu nét sau, mỗi nét một bước Ctrl+Z, Esc dừng chuỗi giữ công cụ', async () => {
+    const gateway = createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH });
+    const mounted = await mountSettled({ gateway });
+    const click = async (x: number, y: number) => {
+      await act(async () => {
+        mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x, y }));
+        await Promise.resolve();
+      });
+    };
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await click(5000, 2200);
+    await click(5000, -3000);
+    await waitFor(() => {
+      expect(newWalls()).toHaveLength(1);
+    });
+    /* Lệch 30 mm trên 2 m: khoá trục đưa về đúng dọc/ngang theo điểm đầu mới. */
+    await click(7000, -2970);
+    await waitFor(() => {
+      expect(newWalls()).toHaveLength(2);
+    });
+    expect(newWalls()[1]?.centreline).toEqual({ start: { x: 5000, y: -3000 }, end: { x: 7000, y: -3000 } });
+
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+    await waitFor(() => {
+      expect(newWalls()).toHaveLength(1);
+    });
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+    await waitFor(() => {
+      expect(newWalls()).toHaveLength(0);
+    });
+
+    /* Hoàn tác cũng bỏ điểm đầu đang giữ: bấm tiếp là điểm đầu mới. */
+    expect(mounted.result.current.statusBar.toolHint).toContain('Bấm điểm đầu');
+
+    await click(5000, 2200);
+    await click(5000, -3000);
+    await waitFor(() => {
+      expect(newWalls()).toHaveLength(1);
+    });
+    expect(mounted.result.current.statusBar.toolHint).toContain('Bấm điểm cuối');
+    await pressKey(mounted.registry, 'Escape');
+    expect(mounted.result.current.statusBar.toolHint).toContain('Bấm điểm đầu');
+    expect(mounted.result.current.toolRail.activeTool).toBe('drawWall');
+    await pressKey(mounted.registry, 'Escape');
+    expect(mounted.result.current.toolRail.activeTool).toBe('select');
+
+    mounted.unmount();
+  });
+
+  it('phím 1/2/3 khi đang vẽ đặt độ dày nét, thắng kế thừa, không đổi tường đang chọn', async () => {
+    const gateway = createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH });
+    const mounted = await mountSettled({ gateway });
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await pressKey(mounted.registry, '2');
+    expect(mounted.result.current.statusBar.toolHint).toContain(`Dày ${WALL_LAYER_THICKNESS_CHOICES[1]} mm`);
+
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 5000, y: 2200 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 5000, y: 4400 }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(newWalls()).toHaveLength(1);
+    });
+    expect(newWalls()[0]?.thicknessMm).toBe(WALL_LAYER_THICKNESS_CHOICES[1]);
 
     mounted.unmount();
   });

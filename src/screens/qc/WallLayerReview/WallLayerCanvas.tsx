@@ -42,6 +42,7 @@ import { WallDraftGuide, WallDrawingBackground, WallLayerMiniMap } from './WallL
 import { drawingPointOf, wallMenuGroups } from './wallLayerCanvasActions';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
 import { WallLayerOpenings } from './WallLayerOpenings';
+import { useWallDrawPointer } from './useWallDrawPointer';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
@@ -105,6 +106,7 @@ export function WallLayerCanvas({
   selectedWallIds = NO_SELECTED_WALLS,
   menuRequest,
   draftGuidePx = null,
+  onWallDrawPress = null,
   openings = [],
   shapes,
   showCentrelines,
@@ -148,9 +150,6 @@ export function WallLayerCanvas({
     },
     [panRef],
   );
-  /* Kéo xong thì `click` vẫn nổ: bỏ qua nó để công cụ vẽ không nhận một điểm ngoài ý muốn. */
-  const pointerDownAtRef = useRef<{ x: number; y: number } | null>(null);
-
   useEffect(() => {
     const frame = frameRef.current;
 
@@ -213,6 +212,7 @@ export function WallLayerCanvas({
    * Công cụ nào không chờ một điểm thì `reduceTool` bỏ qua lượt này.
    */
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const drawPointer = useWallDrawPointer({ svgRef, pan, isInteractive, onCanvasPoint, onWallDrawPress });
   const handleCanvasClick = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
       const svg = svgRef.current;
@@ -226,9 +226,8 @@ export function WallLayerCanvas({
         return;
       }
 
-      const downAt = pointerDownAtRef.current;
-
-      if (downAt !== null && Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > 4) {
+      /* Kéo xong thì `click` vẫn nổ: bỏ qua nó để công cụ vẽ không nhận một điểm ngoài ý muốn. */
+      if (drawPointer.isClickConsumed(event)) {
         return;
       }
 
@@ -238,7 +237,7 @@ export function WallLayerCanvas({
         onCanvasPoint(reading);
       }
     },
-    [isInteractive, onCanvasPoint],
+    [drawPointer, isInteractive, onCanvasPoint],
   );
 
   const handlePointerLeave = useCallback(() => {
@@ -305,12 +304,9 @@ export function WallLayerCanvas({
       onMouseLeave={handlePointerLeave}
       onLostPointerCapture={pan.handlers.onLostPointerCapture}
       onPointerCancel={pan.handlers.onPointerCancel}
-      onPointerDown={(event) => {
-        pointerDownAtRef.current = { x: event.clientX, y: event.clientY };
-        pan.handlers.onPointerDown(event);
-      }}
+      onPointerDown={drawPointer.onPointerDown}
       onPointerMove={pan.handlers.onPointerMove}
-      onPointerUp={pan.handlers.onPointerUp}
+      onPointerUp={drawPointer.onPointerUp}
       ref={setFrameEl}
       role="group"
     >

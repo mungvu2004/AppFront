@@ -4,7 +4,7 @@ import path from 'node:path';
 import { Camera, Mesh, MeshStandardMaterial, Object3D } from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ceilingSkipsBatch, isGlassLike, subscribeCeilingBatch, syncCeilingShadows } from '../daylight';
+import { ceilingSkipsBatch, isGlassLike, subscribeCeilingBatch, syncCeilingShadows, wallCastsShadow } from '../daylight';
 import { useRealism } from '../store';
 
 const ceilingAt = (y: number) => {
@@ -17,6 +17,14 @@ const ceilingAt = (y: number) => {
 describe('daylight (gói 2B)', () => {
   const tier0 = useRealism.getState().tier;
   afterEach(() => useRealism.setState({ tier: tier0 }));
+
+  it('wallCastsShadow: chỉ tường kính hai mặt và tường rèm không đổ bóng', () => {
+    const glass = 'library:preset-glass';
+    expect(wallCastsShadow({})).toBe(true);
+    expect(wallCastsShadow({ slots: { interior: glass, exterior: glass } })).toBe(false);
+    expect(wallCastsShadow({ slots: { interior: glass, exterior: 'library:preset-white' } })).toBe(true);
+    expect(wallCastsShadow({ wallType: 'curtain' })).toBe(false);
+  });
 
   it('bật castShadow cho trần trên camera, tắt cho trần dưới camera / chủ đề tối / mức Thấp', () => {
     useRealism.setState({ tier: 'medium' });

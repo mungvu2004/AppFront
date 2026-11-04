@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { SpatialGraphDocumentSchema } from '@/api/schemas/spatialGraph';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { MaterialRef, Room, SpatialGraph, Wall } from '@/domain/spatial/types';
+import { GLASS_MATERIAL_REF, GLASS_WALL_PAINT, isGlassWall } from '@/domain/walls/glass';
 
 import { fixtureF1 } from '../__fixtures__';
 import { LIBRARY_MATERIAL_IDS } from '../libraryMaterialIds';
@@ -57,6 +58,24 @@ const withRoom = (next: Room): SpatialGraph => ({
 const withWall = (next: Wall): SpatialGraph => ({
   ...graph,
   walls: graph.walls.map((candidate) => (candidate.id === next.id ? next : candidate)),
+});
+
+describe('tường kính người dùng chọn (`Wall.paint` hai mặt kính)', () => {
+  const glassWall: Wall = { ...wall, paint: GLASS_WALL_PAINT };
+
+  it('cao đủ tầng: hai mặt kính, không len không phào', () => {
+    const node = sceneOf(withWall(glassWall)).nodes[wallId] as PascalNode & { slots?: Record<string, string>; skirting?: unknown; crown?: unknown; height: number };
+    expect(node.slots).toEqual({ interior: GLASS_MATERIAL_REF, exterior: GLASS_MATERIAL_REF });
+    expect(node.skirting).toBeUndefined();
+    expect(node.crown).toBeUndefined();
+    expect(node.height).toBeGreaterThan(1.2);
+  });
+
+  it('một mặt kính vẫn là tường thường', () => {
+    expect(isGlassWall(glassWall)).toBe(true);
+    expect(isGlassWall({ paint: { interior: GLASS_MATERIAL_REF } })).toBe(false);
+    expect(isGlassWall({})).toBe(false);
+  });
 });
 
 const surfaceOf = (scene: PascalScene): string | undefined =>

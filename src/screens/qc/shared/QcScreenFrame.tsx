@@ -267,7 +267,10 @@ export function QcStatusBar({ onUndo, saveLabel, saveFailed = false, children, f
       data-qc-status-bar=""
       className={cn(
         'flex shrink-0 select-none items-center gap-3 whitespace-nowrap bg-bg-surface',
-        floating ? 'h-8 w-fit max-w-full rounded-lg px-1 shadow-float' : 'h-9 border-t border-border-default px-4',
+        /* Dưới 1024 nút bước nổi ở hàng trên cùng: cụm này xuống hàng riêng để không che nút nào. */
+        floating
+          ? 'h-8 w-fit max-w-full rounded-lg px-1 shadow-float max-lg:absolute max-lg:right-0 max-lg:top-full max-lg:mt-2 max-lg:max-w-none'
+          : 'h-9 border-t border-border-default px-4',
       )}
       role="status"
     >
