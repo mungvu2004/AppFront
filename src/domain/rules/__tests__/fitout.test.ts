@@ -235,6 +235,14 @@ describe('checkRoomFurnitureMismatch', () => {
     expect(findings[0]?.message).toContain(ROOM_USAGE_LABELS.bathroom);
   });
 
+  it('lets a thin sink variant stand in a bedroom', () => {
+    const sink = { ...furniture('SK9', { x: 1500, y: 2000 }, { kind: 'sanitaryFixture' }), variant: 'sink' } as const;
+    const plan = (item: Furniture) => planOf({ walls: SHELL, rooms: [BEDROOM], furniture: [item] });
+
+    expect(runCheck(checkRoomFurnitureMismatch, plan(sink))).toEqual([]);
+    expect(runCheck(checkRoomFurnitureMismatch, plan(furniture('SK8', { x: 1500, y: 2000 }, { kind: 'sanitaryFixture' })))).toHaveLength(1);
+  });
+
   it('offers changing either half, because either half may be the wrong one', () => {
     const plan = planOf({
       walls: SHELL,

@@ -145,9 +145,8 @@ function KindRow<K extends string>({
 const SIZE_INPUT =
   'h-8 w-[4.25rem] rounded-lg border border-[var(--pa-border)] bg-[var(--pa-surface)] px-1.5 text-right text-[13px] tabular-nums text-[var(--pa-text)] outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--pa-accent)]';
 const ADOPT_NOTE = 'Đổi kích thước thì món này thành đồ của bạn, không còn thuộc bộ bày sẵn của phòng';
-/** Đồ máy gợi ý chưa xác nhận: tấm viền, sửa ở đây không lưu được (`usePascalEdits.blockedGeneratedEdits` chặn). */
-export const UNCONFIRMED_NOTE =
-  'Máy gợi ý, chưa xác nhận: chưa sửa được ở đây. Vào bước "Duyệt cửa và nội thất" để Nhận gợi ý hoặc Bỏ gợi ý.';
+/** Đồ máy gợi ý chưa xác nhận: tấm viền, sửa = nhận gợi ý, xoá = bỏ gợi ý (`usePascalEdits.suggestionEditOf`). */
+export const UNCONFIRMED_NOTE = 'Máy gợi ý, chưa xác nhận. Sửa thì món được nhận vào bản vẽ, xoá thì bỏ gợi ý.';
 
 /** Dài × Rộng × Cao (mm) + "Giữ tỉ lệ": Enter/rời ô ghi `scale` (một bước Hoàn tác). */
 function SizeRow({
@@ -314,7 +313,7 @@ export function HomeownerCard({ stores, readOnly, extra }: HomeownerCardProps) {
         />
       ) : null}
       {unconfirmed ? <p className="max-w-[24rem] text-[12px] text-[var(--pa-text-2)]">{UNCONFIRMED_NOTE}</p> : null}
-      {dimensions === undefined || unconfirmed ? null : (
+      {dimensions === undefined ? null : (
         <SizeRow
           dimensions={dimensions}
           generated={source === 'AI thêm'}
@@ -326,7 +325,7 @@ export function HomeownerCard({ stores, readOnly, extra }: HomeownerCardProps) {
       )}
       {notSaved ? <p className="text-[12px] text-[var(--pa-text-3)]">{NOT_SAVED_NOTE}</p> : null}
       <div className="flex flex-wrap items-center gap-1.5">
-        {node.type === 'item' && !unconfirmed ? (
+        {node.type === 'item' ? (
           <button className={BTN} onClick={() => update({ rotation: quarterTurn(node.rotation) })} type="button">
             Xoay 90°
           </button>
@@ -336,11 +335,9 @@ export function HomeownerCard({ stores, readOnly, extra }: HomeownerCardProps) {
             Đổi hướng mở
           </button>
         )}
-        {unconfirmed ? null : (
-          <button className={BTN} onClick={remove} type="button">
-            Xoá
-          </button>
-        )}
+        <button className={BTN} onClick={remove} type="button">
+          Xoá
+        </button>
         <button className={BTN} onClick={() => stores.undo()} type="button">
           Hoàn tác
         </button>

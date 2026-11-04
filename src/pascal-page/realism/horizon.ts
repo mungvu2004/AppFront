@@ -12,7 +12,7 @@
  */
 import { Color, ExtrudeGeometry, Shape } from 'three';
 import { MeshBasicNodeMaterial, MeshStandardNodeMaterial, type Node, ShadowNodeMaterial } from 'three/webgpu';
-import { cameraPosition, color, float, max, mix, positionWorld, smoothstep } from 'three/tsl';
+import { cameraPosition, color, float, max, mix, positionWorld, smoothstep, uniform } from 'three/tsl';
 
 import { REALISM_PALETTE } from '@/lib/pascal/scenePalette';
 import { GRASS_GAIN, GRASS_GREEN, GRASS_GREEN_MIX } from './daylight';
@@ -25,6 +25,7 @@ import {
   PLINTH_OUTSET_M,
   PLINTH_TOP_Y,
   STUDIO_PALETTE,
+  studioGroundColor,
   STUDIO_SHADOW_OPACITY,
 } from './studio';
 
@@ -82,10 +83,17 @@ export function farGround(albedo: Node<'vec3'>, appearance: string, mode: Ground
  */
 export const useStudioGround = () => useRealism((s) => s.ground === 'plain' && s.flags.materials);
 
-/** Đĩa đất studio: xám trung tính không chiếu sáng, xa thì tan vào phông như đĩa của vendor. */
+/** Màu đĩa đất là uniform: đổi chủ đề không dựng lại shader. */
+const studioGround = uniform(new Color(STUDIO_PALETTE.ground));
+/** Gọi mỗi khung từ `syncRoomLights` (`Lights`). */
+export function syncStudioGround(themeId: string): void {
+  studioGround.value.set(studioGroundColor(themeId));
+}
+
+/** Đĩa đất studio: không chiếu sáng, màu theo chủ đề (`studioGroundColor`), xa thì tan vào phông như đĩa của vendor. */
 export function studioDisc(fade: Node<'float'>, backdrop: Node<'vec3'>): MeshBasicNodeMaterial {
   const material = new MeshBasicNodeMaterial();
-  material.colorNode = mix(color(STUDIO_PALETTE.ground), backdrop, fade);
+  material.colorNode = mix(studioGround, backdrop, fade);
   material.polygonOffset = true;
   material.polygonOffsetFactor = 2;
   material.polygonOffsetUnits = 2;

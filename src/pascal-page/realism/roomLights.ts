@@ -15,6 +15,7 @@
 import { type Object3D, PointLight, type Scene, Vector3 } from 'three';
 
 import { NIGHT_THEME_ID } from '../renderLook';
+import { syncStudioGround } from './horizon';
 import { sceneTier } from './tiers';
 
 /** Bề rộng vùng nửa tối mong muốn (m) của bóng nắng. */
@@ -143,6 +144,7 @@ export function syncRoomLights(
   themeId: string,
   shading: string | undefined,
 ): void {
+  syncStudioGround(themeId);
   if (!roomLightsOn(themeId, shading, sceneTier())) {
     if (pool.length) {
       for (const l of pool) l.removeFromParent();

@@ -261,7 +261,8 @@ export const checkRoomFurnitureMismatch: FitoutCheck = (context) => {
       continue;
     }
 
-    if (!MISPLACED_FURNITURE[room.usage].includes(item.kind)) {
+    // Chậu thấp (variant 'sink', chậu bếp trong dãy tủ) hợp lệ ở mọi phòng.
+    if (item.variant === 'sink' || !MISPLACED_FURNITURE[room.usage].includes(item.kind)) {
       continue;
     }
 

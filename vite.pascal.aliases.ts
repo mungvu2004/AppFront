@@ -7,4 +7,7 @@ import type { Alias } from 'vite';
 
 const REALISM_DIR = path.resolve(__dirname, './src/pascal-page/realism').split(path.sep).join('/');
 
-export const PASCAL_REALISM_ALIASES: Alias[] = [{ find: /^@pascal-realism\/(.*)$/, replacement: `${REALISM_DIR}/$1` }];
+export const PASCAL_REALISM_ALIASES: Alias[] = [
+  { find: /^@pascal-realism\/(.*)$/, replacement: `${REALISM_DIR}/$1` },
+  { find: /^@pascal-camera-feel$/, replacement: path.resolve(REALISM_DIR, '../cameraFeel.ts').split(path.sep).join('/') },
+];

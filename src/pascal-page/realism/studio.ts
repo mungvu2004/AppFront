@@ -6,12 +6,17 @@
  */
 import { SCENE_PALETTE } from '@/lib/pascal/scenePalette';
 
+import { SUNSET_THEME_ID } from '../renderLook';
+
 /** Màu studio (sRGB). Đất không qua đèn nên giữ đúng xám trung tính trên ảnh. */
 export const STUDIO_PALETTE = {
   ground: SCENE_PALETTE.studioGround,
   shadow: SCENE_PALETTE.studioShadow,
   plinth: SCENE_PALETTE.studioPlinth,
 } as const;
+
+/** Nắng chiều: đất studio theo nền ấm của chủ đề `sunset`, không giữ xám như Ban ngày/Buổi tối. */
+export const studioGroundColor = (themeId: string): string => (themeId === SUNSET_THEME_ID ? SCENE_PALETTE.studioGroundSunset : STUDIO_PALETTE.ground);
 
 /** Đế: cao (m), vát cạnh (m), nhô ra ngoài mép sàn tầng thấp nhất (m, chưa tính vát). */
 export const PLINTH_HEIGHT_M = 0.5;

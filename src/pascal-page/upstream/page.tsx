@@ -192,7 +192,11 @@ function useFitOnLevelChange() {
   useEffect(() => {
     let raf = 0
     const unsubscribe = useViewer.subscribe((state, previous) => {
-      if (state.selection.levelId === previous.selection.levelId || state.levelMode !== 'solo') return
+      const { levelId } = state.selection
+      // U45: only a real floor switch. Preview's click on empty space clears the level and its next click
+      // re-picks one; both are selection, and neither should move the camera.
+      if (levelId === previous.selection.levelId || !levelId || !previous.selection.levelId) return
+      if (state.levelMode !== 'solo') return
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
         raf = requestAnimationFrame(fitModel)

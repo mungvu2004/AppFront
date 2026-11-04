@@ -81,7 +81,7 @@ describe('u40/u42: nhan ten phong thuong truc, khoi cho tai noi that thap va co 
     assert.match(out, /<boxGeometry args=\{\[w, Math\.min\(h, 0\.3\), d\]\} \/>/);
   });
 
-  it('u40: nhan theo co roomLabels, nam ngoai showZones, bam la bay toi phong (N1)', () => {
+  it('u40: nhan theo co roomLabels, nam ngoai showZones, bam dup moi bay toi phong (N1, U45)', () => {
     const out = apply('nodes/src/zone/renderer.tsx');
     assert.match(out, /useFloorplanAnnotationVisibility\(\(s\) => s\.visibility\.roomLabels\)/);
     const label = out.indexOf('{showRoomLabelsU40 && node.name && (');
@@ -91,6 +91,9 @@ describe('u40/u42: nhan ten phong thuong truc, khoi cho tai noi that thap va co 
     assert.match(block, /style=\{\{ pointerEvents: 'none' \}\}/);
     assert.match(block, /pointerEvents: labelClickU40 \? 'auto' : 'none', cursor: 'pointer'[\s\S]*opacity: 1/);
     assert.match(block, /appfront:fit-room', \{ detail: node\.id \}/);
+    // U45: chuot bam don khong bay camera (detail > 0); ban phim va bam dup van bay.
+    assert.match(block, /onClick=\{\(e\) => \{ e\.stopPropagation\(\); if \(e\.detail === 0\) window\.dispatchEvent/);
+    assert.match(block, /onDoubleClick=\{\(e\) => \{ e\.stopPropagation\(\); window\.dispatchEvent/);
     // R3F nghe pointerdown/up tren khung chua canvas: chan o nut thi khong chon tuong phia sau.
     assert.match(block, /onPointerDown=\{\(e\) => e\.stopPropagation\(\)\}/);
     assert.match(block, /onPointerUp=\{\(e\) => e\.stopPropagation\(\)\}/);
@@ -181,5 +184,34 @@ describe('r3t-tiers: doi muc khong doi khoa vat lieu canh (chi dung lai quad hau
     assert.doesNotMatch(index, /realismTier !== 'low'/);
     const lights = patched('viewer/src/components/viewer/lights.tsx');
     assert.match(lights, /if \(lowShadow\) light\.shadow\.intensity = 0\n\s+light\.shadow\.autoUpdate = !lowShadow/);
+  });
+});
+
+describe('u45: cam giac camera', () => {
+  const apply = (id) => {
+    const full = path.join(PACKAGES, id);
+    const raw = readFileSync(full, 'utf8');
+    return transformRealism(RENDER_RULES[id] ? transformRender(raw, full) : raw, full);
+  };
+
+  it('xem truoc: bam chon zone khong con bay toi bbox, camera da luu van con', () => {
+    const out = apply('editor/src/components/editor/custom-camera-controls.tsx');
+    const effect = out.slice(out.indexOf('const previewTargetNodeId'), out.indexOf('const captureMode'));
+    assert.match(effect, /node\.camera/);
+    assert.equal((effect.match(/setLookAt/g) ?? []).length, 1);
+  });
+
+  it('wheel nghe o cha canvas, khong passive, truoc listener cua thu vien', () => {
+    const out = apply('editor/src/components/editor/custom-camera-controls.tsx');
+    assert.match(out, /wheelTarget\.addEventListener\('wheel', onWheel, \{ capture: true, passive: false \}\)/);
+    assert.match(out, /wheelTarget\.removeEventListener\('wheel', onWheel, true\)/);
+    assert.match(out, /controls\.current\.draggingSmoothTime = DRAG_SMOOTH_S/);
+  });
+
+  it('tuong het sang quay lai luoi gop, khong con danh dau ca tang', () => {
+    const out = apply('nodes/src/wall/wall-batch-system.tsx');
+    assert.match(out, /if \(record\) litReleasedWalls\.set\(nodeId, record\)/);
+    assert.match(out, /wallsReadyToRejoin\(/);
+    assert.match(out, /BATCH_SETTLE_MS &&\s+!useViewer\.getState\(\)\.cameraDragging/);
   });
 });

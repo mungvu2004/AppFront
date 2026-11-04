@@ -10,8 +10,11 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
-import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import type { Furniture } from '@/domain/spatial/types';
+import { degrees } from '@/domain/units/types';
 import { registerServerLibrary } from '@/lib/pascal/furnitureCatalog';
+import { isGeneratedNodeId } from '@/lib/pascal/sceneDressing';
 import { SCENE_STYLES } from '@/lib/pascal/sceneStyles';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalNode, PascalScene } from '@/lib/pascal/types';
@@ -22,7 +25,8 @@ import {
   blockedGeneratedEdits,
   commitOfScenes,
   PASCAL_READ_ONLY_REASON,
-  UNCONFIRMED_EDIT_BLOCKED,
+  GENERATED_EDIT_BLOCKED,
+  SUGGESTION_ACCEPTED_NOTICE,
   unsavedPascalEdits,
   usePascalEdits,
 } from './usePascalEdits';
@@ -204,79 +208,179 @@ describe('unsavedPascalEdits (v3 V3 + W3e — phần sửa máy chủ chưa nh�
   });
 });
 
-/** Cảnh nền + tấm viền đồ máy gợi ý chưa xác nhận (như toPascal `suggestedOutlineOf`, không `roomId`). */
-const OUTLINE_ID = 'item_DRESS-suggested-F-1';
-const withOutline = (patch: Record<string, unknown> = {}): PascalScene => ({
+/** Cảnh nền + một node đồ phẳng tự sinh (khuôn tấm viền `suggestedOutlineOf`, không `roomId`). */
+const withGenerated = (id: string, patch: Record<string, unknown> = {}, from: PascalScene = SCENE): PascalScene => ({
   nodes: {
-    ...SCENE.nodes,
-    [OUTLINE_ID]: {
-      id: OUTLINE_ID,
+    ...from.nodes,
+    [id]: {
+      id,
       type: 'item',
       name: 'bàn (chưa xác nhận)',
       position: [9, 0, 1],
       rotation: [0, 0, 0],
       scale: [1, 1, 1],
       asset: { id: 'appfront-rectangular-carpet', src: 'asset://appfront/table', dimensions: [1.829, 0.004, 0.972] },
+      slots: { fabric: 'scene:mat_appfront_unconfirmed' },
       metadata: { generated: 'part', unconfirmed: true, appfront: { confidence: 0.4, source: 'ml', reviewed: false, fields: {} } },
       ...patch,
     } as unknown as PascalNode,
   },
-  rootNodeIds: SCENE.rootNodeIds,
+  rootNodeIds: from.rootNodeIds,
 });
 
-describe('blockedGeneratedEdits — sửa món tự sinh không nhận nuôi được thì chặn, không mất lặng lẽ', () => {
-  it('kéo cỡ / dời / xoay tấm viền đồ chưa xác nhận: chặn; không đổi gì hay đồ thật: không chặn', () => {
-    const before = withOutline();
+/** Món tự sinh không có bản ghi nào đứng sau (không phải tấm viền gợi ý). */
+const LOOSE_ID = 'item_DRESS-rail-L-1';
 
-    expect(blockedGeneratedEdits(before, withOutline({ scale: [1.0547, 1.0547, 1.0547] }), [OUTLINE_ID])).toEqual([OUTLINE_ID]);
-    expect(blockedGeneratedEdits(before, withOutline({ position: [9.1, 0, 1] }), [OUTLINE_ID])).toEqual([OUTLINE_ID]);
-    expect(blockedGeneratedEdits(before, withOutline({ rotation: [0, Math.PI / 2, 0] }), [OUTLINE_ID])).toEqual([OUTLINE_ID]);
-    // Lượt nạp đầu khai mọi node "đã đổi": node y nguyên vị trí/góc/tỉ lệ thì không chặn.
-    expect(blockedGeneratedEdits(before, withOutline({ name: 'khác' }), [OUTLINE_ID])).toEqual([]);
-    expect(blockedGeneratedEdits(before, withOutline({ scale: [1 + 1e-9, 1, 1] }), [OUTLINE_ID])).toEqual([]);
-    // Đèn trần tự sinh (không phòng nào nhận nuôi): dời cũng chặn.
+describe('blockedGeneratedEdits — món tự sinh không có đường lưu thì chặn, không mất lặng lẽ', () => {
+  it('dời / xoay / kéo cỡ / sơn: chặn; không đổi gì, khác thứ tự khoá, hay đồ thật: không chặn', () => {
+    const blocked = (patch: Record<string, unknown>) => blockedGeneratedEdits(withGenerated(LOOSE_ID), withGenerated(LOOSE_ID, patch), [LOOSE_ID]);
+
+    expect(blocked({ scale: [1.0547, 1.0547, 1.0547] })).toEqual([LOOSE_ID]);
+    expect(blocked({ position: [9.1, 0, 1] })).toEqual([LOOSE_ID]);
+    expect(blocked({ rotation: [0, Math.PI / 2, 0] })).toEqual([LOOSE_ID]);
+    expect(blocked({ slots: { fabric: SAVEABLE } })).toEqual([LOOSE_ID]);
+    expect(blocked({ materialPreset: 'library:oak' })).toEqual([LOOSE_ID]);
+    // Lượt nạp đầu khai mọi node "đã đổi": node y nguyên vị trí/góc/tỉ lệ/khe thì không chặn.
+    expect(blocked({ name: 'khác' })).toEqual([]);
+    expect(blocked({ scale: [1 + 1e-9, 1, 1] })).toEqual([]);
+    const pair = { a: 'x', b: 'y' };
+    expect(blockedGeneratedEdits(withGenerated(LOOSE_ID, { slots: pair }), withGenerated(LOOSE_ID, { slots: { b: 'y', a: 'x' } }), [LOOSE_ID])).toEqual([]);
+    expect(blockedGeneratedEdits(withGenerated(LOOSE_ID, { slots: undefined }), withGenerated(LOOSE_ID, { slots: {} }), [LOOSE_ID])).toEqual([]);
+    // Đèn trần tự sinh (không phòng nào nhận nuôi): dời, sơn cũng chặn.
     const light = Object.values(SCENE.nodes).find((node) => node.type === 'item' && node.id.startsWith('item_LIGHT-'));
     expect(light).toBeDefined();
     expect(blockedGeneratedEdits(SCENE, patched('item', { position: [0.5, 2, 0.5] }), [light?.id ?? ''])).toEqual([light?.id]);
+    expect(blockedGeneratedEdits(SCENE, patched('item', { slots: { body: SAVEABLE } }), [light?.id ?? ''])).toEqual([light?.id]);
     // Đồ thật (id bản vẽ): không chặn.
-    const real = { ...(before.nodes[OUTLINE_ID] as PascalNode), id: 'item_F-1' } as PascalNode;
-    const realScene = (patch: Record<string, unknown>): PascalScene => ({ nodes: { ...SCENE.nodes, 'item_F-1': { ...real, ...patch } as PascalNode }, rootNodeIds: SCENE.rootNodeIds });
-    expect(blockedGeneratedEdits(realScene({}), realScene({ scale: [2, 2, 2] }), ['item_F-1'])).toEqual([]);
+    expect(blockedGeneratedEdits(withGenerated('item_F-1'), withGenerated('item_F-1', { scale: [2, 2, 2] }), ['item_F-1'])).toEqual([]);
   });
 
   it('món bày biện có phòng nhận nuôi (V4): không chặn — lượt về nhận nuôi', () => {
     const roomId = BUILDING.rooms[0]?.id ?? '';
     const fields = { roomId, min: { x: 8500, y: 500 }, max: { x: 9500, y: 1500 } };
-    const dress = withOutline({ id: 'item_DRESS-sofa-R-1', metadata: { appfront: { confidence: 1, source: 'human', reviewed: false, fields } } });
-    const node = dress.nodes[OUTLINE_ID] as PascalNode;
-    const scene = (patch: Record<string, unknown>): PascalScene => ({
-      nodes: { ...SCENE.nodes, 'item_DRESS-sofa-R-1': { ...node, id: 'item_DRESS-sofa-R-1', ...patch } as PascalNode },
-      rootNodeIds: SCENE.rootNodeIds,
-    });
+    const metadata = { appfront: { confidence: 1, source: 'human', reviewed: false, fields } };
+    const id = 'item_DRESS-sofa-R-1';
 
-    expect(blockedGeneratedEdits(scene({}), scene({ scale: [1.2, 1.2, 1.2] }), ['item_DRESS-sofa-R-1'])).toEqual([]);
+    expect(blockedGeneratedEdits(withGenerated(id, { metadata }), withGenerated(id, { metadata, scale: [1.2, 1.2, 1.2] }), [id])).toEqual([]);
+    expect(blockedGeneratedEdits(withGenerated(id, { metadata }), withGenerated(id, { metadata, slots: { fabric: SAVEABLE } }), [id])).toEqual([]);
   });
 
-  it('đổi Dài đồ chưa xác nhận: lượt bị từ chối kèm câu tiếng Việt (bản vẽ không đổi), không phải "không có gì để ghi"', async () => {
+  it('sơn món không có đường lưu bằng màu ghi được: từ chối kèm câu tiếng Việt không đẩy sang bước khác, bản vẽ không đổi', async () => {
     const onRejected = vi.fn();
-    const loaded = withOutline();
+    const loaded = withGenerated(LOOSE_ID);
     const { result } = renderHook(() =>
       usePascalEdits({ spatial: useStore.getState().spatial, loadedScene: loaded, readOnly: false, onRejected }),
     );
     const before = useStore.getState().spatial;
-    const resized = withOutline({ scale: [1.0547, 1.0547, 1.0547] });
+    const painted = withGenerated(LOOSE_ID, { slots: { fabric: SAVEABLE } });
     let ok = true;
 
-    expect(result.current.validateCommit(resized)).toEqual({ ok: false, message: UNCONFIRMED_EDIT_BLOCKED });
+    expect(result.current.validateCommit(painted)).toEqual({ ok: false, message: GENERATED_EDIT_BLOCKED });
     await act(async () => {
-      ok = await result.current.onSceneCommit(resized);
+      ok = await result.current.onSceneCommit(painted);
     });
 
     expect(ok).toBe(false);
-    expect(onRejected).toHaveBeenCalledWith(UNCONFIRMED_EDIT_BLOCKED);
+    expect(onRejected).toHaveBeenCalledWith(GENERATED_EDIT_BLOCKED);
     expect(useStore.getState().spatial).toBe(before);
-    // Xoá tấm viền: cũng câu của đồ chưa xác nhận, không phải "tự có theo phòng".
-    expect(result.current.validateCommit(SCENE)).toEqual({ ok: false, message: UNCONFIRMED_EDIT_BLOCKED });
+    expect(GENERATED_EDIT_BLOCKED).not.toContain('Duyệt');
+  });
+});
+
+describe('đồ máy gợi ý — xoá = Bỏ gợi ý, sửa = Nhận gợi ý rồi áp phần sửa, Ctrl+Z về như cũ', () => {
+  const realItem = SPATIAL.byKind.furniture[0] ?? '';
+  const asSuggestion = (): NormalizedSpatial => {
+    const item = SPATIAL.byId[realItem] as Furniture;
+
+    return { ...SPATIAL, byId: { ...SPATIAL.byId, [realItem]: { ...item, suggested: true, source: 'ml', reviewed: false, rotationDeg: degrees(0) } } } as NormalizedSpatial;
+  };
+  const OUTLINE = `item_DRESS-suggested-${realItem}`;
+  /* Như `toPascalScene`: món gợi ý không có node thật, chỉ có tấm viền. */
+  const bare = (): PascalScene => ({
+    nodes: Object.fromEntries(Object.entries(SCENE.nodes).filter(([id]) => id !== `item_${realItem}`)),
+    rootNodeIds: SCENE.rootNodeIds,
+  });
+  const outlined = (patch: Record<string, unknown> = {}) => withGenerated(OUTLINE, patch, bare());
+  const item = () => useStore.getState().spatial?.byId[realItem] as Furniture | undefined;
+  const hook = (onRejected = vi.fn(), onNotice = vi.fn()) => {
+    const loaded = outlined();
+    const view = renderHook(() =>
+      usePascalEdits({ spatial: useStore.getState().spatial, loadedScene: loaded, readOnly: false, onRejected, onNotice }),
+    );
+
+    return { ...view, onRejected, onNotice };
+  };
+  /* Bản dựng lại sau mỗi lượt lưu, như cầu Pascal: `spatial` mới theo kho. */
+  const save = async (view: ReturnType<typeof hook>, scene: PascalScene) => {
+    let ok = false;
+
+    await act(async () => {
+      ok = await view.result.current.onSceneCommit(scene);
+    });
+    view.rerender();
+
+    return ok;
+  };
+
+  beforeEach(() => {
+    act(() => {
+      useStore.getState().setSpatial(asSuggestion(), null);
+    });
+  });
+
+  it('xoá tấm viền: bản ghi gợi ý mất, không báo lỗi; hiện lại (Ctrl+Z): bản ghi gợi ý về nguyên vẹn', async () => {
+    const view = hook();
+    const { result, onRejected } = view;
+    const original = item();
+
+    expect(result.current.validateCommit(bare())).toEqual({ ok: true });
+    expect(await save(view, bare())).toBe(true);
+    expect(item()).toBeUndefined();
+    expect(onRejected).not.toHaveBeenCalled();
+
+    expect(await save(view, outlined())).toBe(true);
+    expect(item()).toEqual(original);
+  });
+
+  it('dời + kéo cỡ: thành đồ thật đã nhận (không còn cờ gợi ý), hộp theo, báo nhẹ; Ctrl+Z về đúng bản ghi gợi ý', async () => {
+    const view = hook();
+    const { onNotice, onRejected } = view;
+    const original = item() as Furniture;
+    const width = original.boundingBox.max.x - original.boundingBox.min.x;
+
+    expect(await save(view, outlined({ position: [9.1, 0, 1], scale: [2, 1, 1] }))).toBe(true);
+    expect(item()).toMatchObject({ reviewed: true, source: 'human', centre: { x: original.centre.x + 100, y: original.centre.y } });
+    expect(item()?.suggested).toBeUndefined();
+    expect((item() as Furniture).boundingBox.max.x - (item() as Furniture).boundingBox.min.x).toBe(width * 2);
+    expect(onNotice).toHaveBeenCalledWith(SUGGESTION_ACCEPTED_NOTICE);
+    expect(onRejected).not.toHaveBeenCalled();
+
+    expect(await save(view, outlined())).toBe(true);
+    expect(item()).toEqual(original);
+    // Ctrl+Z không báo nhầm "vừa sửa đồ đã duyệt".
+    expect(onNotice).toHaveBeenCalledTimes(1);
+  });
+
+  it('xoay rồi sơn hai lượt: lượt sau cộng dồn trên đồ đã nhận; màu ngoài luật không tự nhận gợi ý', async () => {
+    const view = hook();
+    const { onNotice } = view;
+
+    expect(await save(view, outlined({ slots: { fabric: FOREIGN } }))).toBe(false);
+    expect(item()?.suggested).toBe(true);
+
+    expect(await save(view, outlined({ rotation: [0, -Math.PI / 2, 0] }))).toBe(true);
+    expect(item()?.rotationDeg).toBe(90);
+    expect(await save(view, outlined({ rotation: [0, -Math.PI / 2, 0], slots: { fabric: SAVEABLE } }))).toBe(true);
+    expect(item()).toMatchObject({ rotationDeg: 90, slots: { fabric: SAVEABLE } });
+    expect(onNotice).toHaveBeenCalledTimes(1);
+  });
+
+  it('đổi tên tấm viền (không phải hình học): không nhận gì, không ghi', async () => {
+    const view = hook();
+    const before = useStore.getState().spatial;
+
+    expect(await save(view, outlined({ name: 'khác' }))).toBe(false);
+    expect(useStore.getState().spatial).toBe(before);
   });
 });
 
@@ -349,9 +453,12 @@ describe('usePascalEdits', () => {
     const onRejected = vi.fn();
     const { result } = mount({ onUnsaved, onRejected });
     let ok = true;
+    // Đồ thật của bản vẽ: món tự sinh đứng đầu danh sách (đèn trần) nay bị `blockedGeneratedEdits` chặn.
+    const real = Object.values(SCENE.nodes).find((node) => node.type === 'item' && !isGeneratedNodeId(node.id)) as PascalNode;
+    const painted: PascalScene = { nodes: { ...SCENE.nodes, [real.id]: { ...real, slots: { body: FOREIGN } } as PascalNode }, rootNodeIds: SCENE.rootNodeIds };
 
     await act(async () => {
-      ok = await result.current.onSceneCommit(patched('item', { slots: { body: FOREIGN } }));
+      ok = await result.current.onSceneCommit(painted);
     });
 
     expect(ok).toBe(false);

@@ -38,6 +38,7 @@ export const SCENE_PALETTE = {
   // Nắp cắt tường ở chế độ "Tường: cắt" (bench-3d: thay dải gần đen quanh tường bao).
   cutCap: '#ddd9d3',
   studioGround: '#d6d7d8',
+  studioGroundSunset: '#f6e8d4',
   studioShadow: '#2e3134',
   studioPlinth: '#e6e3de',
   // Màu đèn mặc định trong catalog Pascal (`catalog-items.tsx`), chép nguyên để đối chiếu.
