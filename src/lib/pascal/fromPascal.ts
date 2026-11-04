@@ -250,8 +250,12 @@ const asChange = <K extends EntityKind>(change: EntityChangeOfKind<K>): EntityCh
  * lượt sửa bất kỳ xoá chúng khỏi bản vẽ, và phép so "có đổi gì không" luôn ra
  * "đổi". Chỉ lấp khi "sau" thiếu: tường/ô mở/tầng luôn có `heightMm` nên không
  * bị đụng. Khi `toSpatial` viết được các trường này thì bỏ hàm này đi.
+ *
+ * `edited` · `clearAreaM2` · `detectedThicknessMm`: máy chủ tự đặt, về kho sau lượt PUT và `toSpatial` không viết ra.
+ * Thiếu chúng thì món/phòng/tường không ai sửa cũng ra "đổi" và mất dấu duyệt. Sửa thật thì `clearAreaM2` cũ chỉ sống
+ * tới khi PUT trả về: lượt gửi không mang nó, máy chủ tính lại.
  */
-const READ_ONLY_KEYS = ['variant', 'heightMm', 'liftMm', 'finish'] as const;
+const READ_ONLY_KEYS = ['variant', 'heightMm', 'liftMm', 'finish', 'edited', 'clearAreaM2', 'detectedThicknessMm'] as const;
 
 const carriedFrom = (before: object, after: object): Readonly<Record<string, unknown>> => {
   const was = before as Readonly<Record<string, unknown>>;

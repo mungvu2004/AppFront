@@ -15,7 +15,7 @@ import {
   sampleLevelId,
   sampleWallId,
 } from '@/domain/spatial/__fixtures__/sampleBuilding';
-import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import { setDetailsEnabled } from '@/pascal-page/realism/details';
 import type { SpatialGraph } from '@/domain/spatial/types';
 
@@ -74,6 +74,46 @@ describe('createPascalEditCommand', () => {
 
     expect(result.ok).toBe(false);
     expect(result.ok ? null : result.error.code).toBe('PASCAL_NO_CHANGE');
+  });
+
+  describe('trường máy chủ tự đặt (`edited`, `clearAreaM2`, `detectedThicknessMm`)', () => {
+    const wallId = graph.byKind.wall[0] ?? '';
+    const roomId = graph.byKind.room[0] ?? '';
+    const furnitureId = graph.byKind.furniture[0] ?? '';
+    const reviewed = (id: string, extra: Record<string, unknown>) => ({ ...graph.byId[id], source: 'human', reviewed: true, ...extra });
+    const stamped = {
+      ...graph,
+      byId: {
+        ...graph.byId,
+        [wallId]: reviewed(wallId, { detectedThicknessMm: 129, edited: true }),
+        [roomId]: reviewed(roomId, { clearAreaM2: 13.73 }),
+        [furnitureId]: reviewed(furnitureId, { edited: true }),
+      },
+    } as NormalizedSpatial;
+
+    it('chỉ các trường này khác: 0 lệnh, nên không bỏ dấu duyệt của ai', () => {
+      const result = createPascalEditCommand({
+        graph: stamped,
+        scene: baseScene,
+        commit: { origin: 'local', changedNodeIds: everyNodeId },
+        actorId: ACTOR,
+      });
+
+      expect(result.ok ? result.data.changes : result.error.code).toBe('PASCAL_NO_CHANGE');
+    });
+
+    it('sửa thật: vẫn bỏ dấu duyệt (C2), các trường này giữ nguyên', () => {
+      const result = createPascalEditCommand({
+        graph: stamped,
+        scene: sceneWith(firstWallId, thickerWall()),
+        commit: { origin: 'local', changedNodeIds: [firstWallId] },
+        actorId: ACTOR,
+      });
+      const change = result.ok ? result.data.changes.find((candidate) => candidate.id === wallId) : undefined;
+
+      expect(change?.before?.reviewed).toBe(true);
+      expect(change?.after).toMatchObject({ reviewed: false, edited: true, detectedThicknessMm: 129 });
+    });
   });
 
   it('tầng bị dời khi hiển thị (căn tầng) vẫn đọc ngược ra 0 lệnh — đồ bày biện không thành đồ người thêm', () => {

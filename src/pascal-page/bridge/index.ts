@@ -331,7 +331,12 @@ interface LoadState {
  * `applyScene` — đặt cảnh vào editor đúng lối nạp (`applySceneGraphToEditor`: không bước hoàn tác,
  * không đụng camera). Cầu gọi nó khi một lượt sửa bị từ chối để cảnh 3D quay về khớp kho.
  */
-export function usePascalProjectBridge(projectId: string, applyScene?: (scene: PascalSceneGraph) => void): PascalBridge {
+export function usePascalProjectBridge(
+  projectId: string,
+  applyScene?: (scene: PascalSceneGraph) => void,
+  /** Cảnh editor đang giữ, đã điền mặc định lược đồ. */
+  editorScene?: () => PascalSceneGraph,
+): PascalBridge {
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
   const { style, additions, furnish } = load;
   // Đọc một lần lúc mở trang: màn vừa rời (N1-01, N5-13, N3-09), không có thì Quản lý tầng.
@@ -424,7 +429,7 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
     },
     [showAlert],
   );
-  const { onSceneCommit, validateCommit, confirmMassDelete, takeSuggestionAccepted } = usePascalEdits({
+  const { onSceneCommit, validateCommit, confirmMassDelete, takeSuggestionAccepted, rebaseOnRebuilt } = usePascalEdits({
     spatial,
     loadedScene,
     readOnly,
@@ -510,7 +515,12 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
         if (!ok) return;
         /* Vừa nhận món gợi ý: tấm viền thành mẫu thật ngay. Không vào lịch sử Pascal; Ctrl+Z về cảnh còn tấm
            viền và `suggestionEditOf` trả bản ghi gợi ý. */
-        if (takeSuggestionAccepted()) revertToStore();
+        if (takeSuggestionAccepted()) {
+          revertToStore();
+          // Cảnh editor giữ SAU khi dựng lại (đã điền mặc định, như `rebaseLoaded`) thành mốc: bản dựng không phải lượt sửa.
+          const rebuilt = editorScene?.();
+          if (rebuilt !== undefined) rebaseOnRebuilt(rebuilt as PascalScene);
+        }
         /* Đợi đúng lượt PUT N16 rồi mới báo Pascal "đã lưu": lượt gửi hỏng hay tầng bị khối thì
            ném, để chỉ báo của editor không nói "đã lưu" khi máy chủ chưa nhận. */
         await autosave.saveNow().catch(() => undefined);
@@ -520,7 +530,7 @@ export function usePascalProjectBridge(projectId: string, applyScene?: (scene: P
       lastSave = pending;
       await pending;
     },
-    [autosave, isFloorBlocked, onSceneCommit, readOnly, revertToStore, takeSuggestionAccepted, validateCommit],
+    [autosave, editorScene, isFloorBlocked, onSceneCommit, readOnly, rebaseOnRebuilt, revertToStore, takeSuggestionAccepted, validateCommit],
   );
 
   /* Đã xác nhận xoá nhiều: mở cổng cho đúng các node ấy rồi lưu (bản sao nông để không trúng phán

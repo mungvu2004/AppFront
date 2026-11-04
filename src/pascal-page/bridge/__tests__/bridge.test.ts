@@ -54,6 +54,7 @@ const commit = vi.hoisted(() => ({
   unsaved: [] as string[],
   notices: [] as string[],
   accepted: false,
+  rebased: [] as unknown[],
   /** Khác `null` = cổng chặn lượt này là xoá nhiều (`validateCommit` gọi `onMassDelete`). */
   massDelete: null as string[] | null,
   confirmed: [] as (readonly string[])[],
@@ -179,6 +180,9 @@ vi.mock('@/screens/viewer/PascalViewer/usePascalEdits', () => ({
       commit.accepted = false;
 
       return accepted;
+    },
+    rebaseOnRebuilt: (scene: unknown) => {
+      commit.rebased.push(scene);
     },
   }),
 }));
@@ -437,17 +441,21 @@ describe('usePascalProjectBridge', () => {
     expect(back.ok ? null : back.error.code).toBe('PASCAL_NO_CHANGE');
   });
 
-  it('vừa nhận món gợi ý: dựng lại cảnh từ kho ngay để tấm viền thành mẫu thật, một lần', async () => {
+  it('vừa nhận món gợi ý: dựng lại cảnh từ kho ngay để tấm viền thành mẫu thật, một lần; cảnh editor sau đó thành mốc', async () => {
     const applied: PascalScene[] = [];
-    const { result } = renderHook(() => usePascalProjectBridge('p1', (scene) => applied.push(scene as PascalScene)));
+    const editor = { nodes: {}, rootNodeIds: ['editor'] };
+    const { result } = renderHook(() => usePascalProjectBridge('p1', (scene) => applied.push(scene as PascalScene), () => editor as never));
 
     await waitFor(() => expect(result.current.status).toBe('ready'));
 
+    commit.rebased = [];
     commit.accepted = true;
     await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     expect(applied).toHaveLength(1);
+    expect(commit.rebased).toEqual([editor]);
     await result.current.onSave({ nodes: {}, rootNodeIds: [] });
     expect(applied).toHaveLength(1);
+    expect(commit.rebased).toHaveLength(1);
   });
 
   it('máy chủ khối tầng: "Tải lại tầng" nạp lại tầng rồi dựng lại cảnh từ kho, không nạp lại trang', async () => {
