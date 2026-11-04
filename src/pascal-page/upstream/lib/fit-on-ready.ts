@@ -1,7 +1,6 @@
 /**
- * AppFront addition (QA-2 L2), not an upstream file. The editor canvas and the Preview canvas
- * each mount their own camera controls; a fresh instance starts at a fixed pose (20,20,20 in the
- * editor, the Viewer default in Preview) and upstream's `fit-scene` handler ignores Preview.
+ * AppFront addition (QA-2 L2), not an upstream file. Fresh camera controls start at a fixed pose
+ * (20,20,20) and upstream's `fit-scene` handler ignores Preview.
  * A fixed timer fired before the controls existed on a cold first open, so the fit was lost.
  * Here we wait for the controls to publish their first pose, then fit with `apply-pose`
  * (honoured in Preview too). The pose is ≈52° elevation with a 24° lens (upstream 50°; FE3D-FIX-002
