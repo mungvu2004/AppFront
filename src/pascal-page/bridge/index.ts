@@ -14,9 +14,11 @@ import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { SpatialGraph } from '@/domain/spatial/types';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useSession } from '@/hooks/useSession';
+import { guardBeforeUnload } from '@/lib/autosave/beforeUnload';
 import { can } from '@/lib/auth/permissions';
 import { getSessionSnapshot } from '@/lib/auth/state';
 import { readWireError } from '@/lib/errors/wireError';
+import type { ApiClient } from '@/api/client';
 import type { DesignAddition, DesignConcept, DesignConceptState, DesignStyleId } from '@/api/schemas/designConcept';
 import { sceneStyleFromConcept } from '@/lib/pascal/designStyles';
 import { readSceneStyle, SCENE_STYLES, type SceneStyle, type SceneStyleId } from '@/lib/pascal/sceneStyles';
@@ -45,9 +47,9 @@ export const BRIDGE_EMPTY_ERROR = 'Dự án chưa có mô hình để mở trong
 /** Câu khi lượt gửi N16 hỏng mà không có dải khối nào nêu lý do. */
 export const BRIDGE_SAVE_FAILED = 'Lưu thất bại. Kiểm tra mạng rồi sửa tiếp để thử lại.';
 
-/** Câu báo một lần mỗi phiên cho phần sửa máy chủ chưa nhận (`unsavedPascalEdits`). */
+/** Câu báo MỖI lần cho phần sửa máy chủ chưa nhận (`unsavedEditsOf`): phần ấy vừa được đặt về như cũ. */
 export const unsavedNoticeOf = (labels: readonly string[]): string =>
-  `Chưa lưu được: ${labels.join(', ')} — sẽ có ở bản sau.`;
+  `Chưa lưu được: ${labels.join(', ')} — đã đặt về như cũ.`;
 
 /** Câu ném cho editor khi tầng bị khối (409/422/403) — lý do đầy đủ + "Tải lại tầng" ở thẻ trang. */
 export const BRIDGE_SAVE_BLOCKED = 'Tầng này chưa lưu được lên máy chủ. Xem thẻ ở góc trên để tải lại tầng.';
@@ -214,6 +216,7 @@ const messageOf = (error: unknown): string => {
 export const furnishModeOf = (concept: DesignConcept['result']): 'on' | 'off' => (concept === undefined ? 'on' : 'off');
 
 async function loadProject(projectId: string): Promise<{
+  readonly client: ApiClient;
   readonly projectName: string;
   readonly style: SceneStyle;
   readonly additions: readonly DesignAddition[];
@@ -311,7 +314,7 @@ async function loadProject(projectId: string): Promise<{
       : {}),
   };
 
-  return { projectName: project.name, style, additions: concept?.additions ?? [], furnish: furnishModeOf(concept) };
+  return { client, projectName: project.name, style, additions: concept?.additions ?? [], furnish: furnishModeOf(concept) };
 }
 
 /** Giữ tối đa chừng này thông báo nổi; câu cũ nhất rơi ra trước. */
@@ -320,6 +323,7 @@ let nextNoticeId = 1;
 
 interface LoadState {
   readonly status: PascalBridge['status'];
+  readonly client?: ApiClient;
   readonly error?: string;
   readonly projectName?: string;
   readonly style?: SceneStyle;
@@ -354,8 +358,8 @@ export function usePascalProjectBridge(
 
     setLoad({ status: 'loading' });
     loadProject(projectId).then(
-      ({ projectName, style, additions, furnish }) =>
-        !cancelled && setLoad({ status: 'ready', projectName, style, additions, furnish }),
+      ({ client, projectName, style, additions, furnish }) =>
+        !cancelled && setLoad({ status: 'ready', client, projectName, style, additions, furnish }),
       (error: unknown) => !cancelled && setLoad({ status: 'error', error: messageOf(error) }),
     );
 
@@ -366,8 +370,12 @@ export function usePascalProjectBridge(
 
   /* Bộ tự lưu tầng dùng chung (A7): mỗi `commit` của `usePascalEdits` đổi kho, saver gửi N16.
      Trạng thái thật của nó (đang lưu / đã lưu / bị khối) lên thẻ trang — "đã lưu" của Pascal chỉ
-     là lượt vào kho, không phải lượt PUT (v3 BE.md major 1). */
-  const { autosave, isFloorBlocked, label: savedLabel, reloadFloor, saveBlock } = useFloorLayerAutosave({ projectId });
+     là lượt vào kho, không phải lượt PUT (v3 BE.md major 1). Trao sẵn client: saver mà tự `import()` ở lượt lưu đầu
+     thì lượt xả lúc rời trang phải đợi qua một task, trang có thể đã mất trước khi `fetch` keepalive kịp chạy. */
+  const { autosave, isFloorBlocked, label: savedLabel, reloadFloor, saveBlock } = useFloorLayerAutosave({
+    projectId,
+    ...(load.client === undefined ? {} : { apiClient: load.client }),
+  });
   const engineState = useSyncExternalStore(autosave.subscribe, autosave.getState, autosave.getState);
 
   /* Thông báo nổi: mỗi câu một mục (id, giọng, lúc tạo), không gộp — câu báo thường dính câu lỗi
@@ -380,18 +388,18 @@ export function usePascalProjectBridge(
         : [...current, { id: nextNoticeId++, tone, text, createdAt: Date.now() }].slice(-MAX_NOTICES),
     );
   }, []);
-  /* Phần sửa chưa lưu được: mỗi nhãn báo một lần mỗi phiên. */
-  const noticed = useRef(new Set<string>());
   const noticedMessages = useRef(new Set<string>());
+  /* Phần sửa chưa lưu được: đặt về như cũ ngay và báo mỗi lần — người dùng không được thấy thứ mở lại sẽ mất.
+     Không dựng lại từ kho như `revertToStore`: `nodeChangesTo` chỉ so khoá cảnh đích có, mà cảnh từ kho
+     không có `slots` của cửa nên màu cửa sẽ ở lại trên màn. */
   const onUnsaved = useCallback(
-    (labels: readonly string[]) => {
-      const fresh = labels.filter((item) => !noticed.current.has(item));
-
-      if (fresh.length === 0) return;
-      fresh.forEach((item) => noticed.current.add(item));
-      push('info', unsavedNoticeOf(fresh));
+    (labels: readonly string[], restoredNodes: Readonly<Record<string, unknown>>) => {
+      if (labels.length === 0) return;
+      push('info', unsavedNoticeOf(labels));
+      const current = editorScene?.();
+      if (current !== undefined) applyScene?.({ ...current, nodes: { ...current.nodes, ...restoredNodes } });
     },
-    [push],
+    [applyScene, editorScene, push],
   );
   // Lời báo của lượt sửa (vd. vách mới cần tách phòng — W3d): mỗi câu một lần mỗi phiên.
   const onNotice = useCallback(
@@ -429,7 +437,7 @@ export function usePascalProjectBridge(
     },
     [showAlert],
   );
-  const { onSceneCommit, validateCommit, confirmMassDelete, takeSuggestionAccepted, rebaseOnRebuilt } = usePascalEdits({
+  const { onSceneCommit, validateCommit, hasPendingEdit, confirmMassDelete, takeSuggestionAccepted, rebaseOnRebuilt } = usePascalEdits({
     spatial,
     loadedScene,
     readOnly,
@@ -439,6 +447,19 @@ export function usePascalProjectBridge(
     onNotice,
     ...(session.user?.id === undefined ? {} : { actorId: session.user.id }),
   });
+
+  /* Rời trang trong lúc editor còn đợi debounce (1 s, `use-auto-save.ts`): kho chưa biết gì nên bộ canh của
+     `useFloorLayerAutosave` không thấy lượt sửa này. Editor xả lượt ấy bằng PUT keepalive khi rời trang, nhưng
+     thân quá 64 KiB thì trình duyệt huỷ, nên hộp hỏi rời trang phải bật trước, bất kể cỡ thân.
+     `[]`: đăng ký trước khi editor gắn, nên chạy trước lượt xả (lượt xả đổi mốc so sánh). */
+  const pendingEdit = useRef<() => boolean>(() => false);
+  useEffect(() => {
+    pendingEdit.current = () => {
+      const scene = editorScene?.();
+      return scene !== undefined && hasPendingEdit(scene as PascalScene);
+    };
+  });
+  useEffect(() => guardBeforeUnload({ hasUnsavedChanges: () => pendingEdit.current(), sendBeacon: () => undefined }), []);
 
   /* Đọc kho lúc gọi chứ không theo render: sau mỗi lượt sửa kho đổi, và một `onLoad`
      đổi danh tính sẽ khiến trang nạp lại cảnh đè lên việc đang làm. */

@@ -92,16 +92,17 @@ describe('fitPose (QA-2 L2, FE3D-FIX-002 V5 D13)', () => {
     [[12, 12]],
     [[30, 6]],
     [[8, 25]],
-  ] as [[number, number]][])('plan %j fills ~90%% of the free frame on its tightest side', (size) => {
+  ] as [[number, number]][])('plan %j fills ~97%% of the free landscape frame on its tightest side', (size) => {
     const pose = fitPose({ center: [3, 2], size }, 'perspective', VIEW)
     const { maxX, maxUp, maxDown } = screenFill(pose, size, [3, 2])
     const upLimit = 1 - (2 * TOP_RESERVED_PX) / VIEW.height
-    // Nothing leaves 90% of the frame (top: below the toolbar)...
-    expect(maxX).toBeLessThanOrEqual(0.9 + 1e-6)
-    expect(maxDown).toBeLessThanOrEqual(0.9 + 1e-6)
-    expect(maxUp).toBeLessThanOrEqual(0.9 * upLimit + 1e-6)
+    const fill = 0.97
+    // Nothing leaves the fill (top: below the toolbar)...
+    expect(maxX).toBeLessThanOrEqual(fill + 1e-6)
+    expect(maxDown).toBeLessThanOrEqual(fill + 1e-6)
+    expect(maxUp).toBeLessThanOrEqual(fill * upLimit + 1e-6)
     // ...and one side touches it (no dead space).
-    expect(Math.max(maxX / 0.9, maxDown / 0.9, maxUp / (0.9 * upLimit))).toBeGreaterThan(0.999)
+    expect(Math.max(maxX / fill, maxDown / fill, maxUp / (fill * upLimit))).toBeGreaterThan(0.999)
   })
 
   it('UX-R2 K38: baseY lifts target and camera together (a solo floor keeps its stacked height)', () => {
@@ -123,6 +124,20 @@ describe('fitPose (QA-2 L2, FE3D-FIX-002 V5 D13)', () => {
 })
 
 describe('planBoundsXZ (FE3D-FIX-004 V14)', () => {
+  it('bỏ mảnh sàn lạc ngoài nhà, giữ lô gia chạm tường', () => {
+    const nodes = {
+      a: { type: 'wall', start: [0, 0], end: [10, 0] },
+      b: { type: 'wall', start: [10, 0], end: [10, 8] },
+      loggia: { type: 'zone', polygon: [[10, 2], [12, 2], [12, 6], [10, 6]] },
+      stray: { type: 'zone', polygon: [[-9, 3], [-7, 3], [-7, 5], [-9, 5]] },
+    }
+    expect(planBoundsXZ(nodes)).toEqual({ center: [6, 4], size: [12, 8] })
+  })
+
+  it('không có tường thì vẫn tính mọi vùng', () => {
+    expect(planBoundsXZ({ z: { type: 'zone', polygon: [[0, 0], [2, 0], [2, 2]] } })).toEqual({ center: [1, 1], size: [2, 2] })
+  })
+
   it('frames walls + zones only: origin-placed building/stairs, wall-local doors and the site are ignored', () => {
     const nodes = {
       site: { type: 'site', polygon: { type: 'polygon', points: [[-40, -40], [40, -40], [40, 40], [-40, 40]] } },
