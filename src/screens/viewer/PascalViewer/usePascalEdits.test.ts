@@ -297,9 +297,9 @@ describe('đèn trần không dời được', () => {
   it('đèn quay lại sau Ctrl+Z: không báo, không đặt lại cỡ', () => {
     const light = Object.values(SCENE.nodes).find((node) => isGeneratedLightId(node.id));
     if (light === undefined) throw new Error('bộ mẫu phải có đèn trần');
-    const { [light.id]: _removed, ...rest } = SCENE.nodes;
+    const nodes = Object.fromEntries(Object.entries(SCENE.nodes).filter(([id]) => id !== light.id));
 
-    expect(unsavedEditsOf({ ...SCENE, nodes: rest }, SCENE)).toEqual({ labels: [], restoredNodes: {} });
+    expect(unsavedEditsOf({ ...SCENE, nodes }, SCENE)).toEqual({ labels: [], restoredNodes: {} });
   });
 
   it('đèn đổi chỗ: chặn kèm câu báo; xoá đèn vẫn lưu', async () => {
