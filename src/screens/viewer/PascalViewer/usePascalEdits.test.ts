@@ -29,6 +29,7 @@ import {
   CEILING_LIGHT_MOVE_BLOCKED,
   GENERATED_EDIT_BLOCKED,
   SUGGESTION_ACCEPTED_NOTICE,
+  unsavedEditsOf,
   unsavedPascalEdits,
   usePascalEdits,
 } from './usePascalEdits';
@@ -293,6 +294,14 @@ describe('blockedGeneratedEdits — món tự sinh không có đường lưu th�
 });
 
 describe('đèn trần không dời được', () => {
+  it('đèn quay lại sau Ctrl+Z: không báo, không đặt lại cỡ', () => {
+    const light = Object.values(SCENE.nodes).find((node) => isGeneratedLightId(node.id));
+    if (light === undefined) throw new Error('bộ mẫu phải có đèn trần');
+    const { [light.id]: _removed, ...rest } = SCENE.nodes;
+
+    expect(unsavedEditsOf({ ...SCENE, nodes: rest }, SCENE)).toEqual({ labels: [], restoredNodes: {} });
+  });
+
   it('đèn đổi chỗ: chặn kèm câu báo; xoá đèn vẫn lưu', async () => {
     const light = Object.values(SCENE.nodes).find((node) => isGeneratedLightId(node.id));
 

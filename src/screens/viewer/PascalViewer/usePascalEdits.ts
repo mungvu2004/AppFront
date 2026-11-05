@@ -517,7 +517,9 @@ export function unsavedEditsOf(previous: PascalScene, next: PascalScene): Unsave
   for (const [nodeId, node] of Object.entries(next.nodes)) {
     const after = fieldsOf(node);
     // Đồ mới thêm so với "chưa có gì": khe và mẫu của nó đều là phần sửa.
-    const before = previous.nodes[nodeId] === undefined ? (after['type'] === 'item' ? {} : null) : fieldsOf(previous.nodes[nodeId]);
+    // Đèn trần sinh ra quay lại (Ctrl+Z sau khi xoá): không phải món mới mang mẫu lạ, và `scale` ~0 của nó không được xoá đi.
+    const isNewItem = after['type'] === 'item' && !isGeneratedLightId(nodeId);
+    const before = previous.nodes[nodeId] === undefined ? (isNewItem ? {} : null) : fieldsOf(previous.nodes[nodeId]);
 
     if (before === null) continue;
     const edits = unsavedOfNode(nodeId, before, after);
