@@ -23,6 +23,8 @@ const FIT_FOV = 24
 const ELEVATION = (52 * Math.PI) / 180
 /** Share of the free viewport the plan fills (FE3D-FIX-002 V5 D13; render look A: 0.8 → 0.9). */
 const FILL = 0.9
+/** Landscape canvases: height binds (toolbar reserve), so the plan sat at 56-71% of the short side in the first frame (bench-3d r4: 20/39 notes). Portrait is width-bound and already ~89%. */
+const FILL_LANDSCAPE = 0.97
 /** Top toolbar plus the one-line scale banner under it, overlaying the canvas (px; UX-R2 K38). */
 export const TOP_RESERVED_PX = 120
 /** Walls stand above the XZ bounds; frame their tops too. ponytail: fixed 3 m, not per level. */
@@ -31,6 +33,9 @@ const MIN_DISTANCE = 6
 /** Long plans: look ~25° off the short axis so the long side runs across the screen. */
 const LONG_PLAN_RATIO = 1.3
 const OFF_SHORT_AXIS = (25 * Math.PI) / 180
+
+/** Vùng cách khối tường xa hơn chừng này (m) là mảnh lạc, không tính vào khung nhìn. */
+const ZONE_TOUCH_M = 0.5
 
 /**
  * XZ bounds of the house itself: wall endpoints and zone polygons, both in level coordinates.
@@ -52,14 +57,28 @@ export function planBoundsXZ(nodes: Record<string, unknown> | unknown[], levelId
     minZ = Math.min(minZ, p[1])
     maxZ = Math.max(maxZ, p[1])
   }
+  const zones: unknown[][] = []
   for (const node of Object.values(nodes) as { type?: unknown; parentId?: unknown; start?: unknown; end?: unknown; polygon?: unknown }[]) {
     if (levelId !== undefined && node?.parentId !== levelId) continue
     if (node?.type === 'wall') {
       add(node.start)
       add(node.end)
     } else if (node?.type === 'zone' && Array.isArray(node.polygon)) {
-      for (const p of node.polygon) add(p)
+      zones.push(node.polygon)
     }
+  }
+  // Bản vẽ hay sinh mảnh sàn lạc ngoài nhà (khung tên, ghi chú): đừng để chúng làm nhà nhỏ đi trong khung.
+  // Có tường thì chỉ tính vùng chạm khối tường; lô gia không tường bao vẫn chạm nên vẫn được tính.
+  const wallBox = minX <= maxX ? { minX, maxX, minZ, maxZ } : null
+  for (const polygon of zones) {
+    const points = polygon.filter((p): p is [number, number] => Array.isArray(p) && typeof p[0] === 'number' && typeof p[1] === 'number')
+    const touchesWalls =
+      wallBox === null ||
+      (Math.min(...points.map((p) => p[0])) <= wallBox.maxX + ZONE_TOUCH_M &&
+        Math.max(...points.map((p) => p[0])) >= wallBox.minX - ZONE_TOUCH_M &&
+        Math.min(...points.map((p) => p[1])) <= wallBox.maxZ + ZONE_TOUCH_M &&
+        Math.max(...points.map((p) => p[1])) >= wallBox.minZ - ZONE_TOUCH_M)
+    if (touchesWalls) points.forEach(add)
   }
   if (minX > maxX) return null
   return { center: [(minX + maxX) / 2, (minZ + maxZ) / 2], size: [maxX - minX, maxZ - minZ] }
@@ -134,6 +153,7 @@ export function fitPose(
   const up = [-sin * sa, cos, -sin * ca] as const
   const tanV = Math.tan((FIT_FOV * Math.PI) / 360)
   const tanH = tanV * (viewport.width / viewport.height)
+  const fill = viewport.width >= viewport.height ? FILL_LANDSCAPE : FILL
   // The toolbar + banner cover the top TOP_RESERVED_PX of the upper half-frame; the target stays at the canvas centre.
   const tanUp = tanV * Math.max(0.5, 1 - (2 * TOP_RESERVED_PX) / viewport.height)
   const dot = (a: readonly number[], b: readonly number[]) => a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!
@@ -147,8 +167,8 @@ export function fitPose(
         const u = dot(corner, up)
         distance = Math.max(
           distance,
-          r / (FILL * tanH) + depthGain,
-          Math.abs(u) / (FILL * (u > 0 ? tanUp : tanV)) + depthGain,
+          r / (fill * tanH) + depthGain,
+          Math.abs(u) / (fill * (u > 0 ? tanUp : tanV)) + depthGain,
         )
       }
   return {
