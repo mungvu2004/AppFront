@@ -7,7 +7,7 @@ import './selfHost';
 import './probe';
 import './icons';
 import './firstOpen';
-import { acquireSceneReadOnlyLease, pauseSceneHistory, resumeSceneHistory, type SceneGraph, useScene } from '@pascal-app/core';
+import { acquireSceneReadOnlyLease, AnyNode, pauseSceneHistory, resumeSceneHistory, runAsSingleSceneHistoryStep, type SceneGraph, useScene } from '@pascal-app/core';
 import { CATALOG_ITEMS, useEditor, useSidebarStore } from '@pascal-app/editor';
 import { loadPlugin, nodeRegistry } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
@@ -27,6 +27,7 @@ import { syncChromeTheme } from './chromeTheme';
 import { HomeownerCardMount } from './HomeownerCardMount';
 import { ItemTrustCard } from './ItemTrustCard';
 import { ModelCreditCard } from './ModelCreditCard';
+import { OpeningKindCard, type OpeningKindStores } from './OpeningKindCard';
 import { PlacementIssuesChip } from './PlacementIssuesChip';
 import { prefetchHdri } from './realism/lighting-hdri';
 import { realismFlagsFrom, useRealism } from './realism/store';
@@ -82,6 +83,14 @@ useRealism.subscribe((state, prev) => {
 });
 // Áo trang theo sáng/tối của AppFront (`app-theme-mode`), trước lượt vẽ đầu.
 syncChromeTheme();
+
+// Thẻ "Loại ô mở": `createNode` không parse nên điền mặc định lược đồ ở đây; xoá + tạo là một bước Ctrl+Z.
+const openingKindStores = {
+  useScene,
+  useViewer,
+  parseNode: (node: object) => AnyNode.parse(node),
+  singleStep: (run: () => void) => runAsSingleSceneHistoryStep(useScene, run),
+} as unknown as OpeningKindStores;
 
 function Notice({ children }: { readonly children: ReactNode }) {
   return (
@@ -228,6 +237,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
       <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
       <ModelCreditCard stores={{ useScene, useViewer }} />
       <ItemTrustCard stores={{ useScene, useViewer }} />
+      <OpeningKindCard readOnly={readOnly} stores={openingKindStores} />
     </>
   );
 
