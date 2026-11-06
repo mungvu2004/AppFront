@@ -7,6 +7,7 @@
  * Không nhập `@pascal-app/*` (như `SwapModelCard`): `main.tsx` truyền store, `parseNode` (điền mặc
  * định lược đồ — `createNode` không parse) và `runAsSingleSceneHistoryStep`.
  */
+import type { SwapModelStores } from './SwapModelCard';
 import { isOpeningNode, switchOpeningKind, type SwitchableKind } from '@/lib/pascal/openingKind';
 
 const KINDS: readonly { id: SwitchableKind; label: string }[] = [
@@ -15,8 +16,7 @@ const KINDS: readonly { id: SwitchableKind; label: string }[] = [
 ];
 
 export interface OpeningKindStores {
-  readonly useViewer: {
-    <T>(selector: (state: { selection: { selectedIds: readonly string[] } }) => T): T;
+  readonly useViewer: SwapModelStores['useViewer'] & {
     getState(): { setSelection(selection: { selectedIds: string[] }): void };
   };
   readonly useScene: {

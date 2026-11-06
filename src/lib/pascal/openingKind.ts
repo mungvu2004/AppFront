@@ -36,7 +36,7 @@ export const switchOpeningKind = (node: PascalOpeningNode, kind: SwitchableKind)
     id: bodyOfPascalId(node.id) as OpeningId,
     wallId: node.wallId as unknown as WallId,
     kind,
-    offsetMm: millimetres(mm(node.position[0]) - widthMm / 2),
+    offsetMm: millimetres(0), // vị trí dọc tường lấy thẳng từ node cũ bên dưới
     widthMm: millimetres(widthMm),
     heightMm: millimetres(heightMm),
     sillHeightMm: millimetres(sillMm),
