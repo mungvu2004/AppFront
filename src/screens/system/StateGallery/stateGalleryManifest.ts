@@ -523,23 +523,6 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     },
   },
   {
-    /** S-45 — lớp dùng chung, không route. Dựng ngày 14-09-2026. */
-    id: 'system/ConnectionStates',
-    name: 'ConnectionStates',
-    area: 'system',
-    group: 'H',
-    label: 'Trạng thái kết nối',
-    storyExportNames: {
-      empty: 'Empty',
-      loading: 'Loading',
-      partial: 'Partial',
-      error: 'ErrorState',
-      success: 'Success',
-      forbidden: 'Forbidden',
-      collapsed: 'Collapsed',
-    },
-  },
-  {
     id: 'system/EditorTour',
     name: 'EditorTour',
     area: 'system',

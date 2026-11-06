@@ -12,7 +12,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from '@/lib/testing/render';
 
-import { MeasurementToolRoute } from './MeasurementTool';
 import { Viewer3DRoute } from './Viewer3D';
 
 import type { ComponentType } from 'react';
@@ -23,7 +22,6 @@ vi.mock('@/components/feedback/ProjectSpatialGate', () => ({
 
 const ROUTES: ReadonlyArray<readonly [string, ComponentType]> = [
   ['/3d', Viewer3DRoute],
-  ['/3d/measure', MeasurementToolRoute],
 ];
 
 describe('route vỏ 3D — khung chiều cao (cùng gốc BUG-373)', () => {

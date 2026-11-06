@@ -172,7 +172,6 @@ describe('StateGallery — đếm story trên toàn manifest (nghiệm thu S-47)
     const ids = new Set(STATE_GALLERY_MANIFEST.screens.map((screen) => screen.id));
 
     expect(ids.has('export/SpatialJsonViewer')).toBe(true);
-    expect(ids.has('system/ConnectionStates')).toBe(true);
   });
 });
 
