@@ -409,7 +409,7 @@ export const swingDirectionOf = (opening: Opening, wall: Wall | undefined, rooms
  */
 const WINDOW_SLOTS = { frame: 'library:preset-white', glass: 'scene:mat_appfront_glass' } as const;
 
-const openingNodeOf = (
+export const openingNodeOf = (
   opening: Opening,
   wallNodeId: PascalNodeId,
   swingDirection: 'inward' | 'outward' = 'inward',

@@ -7,7 +7,7 @@ import './selfHost';
 import './probe';
 import './icons';
 import './firstOpen';
-import { acquireSceneReadOnlyLease, pauseSceneHistory, resumeSceneHistory, type SceneGraph, useScene } from '@pascal-app/core';
+import { acquireSceneReadOnlyLease, AnyNode, pauseSceneHistory, resumeSceneHistory, runAsSingleSceneHistoryStep, type SceneGraph, useScene } from '@pascal-app/core';
 import { CATALOG_ITEMS, useEditor, useSidebarStore } from '@pascal-app/editor';
 import { loadPlugin } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
@@ -23,6 +23,7 @@ import { savePascalNow, usePascalProjectBridge } from './bridge';
 import { BackToProjectCard, EditModelButton, ProjectStepsCard } from './BackToProjectCard';
 import { syncChromeTheme } from './chromeTheme';
 import { LightingCard } from './LightingCard';
+import { OpeningKindCard, type OpeningKindStores } from './OpeningKindCard';
 import { realismFlagsFrom, useRealism } from './realism/store';
 import { setDetailsEnabled } from './realism/details';
 import { applyDayLook, applyRenderLook, DAY_THEME_ID } from './renderLook';
@@ -58,6 +59,14 @@ useRealism.subscribe((state, prev) => {
 });
 // Áo trang theo sáng/tối của AppFront (`app-theme-mode`), trước lượt vẽ đầu.
 syncChromeTheme();
+
+// Thẻ "Loại ô mở": `createNode` không parse nên điền mặc định lược đồ ở đây; xoá + tạo là một bước Ctrl+Z.
+const openingKindStores = {
+  useScene,
+  useViewer,
+  parseNode: (node: object) => AnyNode.parse(node),
+  singleStep: (run: () => void) => runAsSingleSceneHistoryStep(useScene, run),
+} as unknown as OpeningKindStores;
 
 function Notice({ children }: { readonly children: ReactNode }) {
   return (
@@ -145,6 +154,7 @@ function PascalPage({ projectId }: { readonly projectId: string }) {
             <SceneStyleCard flushAutosaves={flushAutosaves} reload={() => window.location.reload()} saveNow={savePascalNow} />
             <LightingCard projectId={projectId} useViewer={useViewer} />
             <SwapModelCard catalog={CATALOG_ITEMS} readOnly={readOnly} stores={{ useScene, useViewer }} />
+            <OpeningKindCard readOnly={readOnly} stores={openingKindStores} />
           </div>
         </>
       }
