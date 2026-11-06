@@ -23,14 +23,13 @@
  * kéo vì thế gọi `commitVertexMove` đúng một lần, và `commit` tự dọn bản nháp
  * trước khi trả về (`commit.ts:131`).
  *
- * `createDragSession` (`lib/three/interaction/dragSession.ts`) giữ đúng lời hứa
- * ấy cho gizmo 3D, nhưng nó nhận `PickRay` — một tia từ camera — và trả một
- * `GizmoDelta` MỘT TRỤC. Lớp phủ này nhận điểm con trỏ hai chiều và một đỉnh
+ * Phiên kéo gizmo 3D từng giữ đúng lời hứa ấy, nhưng nó nhận `PickRay` — một tia
+ * từ camera — và trả một `GizmoDelta` MỘT TRỤC. Lớp phủ này nhận điểm con trỏ hai chiều và một đỉnh
  * chạy tự do trên mặt bằng; dựng một tia giả để lách vào chữ ký ấy là bịa ra
  * phép chiếu camera mà màn không có (và `Viewer3D` thì bị cấm sửa). Nên màn đi
  * đúng ba cửa mà hợp đồng T4 mở sẵn cho nó — `previewVertexMove` /
  * `discardVertexPreview` / `commitVertexMove` — và giữ nguyên cấu trúc "chỉ lúc
- * thả tay mới có lệnh" của `dragSession`.
+ * thả tay mới có lệnh" của phiên kéo gizmo.
  *
  * ## Esc phân lớp (A12)
  *

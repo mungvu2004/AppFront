@@ -351,7 +351,7 @@ function boxCorners(box: BoundingBox): Point[] {
  *
  * The stored box is the piece's own, unrotated footprint centred on `centre`;
  * `rotationDeg` turns it about that centre (the same turn as
- * `furnitureFootprint` in `src/lib/selection/marquee.ts`). A 2000 × 600 bench
+ * the plan-space furniture footprint used when picking). A 2000 × 600 bench
  * at 90° covers 600 × 2000 on the plan, and that is what a rule must judge.
  */
 export function furnitureCorners(

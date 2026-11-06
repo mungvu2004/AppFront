@@ -15,10 +15,7 @@
  * landed in the merged buffer, so the reverse lookup that `readPartData` used to
  * do per mesh is done per range instead, and nothing is lost.
  *
- * That table pays for itself twice. `entityAtHit` turns a raycast back into a
- * wall id; `selectionRanges` turns a set of wall ids back into the spans of the
- * buffer that draw them, which is what a highlight needs — either as geometry
- * groups swapped to a second material, or as a draw range.
+ * `entityAtHit` uses that table to turn a raycast back into a wall id.
  *
  * Repeated geometry is not merged at all. Forty chairs of one design are one
  * `InstancedMesh` holding one geometry and forty matrices; copying the chair's
@@ -562,39 +559,4 @@ export function entityAtHit(result: MergeResult, hit: HitLike): BuildEntityId | 
   }
 
   return readPartData(hit.object)?.entityId ?? null;
-}
-
-/**
- * The spans of a merged buffer that draw the given entities, ready to highlight.
- *
- * Neighbouring spans are joined, so selecting a run of walls that happen to sit
- * side by side in the buffer costs one group rather than a dozen. Feed the result
- * to `geometry.addGroup` to draw those vertices with a second material, or to
- * `setDrawRange` to draw them alone.
- */
-export function selectionRanges(
-  batch: MergedBatch,
-  entityIds: Iterable<BuildEntityId>,
-): readonly VertexRange[] {
-  const wanted = new Set<BuildEntityId>(entityIds);
-  const chosen = batch.parts
-    .filter((part) => wanted.has(part.entityId))
-    .map((part): VertexRange => ({ start: part.start, count: part.count }))
-    .sort((first, second) => first.start - second.start);
-
-  const joined: VertexRange[] = [];
-
-  for (const range of chosen) {
-    const previous = joined[joined.length - 1];
-    if (previous !== undefined && range.start <= previous.start + previous.count) {
-      joined[joined.length - 1] = {
-        start: previous.start,
-        count: Math.max(previous.count, range.start + range.count - previous.start),
-      };
-      continue;
-    }
-    joined.push(range);
-  }
-
-  return joined;
 }

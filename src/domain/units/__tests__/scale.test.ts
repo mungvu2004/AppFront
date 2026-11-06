@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { median, medianAbsoluteDeviation, splitOutliers } from '../outliers';
 import {
   classifyScaleRange,
-  compareLevelScales,
   compareScaleToAiEstimate,
   createScale,
   inferScale,
@@ -12,7 +11,6 @@ import {
   pixels,
   SCALE_THRESHOLDS,
   scaleFromRatio,
-  type LevelScale,
   type ScaleMeasurement,
 } from '../scale';
 import { millimetres, roundMeasurement } from '../types';
@@ -155,69 +153,6 @@ describe('inferScale', () => {
     expect(result.sampleCount).toBe(0);
     expect(result.confidence).toBe(0);
     expect(result.suggestedMillimetresPerPixel).toBeNull();
-  });
-});
-
-describe('compareLevelScales', () => {
-  function level(levelId: string, levelName: string, ratio: number): LevelScale {
-    return { levelId, levelName, millimetresPerPixel: millimetresPerPixel(ratio) };
-  }
-
-  it('stays silent while the levels agree within the limit', () => {
-    const warnings = compareLevelScales([
-      level('L-001', 'Tầng trệt', 12),
-      level('L-002', 'Tầng 2', 12.1),
-      level('L-003', 'Tầng 3', 11.95),
-    ]);
-
-    expect(warnings).toEqual([]);
-  });
-
-  it('warns in Vietnamese and names both levels', () => {
-    const warnings = compareLevelScales([
-      level('L-001', 'Tầng trệt', 12),
-      level('L-002', 'Tầng 2', 12.5),
-    ]);
-
-    expect(warnings).toHaveLength(1);
-    const [warning] = warnings;
-    expect(warning?.firstLevelName).toBe('Tầng trệt');
-    expect(warning?.secondLevelName).toBe('Tầng 2');
-    expect(warning?.message).toContain('Tầng trệt');
-    expect(warning?.message).toContain('Tầng 2');
-    expect(warning?.message).toBe(
-      'Tỉ lệ của Tầng trệt lệch 4,1% so với Tầng 2; ngưỡng cho phép là 2,0%.',
-    );
-  });
-
-  it('compares every pair, not only neighbours', () => {
-    const warnings = compareLevelScales([
-      level('L-001', 'Tầng trệt', 12),
-      level('L-002', 'Tầng 2', 12.1),
-      level('L-003', 'Tầng 3', 15),
-    ]);
-
-    expect(warnings.map((entry) => [entry.firstLevelId, entry.secondLevelId])).toEqual([
-      ['L-001', 'L-003'],
-      ['L-002', 'L-003'],
-    ]);
-  });
-
-  it('measures the gap the same way whichever level comes first', () => {
-    const forwards = compareLevelScales([
-      level('L-001', 'Tầng trệt', 12),
-      level('L-002', 'Tầng 2', 15),
-    ]);
-    const backwards = compareLevelScales([
-      level('L-002', 'Tầng 2', 15),
-      level('L-001', 'Tầng trệt', 12),
-    ]);
-
-    expect(forwards[0]?.relativeDifference).toBe(backwards[0]?.relativeDifference);
-  });
-
-  it('says nothing about a single level', () => {
-    expect(compareLevelScales([level('L-001', 'Tầng trệt', 12)])).toEqual([]);
   });
 });
 

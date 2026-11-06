@@ -5,7 +5,6 @@ import {
   SAMPLE_BUILDING,
   SAMPLE_WALL_COUNT,
   sampleLevelId,
-  sampleLevelOf,
   sampleRoomId,
   sampleWallId,
 } from '../../spatial/__fixtures__/sampleBuilding';
@@ -21,7 +20,6 @@ import {
   MIN_WALL_THICKNESS_MM,
   RULE_SEVERITIES,
   type Rule,
-  type RuleRegistry,
   type Violation,
 } from '../registry';
 import {
@@ -32,16 +30,9 @@ import {
   type RuleConfig,
 } from '../config';
 import {
-  countEntities,
   evaluatedRuleCodes,
-  handleRuleWorkerRequest,
   ruleAppliesTo,
   runRules,
-  runRulesAsync,
-  WORKER_ENTITY_THRESHOLD,
-  type RuleWorkerLike,
-  type RuleWorkerRequest,
-  type RuleWorkerResponse,
 } from '../runner';
 
 /* -------------------------------------------------------------------------- */
@@ -127,41 +118,6 @@ function withRoom(graph: SpatialGraph, roomId: RoomId, patch: Partial<Room>): Sp
   };
 }
 
-/**
- * The sample building padded out past the worker threshold.
- *
- * The extra walls are plain 1 000 mm partitions carrying no openings and
- * belonging to no room. They broke no rule while the book held only the eight
- * built-ins; they break `WALL-DANGLING-END` now, because a partition standing on
- * its own joins nothing at either end. Nothing here asserts a violation count,
- * only that the worker and the main thread agree on whatever it is.
- */
-function createOversizedGraph(extraWallCount: number): SpatialGraph {
-  const graph = createSampleBuilding();
-  const template = graph.walls[0];
-
-  if (template === undefined) {
-    throw new Error('sample building has no wall to copy');
-  }
-
-  const extra: Wall[] = Array.from({ length: extraWallCount }, (_unused, index) => {
-    const ordinal = SAMPLE_WALL_COUNT + index;
-
-    return {
-      ...template,
-      id: sampleWallId(ordinal),
-      levelId: sampleLevelOf(ordinal),
-      openingIds: [],
-      centreline: {
-        start: { x: 0, y: (ordinal + 1) * 2000 },
-        end: { x: 1000, y: (ordinal + 1) * 2000 },
-      },
-    };
-  });
-
-  return { ...graph, walls: [...graph.walls, ...extra] };
-}
-
 /** A rule the built-in book does not contain, to prove the runner needs no edit. */
 const furnitureReviewRule: Rule = {
   code: 'FURNITURE-REVIEW',
@@ -183,40 +139,6 @@ const furnitureReviewRule: Rule = {
           ],
     ),
 };
-
-interface FakeWorker extends RuleWorkerLike {
-  readonly requests: RuleWorkerRequest[];
-}
-
-/** A worker that answers on the microtask queue, the way a real one does. */
-function createFakeWorker(respond: (request: RuleWorkerRequest) => RuleWorkerResponse): FakeWorker {
-  const listeners = new Set<(event: MessageEvent<RuleWorkerResponse>) => void>();
-  const requests: RuleWorkerRequest[] = [];
-
-  return {
-    requests,
-    postMessage: (request) => {
-      requests.push(request);
-      const response = respond(request);
-
-      queueMicrotask(() => {
-        for (const listener of [...listeners]) {
-          listener(new MessageEvent<RuleWorkerResponse>('message', { data: response }));
-        }
-      });
-    },
-    addEventListener: (_type, listener) => {
-      listeners.add(listener);
-    },
-    removeEventListener: (_type, listener) => {
-      listeners.delete(listener);
-    },
-  };
-}
-
-function workerOf(registry: RuleRegistry): FakeWorker {
-  return createFakeWorker((request) => handleRuleWorkerRequest(request, registry));
-}
 
 /* -------------------------------------------------------------------------- */
 /* The rule book.                                                              */
@@ -682,190 +604,6 @@ describe('switching a rule while a session is open', () => {
 
     expect(evaluatedRuleCodes(after)).toEqual(['FURNITURE-REVIEW']);
     expect(after.violations.filter((found) => found.ruleCode === 'FURNITURE-REVIEW')).toHaveLength(21);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* Staying off the main thread when the model is big.                          */
-/* -------------------------------------------------------------------------- */
-
-describe('choosing where the pass runs', () => {
-  it('counts the standard sample well under the worker threshold', () => {
-    expect(countEntities(normalizedSample())).toBe(141);
-    expect(countEntities(normalizedSample())).toBeLessThan(WORKER_ENTITY_THRESHOLD);
-  });
-
-  it('runs a model under the threshold in place, even with a worker to hand', async () => {
-    const registry = createDefaultRuleRegistry();
-    const worker = workerOf(registry);
-    const result = await runRulesAsync(normalizedSample(), {
-      registry,
-      createWorker: () => worker,
-    });
-
-    expect(result.ranInWorker).toBe(false);
-    expect(worker.requests).toHaveLength(0);
-    expect(result.violations).toEqual(runRules(normalizedSample(), { registry }).violations);
-  });
-
-  it('posts a model over the threshold to the worker, and gets the same answer', async () => {
-    const registry = createDefaultRuleRegistry();
-    const worker = workerOf(registry);
-    const graph = normalizeSpatial(createOversizedGraph(400));
-
-    expect(countEntities(graph)).toBeGreaterThan(WORKER_ENTITY_THRESHOLD);
-
-    const result = await runRulesAsync(graph, { registry, createWorker: () => worker });
-
-    expect(result.ranInWorker).toBe(true);
-    expect(worker.requests).toHaveLength(1);
-    expect(result.violations).toEqual(runRules(graph, { registry }).violations);
-  });
-
-  it('posts only the stale tasks, not the whole book', async () => {
-    const registry = createDefaultRuleRegistry();
-    const worker = workerOf(registry);
-    const graph = normalizeSpatial(createOversizedGraph(400));
-    const full = await runRulesAsync(graph, { registry, createWorker: () => worker });
-
-    await runRulesAsync(graph, {
-      registry,
-      createWorker: () => worker,
-      previous: full.state,
-      changes: [{ entityId: FIRST_WALL_ID }],
-    });
-
-    expect(worker.requests[1]?.tasks.map((task) => task.ruleCode)).toEqual(WALL_DEPENDENT_CODES);
-  });
-
-  it('runs in place when no worker is wired up at all', async () => {
-    const registry = createDefaultRuleRegistry();
-    const graph = normalizeSpatial(createOversizedGraph(400));
-    const result = await runRulesAsync(graph, { registry });
-
-    expect(result.ranInWorker).toBe(false);
-    expect(result.violations).toEqual(runRules(graph, { registry }).violations);
-  });
-
-  it('falls back to running in place when the worker reports an error', async () => {
-    const registry = createDefaultRuleRegistry();
-    const worker = createFakeWorker((request) => ({
-      requestId: request.requestId,
-      results: [],
-      error: 'worker hết bộ nhớ',
-    }));
-
-    const graph = normalizeSpatial(createOversizedGraph(400));
-    const result = await runRulesAsync(graph, { registry, createWorker: () => worker });
-
-    expect(result.ranInWorker).toBe(false);
-    expect(result.violations).toEqual(runRules(graph, { registry }).violations);
-  });
-
-  it('falls back when the worker answers short of the tasks it was given', async () => {
-    const registry = createDefaultRuleRegistry();
-    const worker = createFakeWorker((request) => {
-      const full = handleRuleWorkerRequest(request, registry);
-
-      return { requestId: full.requestId, results: full.results.slice(1) };
-    });
-
-    const graph = normalizeSpatial(createOversizedGraph(400));
-    const result = await runRulesAsync(graph, { registry, createWorker: () => worker });
-
-    expect(result.ranInWorker).toBe(false);
-    expect(result.violations).toEqual(runRules(graph, { registry }).violations);
-  });
-
-  it('falls back when the worker cannot even be built', async () => {
-    const registry = createDefaultRuleRegistry();
-    const graph = normalizeSpatial(createOversizedGraph(400));
-    const result = await runRulesAsync(graph, {
-      registry,
-      createWorker: () => {
-        throw new Error('Worker không khả dụng');
-      },
-    });
-
-    expect(result.ranInWorker).toBe(false);
-    expect(result.violations).toEqual(runRules(graph, { registry }).violations);
-  });
-
-  it('ignores an answer belonging to a pass that has been superseded', async () => {
-    const registry = createDefaultRuleRegistry();
-    const worker = createFakeWorker((request) => {
-      const full = handleRuleWorkerRequest(request, registry);
-
-      return { ...full, requestId: full.requestId + 1000 };
-    });
-
-    const graph = normalizeSpatial(createOversizedGraph(400));
-    const pass = runRulesAsync(graph, { registry, createWorker: () => worker, workerThreshold: 10 });
-
-    await expect(Promise.race([pass, Promise.resolve('still waiting')])).resolves.toBe('still waiting');
-  });
-
-  it('takes a threshold of its own, so the choice can be tested either way', async () => {
-    const registry = createDefaultRuleRegistry();
-    const worker = workerOf(registry);
-    const result = await runRulesAsync(normalizedSample(), {
-      registry,
-      createWorker: () => worker,
-      workerThreshold: 50,
-    });
-
-    expect(result.ranInWorker).toBe(true);
-    expect(result.violations).toEqual(runRules(normalizedSample(), { registry }).violations);
-  });
-
-  it('skips the round trip when the pass has nothing to re-run', async () => {
-    const registry = createDefaultRuleRegistry();
-    const worker = workerOf(registry);
-    const graph = normalizeSpatial(createOversizedGraph(400));
-    const full = await runRulesAsync(graph, { registry, createWorker: () => worker });
-    const idle = await runRulesAsync(graph, {
-      registry,
-      createWorker: () => worker,
-      previous: full.state,
-      changes: [],
-    });
-
-    expect(idle.ranInWorker).toBe(false);
-    expect(worker.requests).toHaveLength(1);
-    expect(idle.violations).toEqual(full.violations);
-  });
-});
-
-describe('the worker side of the protocol', () => {
-  it('answers every task it was given', () => {
-    const registry = createDefaultRuleRegistry();
-    const tasks = [
-      { ruleCode: 'WALL-LENGTH', levelId: GROUND_LEVEL_ID },
-      { ruleCode: 'LEVEL-ELEVATION', levelId: null },
-    ];
-
-    const response = handleRuleWorkerRequest(
-      { requestId: 7, graph: normalizedSample(), tasks },
-      registry,
-    );
-
-    expect(response.requestId).toBe(7);
-    expect(response.error).toBeUndefined();
-    expect(response.results.map((result) => result.task)).toEqual(tasks);
-  });
-
-  it('reports a rule code its own book does not hold, rather than answering blank', () => {
-    const response = handleRuleWorkerRequest(
-      {
-        requestId: 8,
-        graph: normalizedSample(),
-        tasks: [{ ruleCode: 'FURNITURE-REVIEW', levelId: GROUND_LEVEL_ID }],
-      },
-      createDefaultRuleRegistry(),
-    );
-
-    expect(response.error).toContain('FURNITURE-REVIEW');
-    expect(response.results).toHaveLength(0);
   });
 });
 

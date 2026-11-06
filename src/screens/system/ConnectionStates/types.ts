@@ -8,7 +8,7 @@
  *
  * Mất kết nối hay hết phiên **không bao giờ được làm mất việc của người dùng**.
  * Hàng đợi là của T-09 (`lib/offline/queueStore`), việc phát lại là của T-10
- * (`lib/offline/replayer`). Màn chỉ ĐỌC hai thứ đó và nói ra; nó không tự giữ
+ * (đã gỡ `lib/offline/replayer`; vỏ ứng dụng sở hữu bộ phát lại). Màn chỉ ĐỌC hai thứ đó và nói ra; nó không tự giữ
  * hàng đợi, không tự viết cơ chế phát lại, không tự đặt giãn cách thử lại.
  *
  * ## Ba tầng hiển thị, và vì sao chúng là MỘT trường chứ không ba cờ

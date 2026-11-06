@@ -6,9 +6,8 @@
  * looks wrong. Four rules hold, and each is checked rather than trusted:
  *
  * - **One key, one meaning.** The bindings are two tables and nothing else, and
- *   `shortcutConflicts` reads them for a key bound twice, a tool key that is
- *   also a modifier, or a binding that steals a key the interface needs. A
- *   conflict is a test failure, not a bug report from a user.
+ *   the shortcuts test checks them for a key bound twice or a binding that
+ *   steals a key the interface needs.
  * - **Nothing fires while somebody is typing.** Every key-down is refused when
  *   the focus is in a field, so `W` in a room name types a `W`. This is checked
  *   on the target the caller passes, not on a global — see `isTextEntryTarget`.
@@ -60,8 +59,8 @@ export const normaliseKey = (key: string): ShortcutCode => {
  * `ESCAPE` closes the top layer and cancels the gesture in flight, `ENTER`
  * confirms it, and `TAB` is how the whole interface is reached without a mouse
  * (invariant A12). Binding a tool to any of the three would break a promise the
- * product makes everywhere, so `shortcutConflicts` refuses it here rather than
- * leaving it to a review.
+ * product makes everywhere, so the shortcuts test
+ * refuses it rather than leaving it to a review.
  */
 export const RESERVED_KEYS: readonly ShortcutCode[] = ['ESCAPE', 'ENTER', 'TAB'];
 
@@ -346,90 +345,3 @@ export const applyShortcut = (state: ModifierState, action: ShortcutAction): Mod
  * modifier stuck down is worse than one released early.
  */
 export const clearModifiers = (): ModifierState => NO_MODIFIERS;
-
-/* -------------------------------------------------------------------------- */
-/* Checking the table.                                                         */
-/* -------------------------------------------------------------------------- */
-
-/** One key that more than one thing wants, or one nothing may have. */
-export interface ShortcutConflict {
-  readonly code: ShortcutCode;
-  /** Everything bound to the key, in English, for the failure message. */
-  readonly boundTo: readonly string[];
-  /** Vietnamese sentence naming the problem. */
-  readonly reason: string;
-}
-
-/** A whole keyboard, so the check can be run against a proposed one as well. */
-export interface ShortcutBindings {
-  readonly tools: Readonly<Record<ToolId, ShortcutCode>>;
-  readonly modifiers: readonly ModifierShortcut[];
-  readonly reserved: readonly ShortcutCode[];
-}
-
-/** The keyboard this build ships. */
-export const SHORTCUT_BINDINGS: ShortcutBindings = {
-  tools: TOOL_SHORTCUTS,
-  modifiers: MODIFIER_SHORTCUTS,
-  reserved: RESERVED_KEYS,
-};
-
-/**
- * Every key bound twice, and every binding that took a reserved key.
- *
- * Read from the tables at runtime rather than asserted once in a test, so the
- * check is available to the shell as well: a build that somehow shipped a clash
- * can say so instead of quietly giving one key to two tools. Taking the
- * bindings as an argument is what lets a test prove the check actually catches
- * a clash, rather than only that today's table has none.
- */
-export function shortcutConflicts(
-  bindings: ShortcutBindings = SHORTCUT_BINDINGS,
-): readonly ShortcutConflict[] {
-  const owners = new Map<ShortcutCode, string[]>();
-
-  const claim = (code: ShortcutCode, owner: string): void => {
-    const existing = owners.get(code);
-
-    if (existing === undefined) {
-      owners.set(code, [owner]);
-
-      return;
-    }
-
-    existing.push(owner);
-  };
-
-  for (const tool of TOOL_IDS) {
-    claim(normaliseKey(bindings.tools[tool]), `tool:${tool}`);
-  }
-
-  for (const shortcut of bindings.modifiers) {
-    claim(normaliseKey(shortcut.code), `modifier:${shortcut.modifier}`);
-  }
-
-  const conflicts: ShortcutConflict[] = [];
-  const reserved = new Set(bindings.reserved.map((code) => normaliseKey(code)));
-
-  for (const [code, boundTo] of owners) {
-    if (boundTo.length > 1) {
-      conflicts.push({
-        code,
-        boundTo,
-        reason: `Phím ${code} đang được gán cho ${boundTo.length} chức năng.`,
-      });
-
-      continue;
-    }
-
-    if (reserved.has(code)) {
-      conflicts.push({
-        code,
-        boundTo,
-        reason: `Phím ${code} dành cho giao diện nên không được gán cho công cụ.`,
-      });
-    }
-  }
-
-  return conflicts;
-}

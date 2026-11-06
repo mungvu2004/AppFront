@@ -570,62 +570,6 @@ const heightOfFurniture = (furniture: Furniture, levelHeightMm: number): number 
     ? metresOf(levelHeightMm)
     : metresOf(furniture.heightMm ?? FURNITURE_HEIGHT_MM[furniture.kind]);
 
-/**
- * Cách chọn mô hình TRƯỚC phong cách (P1 §3): có `variant` thì tra `VARIANT_MODEL`,
- * không thì đoán theo loại + công năng phòng + hộp bao (mét). `stair` → `null`.
- */
-// ponytail: không còn đường chạy nào gọi — chỉ `sceneVariety.test.ts` dùng làm chuẩn
-// đối chiếu "không null ở chỗ hôm nay có mô hình". Xoá khi test đó chép kỳ vọng ra.
-export const furnitureModelOf = (
-  furniture: Furniture,
-  usage: RoomUsage | undefined,
-): { readonly folder: string; readonly liftMm?: number } | null => {
-  const byVariant = furniture.variant === undefined ? null : VARIANT_MODEL[furniture.variant];
-
-  if (byVariant) {
-    return byVariant;
-  }
-
-  const w = metresOf(furniture.boundingBox.max.x - furniture.boundingBox.min.x);
-  const d = metresOf(furniture.boundingBox.max.y - furniture.boundingBox.min.y);
-  const short = Math.min(w, d);
-  const long = Math.max(w, d);
-  const h = furniture.heightMm === undefined ? undefined : metresOf(furniture.heightMm);
-  const pick = (folder: string) => ({ folder });
-
-  switch (furniture.kind) {
-    case 'stair':
-      return null;
-    case 'bed':
-      return pick(w < 1.2 ? 'single-bed' : 'double-bed');
-    case 'wardrobe':
-      return pick('closet');
-    case 'chair':
-      return pick('dining-chair');
-    case 'table':
-      if (long < 0.6) return pick('bedside-table');
-      return pick(usage === 'livingRoom' && h !== undefined && h < 0.5 ? 'coffee-table' : 'dining-table');
-    case 'kitchenCabinet':
-      return pick(short >= 0.6 && long <= 0.8 ? 'fridge' : 'kitchen-counter');
-    case 'sanitaryFixture':
-      if (usage === 'kitchen') return pick('kitchen');
-      if (short < 0.5 && long < 0.8) return pick('toilet');
-      if (long > 1.5) return pick('bathtub');
-      if (short >= 0.75 && long - short < 0.1) return pick('shower-square');
-      return pick('bathroom-sink');
-    case 'washingMachine':
-      return pick('washing-machine');
-    case 'shower':
-      return pick('shower-square');
-    case 'other':
-      if (usage === 'livingRoom' && long > 1.5) return pick('sofa');
-      if (h !== undefined && h < 0.05) return pick('rectangular-carpet');
-      // Như `roleOf` (sceneVariety.ts): món dò được không bao giờ thành cây.
-      if (usage === 'kitchen') return pick(short >= 0.55 ? 'fridge' : 'stove');
-      return pick('dresser');
-  }
-};
-
 /** Phòng mà tủ thiết bị (`kitchenCabinet`/`cabinet`: máy giặt, máy sấy…) dựng thành máy giặt; bếp giữ mô hình cũ. */
 const WASHER_ROOM_USAGES: ReadonlySet<RoomUsage> = new Set(['bathroom', 'utility']);
 

@@ -1,16 +1,12 @@
 /**
  * Picking in a dense drawing, checked on the standard sample building.
  *
- * Three properties carry this file, and each is checked across the whole set of
+ * Two properties carry this file, each checked across the whole set of
  * operations rather than on a favourite one:
  *
- * - **The two drag directions disagree, and the box is not what separates
- *   them.** The same two corners are dragged left-to-right and right-to-left;
- *   `marqueeBox` is asserted identical for both, so the difference in what is
- *   caught can only come from the CAD rule.
- * - **A locked or hidden layer never lets an object in.** Not "the marquee
- *   skips it" — every exported operation is run against a locked layer in one
- *   loop, because a single door left open is the whole hole.
+ * - **A locked or hidden layer never lets an object in.** Every exported
+ *   operation is run against a locked layer in one loop, because a single door
+ *   left open is the whole hole.
  * - **The floor being viewed is a wall, not a filter.** Same loop, same shape:
  *   with floor 0 active, no operation may return anything that lives on floor 1.
  *
@@ -29,7 +25,6 @@ import {
   SAMPLE_ROOM_COUNT,
   SAMPLE_WALL_COUNT,
   sampleAxisId,
-  sampleDimensionId,
   sampleDoorId,
   sampleFurnitureId,
   sampleLevelId,
@@ -38,7 +33,6 @@ import {
 } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { idsOnLevel, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, LevelId } from '@/domain/spatial/types';
-import { applyMarquee, marqueeBox, marqueeHits, marqueeMode, type Marquee } from '../marquee';
 import {
   clearSelection,
   combineSelection,
@@ -100,26 +94,11 @@ const FIRST_FLOOR = contextOn(LEVEL_ONE);
 const WALL_INSIDE = sampleWallId(0);
 const DOOR_INSIDE = sampleDoorId(0);
 const FURNITURE_INSIDE = sampleFurnitureId(0);
-const DIMENSION_INSIDE = sampleDimensionId(0);
 const ROOM_ACROSS = sampleRoomId(0);
 const AXIS_ACROSS = sampleAxisId(0);
 
 /** Something on floor 1: never selectable while floor 0 is being viewed. */
 const WALL_UPSTAIRS = sampleWallId(1);
-
-/**
- * The drag box: x −200 … 1 500, y −600 … 900.
- *
- * It swallows wall 0, door 0, furniture 0 and dimension 0 whole, and it cuts
- * across room 0 and axis 0, both of which run far past its right edge.
- */
-const DRAG_RIGHTWARD: Marquee = { end: { x: 1500, y: 900 }, start: { x: -200, y: -600 } };
-const DRAG_LEFTWARD: Marquee = { end: { x: -200, y: -600 }, start: { x: 1500, y: 900 } };
-
-const ENCLOSED = [WALL_INSIDE, DOOR_INSIDE, FURNITURE_INSIDE, DIMENSION_INSIDE];
-const TOUCHED = [...ENCLOSED, ROOM_ACROSS, AXIS_ACROSS];
-
-const sorted = (ids: readonly EntityId[]): EntityId[] => [...ids].sort();
 
 /* -------------------------------------------------------------------------- */
 /* Eligibility.                                                                */
@@ -257,99 +236,6 @@ describe('picking', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Marquee.                                                                    */
-/* -------------------------------------------------------------------------- */
-
-describe('marquee', () => {
-  it('reads the rule from the drag direction, not from the box', () => {
-    expect(marqueeMode(DRAG_RIGHTWARD)).toBe('window');
-    expect(marqueeMode(DRAG_LEFTWARD)).toBe('crossing');
-    // Same two corners either way: only the rule differs below.
-    expect(marqueeBox(DRAG_RIGHTWARD)).toEqual(marqueeBox(DRAG_LEFTWARD));
-  });
-
-  it('reads a drag with no horizontal travel as the stricter window rule', () => {
-    expect(marqueeMode({ end: { x: 500, y: 900 }, start: { x: 500, y: -600 } })).toBe('window');
-  });
-
-  it('catches only what it encloses when dragged left to right', () => {
-    expect(sorted(marqueeHits(DRAG_RIGHTWARD, GROUND_FLOOR))).toEqual(sorted(ENCLOSED));
-  });
-
-  it('catches everything it touches when dragged right to left', () => {
-    // Room 0 and axis 0 both run past the right edge of the box, so a window
-    // leaves them and a crossing takes them.
-    expect(sorted(marqueeHits(DRAG_LEFTWARD, GROUND_FLOOR))).toEqual(sorted(TOUCHED));
-  });
-
-  it('gives a crossing everything the window gave, and more', () => {
-    const enclosed = marqueeHits(DRAG_RIGHTWARD, GROUND_FLOOR);
-    const touched = marqueeHits(DRAG_LEFTWARD, GROUND_FLOOR);
-
-    expect(enclosed.every((id) => touched.includes(id))).toBe(true);
-    expect(touched.length).toBeGreaterThan(enclosed.length);
-  });
-
-  it('catches a room the drag happened entirely inside of', () => {
-    // Room 0 spans x 0 … 4 000, y 0 … 4 250; this drag stays well within it and
-    // crosses none of its edges.
-    const inside: Marquee = { end: { x: 1000, y: 2000 }, start: { x: 2000, y: 3000 } };
-
-    expect(marqueeHits(inside, GROUND_FLOOR)).toContain(ROOM_ACROSS);
-    expect(marqueeHits({ end: inside.start, start: inside.end }, GROUND_FLOOR)).not.toContain(
-      ROOM_ACROSS,
-    );
-  });
-
-  it('returns hits in the order the floor holds them', () => {
-    expect(marqueeHits(DRAG_LEFTWARD, GROUND_FLOOR)).toEqual([
-      WALL_INSIDE,
-      DOOR_INSIDE,
-      FURNITURE_INSIDE,
-      ROOM_ACROSS,
-      AXIS_ACROSS,
-      DIMENSION_INSIDE,
-    ]);
-  });
-
-  it('never reaches onto another floor', () => {
-    const onFloor = new Set(idsOnLevel(SPATIAL, LEVEL_ZERO));
-
-    for (const id of marqueeHits(DRAG_LEFTWARD, GROUND_FLOOR)) {
-      expect(onFloor.has(id)).toBe(true);
-    }
-
-    // Wall 1 (x 1 000 … 2 000) cuts the very same box, but it is upstairs.
-    expect(marqueeHits(DRAG_LEFTWARD, GROUND_FLOOR)).not.toContain(WALL_UPSTAIRS);
-    expect(marqueeHits(DRAG_LEFTWARD, FIRST_FLOOR)).toContain(WALL_UPSTAIRS);
-  });
-
-  it('encloses nothing on a floor whose objects only clip the box', () => {
-    expect(marqueeHits(DRAG_RIGHTWARD, FIRST_FLOOR)).toEqual([]);
-  });
-
-  it('skips a locked layer and a hidden layer', () => {
-    expect(marqueeHits(DRAG_LEFTWARD, contextOn(LEVEL_ZERO, LOCKED_WALLS))).not.toContain(
-      WALL_INSIDE,
-    );
-    expect(marqueeHits(DRAG_LEFTWARD, contextOn(LEVEL_ZERO, HIDDEN_FURNITURE))).not.toContain(
-      FURNITURE_INSIDE,
-    );
-  });
-
-  it('folds its hits into the selection the modifier asked for', () => {
-    expect(applyMarquee(EMPTY, DRAG_RIGHTWARD, 'replace', GROUND_FLOOR)).toEqual(ENCLOSED);
-    expect(sorted(applyMarquee([ROOM_ACROSS], DRAG_RIGHTWARD, 'add', GROUND_FLOOR))).toEqual(
-      sorted([ROOM_ACROSS, ...ENCLOSED]),
-    );
-    expect(applyMarquee(TOUCHED, DRAG_RIGHTWARD, 'subtract', GROUND_FLOOR)).toEqual([
-      ROOM_ACROSS,
-      AXIS_ACROSS,
-    ]);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
 /* Invariants, checked across every operation at once.                         */
 /* -------------------------------------------------------------------------- */
 
@@ -365,8 +251,6 @@ const everyOperation = (
   (selection) => clearSelection(selection),
   (selection) => combineSelection(selection, [intruder], 'replace', context),
   (selection) => combineSelection(selection, [intruder], 'add', context),
-  (selection) => applyMarquee(selection, DRAG_RIGHTWARD, 'replace', context),
-  (selection) => applyMarquee(selection, DRAG_LEFTWARD, 'add', context),
 ];
 
 describe('invariants', () => {

@@ -41,7 +41,6 @@ import {
   mergeByMaterial,
   mergeGroup,
   partAtVertex,
-  selectionRanges,
   type MergeResult,
   type MergedBatch,
 } from '../merge';
@@ -523,39 +522,7 @@ describe('mergeByMaterial instancing', () => {
 /* Highlighting.                                                               */
 /* -------------------------------------------------------------------------- */
 
-describe('selectionRanges', () => {
-  it('joins the spans of walls that sit side by side in the buffer', () => {
-    const batch = mergedBatchesOf(mergeByMaterial(buildWallMeshes()))[0];
-
-    if (batch === undefined) {
-      expect.unreachable('there should be a merged batch');
-      return;
-    }
-
-    const neighbours = selectionRanges(batch, [sampleWallId(0), sampleWallId(1), sampleWallId(2)]);
-    expect(neighbours).toHaveLength(1);
-
-    const first = batch.parts[0];
-    const third = batch.parts[2];
-    expect(neighbours[0]?.start).toBe(first?.start);
-    expect(neighbours[0]?.count).toBe(
-      (first?.count ?? 0) + (batch.parts[1]?.count ?? 0) + (third?.count ?? 0),
-    );
-  });
-
-  it('keeps spans apart when the walls are not neighbours', () => {
-    const batch = mergedBatchesOf(mergeByMaterial(buildWallMeshes()))[0];
-
-    if (batch === undefined) {
-      expect.unreachable('there should be a merged batch');
-      return;
-    }
-
-    expect(selectionRanges(batch, [sampleWallId(0), sampleWallId(5)])).toHaveLength(2);
-    expect(selectionRanges(batch, [])).toEqual([]);
-    expect(selectionRanges(batch, [sampleRoomId(0)])).toEqual([]);
-  });
-
+describe('hit lookup', () => {
   it('reads a vertex back to its part, and nothing outside the buffer', () => {
     const batch = mergedBatchesOf(mergeByMaterial(buildWallMeshes()))[0];
 

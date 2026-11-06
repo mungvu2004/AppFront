@@ -5,7 +5,6 @@ import {
   findPositiveTabIndexes,
   FOCUS_ORDER,
   FOCUS_REGIONS,
-  focusRegion,
   nextRegion,
   previousRegion,
   regionOf,
@@ -400,26 +399,6 @@ describe('focusOrder', () => {
 
     expect(regionOf(document.getElementById('tool')!)).toBe('toolbar');
     expect(regionOf(document.body)).toBeNull();
-  });
-
-  it('focuses the first focusable element of a region', () => {
-    buildShell();
-
-    expect(focusRegion('rightPanel')).toBe(true);
-    expect(document.activeElement).toBe(document.getElementById('field'));
-  });
-
-  it('focuses the region container itself when it has no focusable children', () => {
-    buildShell();
-
-    expect(focusRegion('canvas')).toBe(true);
-    expect(document.activeElement).toBe(document.getElementById('main-content'));
-  });
-
-  it('reports a region missing from the page', () => {
-    document.body.innerHTML = '';
-
-    expect(focusRegion('toolbar')).toBe(false);
   });
 
   it('flags positive tab indexes and accepts zero and negative ones', () => {

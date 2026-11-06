@@ -33,7 +33,7 @@
  * 3D handle and the 2D cursor snap to the same grid by construction.
  *
  * Everything here is a pure function. No session, no store, no clock: what a
- * drag *means* is decided here, and what a drag *does* is `dragSession.ts`.
+ * drag *means* is decided here, and what a drag *does* is left to the caller.
  */
 
 import { Vector3 } from 'three';

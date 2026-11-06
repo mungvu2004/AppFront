@@ -18,8 +18,6 @@
  * here.
  */
 
-import { getFocusableElements } from './focusTrap';
-
 /* -------------------------------------------------------------------------- */
 /* The route.                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -114,36 +112,6 @@ export function regionOf(element: Element): FocusRegionId | null {
   const value = host.getAttribute('data-region');
 
   return FOCUS_ORDER.find((region) => region === value) ?? null;
-}
-
-/**
- * Sends the focus into a region: its first focusable element, or the region
- * container itself when it has none (a collapsed panel still receives the
- * focus rather than losing it). Returns false when the region is not on the
- * page.
- */
-export function focusRegion(region: FocusRegionId, root: ParentNode = document): boolean {
-  const host = root.querySelector<HTMLElement>(`[data-region="${region}"]`);
-
-  if (host === null) {
-    return false;
-  }
-
-  const target = getFocusableElements(host)[0];
-
-  if (target !== undefined) {
-    target.focus();
-
-    return true;
-  }
-
-  if (!host.hasAttribute('tabindex')) {
-    host.tabIndex = -1;
-  }
-
-  host.focus();
-
-  return true;
 }
 
 /* -------------------------------------------------------------------------- */

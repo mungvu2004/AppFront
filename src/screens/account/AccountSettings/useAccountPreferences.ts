@@ -13,7 +13,7 @@
  *
  * ## Nơi từng cài đặt được lưu, và vì sao — R2, đọc trước khi thêm cài đặt mới
  *
- * O-02 (`useFeatureFlag` / `setFeatureFlagOverride`) chỉ nhận **năm** khoá có
+ * O-02 (`setFeatureFlagOverride`) chỉ nhận **năm** khoá có
  * sẵn — `scene.instanced-walls`, `scene.soft-shadows`, `rules.parallel-run`,
  * `export.pdf-vector`, `qc.live-collaboration` — và `src/lib/**` là thư mục màn
  * này không được sửa, nên không thêm khoá nào vào đó được. Không cài đặt nào của

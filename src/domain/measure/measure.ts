@@ -32,12 +32,8 @@
 import type { LevelId } from '../spatial/types';
 import { isNearlyZero } from '../units/compare';
 import {
-  DEGREES_PER_TURN,
   SQUARE_MILLIMETRES_PER_SQUARE_METRE,
-  degrees,
   millimetres,
-  radians,
-  radiansToDegrees,
   squareMetres,
   type Degrees,
   type Millimetres,
@@ -98,10 +94,6 @@ function roundLength(value: number): Millimetres {
   return millimetres(Math.round(value * LENGTH_PRECISION) / LENGTH_PRECISION);
 }
 
-function roundAngle(value: number): Degrees {
-  return degrees(Math.round(value * LENGTH_PRECISION) / LENGTH_PRECISION);
-}
-
 /** Tag a raw number as square millimetres. The one gate for this unit. */
 export function squareMillimetres(value: number): SquareMillimetres {
   if (!Number.isFinite(value)) {
@@ -156,42 +148,6 @@ export interface ChainMeasurement {
   readonly totalMm: Millimetres;
 }
 
-/**
- * Measure a chain of consecutive points.
- *
- * The legs are kept alongside the total because that is how a dimension string
- * is checked on paper: the sheet prints the parts and the overall, and a
- * disagreement between them is exactly what the engineer is looking for. The
- * total is the sum of the reported legs rather than an independently computed
- * figure, so the two can never contradict each other by a rounding step.
- *
- * `null` for fewer than two points: one point is not a chain.
- */
-export function measureChain(points: readonly MeasurePoint[]): ChainMeasurement | null {
-  if (points.length < 2) {
-    return null;
-  }
-
-  const segmentsMm: Millimetres[] = [];
-  for (let index = 0; index + 1 < points.length; index += 1) {
-    const from = points[index];
-    const to = points[index + 1];
-    if (from === undefined || to === undefined) {
-      continue;
-    }
-    segmentsMm.push(measureDistance(from, to).lengthMm);
-  }
-
-  const total = segmentsMm.reduce<number>((sum, length) => sum + length, 0);
-
-  return {
-    kind: 'chain',
-    points: [...points],
-    segmentsMm,
-    totalMm: roundLength(total),
-  };
-}
-
 /** The angle three picked points make at the middle one. */
 export interface AngleMeasurement {
   readonly kind: 'angle';
@@ -203,46 +159,6 @@ export interface AngleMeasurement {
   readonly reflexDeg: Degrees;
   /** Length of each arm, in the order start-to-vertex, vertex-to-end. */
   readonly armsMm: readonly [Millimetres, Millimetres];
-}
-
-/**
- * Measure the angle at `vertex` between the arms reaching `start` and `end`.
- *
- * Taken from the dot product of the two arms, which needs no plane and so gives
- * the same answer for a plan pick and a 3D pick of the same corner. The result
- * is therefore unsigned: which side of the corner is "inside" is a question
- * about the room, not about the three points, so both readings are returned and
- * the caller says which one the sheet wants.
- *
- * `null` when an arm has no length: an angle to a point on top of the vertex
- * does not exist.
- */
-export function measureAngle(
-  start: MeasurePoint,
-  vertex: MeasurePoint,
-  end: MeasurePoint,
-): AngleMeasurement | null {
-  const [ax, ay, az] = deltaOf(vertex, start);
-  const [bx, by, bz] = deltaOf(vertex, end);
-  const firstArm = Math.hypot(ax, ay, az);
-  const secondArm = Math.hypot(bx, by, bz);
-
-  if (isNearlyZero(firstArm) || isNearlyZero(secondArm)) {
-    return null;
-  }
-
-  // Rounding can push the quotient a hair outside the domain of `acos`, which
-  // would answer `NaN` for two arms that are simply parallel.
-  const cosine = Math.min(1, Math.max(-1, (ax * bx + ay * by + az * bz) / (firstArm * secondArm)));
-  const angleDeg = roundAngle(radiansToDegrees(radians(Math.acos(cosine))));
-
-  return {
-    kind: 'angle',
-    points: [start, vertex, end],
-    angleDeg,
-    reflexDeg: roundAngle(DEGREES_PER_TURN - angleDeg),
-    armsMm: [roundLength(firstArm), roundLength(secondArm)],
-  };
 }
 
 /** The area of a ring of points the user drew themselves. */

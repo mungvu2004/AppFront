@@ -1,7 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { coalesce, COALESCE_WINDOW_MS, type Command } from '../coalesce';
-import { createFlushPolicy } from '../flushPolicy';
 
 interface Point {
   x: number;
@@ -107,81 +106,5 @@ describe('coalesce', () => {
 
     expect(coalesce(commands, 1000)).toHaveLength(1);
     expect(coalesce(commands, 400)).toHaveLength(2);
-  });
-});
-
-describe('createFlushPolicy', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('flushes after the queue has been silent for idleMs', () => {
-    const onFlush = vi.fn();
-    const policy = createFlushPolicy<Point>({ onFlush });
-
-    policy.enqueue(wallDrag('wall-1', 0, { x: 0, y: 0 }, { x: 1, y: 0 }));
-    expect(onFlush).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(COALESCE_WINDOW_MS);
-
-    expect(onFlush).toHaveBeenCalledTimes(1);
-    expect(onFlush).toHaveBeenCalledWith([
-      expect.objectContaining({ mergedCount: 1, previousValue: { x: 0, y: 0 }, value: { x: 1, y: 0 } }),
-    ]);
-  });
-
-  it('flushes as soon as the queue reaches maxQueueSize, then keeps buffering the rest', () => {
-    const onFlush = vi.fn();
-    const policy = createFlushPolicy<Point>({ maxQueueSize: 20, onFlush });
-
-    for (let index = 0; index < 30; index += 1) {
-      policy.enqueue(wallDrag('wall-1', index * 10, { x: index, y: 0 }, { x: index + 1, y: 0 }));
-    }
-
-    expect(onFlush).toHaveBeenCalledTimes(1);
-    expect(onFlush.mock.calls[0]?.[0]).toEqual([expect.objectContaining({ mergedCount: 20 })]);
-
-    vi.advanceTimersByTime(COALESCE_WINDOW_MS);
-
-    expect(onFlush).toHaveBeenCalledTimes(2);
-    expect(onFlush.mock.calls[1]?.[0]).toEqual([expect.objectContaining({ mergedCount: 10 })]);
-  });
-
-  it('flushes immediately when a command that cannot join the buffered run arrives', () => {
-    const onFlush = vi.fn();
-    const policy = createFlushPolicy<Point>({ onFlush });
-
-    policy.enqueue(wallDrag('wall-1', 0, { x: 0, y: 0 }, { x: 1, y: 0 }));
-    policy.enqueue(wallDrag('wall-1', 10, { x: 1, y: 0 }, { x: 2, y: 0 }));
-    policy.enqueue({ kind: 'deleteWall', previousValue: { x: 2, y: 0 }, targetId: 'wall-1', timestamp: 20, value: { x: 2, y: 0 } });
-
-    expect(onFlush).toHaveBeenCalledTimes(1);
-    expect(onFlush.mock.calls[0]?.[0]).toEqual([expect.objectContaining({ kind: 'editWall', mergedCount: 2 })]);
-  });
-
-  it('flushes on changeFloor even before the idle window elapses', () => {
-    const onFlush = vi.fn();
-    const policy = createFlushPolicy<Point>({ onFlush });
-
-    policy.enqueue(wallDrag('wall-1', 0, { x: 0, y: 0 }, { x: 1, y: 0 }));
-    policy.changeFloor();
-
-    expect(onFlush).toHaveBeenCalledTimes(1);
-
-    vi.advanceTimersByTime(COALESCE_WINDOW_MS);
-    expect(onFlush).toHaveBeenCalledTimes(1);
-  });
-
-  it('does nothing on changeFloor when the queue is empty', () => {
-    const onFlush = vi.fn();
-    const policy = createFlushPolicy<Point>({ onFlush });
-
-    policy.changeFloor();
-
-    expect(onFlush).not.toHaveBeenCalled();
   });
 });

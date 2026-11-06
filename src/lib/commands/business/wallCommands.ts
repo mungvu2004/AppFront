@@ -1,8 +1,8 @@
 /**
- * The eight things a person can do to a wall.
+ * The things a person can do to a wall.
  *
  * `wall.draw` · `wall.dragEnd` · `wall.changeThickness` · `wall.changeHeight` ·
- * `wall.changeKind` · `wall.split` · `wall.merge` · `wall.delete`
+ * `wall.split` · `wall.merge` · `wall.delete`
  *
  * Each one is two functions: a `validate…` that reads the drawing and answers
  * with Vietnamese sentences, and a `create…Command` that answers with a command
@@ -697,71 +697,6 @@ export function createChangeWallHeightCommand(
           ? '.'
           : `, ${formatCount(openingCount)} lỗ mở vẫn nằm trọn trong tường.`),
       [changeForUpdate('wall', wall, { ...wall, heightMm: input.heightMm })],
-      context,
-    ),
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* 5. Đổi loại tường — wall.changeKind                                         */
-/* -------------------------------------------------------------------------- */
-
-export interface ChangeWallKindInput {
-  readonly wallId: WallId;
-  readonly kind: WallKind;
-}
-
-/** Everything wrong with this kind change; empty when it may be applied. */
-export function validateChangeWallKind(
-  input: ChangeWallKindInput,
-  context: CommandContext,
-): string[] {
-  const wall = readOf(context.graph, 'wall', input.wallId);
-
-  if (wall === null) {
-    return [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)} trong bản vẽ.`];
-  }
-
-  if (!WALL_KINDS.includes(input.kind)) {
-    return [`Loại tường "${input.kind}" không có trong hệ thống.`];
-  }
-
-  if (wall.kind === input.kind) {
-    return [`Tường ${displayCodeIn(context.graph, wall.id)} đã là ${WALL_KIND_LABELS[input.kind]} nên không có gì thay đổi.`];
-  }
-
-  return [];
-}
-
-/** Changes what a wall is for. */
-export function createChangeWallKindCommand(
-  input: ChangeWallKindInput,
-  context: CommandContext,
-): CommandResult {
-  const reasons = validateChangeWallKind(input, context);
-
-  if (reasons.length > 0) {
-    return refuse(WALL_COMMAND_TYPES.changeKind, reasons);
-  }
-
-  const wall = readOf(context.graph, 'wall', input.wallId);
-
-  if (wall === null) {
-    return refuse(WALL_COMMAND_TYPES.changeKind, [`Không tìm thấy tường ${displayCodeIn(context.graph, input.wallId)}.`]);
-  }
-
-  const lengthMm = distanceBetween(
-    toPointMm(wall.centreline.start),
-    toPointMm(wall.centreline.end),
-  );
-
-  return accept(
-    buildCommand(
-      WALL_COMMAND_TYPES.changeKind,
-      `Đổi loại tường ${displayCodeIn(context.graph, wall.id)} từ ${WALL_KIND_LABELS[wall.kind]} sang ` +
-        `${WALL_KIND_LABELS[input.kind]}, dài ${formatLengthMm(lengthMm)}, dày ` +
-        `${formatLengthMm(wall.thicknessMm)}.`,
-      [changeForUpdate('wall', wall, { ...wall, kind: input.kind })],
       context,
     ),
   );

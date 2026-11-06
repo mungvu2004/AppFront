@@ -69,7 +69,6 @@ import {
 import type { CommandContext, CommandResult } from '../shared';
 import {
   createChangeWallHeightCommand,
-  createChangeWallKindCommand,
   createChangeWallThicknessCommand,
   createDeleteWallCommand,
   createDragWallEndCommand,
@@ -441,10 +440,6 @@ const wallCases: readonly CommandCase[] = [
     build: () => createChangeWallHeightCommand({ wallId: SOUTH_WALL, heightMm: 2800 }, context),
   },
   {
-    name: 'wall.changeKind',
-    build: () => createChangeWallKindCommand({ wallId: SOUTH_WALL, kind: 'envelope' }, context),
-  },
-  {
     name: 'wall.split',
     build: () =>
       createSplitWallCommand(
@@ -595,13 +590,13 @@ const roomFloorCases: readonly CommandCase[] = [
 const allCases: readonly CommandCase[] = [...wallCases, ...openingCases, ...roomFloorCases];
 
 /**
- * How many business commands there are: 8 wall + 9 opening and furniture +
+ * How many business commands there are: 7 wall + 9 opening and furniture +
  * 6 room and level. The brief's summary line says twenty and the three lists
  * it enumerates name twenty-one; the two geometry commands the property
  * inspector needs — `wall.changeHeight` and `furniture.resize` — were missing
  * from both, and the lists are what is implemented.
  */
-const BUSINESS_COMMAND_COUNT = 23;
+const BUSINESS_COMMAND_COUNT = 22;
 
 /* -------------------------------------------------------------------------- */
 /* The round trip.                                                             */
@@ -613,7 +608,7 @@ describe('business commands', () => {
   });
 
   it('covers every business command exactly once', () => {
-    expect(wallCases).toHaveLength(8);
+    expect(wallCases).toHaveLength(7);
     expect(openingCases).toHaveLength(9);
     expect(roomFloorCases).toHaveLength(6);
     expect(allCases).toHaveLength(BUSINESS_COMMAND_COUNT);
