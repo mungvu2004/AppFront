@@ -7,7 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { LevelId } from '@/domain/spatial/types';
 import {
@@ -43,13 +43,6 @@ import {
   type CaptureInfoInput,
   type CaptureCanvasInput,
 } from '../screenshot';
-import {
-  createFloorCapture,
-  progressMessage,
-  ScreenshotQueue,
-  type ScreenshotJob,
-  type ScreenshotQueueProgress,
-} from '../screenshotQueue';
 
 /* -------------------------------------------------------------------------- */
 /* The standard sample set: 48 / 21 / 34 / 14 / 4 and 248,60 m².               */
@@ -64,10 +57,15 @@ const VIEWPORT = { widthPx: 1280, heightPx: 720 };
 const TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const CAPTURED_AT = new Date('2026-08-17T07:32:05.000Z');
 
+interface SampleFloor {
+  readonly levelId: LevelId;
+  readonly levelName: string;
+}
+
 /** The four storeys of the sample building, bottom first. */
-const FLOORS: readonly ScreenshotJob[] = Array.from(
+const FLOORS: readonly SampleFloor[] = Array.from(
   { length: FLOOR_COUNT },
-  (_unused, index): ScreenshotJob => ({
+  (_unused, index): SampleFloor => ({
     levelId: `L-0${String(index + 1)}` as LevelId,
     levelName: `Tầng ${String(index + 1)}`,
   }),
@@ -671,253 +669,7 @@ describe('naming and measuring', () => {
 });
 
 describe('no module here spells a colour out', () => {
-  it('keeps screenshot.ts and screenshotQueue.ts free of colour literals', () => {
+  it('keeps screenshot.ts free of colour literals', () => {
     expect(() => expectNoRawColor('src/lib/export/screenshot.ts')).not.toThrow();
-    expect(() => expectNoRawColor('src/lib/export/screenshotQueue.ts')).not.toThrow();
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* The queue.                                                                  */
-/* -------------------------------------------------------------------------- */
-
-describe('ScreenshotQueue', () => {
-  let harness: ReturnType<typeof captureHarness>;
-  let shown: LevelId[];
-  let restored: number;
-
-  function queueOf(overrides: Partial<ConstructorParameters<typeof ScreenshotQueue>[0]> = {}) {
-    return new ScreenshotQueue({
-      capture: createFloorCapture(harness.input, harness.host),
-      showFloor: (job) => {
-        shown.push(job.levelId);
-      },
-      restore: () => {
-        restored += 1;
-      },
-      ...overrides,
-    });
-  }
-
-  beforeEach(() => {
-    harness = captureHarness();
-    shown = [];
-    restored = 0;
-  });
-
-  it('photographs four storeys in the order they were queued', async () => {
-    const queue = queueOf();
-    queue.enqueue(FLOORS);
-
-    const outcome = await queue.run();
-
-    expect(outcome.status).toBe('done');
-    expect(outcome.images).toHaveLength(FLOOR_COUNT);
-    expect(shown).toEqual(FLOORS.map((floor) => floor.levelId));
-    expect(outcome.images.map((image) => image.fileName)).toEqual([
-      ...new Set(outcome.images.map((image) => image.fileName)),
-    ]);
-  });
-
-  it('names each file after the storey it is a picture of', async () => {
-    const queue = queueOf();
-    queue.enqueue(FLOORS);
-
-    const outcome = await queue.run();
-
-    outcome.images.forEach((image, index) => {
-      expect(image.fileName).toContain(`tang-${String(index + 1)}`);
-    });
-  });
-
-  it('takes one 2D canvas per storey', async () => {
-    const queue = queueOf();
-    queue.enqueue(FLOORS);
-
-    await queue.run();
-
-    expect(harness.canvases).toHaveLength(FLOOR_COUNT);
-  });
-
-  it('puts the reviewer back on the storey they were reviewing', async () => {
-    const queue = queueOf();
-    queue.enqueue(FLOORS);
-
-    await queue.run();
-
-    expect(restored).toBe(1);
-  });
-
-  /* Progress. */
-
-  it('reports both halves of every storey, with the totals as they stand', async () => {
-    const progress: ScreenshotQueueProgress[] = [];
-    const queue = queueOf({ onProgress: (report) => progress.push(report) });
-    queue.enqueue(FLOORS);
-
-    await queue.run();
-
-    expect(progress).toHaveLength(FLOOR_COUNT * 2);
-    expect(progress[0]).toMatchObject({ phase: 'showing', completed: 0, total: FLOOR_COUNT });
-    expect(progress[1]).toMatchObject({ phase: 'capturing', completed: 0, total: FLOOR_COUNT });
-    expect(progress.at(-1)).toMatchObject({
-      phase: 'capturing',
-      completed: FLOOR_COUNT - 1,
-      total: FLOOR_COUNT,
-    });
-  });
-
-  it('writes a Vietnamese sentence a status line can show', () => {
-    expect(progressMessage('capturing', 'Tầng 2', 1, 4)).toBe('Đang chụp Tầng 2 (2/4).');
-    expect(progressMessage('showing', 'Tầng 1', 0, 4)).toBe('Đang mở Tầng 1 (1/4).');
-  });
-
-  it('hands each picture over the moment it exists', async () => {
-    const arrived: string[] = [];
-    const queue = queueOf({ onImage: (image) => arrived.push(image.fileName) });
-    queue.enqueue(FLOORS);
-
-    const outcome = await queue.run();
-
-    expect(arrived).toEqual(outcome.images.map((image) => image.fileName));
-  });
-
-  it('counts storeys enqueued while it is running into the same total', async () => {
-    const progress: ScreenshotQueueProgress[] = [];
-    const queue = queueOf({
-      onProgress: (report) => {
-        progress.push(report);
-        if (progress.length === 1) {
-          queue.enqueue(FLOORS.slice(2));
-        }
-      },
-    });
-    queue.enqueue(FLOORS.slice(0, 2));
-
-    const outcome = await queue.run();
-
-    expect(outcome.images).toHaveLength(FLOOR_COUNT);
-    expect(progress[0]?.total).toBe(2);
-    expect(progress.at(-1)?.total).toBe(FLOOR_COUNT);
-  });
-
-  /* Stopping. */
-
-  it('stops after the storey in flight and drops the rest', async () => {
-    const queue = queueOf({
-      onProgress: (report) => {
-        if (report.phase === 'capturing' && report.completed === 1) {
-          queue.cancel();
-        }
-      },
-    });
-    queue.enqueue(FLOORS);
-
-    const outcome = await queue.run();
-
-    expect(outcome.status).toBe('cancelled');
-    expect(outcome.images).toHaveLength(2);
-    expect(outcome.skipped.map((job) => job.levelId)).toEqual([FLOORS[2]?.levelId, FLOORS[3]?.levelId]);
-    expect(restored).toBe(1);
-  });
-
-  it('photographs nothing once cancelled, however much is queued afterwards', async () => {
-    const queue = queueOf();
-    queue.cancel();
-    queue.enqueue(FLOORS);
-
-    const outcome = await queue.run();
-
-    expect(outcome.status).toBe('cancelled');
-    expect(outcome.images).toHaveLength(0);
-    expect(harness.canvases).toHaveLength(0);
-    expect(shown).toEqual([]);
-  });
-
-  /* Failing. */
-
-  it('keeps the pictures it already took when a storey fails', async () => {
-    const failing = vi.fn(async (job: ScreenshotJob) => {
-      if (job.levelId === FLOORS[2]?.levelId) {
-        throw new Error('Không dựng lại được tầng.');
-      }
-      return createFloorCapture(harness.input, harness.host)(job);
-    });
-    const queue = queueOf({ capture: failing });
-    queue.enqueue(FLOORS);
-
-    const outcome = await queue.run();
-
-    expect(outcome.status).toBe('failed');
-    expect(outcome.failure).toBe('Không dựng lại được tầng.');
-    expect(outcome.images).toHaveLength(2);
-    expect(outcome.skipped).toHaveLength(2);
-    expect(restored).toBe(1);
-  });
-
-  it('reports a storey that could not be shown rather than photographing the wrong one', async () => {
-    const queue = queueOf({
-      showFloor: (job) => {
-        if (job.levelId === FLOORS[0]?.levelId) {
-          throw new Error('Tầng không tồn tại.');
-        }
-      },
-    });
-    queue.enqueue(FLOORS);
-
-    const outcome = await queue.run();
-
-    expect(outcome.status).toBe('failed');
-    expect(outcome.images).toHaveLength(0);
-    expect(harness.canvases).toHaveLength(0);
-  });
-
-  it('never rejects, even when putting the viewer back fails', async () => {
-    const queue = queueOf({
-      restore: () => {
-        throw new Error('Không quay lại được tầng cũ.');
-      },
-    });
-    queue.enqueue(FLOORS.slice(0, 1));
-
-    const outcome = await queue.run();
-
-    expect(outcome.status).toBe('failed');
-    expect(outcome.failure).toBe('Không quay lại được tầng cũ.');
-    expect(outcome.images).toHaveLength(1);
-  });
-
-  /* Running. */
-
-  it('answers a second run with the first rather than starting two', async () => {
-    const queue = queueOf();
-    queue.enqueue(FLOORS);
-
-    const first = queue.run();
-    const second = queue.run();
-
-    expect(first).toBe(second);
-
-    const outcome = await first;
-
-    expect(outcome.images).toHaveLength(FLOOR_COUNT);
-    expect(harness.canvases).toHaveLength(FLOOR_COUNT);
-  });
-
-  it('knows what it is doing while it does it', async () => {
-    const queue = queueOf();
-    queue.enqueue(FLOORS);
-
-    expect(queue.pendingCount).toBe(FLOOR_COUNT);
-    expect(queue.isRunning).toBe(false);
-
-    const running = queue.run();
-
-    expect(queue.isRunning).toBe(true);
-    await running;
-
-    expect(queue.isRunning).toBe(false);
-    expect(queue.completedCount).toBe(FLOOR_COUNT);
-    expect(queue.pendingCount).toBe(0);
   });
 });

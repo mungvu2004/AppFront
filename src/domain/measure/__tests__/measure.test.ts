@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LevelId } from '../../spatial/types';
-import { millimetres } from '../../units/types';
+import { degrees, millimetres } from '../../units/types';
 import {
   DIRECTION_LOCK_STEP_DEG,
   ORTHOGONAL_LOCK_STEP_DEG,
@@ -16,8 +16,6 @@ import {
   createMeasurementNote,
   createMeasurementNoteId,
   elevationOf,
-  measureAngle,
-  measureChain,
   measureDistance,
   measureHeight,
   measurePolygonArea,
@@ -25,6 +23,7 @@ import {
   nextMeasurementNoteSequence,
   readMeasurementNoteSequence,
   type MeasurePoint,
+  type Measurement,
   type MeasurementNote,
 } from '../measure';
 
@@ -73,86 +72,6 @@ describe('measureDistance', () => {
     const measurement = measureDistance(point(0, 0), point(48, 21));
     expect(measurement.points).toEqual([point(0, 0), point(48, 21)]);
     expect(measurement.kind).toBe('distance');
-  });
-});
-
-describe('measureChain', () => {
-  it('returns every leg and their total for a chain of four points', () => {
-    const measurement = measureChain([
-      point(0, 0),
-      point(3000, 0),
-      point(3000, 4000),
-      point(0, 4000),
-    ]);
-
-    expect(measurement).not.toBeNull();
-    expect(measurement?.segmentsMm).toEqual([3000, 4000, 3000]);
-    expect(measurement?.totalMm).toBe(10000);
-  });
-
-  it('reports a total that is exactly the sum of the legs it reports', () => {
-    const measurement = measureChain([point(0, 0), point(1500, 2200), point(4800, 700)]);
-    const sum = (measurement?.segmentsMm ?? []).reduce((total, leg) => total + leg, 0);
-    expect(measurement?.totalMm).toBe(sum);
-  });
-
-  it('measures a chain that climbs between levels', () => {
-    const measurement = measureChain([
-      spacePoint(0, 0, 0),
-      spacePoint(0, 0, 3600),
-      spacePoint(0, 4000, 3600),
-    ]);
-
-    expect(measurement?.segmentsMm).toEqual([3600, 4000]);
-    expect(measurement?.totalMm).toBe(7600);
-  });
-
-  it('refuses a chain of one point', () => {
-    expect(measureChain([point(0, 0)])).toBeNull();
-  });
-
-  it('refuses an empty chain', () => {
-    expect(measureChain([])).toBeNull();
-  });
-});
-
-describe('measureAngle', () => {
-  it('measures a square corner on the plan', () => {
-    const measurement = measureAngle(point(1000, 0), point(0, 0), point(0, 1000));
-    expect(measurement?.angleDeg).toBe(90);
-    expect(measurement?.reflexDeg).toBe(270);
-    expect(measurement?.armsMm).toEqual([1000, 1000]);
-  });
-
-  it('measures a square corner picked in three dimensions', () => {
-    const measurement = measureAngle(
-      spacePoint(1000, 0, 0),
-      spacePoint(0, 0, 0),
-      spacePoint(0, 0, 1000),
-    );
-    expect(measurement?.angleDeg).toBe(90);
-  });
-
-  it('measures a straight run as half a turn', () => {
-    const measurement = measureAngle(point(-2000, 0), point(0, 0), point(3000, 0));
-    expect(measurement?.angleDeg).toBe(180);
-    expect(measurement?.reflexDeg).toBe(180);
-  });
-
-  it('measures two arms lying on top of each other as nothing', () => {
-    const measurement = measureAngle(point(2000, 0), point(0, 0), point(3000, 0));
-    expect(measurement?.angleDeg).toBe(0);
-  });
-
-  it('reads the same angle from either side of the corner', () => {
-    const clockwise = measureAngle(point(1000, 0), point(0, 0), point(700, 700));
-    const anticlockwise = measureAngle(point(700, 700), point(0, 0), point(1000, 0));
-    expect(clockwise?.angleDeg).toBe(anticlockwise?.angleDeg);
-  });
-
-  it('refuses an arm with no length', () => {
-    expect(measureAngle(point(0, 0), point(0, 0), point(1000, 0))).toBeNull();
-    expect(measureAngle(point(1000, 0), point(0, 0), point(0, 0))).toBeNull();
   });
 });
 
@@ -401,12 +320,23 @@ describe('measurement notes', () => {
   });
 
   it('names each kind of measurement in Vietnamese', () => {
-    const chain = measureChain([point(0, 0), point(1000, 0), point(1000, 1000)]);
-    const angle = measureAngle(point(1000, 0), point(0, 0), point(0, 1000));
+    const chain: Measurement = {
+      kind: 'chain',
+      points: [point(0, 0), point(1000, 0), point(1000, 1000)],
+      segmentsMm: [millimetres(1000), millimetres(1000)],
+      totalMm: millimetres(2000),
+    };
+    const angle: Measurement = {
+      kind: 'angle',
+      points: [point(1000, 0), point(0, 0), point(0, 1000)],
+      angleDeg: degrees(90),
+      reflexDeg: degrees(270),
+      armsMm: [millimetres(1000), millimetres(1000)],
+    };
     const area = measurePolygonArea([point(0, 0), point(1000, 0), point(1000, 1000)]);
     const height = measureHeight(spacePoint(0, 0, 0), spacePoint(0, 0, 3600));
 
-    if (chain === null || angle === null || area === null) {
+    if (area === null) {
       throw new Error('The sample measurements are all valid by construction.');
     }
 

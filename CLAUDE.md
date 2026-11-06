@@ -55,8 +55,8 @@ khai tại `eslint-rules/configs/project.js:126-231`, hiện **0 vi phạm**.
 | `src/screens/**` | — |
 
 > *"lib TUYỆT ĐỐI không import React"* — `project.js:26`. Đây là lý do `src/lib` chạy
-> được trong worker và test được không cần DOM. Xem `src/hooks/useShortcut.ts:5`,
-> `src/hooks/useFeatureFlag.ts:18`, `src/lib/mutations/undoTicket.ts:11`.
+> được trong worker và test được không cần DOM. Xem `src/hooks/useShortcut.ts:5` và
+> `src/lib/mutations/undoTicket.ts:11`.
 
 Ngoại lệ duy nhất: `src/lib/testing/**` được import `@testing-library/react` (nó phải
 dựng được cây React để test màn hình), nhưng `react` và `react-dom` vẫn bị chặn đích danh.

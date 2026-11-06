@@ -19,8 +19,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import {
   appShortcutRegistry,
-  buildGlobalShortcuts,
-  type GlobalShortcutHandlers,
   type ShortcutDefinition,
   type ShortcutKeyEvent,
   type ShortcutRegistry,
@@ -165,59 +163,6 @@ export function useShortcutScope(
       release();
     };
   }, [registry, scope, active]);
-}
-
-/**
- * Installs the six application-wide keys: Ctrl+Z, Ctrl+Shift+Z, Ctrl+S,
- * Ctrl+F, `?` for the shortcut table, Escape for the top layer. The shell
- * calls this once with the handlers it owns; handlers are read through a
- * ref, so a re-render with fresh closures does not churn the registrations.
- */
-export function useGlobalShortcuts(
-  handlers: GlobalShortcutHandlers,
-  options: Pick<UseShortcutOptions, 'registry'> = {},
-): void {
-  const registry = options.registry ?? appShortcutRegistry;
-
-  const handlersRef = useRef(handlers);
-
-  useEffect(() => {
-    handlersRef.current = handlers;
-  });
-
-  useEffect(() => {
-    const definitions = buildGlobalShortcuts({
-      undo: (): void => {
-        handlersRef.current.undo();
-      },
-      redo: (): void => {
-        handlersRef.current.redo();
-      },
-      save: (): void => {
-        handlersRef.current.save();
-      },
-      openSearch: (): void => {
-        handlersRef.current.openSearch();
-      },
-      openShortcutHelp: (): void => {
-        handlersRef.current.openShortcutHelp();
-      },
-      closeTopLayer: (): void => {
-        handlersRef.current.closeTopLayer();
-      },
-    });
-
-    const release = retainListener(registry);
-    const disposers = definitions.map((definition) => registry.register(definition));
-
-    return (): void => {
-      for (const dispose of disposers) {
-        dispose();
-      }
-
-      release();
-    };
-  }, [registry]);
 }
 
 /**

@@ -1,28 +1,15 @@
 /**
- * The keyboard: the bindings, the resolver, and the table generated from both.
+ * The keyboard: the bindings and the resolver.
  *
- * The file is organised around the three promises the module makes.
- *
- * - **No key does two things.** `shortcutConflicts` is checked twice: once
- *   against the shipped table, where it must find nothing, and once against a
- *   deliberately broken one, where it must find the clash. A checker that
- *   always answered "no conflicts" would pass the first test and fail the
- *   second, which is the point of having both.
+ * - **No key does two things.** The shipped table binds eleven distinct keys
+ *   and none of them is one the interface reserves.
  * - **Nothing fires while somebody is typing.** Every tool key and every
  *   modifier is replayed with the focus in a field, and the resolver must
  *   answer `null` to all eleven — not "usually", not "for letters".
- * - **The table is generated.** Each tool row is compared with the tool's own
- *   `label` and `description`, so a row that had been typed out by hand would
- *   fail as soon as the tool's wording changed.
- *
- * The last test prints the table, the way the permissions matrix is printed, so
- * a review reads the shipped keyboard out of the test log rather than out of
- * the source.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { TOOLS } from '../tools';
 import { TOOL_IDS, type ToolId } from '../toolMachine';
 import {
   applyShortcut,
@@ -35,8 +22,6 @@ import {
   RESERVED_KEYS,
   resolveKeyDown,
   resolveKeyUp,
-  SHORTCUT_BINDINGS,
-  shortcutConflicts,
   shortcutForTool,
   TOOL_SHORTCUTS,
   toolForShortcut,
@@ -45,13 +30,6 @@ import {
   type ShortcutTarget,
   type ToolModifier,
 } from '../shortcuts';
-import {
-  buildShortcutTable,
-  SHORTCUT_SECTION_LABELS,
-  SHORTCUT_TABLE,
-  shortcutRowFor,
-  shortcutRows,
-} from '../shortcutTable';
 
 /* -------------------------------------------------------------------------- */
 /* Fixture.                                                                    */
@@ -126,10 +104,6 @@ describe('the shortcut bindings', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('checking for clashes', () => {
-  it('finds no clash in the keyboard this build ships', () => {
-    expect(shortcutConflicts()).toEqual([]);
-  });
-
   it('binds eleven distinct keys in total', () => {
     expect(ALL_CODES).toHaveLength(11);
     expect(new Set(ALL_CODES.map((code) => normaliseKey(code))).size).toBe(11);
@@ -141,38 +115,6 @@ describe('checking for clashes', () => {
     for (const code of ALL_CODES) {
       expect(`${code}:${reserved.has(normaliseKey(code))}`).toBe(`${code}:false`);
     }
-  });
-
-  it('reports a key given to two tools', () => {
-    const clashing = shortcutConflicts({
-      ...SHORTCUT_BINDINGS,
-      tools: { ...TOOL_SHORTCUTS, annotate: 'V' },
-    });
-
-    expect(clashing).toHaveLength(1);
-    expect(clashing[0]?.code).toBe('V');
-    expect(clashing[0]?.boundTo).toEqual(['tool:select', 'tool:annotate']);
-    expect(clashing[0]?.reason).toContain('2 chức năng');
-  });
-
-  it('reports a tool key that collides with a modifier', () => {
-    const clashing = shortcutConflicts({
-      ...SHORTCUT_BINDINGS,
-      tools: { ...TOOL_SHORTCUTS, measure: 'SHIFT' },
-    });
-
-    expect(clashing.map((conflict) => conflict.code)).toEqual(['SHIFT']);
-    expect(clashing[0]?.boundTo).toEqual(['tool:measure', 'modifier:lockAxis']);
-  });
-
-  it('reports a binding that took a reserved key', () => {
-    const clashing = shortcutConflicts({
-      ...SHORTCUT_BINDINGS,
-      tools: { ...TOOL_SHORTCUTS, splitWall: 'Escape' },
-    });
-
-    expect(clashing.map((conflict) => conflict.code)).toEqual(['ESCAPE']);
-    expect(clashing[0]?.reason).toContain('dành cho giao diện');
   });
 });
 
@@ -345,99 +287,5 @@ describe('the held-key state', () => {
 
   it('drops everything when the window stops listening', () => {
     expect(clearModifiers()).toEqual(NO_MODIFIERS);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* The generated table.                                                        */
-/* -------------------------------------------------------------------------- */
-
-describe('the lookup table', () => {
-  it('has one row per binding, in two sections', () => {
-    expect(SHORTCUT_TABLE.map((section) => section.id)).toEqual(['tools', 'modifiers']);
-    expect(SHORTCUT_TABLE.map((section) => section.title)).toEqual([
-      SHORTCUT_SECTION_LABELS.tools,
-      SHORTCUT_SECTION_LABELS.modifiers,
-    ]);
-    expect(shortcutRows()).toHaveLength(11);
-  });
-
-  it('takes every tool row from the tool itself rather than restating it', () => {
-    const [tools] = SHORTCUT_TABLE;
-
-    expect(tools?.rows.map((row) => row.subject)).toEqual(
-      TOOL_IDS.map((tool) => ({ kind: 'tool', tool })),
-    );
-
-    for (const tool of TOOL_IDS) {
-      const row = shortcutRowFor(TOOL_SHORTCUTS[tool]);
-
-      expect(`${tool}:${row?.action ?? ''}`).toBe(`${tool}:${TOOLS[tool].label}`);
-      expect(`${tool}:${row?.description ?? ''}`).toBe(`${tool}:${TOOLS[tool].description}`);
-      expect(row?.id).toBe(`tool.${tool}`);
-    }
-  });
-
-  it('takes every modifier row from the modifier declaration', () => {
-    for (const shortcut of MODIFIER_SHORTCUTS) {
-      const row = shortcutRowFor(shortcut.code);
-
-      expect(row?.id).toBe(`modifier.${shortcut.modifier}`);
-      expect(row?.keyLabel).toBe(shortcut.keyLabel);
-      expect(row?.action).toBe(shortcut.label);
-      expect(row?.description).toBe(shortcut.description);
-    }
-  });
-
-  it('lists the tools in the order the toolbar lists them', () => {
-    const [tools] = SHORTCUT_TABLE;
-
-    expect(tools?.rows.map((row) => row.keyLabel)).toEqual(
-      TOOL_IDS.map((tool) => TOOL_SHORTCUTS[tool]),
-    );
-  });
-
-  it('gives every row a key the resolver actually answers to', () => {
-    for (const row of shortcutRows()) {
-      const key = row.code === 'SPACE' ? ' ' : row.code;
-
-      expect(`${row.id}:${String(resolveKeyDown({ key }, CANVAS) === null)}`).toBe(
-        `${row.id}:false`,
-      );
-    }
-  });
-
-  it('finds nothing for a key nobody was given', () => {
-    expect(shortcutRowFor('Q')).toBeNull();
-  });
-
-  it('rebuilds itself from whatever registry it is handed', () => {
-    const rebuilt = buildShortcutTable(TOOLS);
-
-    expect(rebuilt).toEqual(SHORTCUT_TABLE);
-  });
-
-  it('prints the eleven shortcuts and matches the brief', () => {
-    const printed = shortcutRows().map((row) => ({
-      key: row.keyLabel,
-      action: row.action,
-      description: row.description,
-    }));
-
-    console.table(printed);
-
-    expect(printed.map((row) => row.key)).toEqual([
-      'V',
-      'H',
-      'W',
-      'D',
-      'F',
-      'M',
-      'X',
-      'G',
-      'Shift',
-      'Alt',
-      'Phím cách',
-    ]);
   });
 });

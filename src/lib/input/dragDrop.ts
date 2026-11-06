@@ -1,8 +1,7 @@
 /**
  * One drag from the library to the drawing, pointer or keyboard.
  *
- * The 3D gizmo session (lib/three/interaction/dragSession.ts) already
- * established the two promises a drag must keep in this product, and this
+ * The 3D gizmo drag established the two promises a drag must keep in this product, and this
  * module keeps them for the 2D library drop:
  *
  * - **One drag, one command.** However many moves the session sees, the only
